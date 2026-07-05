@@ -154,7 +154,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                     <ChartContainer config={chartConfig} className="h-[250px] w-full">
                         <ResponsiveContainer width="100%" height={250}>
                             <PieChart>
-                                <Tooltip content={<ChartTooltipContent nameKey="name" />} />
+                                <Tooltip content={<ChartTooltipContent />} />
                                 <Pie data={monthlyAttendanceData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
                                     {monthlyAttendanceData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

@@ -318,7 +318,7 @@ export default function FleetTransactionsPage() {
 
     const handleExport = async (type: 'excel' | 'pdf') => {
         const periodStr = dateRange?.from ? `${toNepaliDate(dateRange.from.toISOString())} - ${dateRange.to ? toNepaliDate(dateRange.to.toISOString()) : 'Present'}` : 'All Time';
-        const partyStr = filterParties.length === 0 ? 'All Parties' : filterParties.length === 1 ? partiesById.get(filterParties[0]) : `${filterParties.length} Parties`;
+        const partyStr = filterParties.length === 0 ? 'All Parties' : filterParties.length === 1 ? (partiesById.get(filterParties[0]) || 'N/A') : `${filterParties.length} Parties`;
         const vehicleStr = filterVehicles.length === 0 ? 'All Vehicles' : filterVehicles.length === 1 ? vehiclesById.get(filterVehicles[0]) : `${filterVehicles.length} Vehicles`;
         const nowStr = format(new Date(), 'PPP p');
 
@@ -389,7 +389,7 @@ export default function FleetTransactionsPage() {
                 },
                 didDrawPage: (data) => {
                     doc.setFontSize(7);
-                    doc.text(`Page ${doc.internal.getNumberOfPages()}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
+                    doc.text(`Page ${(doc.internal as any).getNumberOfPages()}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
                 }
             });
             doc.save(`Ledger_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);

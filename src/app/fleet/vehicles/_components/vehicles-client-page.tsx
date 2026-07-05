@@ -136,7 +136,7 @@ export default function VehiclesClientPage({
                 await updateVehicle(editingVehicle.id, updatedData);
                 toast({ title: 'Success', description: 'Vehicle updated.' });
             } else {
-                const newData: Omit<Vehicle, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, createdBy: user.username };
+                const newData: Omit<Vehicle, 'id' | 'lastModifiedAt'> = { ...formState, createdAt: new Date().toISOString(), createdBy: user.username };
                 await addVehicle(newData);
                 toast({ title: 'Success', description: 'New vehicle added.' });
             }

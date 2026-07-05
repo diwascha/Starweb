@@ -276,7 +276,7 @@ export default function PayrollClientPage() {
                     <div className="mb-4 flex justify-end gap-2">
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive-outline" disabled={!monthlyPayroll || monthlyPayroll.length === 0}><Trash2 className="mr-2 h-4 w-4" /> Delete Payroll Data</Button>
+                                <Button variant="destructive" disabled={!monthlyPayroll || monthlyPayroll.length === 0}><Trash2 className="mr-2 h-4 w-4" /> Delete Payroll Data</Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>

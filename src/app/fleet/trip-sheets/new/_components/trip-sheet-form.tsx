@@ -457,7 +457,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 await updateDestination(editingDestination.id, { ...destinationForm, lastModifiedBy: user.username });
                 toast({ title: 'Success', description: 'Destination updated.' });
             } else {
-                await addDestination({ ...destinationForm, createdBy: user.username });
+                await addDestination({ ...destinationForm, createdAt: new Date().toISOString(), createdBy: user.username });
                 toast({ title: 'Success', description: 'New destination added.' });
             }
             setIsDestinationDialogOpen(false);

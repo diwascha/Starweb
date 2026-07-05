@@ -1,226 +1,389 @@
 'use client';
 
-import React from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useFieldArray } from 'react-hook-form';
-import * as z from 'zod';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { 
+  PlusCircle, 
+  Search, 
+  ArrowUpDown, 
+  MoreHorizontal, 
+  Trash2, 
+  Edit, 
+  FilterX, 
+  CalendarIcon, 
+  Loader2,
+  Check,
+  ChevronDown,
+  Users,
+  Truck
+} from 'lucide-react';
+import type { Vehicle, Party } from '@/lib/types';
+import type { Expense } from '@/lib/expense-types';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Account, Party, Vehicle, Transaction, PartyType, UnitOfMeasurement, AccountOwnership, BankAccountType } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, X, PlusCircle, Edit, Loader2 } from 'lucide-react';
-import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format } from 'date-fns';
-import { cn, toNepaliDate, normalizeBF, generateId } from '@/lib/utils';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useAuth } from '@/hooks/use-auth';
-import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { onTransactionsUpdate } from '@/services/transaction-service';
-import { generateNextPurchaseNumber } from '@/lib/utils';
-import { addParty, updateParty } from '@/services/party-service';
-import { addAccount, updateAccount } from '@/services/account-service';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
+import { cn, toNepaliDate } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
+import { onExpensesUpdate, deleteExpense } from '@/services/expense-service';
+import { onVehiclesUpdate } from '@/services/vehicle-service';
+import { onPartiesUpdate } from '@/services/party-service';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import type { DateRange } from 'react-day-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import NepaliDate from 'nepali-date-converter';
+import { NEPALI_MONTHS } from '@/lib/constants';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-const purchaseCategories = [
-    'Fuel', 'Maintenance', 'Membership Renewal', 'Spare Parts', 'Taxes / Fees', 'Other'
-];
+type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType';
+type SortDirection = 'asc' | 'desc';
 
-const transactionItemSchema = z.object({
-    particular: z.string().min(1, 'Particular is required.'),
-    quantity: z.number().min(0, 'Quantity must be positive.'),
-    uom: z.string().nullish(),
-    rate: z.number().min(0, 'Rate must be positive.'),
-});
+// Helper component for multi-select with "All" support
+const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
+    const isAll = values.length === 0;
 
-const transactionSchema = z.object({
-    purchaseNumber: z.string().min(1, "Purchase number is required."),
-    vehicleId: z.string().min(1, 'Vehicle is required.'),
-    date: z.date({ required_error: 'Posting date is required.' }),
-    category: z.string().min(1, 'Category is required.'),
-    invoiceNumber: z.string().nullish(),
-    invoiceDate: z.date().nullish(),
-    invoiceType: z.enum(['Taxable', 'Normal']),
-    billingType: z.enum(['Cash', 'Bank', 'Credit']),
-    chequeNumber: z.string().nullish(),
-    chequeDate: z.date().nullish(),
-    dueDate: z.date().nullish(),
-    partyId: z.string().nullish(),
-    accountId: z.string().nullish(),
-    items: z.array(transactionItemSchema).min(1, 'At least one item is required.'),
-    remarks: z.string().nullish(),
-    type: z.enum(['Purchase', 'Sales']),
-}).refine(data => {
-    if (data.billingType === 'Bank') return !!data.chequeDate;
-    return true;
-}, { message: 'Cheque Date is required for Bank billing.', path: ['chequeDate'] })
-.refine(data => {
-    if (data.billingType === 'Bank') return !!data.chequeNumber && data.chequeNumber.trim() !== '';
-    return true;
-}, { message: 'Cheque Number is required for Bank billing.', path: ['chequeNumber'] })
-.refine(data => {
-    if (data.billingType === 'Bank') return !!data.accountId;
-    return true;
-}, { message: 'Bank Account is required for Bank billing.', path: ['accountId'] })
-.refine(data => {
-    if (['Credit', 'Purchase', 'Sales'].includes(data.billingType)) return !!data.partyId;
-    return true;
-}, { message: 'Supplier/Party is required.', path: ['partyId'] });
-
-type TransactionFormValues = z.infer<typeof transactionSchema>;
-
-interface PurchaseFormProps {
-  accounts: Account[];
-  parties: Party[];
-  vehicles: Vehicle[];
-  uoms: UnitOfMeasurement[];
-  onFormSubmit: (values: any) => Promise<void>;
-  onCancel: () => void;
-  initialValues?: Partial<TransactionFormValues>;
-}
-
-export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, onCancel, initialValues }: PurchaseFormProps) {
-    const { toast } = useToast();
-    const { user } = useAuth();
-    const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const [isPartyDialogOpen, setIsPartyDialogOpen] = React.useState(false);
-    const [isAccountDialogOpen, setIsAccountDialogOpen] = React.useState(false);
-    const [partyForm, setPartyForm] = React.useState<{name: string, type: PartyType, ownership: AccountOwnership}>({name: '', type: 'Vendor', ownership: 'Both'});
-    const [accountForm, setAccountForm] = React.useState({ name: '', type: 'Cash' as AccountType, ownership: 'Both' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType });
-
-    const form = useForm<TransactionFormValues>({
-        resolver: zodResolver(transactionSchema),
-        defaultValues: {
-            date: new Date(),
-            invoiceType: 'Taxable',
-            billingType: 'Cash',
-            category: 'Fuel',
-            items: [{ particular: '', quantity: 0, uom: '', rate: 0 }],
-            type: 'Purchase',
-            purchaseNumber: '',
-            ...initialValues
+    const toggleItem = (id: string) => {
+        if (id === 'All') {
+            onSelect([]);
+            return;
         }
-    });
-
-    const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
-    const watchedFormValues = form.watch();
-
-    React.useEffect(() => {
-        if (!initialValues?.purchaseNumber && !initialValues?.id) {
-            const unsub = onTransactionsUpdate(async (txns) => {
-                const purchaseTxns = txns.filter(t => t.type === 'Purchase');
-                const nextNum = await generateNextPurchaseNumber(purchaseTxns);
-                form.setValue('purchaseNumber', nextNum);
-            });
-            return () => unsub();
-        }
-    }, [initialValues, form]);
-
-    const totals = React.useMemo(() => {
-        const sub = (watchedFormValues.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
-        const vat = watchedFormValues.invoiceType === 'Taxable' ? sub * 0.13 : 0;
-        return { subtotal: sub, vatAmount: vat, totalAmount: sub + vat };
-    }, [watchedFormValues.items, watchedFormValues.invoiceType]);
-
-    const bankAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Sijan' || a.ownership === 'Both')), [accounts]);
-    const partiesById = React.useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
-
-    const handleSubmitParty = async () => {
-        if(!user || !partyForm.name) return;
-        try {
-            const id = await addParty({...partyForm, createdBy: user.username});
-            form.setValue('partyId', id);
-            setIsPartyDialogOpen(false);
-            toast({title: 'Success', description: 'New party added.'});
-        } catch { toast({title: 'Error', variant: 'destructive'}); }
+        const next = values.includes(id)
+            ? values.filter((v: string) => v !== id)
+            : [...values, id];
+        onSelect(next);
     };
 
-    return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-6">
-                <Card>
-                    <CardHeader><CardTitle>Purchase Entry</CardTitle></CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <FormField control={form.control} name="purchaseNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Purchase Number</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl><FormMessage/></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="date" render={({ field }) => (
-                                <FormItem><FormLabel>Posting Date</FormLabel>
-                                <Popover><PopoverTrigger asChild><FormControl>
-                                    <Button variant="outline" className="w-full justify-start text-left font-normal bg-white"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select Date'}</Button>
-                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
-                                <FormMessage/></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="category" render={({ field }) => (
-                                <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{purchaseCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
-                            )}/>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <FormField control={form.control} name="vehicleId" render={({ field }) => (
-                                <FormItem><FormLabel>Vehicle</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger></FormControl><SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="partyId" render={({ field }) => (
-                                <FormItem><FormLabel>Supplier</FormLabel><div className="flex gap-2"><Select onValueChange={field.onChange} value={field.value || ''}><FormControl><SelectTrigger><SelectValue placeholder="Select supplier" /></SelectTrigger></FormControl><SelectContent>{parties.filter(p => (p.type === 'Vendor' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both')).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><Button type="button" size="icon" variant="outline" onClick={() => setIsPartyDialogOpen(true)}><Plus className="h-4 w-4"/></Button></div><FormMessage/></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Supplier Invoice #</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>
-                            )}/>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
-                            <FormField control={form.control} name="billingType" render={({ field }) => (
-                                <FormItem><FormLabel>Payment Mode</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem><SelectItem value="Credit">Credit (On Account)</SelectItem></SelectContent></Select><FormMessage/></FormItem>
-                            )}/>
-                            {watchedFormValues.billingType === 'Bank' && (
-                                <FormField control={form.control} name="accountId" render={({ field }) => (
-                                    <FormItem><FormLabel>Bank Account</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{bankAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
-                                )}/>
-                            )}
-                            <FormField control={form.control} name="invoiceType" render={({ field }) => (
-                                <FormItem className="space-y-3"><FormLabel>Invoice Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="Taxable" /></FormControl><FormLabel className="font-normal">Taxable (13%)</FormLabel></FormItem><FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="Normal" /></FormControl><FormLabel className="font-normal">Non-Taxable</FormLabel></FormItem></RadioGroup></FormControl><FormMessage/></FormItem>
-                            )}/>
-                        </div>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Particular</TableHead><TableHead className="w-24">Qty</TableHead><TableHead className="w-32">Rate</TableHead><TableHead className="text-right w-32">Amount</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {fields.map((item, index) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell><FormField control={form.control} name={`items.${index}.particular`} render={({ field }) => <Input {...field} className="h-9" />} /></TableCell>
-                                        <TableCell><FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-9" />} /></TableCell>
-                                        <TableCell><FormField control={form.control} name={`items.${index}.rate`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-9" />} /></TableCell>
-                                        <TableCell className="text-right font-mono">{(watchedFormValues.items?.[index]?.quantity || 0) * (watchedFormValues.items?.[index]?.rate || 0)}</TableCell>
-                                        <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><X className="h-4 w-4"/></Button></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        <Button type="button" variant="outline" size="sm" onClick={() => append({ particular: '', quantity: 0, rate: 0 })}><Plus className="mr-2 h-4 w-4"/> Add Row</Button>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t">
-                            <FormField control={form.control} name="remarks" render={({ field }) => (
-                                <FormItem><FormLabel>Remarks</FormLabel><FormControl><Textarea {...field} value={field.value ?? ''} className="min-h-[100px]" /></FormControl><FormMessage/></FormItem>
-                            )}/>
-                            <div className="p-4 bg-muted/20 rounded-lg space-y-2">
-                                <div className="flex justify-between text-sm"><span>Subtotal</span><span>{totals.subtotal.toLocaleString()}</span></div>
-                                {watchedFormValues.invoiceType === 'Taxable' && <div className="flex justify-between text-sm italic text-muted-foreground"><span>VAT (13%)</span><span>{totals.vatAmount.toLocaleString()}</span></div>}
-                                <Separator />
-                                <div className="flex justify-between font-bold text-lg"><span>Total Amount</span><span>Rs. {totals.totalAmount.toLocaleString()}</span></div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <div className="flex justify-end gap-3"><Button type="button" variant="outline" onClick={onCancel}>Cancel</Button><Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : null}Save Transaction</Button></div>
-            </form>
+    const displayText = isAll
+        ? `All ${placeholder}s`
+        : values.length === 1
+            ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
+            : `${values.length} ${placeholder}s Selected`;
 
-            <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
-                <DialogContent><DialogHeader><DialogTitle>Quick Add Supplier</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div className="space-y-2"><Label>Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})}/></div><div className="space-y-2"><Label>Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div></div><DialogFooter><Button onClick={handleSubmitParty}>Add Supplier</Button></DialogFooter></DialogContent>
-            </Dialog>
-        </Form>
+    return (
+        <div className="space-y-1.5 flex-1 min-w-[160px]">
+            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
+                        <div className="flex items-center gap-2 overflow-hidden text-left">
+                            {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                            <span className="truncate">{displayText}</span>
+                        </div>
+                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[200px]" align="start">
+                    <Command>
+                        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <input 
+                                placeholder={`Search ${placeholder.toLowerCase()}...`} 
+                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                        </div>
+                        <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                                <CommandItem value="All" onSelect={() => toggleItem('All')} className="text-xs">
+                                    <Check className={cn("mr-2 h-3.5 w-3.5", isAll ? "opacity-100" : "opacity-0")} />
+                                    All {placeholder}s
+                                </CommandItem>
+                                {items.map((item: any) => (
+                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
+                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
+                                        {item.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+};
+
+export default function ExpenseLogsPage() {
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [parties, setParties] = useState<Party[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
+    const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
+    const [filterVehicleIds, setFilterVehicleIds] = useState<string[]>([]);
+    const [filterPartyIds, setFilterPartyIds] = useState<string[]>([]);
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+
+    const { toast } = useToast();
+    const { hasPermission } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        setIsLoading(true);
+        const unsubs = [
+            onExpensesUpdate(setExpenses),
+            onVehiclesUpdate(setVehicles),
+            onPartiesUpdate(setParties)
+        ];
+        setIsLoading(false);
+        return () => unsubs.forEach(u => u());
+    }, []);
+
+    const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
+    const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
+
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        expenses.forEach(e => {
+            try {
+                years.add(new NepaliDate(new Date(e.date)).getYear());
+            } catch {}
+        });
+        return Array.from(years).sort((a, b) => b - a);
+    }, [expenses]);
+
+    const filteredAndSortedExpenses = useMemo(() => {
+        let filtered = [...expenses];
+
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(e => 
+                e.voucherNo.toLowerCase().includes(query) ||
+                (vehiclesById.get(e.vehicleId) || '').toLowerCase().includes(query) ||
+                (e.expenseType || '').toLowerCase().includes(query) ||
+                (e.destination || '').toLowerCase().includes(query) ||
+                (e.remarks || '').toLowerCase().includes(query)
+            );
+        }
+        
+        if (dateRange?.from) {
+            const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
+            filtered = filtered.filter(e => isWithinInterval(new Date(e.date), interval));
+        }
+
+        if (filterBsYears.length > 0) {
+            filtered = filtered.filter(e => {
+                try {
+                    const year = new NepaliDate(new Date(e.date)).getYear();
+                    return filterBsYears.includes(String(year));
+                } catch { return false; }
+            });
+        }
+
+        if (filterBsMonths.length > 0) {
+            filtered = filtered.filter(e => {
+                try {
+                    const month = new NepaliDate(new Date(e.date)).getMonth();
+                    return filterBsMonths.includes(String(month));
+                } catch { return false; }
+            });
+        }
+        
+        if (filterVehicleIds.length > 0) {
+            filtered = filtered.filter(e => filterVehicleIds.includes(e.vehicleId));
+        }
+
+        if (filterPartyIds.length > 0) {
+            filtered = filtered.filter(e => e.partyId && filterPartyIds.includes(e.partyId));
+        }
+        
+        filtered.sort((a, b) => {
+            const aVal = a[sortConfig.key] || '';
+            const bVal = b[sortConfig.key] || '';
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return filtered;
+    }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, sortConfig, vehiclesById]);
+
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteExpense(id);
+            toast({ title: 'Success', description: 'Expense record deleted.' });
+        } catch (error) {
+             toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
+        }
+    };
+
+    const requestSort = (key: SortKey) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const handleClearFilters = () => {
+        setSearchQuery('');
+        setDateRange(undefined);
+        setFilterBsYears([]);
+        setFilterBsMonths([]);
+        setFilterVehicleIds([]);
+        setFilterPartyIds([]);
+    };
+
+    const isFiltered = useMemo(() => {
+        return searchQuery !== '' || 
+               !!dateRange || 
+               filterBsYears.length > 0 || 
+               filterBsMonths.length > 0 || 
+               filterVehicleIds.length > 0 ||
+               filterPartyIds.length > 0;
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds]);
+
+    return (
+        <div className="flex flex-col gap-8">
+            <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Daily Expense Logs</h1>
+                    <p className="text-muted-foreground">Historical records of truck advances, maintenance, and petty cash purchases.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input type="search" placeholder="Search logs..." className="pl-8 sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    </div>
+                    {hasPermission('fleet', 'create') && (
+                        <Button onClick={() => router.push('/fleet/transactions/expenses/new')}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> New Expense
+                        </Button>
+                    )}
+                </div>
+            </header>
+
+            <div className="bg-muted/20 p-4 rounded-lg border border-dashed flex flex-wrap gap-4 items-end">
+                <MultiSelect 
+                    label="Year (BS)" 
+                    values={filterBsYears} 
+                    onSelect={setFilterBsYears} 
+                    items={availableYears.map(y => ({ id: String(y), name: String(y) }))} 
+                    placeholder="Year" 
+                />
+                <MultiSelect 
+                    label="Month (BS)" 
+                    values={filterBsMonths} 
+                    onSelect={setFilterBsMonths} 
+                    items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} 
+                    placeholder="Month" 
+                />
+                <MultiSelect 
+                    label="Vehicle" 
+                    values={filterVehicleIds} 
+                    onSelect={setFilterVehicleIds} 
+                    items={vehicles} 
+                    placeholder="Vehicle" 
+                    icon={Truck}
+                />
+                <MultiSelect 
+                    label="Party / Supplier" 
+                    values={filterPartyIds} 
+                    onSelect={setFilterPartyIds} 
+                    items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} 
+                    placeholder="Party" 
+                    icon={Users}
+                />
+                <div className="space-y-1.5 w-full md:w-[180px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                <span className="truncate">
+                                    {dateRange?.from ? (
+                                        dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")
+                                    ) : 'Pick AD Range'}
+                                </span>
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+                {isFiltered && (
+                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs">
+                        <FilterX className="mr-2 h-3.5 w-3.5" /> Reset
+                    </Button>
+                )}
+            </div>
+
+            <Card>
+                <Table>
+                    <TableHeader className="bg-muted/50">
+                        <TableRow>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-xs">Voucher # <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead className="text-xs">Vehicle</TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-xs">Type <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead className="text-xs">Payee / Detail</TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-xs text-right w-full">Total Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead className="text-right text-xs">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableRow><TableCell colSpan={7} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                        ) : filteredAndSortedExpenses.map(e => (
+                            <TableRow key={e.id} className="hover:bg-muted/30 h-14">
+                                <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
+                                <TableCell className="font-mono text-[11px]">{e.voucherNo}</TableCell>
+                                <TableCell>
+                                    <span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">
+                                        {vehiclesById.get(e.vehicleId) || 'N/A'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant="outline" className={cn(
+                                        "text-[9px] uppercase font-bold shadow-none",
+                                        e.expenseType === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
+                                        e.expenseType === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                                        e.expenseType === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
+                                        e.expenseType === 'Membership Renewal' && "border-purple-200 bg-purple-50 text-purple-700",
+                                    )}>
+                                        {e.expenseType}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="py-3">
+                                    <div className="flex flex-col">
+                                        <span className="text-[11px] font-semibold text-gray-900">
+                                            {e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}
+                                        </span>
+                                        {e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right font-bold text-red-600 text-[11px] tabular-nums">
+                                    Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/edit?id=${e.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/new`)}><PlusCircle className="mr-2 h-4 w-4" /> New Entry</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        {!isLoading && filteredAndSortedExpenses.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground italic">No expense records found.</TableCell></TableRow>}
+                    </TableBody>
+                </Table>
+            </Card>
+        </div>
     );
 }

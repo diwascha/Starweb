@@ -310,8 +310,15 @@ export default function TripSheetsPage() {
     }
     
     filtered.sort((a, b) => {
-        const aVal = a[sortConfig.key];
-        const bVal = b[sortConfig.key];
+        if (sortConfig.key === 'authorship') {
+            const aDate = a.lastModifiedAt || a.createdAt;
+            const bDate = b.lastModifiedAt || b.createdAt;
+            if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        }
+        const aVal = a[sortConfig.key as keyof typeof a];
+        const bVal = b[sortConfig.key as keyof typeof b];
 
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;

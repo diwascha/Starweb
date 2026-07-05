@@ -224,7 +224,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const handleQuickAddParty = async () => {
         if (!user || !partyForm.name || !partyForm.ownership) return;
         try {
-            const id = await addParty({ ...partyForm, createdBy: user.username });
+            const id = await addParty({ ...partyForm, createdAt: new Date().toISOString(), createdBy: user.username });
             form.setValue('partyId', id);
             setIsPartyDialogOpen(false);
             setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '', panNumber: '' });
@@ -264,7 +264,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 await addDestination({ 
                     name: destForm.name.trim(), 
                     standardAdvanceAmount: Number(destForm.standardAdvance) || 0,
-                    remarks: destForm.remarks.trim(),
+                    remarks: destForm.remarks.trim(), 
+                    createdAt: new Date().toISOString(),
                     createdBy: user.username 
                 });
                 form.setValue('destination', destForm.name.trim());
@@ -854,15 +855,13 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleDeleteDest} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+                                        <AlertDialogAction onClick={handleDeleteDest}>Delete</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
-                             </AlertDialog>
+                            </AlertDialog>
                         )}
-                        <div className="flex gap-2 ml-auto">
-                            <Button variant="outline" onClick={() => setIsDestDialogOpen(false)}>Cancel</Button>
-                            <Button onClick={handleQuickAddDest}>{editingDestination ? 'Update' : 'Add'}</Button>
-                        </div>
+                        <Button variant="outline" onClick={() => setIsDestDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleQuickAddDest}>{editingDestination ? 'Update' : 'Add'}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

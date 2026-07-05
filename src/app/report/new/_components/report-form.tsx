@@ -67,9 +67,6 @@ const testDataKeys: (keyof ProductSpecification)[] = [
   'load',
 ];
 
-const staticFields: (keyof ProductSpecification)[] = ['dimension', 'ply', 'weightOfBox', 'stapleWidth', 'stapling', 'overlapWidth', 'printing'];
-const dynamicFields: (keyof ProductSpecification)[] = ['gsm', 'moisture', 'load'];
-
 type BoxType = 'Wet' | 'Dry' | 'Normal';
 
 const parseSpecValue = (specStr: string): { min: number; max: number | null } => {
@@ -282,7 +279,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       
       if (reportToEdit) {
           const updatedReportData: Partial<Omit<Report, 'id'>> = {
-              product: selectedProduct,
+              product: selectedProduct, 
               taxInvoiceNumber: taxInvoiceNumber || 'N/A',
               challanNumber: challanNumber || 'N/A',
               quantity: quantity || 'N/A',
@@ -495,7 +492,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                         <FormField
                           control={form.control}
                           name={`${key}.value`}
-                          render={({ field }) => (
+                      render={({ field }: any) => (
                             <FormItem>
                               <FormLabel>{formatLabel(key)}</FormLabel>
                               <FormControl>
@@ -503,7 +500,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                                   placeholder={`Result for ${formatLabel(key)}`}
                                   {...field}
                                   readOnly={staticFields.includes(key)}
-                                  className={staticFields.includes(key) ? "bg-muted/50 cursor-not-allowed" : ""}
+                              className={staticFields.includes(key as any) ? "bg-muted/50 cursor-not-allowed" : ""}
                                 />
                               </FormControl>
                               <FormDescription>

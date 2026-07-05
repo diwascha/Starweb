@@ -190,8 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             username: userToLogin.username,
             isApproved: true,
             is_admin: true,
-            permissions: {},
-            passwordLastUpdated: adminCreds.passwordLastUpdated
+            permissions: {}
         };
         localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
         setUser(session);

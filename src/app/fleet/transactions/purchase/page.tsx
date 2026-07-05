@@ -268,7 +268,7 @@ export default function PurchaseLogsPage() {
                 'Date (BS)': toNepaliDate(p.date),
                 'Vehicle': vehiclesById.get(p.vehicleId),
                 'Category': p.category || 'N/A',
-                'Supplier': partiesById.get(p.partyId!),
+                'Supplier': partiesById.get(p.partyId!) || 'N/A',
                 'Amount (NPR)': p.amount,
                 'Posted By': p.lastModifiedBy || p.createdBy,
             }));

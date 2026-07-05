@@ -347,7 +347,6 @@ export default function ExpenseLogsPage() {
                                 <TableCell>
                                     <Badge variant="outline" className={cn(
                                         "text-[9px] uppercase font-bold shadow-none",
-                                        e.expenseType === 'Fuel' && "border-blue-200 bg-blue-50 text-blue-700",
                                         e.expenseType === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
                                         e.expenseType === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
                                         e.expenseType === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",

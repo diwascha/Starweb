@@ -222,7 +222,7 @@ export default function PoliciesPage() {
                 await updatePolicy(editingPolicy.id, updatedData);
                 toast({ title: 'Success', description: 'Record updated.' });
             } else {
-                const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'|'renewedToId'> = {
+                const newData: Omit<PolicyOrMembership, 'id' | 'lastModifiedAt'|'renewedToId'> = {
                     ...formState,
                     status: 'Active',
                     createdBy: user.username,

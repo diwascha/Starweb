@@ -78,7 +78,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const watchedBillingType = form.watch("billingType");
 
   React.useEffect(() => {
-    if (!initialValues?.voucherNo && !initialValues?.id) {
+    if (!initialValues?.voucherNo) {
         const unsub = onTransactionsUpdate(async (txns) => {
             const pmtRcdTxns = txns.filter(t => t.type === 'Payment' || t.type === 'Receipt');
             const nextNum = await generateNextVoucherNumber(pmtRcdTxns, 'PRV-');

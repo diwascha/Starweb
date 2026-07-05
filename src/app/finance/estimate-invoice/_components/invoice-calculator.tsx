@@ -142,7 +142,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 setParty(updatedParty);
                 toast({ title: 'Success', description: 'Party updated.' });
             } else {
-                const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
+                const newPartyId = await addParty({ ...partyForm, createdBy: user.username, createdAt: new Date().toISOString() });
                 const newParty = { id: newPartyId, ...partyForm, createdBy: user.username, createdAt: new Date().toISOString() } as Party;
                 setParties(p => [...p, newParty]);
                 setParty(newParty);

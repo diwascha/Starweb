@@ -262,7 +262,7 @@ export default function DashboardPage() {
                 marginWidth={0} 
                 marginHeight={0} 
                 style={{ border: 'none', overflow: 'hidden', width: 295, height: 385 }}
-                allowtransparency="true">
+                allowTransparency={true}>
               </iframe>
             </CardContent>
           </Card>

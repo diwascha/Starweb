@@ -22,7 +22,7 @@ function Calendar({
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
-        month_caption: "flex justify-center pt-1 relative items-center",
+        caption: "flex justify-center pt-1 relative items-center",
         caption_label: "text-sm font-medium",
         nav: "space-x-1 flex items-center",
         button_previous: cn(
@@ -55,12 +55,9 @@ function Calendar({
         hidden: "invisible",
         ...classNames,
       }}
-      components={{
-        Chevron: ({ orientation }) => {
-          if (orientation === "left") return <ChevronLeft className="h-4 w-4" />
-          return <ChevronRight className="h-4 w-4" />
-        },
-      }}
+      components={{...props.components,
+        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
+        IconRight: () => <ChevronRight className="h-4 w-4" />}}
       {...props}
     />
   )

@@ -119,14 +119,14 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 referenceType: "Voucher",
                 referenceId: voucherData.voucherNo,
                 createdBy: createdBy,
-                createdAt: now,
-                lastModifiedAt: now,
-                dueDate: null,
-                invoiceDate: null,
-                invoiceNumber: null,
-                tripId: null,
-                lastModifiedBy: null,
-                purchaseNumber: null,
+                createdAt: now, 
+                lastModifiedAt: now, 
+                dueDate: undefined,
+                invoiceDate: undefined,
+                invoiceNumber: undefined,
+                tripId: undefined,
+                lastModifiedBy: undefined,
+                purchaseNumber: undefined,
             };
             batch.set(transactionRef, newTransaction);
             writeCount++;
@@ -269,11 +269,11 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
                 lastModifiedAt: now,
                 createdBy: existingTxns[0]?.createdBy || modifiedBy,
                 createdAt: existingTxns[0]?.createdAt || now,
-                dueDate: null,
-                invoiceDate: null,
-                invoiceNumber: null,
-                tripId: null,
-                purchaseNumber: null,
+                dueDate: undefined,
+                invoiceDate: undefined,
+                invoiceNumber: undefined,
+                tripId: undefined,
+                purchaseNumber: undefined,
             };
             batch.set(transactionRef, newTransaction);
             writeCount++;

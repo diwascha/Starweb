@@ -490,7 +490,7 @@ export default function SettingsPage() {
             await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
             toast({title: 'Success', description: 'Party updated.'});
         } else {
-            await addParty({...partyForm, createdBy: user.username});
+            await addParty({...partyForm, createdAt: new Date().toISOString(), createdBy: user.username});
             toast({title: 'Success', description: 'New party added.'});
         }
         setIsPartyDialogOpen(false);
@@ -541,7 +541,7 @@ export default function SettingsPage() {
               await updateAccount(editingAccount.id, { ...accountForm, lastModifiedBy: user.username });
               toast({ title: 'Success', description: 'Account updated.' });
           } else {
-              await addAccount({ ...accountForm, createdBy: user.username });
+              await addAccount({ ...accountForm, createdAt: new Date().toISOString(), createdBy: user.username });
               toast({title: 'Success', description: 'New account added.'});
           }
           setIsAccountDialogOpen(false);
@@ -652,7 +652,7 @@ export default function SettingsPage() {
             const authUser = await adminCreateUserWithUsername(auth, userForm.username, userForm.email, userForm.password);
             finalUserId = authUser.uid;
         }
-        await saveUser({ id: finalUserId, username: userForm.username.toLowerCase().trim(), email: userForm.email.toLowerCase().trim(), isApproved: userForm.isApproved, permissions: userForm.permissions, passwordLastUpdated: new Date().toISOString() });
+        await saveUser({ id: finalUserId, username: userForm.username.toLowerCase().trim(), email: userForm.email.toLowerCase().trim(), isApproved: userForm.isApproved, permissions: userForm.permissions });
         toast({ title: 'Success', description: `User ${isEditing ? 'updated' : 'onboarded'}.` });
         setIsUserDialogOpen(false);
     } catch (e: any) {
@@ -684,7 +684,7 @@ export default function SettingsPage() {
     setChangePasswordError(null);
     try {
         if (user.is_admin) { await setAdminPassword(newPassword, new Date().toISOString()); }
-        else { const currentUser = users.find(u => u.username === user.username); if (currentUser) { await saveUser({ ...currentUser, password: newPassword, passwordLastUpdated: new Date().toISOString() }); } }
+        else { const currentUser = users.find(u => u.username === user.username); if (currentUser) { await saveUser({ ...currentUser, passwordLastUpdated: new Date().toISOString() }); } }
         toast({ title: 'Success', description: 'Password updated. Please log in again.' });
         setIsChangePasswordDialogOpen(false);
         await logout();

@@ -166,7 +166,7 @@ export default function DriversClientPage({
                 await updateDriver(editingDriver.id, updatedData);
                 toast({ title: 'Success', description: 'Driver updated.' });
             } else {
-                const newData: Omit<Driver, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, photoURL, createdBy: user.username };
+                const newData: Omit<Driver, 'id' | 'lastModifiedAt'> = { ...formState, photoURL, createdBy: user.username, createdAt: new Date().toISOString() };
                 await addDriver(newData);
                 toast({ title: 'Success', description: 'New driver added.' });
             }

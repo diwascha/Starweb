@@ -193,8 +193,8 @@ export default function VoucherLogsPage() {
             const hasPayment = txns.some(t => t.type === 'Payment');
             const hasReceipt = txns.some(t => t.type === 'Receipt');
             
-            const vehicleIds = Array.from(new Set(txns.map(t => t.vehicleId).filter(Boolean)));
-            const partyIds = Array.from(new Set(txns.map(t => t.partyId).filter(Boolean)));
+            const vehicleIds = Array.from(new Set(txns.map(t => t.vehicleId).filter(Boolean))) as string[];
+            const partyIds = Array.from(new Set(txns.map(t => t.partyId).filter(Boolean))) as string[];
 
             return {
                 voucherId: vId,

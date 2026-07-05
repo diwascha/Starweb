@@ -321,7 +321,8 @@ export default function TenantsPage() {
             documentNumber: tenantForm.documentNumber,
             issueDate: tenantForm.issueDate || undefined,
             expiryDate: tenantForm.expiryDate || undefined,
-            rentalMeta: rentalMeta,
+            rentalMeta,
+            ownership: 'Rental',
             type: 'Tenant' as PartyType,
             ownership: 'Rental' as AccountOwnership,
         };
@@ -336,6 +337,7 @@ export default function TenantsPage() {
         } else {
             finalTenantId = await addParty({
                 ...partyPayload,
+                createdAt: new Date().toISOString(),
                 createdBy: user.username
             });
         }
