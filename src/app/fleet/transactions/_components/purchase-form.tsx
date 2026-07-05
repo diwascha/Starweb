@@ -1,389 +1,200 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { 
-  PlusCircle, 
-  Search, 
-  ArrowUpDown, 
-  MoreHorizontal, 
-  Trash2, 
-  Edit, 
-  FilterX, 
-  CalendarIcon, 
-  Loader2,
-  Check,
-  ChevronDown,
-  Users,
-  Truck
-} from 'lucide-react';
-import type { Vehicle, Party } from '@/lib/types';
-import type { Expense } from '@/lib/expense-types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, useFieldArray } from 'react-hook-form';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { cn, toNepaliDate } from '@/lib/utils';
-import { useAuth } from '@/hooks/use-auth';
-import { onExpensesUpdate, deleteExpense } from '@/services/expense-service';
-import { onVehiclesUpdate } from '@/services/vehicle-service';
-import { onPartiesUpdate } from '@/services/party-service';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
-import type { DateRange } from 'react-day-picker';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import type { Account, Party, Vehicle, UnitOfMeasurement } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import NepaliDate from 'nepali-date-converter';
-import { NEPALI_MONTHS } from '@/lib/constants';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, Loader2 } from 'lucide-react';
+import { DualCalendar } from '@/components/ui/dual-calendar';
+import { format } from 'date-fns';
+import { cn, toNepaliDate } from '@/lib/utils';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
-type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType';
-type SortDirection = 'asc' | 'desc';
+const purchaseItemSchema = z.object({
+  particular: z.string().min(1, "Particular is required."),
+  quantity: z.number().min(0.01, "Qty must be > 0"),
+  uom: z.string().nullish(),
+  rate: z.number().min(0, "Rate cannot be negative"),
+});
 
-// Helper component for multi-select with "All" support
-const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
-    const isAll = values.length === 0;
+const purchaseSchema = z.object({
+  purchaseNumber: z.string().min(1, "Purchase number is required."),
+  date: z.date(),
+  vehicleId: z.string().min(1, "Vehicle selection is required."),
+  partyId: z.string().min(1, "Supplier selection is required."),
+  invoiceNumber: z.string().optional(),
+  invoiceDate: z.date().nullish(),
+  invoiceType: z.enum(['Normal', 'Taxable']),
+  billingType: z.enum(['Cash', 'Bank', 'Credit']),
+  accountId: z.string().nullish(),
+  chequeNumber: z.string().optional(),
+  chequeDate: z.date().nullish(),
+  dueDate: z.date().nullish(),
+  items: z.array(purchaseItemSchema).min(1, "At least one item is required."),
+  remarks: z.string().optional(),
+}).refine(data => {
+    if (data.billingType === 'Bank') return !!data.accountId;
+    return true;
+}, { message: 'Bank Account is required.', path: ['accountId'] });
 
-    const toggleItem = (id: string) => {
-        if (id === 'All') {
-            onSelect([]);
-            return;
-        }
-        const next = values.includes(id)
-            ? values.filter((v: string) => v !== id)
-            : [...values, id];
-        onSelect(next);
-    };
+type PurchaseFormValues = z.infer<typeof purchaseSchema>;
 
-    const displayText = isAll
-        ? `All ${placeholder}s`
-        : values.length === 1
-            ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
-            : `${values.length} ${placeholder}s Selected`;
+interface PurchaseFormProps {
+  accounts: Account[];
+  parties: Party[];
+  vehicles: Vehicle[];
+  uoms: UnitOfMeasurement[];
+  onFormSubmit: (values: any) => Promise<void>;
+  onCancel: () => void;
+  initialValues?: Partial<PurchaseFormValues>;
+}
 
-    return (
-        <div className="space-y-1.5 flex-1 min-w-[160px]">
-            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
-                        <div className="flex items-center gap-2 overflow-hidden text-left">
-                            {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                            <span className="truncate">{displayText}</span>
-                        </div>
-                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0 w-[200px]" align="start">
-                    <Command>
-                        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
-                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                            <input 
-                                placeholder={`Search ${placeholder.toLowerCase()}...`} 
-                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                        </div>
-                        <CommandList>
-                            <CommandEmpty>No results found.</CommandEmpty>
-                            <CommandGroup>
-                                <CommandItem value="All" onSelect={() => toggleItem('All')} className="text-xs">
-                                    <Check className={cn("mr-2 h-3.5 w-3.5", isAll ? "opacity-100" : "opacity-0")} />
-                                    All {placeholder}s
-                                </CommandItem>
-                                {items.map((item: any) => (
-                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
-                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
-                                        {item.name}
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </CommandList>
-                    </Command>
-                </PopoverContent>
-            </Popover>
-        </div>
-    );
-};
+export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, onCancel, initialValues }: PurchaseFormProps) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-export default function ExpenseLogsPage() {
-    const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-    const [parties, setParties] = useState<Party[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    
-    const [searchQuery, setSearchQuery] = useState('');
-    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-    const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
-    const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
-    const [filterVehicleIds, setFilterVehicleIds] = useState<string[]>([]);
-    const [filterPartyIds, setFilterPartyIds] = useState<string[]>([]);
-    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+  const form = useForm<PurchaseFormValues>({
+    resolver: zodResolver(purchaseSchema),
+    defaultValues: {
+      date: new Date(),
+      invoiceType: 'Normal',
+      billingType: 'Cash',
+      items: [{ particular: '', quantity: 0, rate: 0 }],
+      ...initialValues
+    },
+  });
 
-    const { toast } = useToast();
-    const { hasPermission } = useAuth();
-    const router = useRouter();
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
+  
+  const watchedItems = form.watch("items");
+  const watchedBillingType = form.watch("billingType");
+  const watchedInvoiceType = form.watch("invoiceType");
 
-    useEffect(() => {
-        setIsLoading(true);
-        const unsubs = [
-            onExpensesUpdate(setExpenses),
-            onVehiclesUpdate(setVehicles),
-            onPartiesUpdate(setParties)
-        ];
-        setIsLoading(false);
-        return () => unsubs.forEach(u => u());
-    }, []);
+  const totals = useMemo(() => {
+      const subtotal = (watchedItems || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
+      const vat = watchedInvoiceType === 'Taxable' ? subtotal * 0.13 : 0;
+      return { subtotal, vat, grandTotal: subtotal + vat };
+  }, [watchedItems, watchedInvoiceType]);
 
-    const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
-    const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
+  const handleFormSubmitInternal = async (values: PurchaseFormValues) => {
+    setIsSubmitting(true);
+    try {
+      await onFormSubmit(values);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-    const availableYears = useMemo(() => {
-        const years = new Set<number>();
-        expenses.forEach(e => {
-            try {
-                years.add(new NepaliDate(new Date(e.date)).getYear());
-            } catch {}
-        });
-        return Array.from(years).sort((a, b) => b - a);
-    }, [expenses]);
-
-    const filteredAndSortedExpenses = useMemo(() => {
-        let filtered = [...expenses];
-
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(e => 
-                e.voucherNo.toLowerCase().includes(query) ||
-                (vehiclesById.get(e.vehicleId) || '').toLowerCase().includes(query) ||
-                (e.expenseType || '').toLowerCase().includes(query) ||
-                (e.destination || '').toLowerCase().includes(query) ||
-                (e.remarks || '').toLowerCase().includes(query)
-            );
-        }
-        
-        if (dateRange?.from) {
-            const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
-            filtered = filtered.filter(e => isWithinInterval(new Date(e.date), interval));
-        }
-
-        if (filterBsYears.length > 0) {
-            filtered = filtered.filter(e => {
-                try {
-                    const year = new NepaliDate(new Date(e.date)).getYear();
-                    return filterBsYears.includes(String(year));
-                } catch { return false; }
-            });
-        }
-
-        if (filterBsMonths.length > 0) {
-            filtered = filtered.filter(e => {
-                try {
-                    const month = new NepaliDate(new Date(e.date)).getMonth();
-                    return filterBsMonths.includes(String(month));
-                } catch { return false; }
-            });
-        }
-        
-        if (filterVehicleIds.length > 0) {
-            filtered = filtered.filter(e => filterVehicleIds.includes(e.vehicleId));
-        }
-
-        if (filterPartyIds.length > 0) {
-            filtered = filtered.filter(e => e.partyId && filterPartyIds.includes(e.partyId));
-        }
-        
-        filtered.sort((a, b) => {
-            const aVal = a[sortConfig.key] || '';
-            const bVal = b[sortConfig.key] || '';
-            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-        });
-
-        return filtered;
-    }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, sortConfig, vehiclesById]);
-
-    const handleDelete = async (id: string) => {
-        try {
-            await deleteExpense(id);
-            toast({ title: 'Success', description: 'Expense record deleted.' });
-        } catch (error) {
-             toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
-        }
-    };
-
-    const requestSort = (key: SortKey) => {
-        setSortConfig(prev => ({
-            key,
-            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-        }));
-    };
-
-    const handleClearFilters = () => {
-        setSearchQuery('');
-        setDateRange(undefined);
-        setFilterBsYears([]);
-        setFilterBsMonths([]);
-        setFilterVehicleIds([]);
-        setFilterPartyIds([]);
-    };
-
-    const isFiltered = useMemo(() => {
-        return searchQuery !== '' || 
-               !!dateRange || 
-               filterBsYears.length > 0 || 
-               filterBsMonths.length > 0 || 
-               filterVehicleIds.length > 0 ||
-               filterPartyIds.length > 0;
-    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds]);
-
-    return (
-        <div className="flex flex-col gap-8">
-            <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Daily Expense Logs</h1>
-                    <p className="text-muted-foreground">Historical records of truck advances, maintenance, and petty cash purchases.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input type="search" placeholder="Search logs..." className="pl-8 sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                    </div>
-                    {hasPermission('fleet', 'create') && (
-                        <Button onClick={() => router.push('/fleet/transactions/expenses/new')}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> New Expense
-                        </Button>
-                    )}
-                </div>
-            </header>
-
-            <div className="bg-muted/20 p-4 rounded-lg border border-dashed flex flex-wrap gap-4 items-end">
-                <MultiSelect 
-                    label="Year (BS)" 
-                    values={filterBsYears} 
-                    onSelect={setFilterBsYears} 
-                    items={availableYears.map(y => ({ id: String(y), name: String(y) }))} 
-                    placeholder="Year" 
-                />
-                <MultiSelect 
-                    label="Month (BS)" 
-                    values={filterBsMonths} 
-                    onSelect={setFilterBsMonths} 
-                    items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} 
-                    placeholder="Month" 
-                />
-                <MultiSelect 
-                    label="Vehicle" 
-                    values={filterVehicleIds} 
-                    onSelect={setFilterVehicleIds} 
-                    items={vehicles} 
-                    placeholder="Vehicle" 
-                    icon={Truck}
-                />
-                <MultiSelect 
-                    label="Party / Supplier" 
-                    values={filterPartyIds} 
-                    onSelect={setFilterPartyIds} 
-                    items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} 
-                    placeholder="Party" 
-                    icon={Users}
-                />
-                <div className="space-y-1.5 w-full md:w-[180px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                <span className="truncate">
-                                    {dateRange?.from ? (
-                                        dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")
-                                    ) : 'Pick AD Range'}
-                                </span>
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
-                        </PopoverContent>
-                    </Popover>
-                </div>
-                {isFiltered && (
-                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs">
-                        <FilterX className="mr-2 h-3.5 w-3.5" /> Reset
-                    </Button>
-                )}
-            </div>
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleFormSubmitInternal)} className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+                <CardHeader className="py-4"><CardTitle className="text-sm font-bold">General Info</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                    <FormField control={form.control} name="purchaseNumber" render={({ field }) => (
+                        <FormItem><FormLabel>Purchase #</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl><FormMessage/></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="date" render={({ field }) => (
+                        <FormItem><FormLabel>Posting Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select'}</Button></FormControl></PopoverTrigger><PopoverContent className="p-0"><DualCalendar selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover><FormMessage/></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="vehicleId" render={({ field }) => (
+                        <FormItem><FormLabel>Vehicle (Truck)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select Vehicle"/></SelectTrigger></FormControl><SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                    )}/>
+                </CardContent>
+            </Card>
 
             <Card>
-                <Table>
-                    <TableHeader className="bg-muted/50">
-                        <TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-xs">Voucher # <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead className="text-xs">Vehicle</TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-xs">Type <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead className="text-xs">Payee / Detail</TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-xs text-right w-full">Total Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead className="text-right text-xs">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            <TableRow><TableCell colSpan={7} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                        ) : filteredAndSortedExpenses.map(e => (
-                            <TableRow key={e.id} className="hover:bg-muted/30 h-14">
-                                <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
-                                <TableCell className="font-mono text-[11px]">{e.voucherNo}</TableCell>
-                                <TableCell>
-                                    <span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">
-                                        {vehiclesById.get(e.vehicleId) || 'N/A'}
-                                    </span>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant="outline" className={cn(
-                                        "text-[9px] uppercase font-bold shadow-none",
-                                        e.expenseType === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
-                                        e.expenseType === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
-                                        e.expenseType === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
-                                        e.expenseType === 'Membership Renewal' && "border-purple-200 bg-purple-50 text-purple-700",
-                                    )}>
-                                        {e.expenseType}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="py-3">
-                                    <div className="flex flex-col">
-                                        <span className="text-[11px] font-semibold text-gray-900">
-                                            {e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}
-                                        </span>
-                                        {e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right font-bold text-red-600 text-[11px] tabular-nums">
-                                    Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/edit?id=${e.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/new`)}><PlusCircle className="mr-2 h-4 w-4" /> New Entry</DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
-                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        {!isLoading && filteredAndSortedExpenses.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground italic">No expense records found.</TableCell></TableRow>}
-                    </TableBody>
-                </Table>
+                <CardHeader className="py-4"><CardTitle className="text-sm font-bold">Supplier & Invoice</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                    <FormField control={form.control} name="partyId" render={({ field }) => (
+                        <FormItem><FormLabel>Supplier</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select Supplier"/></SelectTrigger></FormControl><SelectContent>{parties.filter(p => p.type !== 'Customer').map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                    )}/>
+                    <div className="grid grid-cols-2 gap-2">
+                        <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                            <FormItem><FormLabel>Invoice #</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="invoiceType" render={({ field }) => (
+                            <FormItem><FormLabel>VAT Status</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Normal">Non-VAT</SelectItem><SelectItem value="Taxable">VAT (13%)</SelectItem></SelectContent></Select></FormItem>
+                        )}/>
+                    </div>
+                    <FormField control={form.control} name="invoiceDate" render={({ field }) => (
+                        <FormItem><FormLabel>Supplier Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Optional'}</Button></FormControl></PopoverTrigger><PopoverContent className="p-0"><DualCalendar selected={field.value || undefined} onSelect={field.onChange}/></PopoverContent></Popover></FormItem>
+                    )}/>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader className="py-4"><CardTitle className="text-sm font-bold">Payment Terms</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                    <FormField control={form.control} name="billingType" render={({ field }) => (
+                        <FormItem><FormLabel>Payment Mode</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem><SelectItem value="Credit">Credit</SelectItem></SelectContent></Select></FormItem>
+                    )}/>
+                    {watchedBillingType === 'Bank' && (
+                        <FormField control={form.control} name="accountId" render={({ field }) => (
+                            <FormItem><FormLabel>Select Account</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}><FormControl><SelectTrigger><SelectValue placeholder="Bank..."/></SelectTrigger></FormControl><SelectContent>{accounts.filter(a => a.type === 'Bank').map(a => <SelectItem key={a.id} value={a.id}>{a.bankName}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                        )}/>
+                    )}
+                    {watchedBillingType === 'Credit' && (
+                        <FormField control={form.control} name="dueDate" render={({ field }) => (
+                            <FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select'}</Button></FormControl></PopoverTrigger><PopoverContent className="p-0"><DualCalendar selected={field.value || undefined} onSelect={field.onChange}/></PopoverContent></Popover></FormItem>
+                        )}/>
+                    )}
+                </CardContent>
             </Card>
         </div>
-    );
+
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg font-bold">Line Items</CardTitle>
+                <Button type="button" variant="outline" size="sm" onClick={() => append({ particular: '', quantity: 0, rate: 0 })}><Plus className="mr-2 h-4 w-4"/> Add Item</Button>
+            </CardHeader>
+            <CardContent className="p-0">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Particular / Description</TableHead><TableHead className="w-24">Qty</TableHead><TableHead className="w-24">Unit</TableHead><TableHead className="w-32">Rate</TableHead><TableHead className="w-32 text-right">Amount</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {fields.map((item, index) => (
+                            <TableRow key={item.id}>
+                                <TableCell><FormField control={form.control} name={`items.${index}.particular`} render={({ field }) => (<Input {...field} placeholder="Maintenance item, Fuel, etc." className="h-9"/>)}/></TableCell>
+                                <TableCell><FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => (<Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-9"/>)}/></TableCell>
+                                <TableCell><FormField control={form.control} name={`items.${index}.uom`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value || ''}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Unit"/></SelectTrigger></FormControl><SelectContent>{uoms.map(u => <SelectItem key={u.id} value={u.abbreviation}>{u.abbreviation}</SelectItem>)}</SelectContent></Select>)}/></TableCell>
+                                <TableCell><FormField control={form.control} name={`items.${index}.rate`} render={({ field }) => (<Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-9"/>)}/></TableCell>
+                                <TableCell className="text-right font-mono font-bold">{( (watchedItems[index]?.quantity || 0) * (watchedItems[index]?.rate || 0) ).toLocaleString()}</TableCell>
+                                <TableCell><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+            <CardFooter className="bg-muted/30 flex flex-col items-end py-4">
+                <div className="w-full md:w-64 space-y-2">
+                    <div className="flex justify-between text-sm"><span>Subtotal</span><span>Rs. {totals.subtotal.toLocaleString()}</span></div>
+                    {watchedInvoiceType === 'Taxable' && (
+                        <div className="flex justify-between text-sm text-blue-600"><span>VAT (13%)</span><span>Rs. {totals.vat.toLocaleString()}</span></div>
+                    )}
+                    <Separator />
+                    <div className="flex justify-between text-lg font-black"><span>Total</span><span>Rs. {totals.grandTotal.toLocaleString()}</span></div>
+                </div>
+            </CardFooter>
+        </Card>
+
+        <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Save Purchase Record</Button>
+        </div>
+      </form>
+    </Form>
+  );
 }

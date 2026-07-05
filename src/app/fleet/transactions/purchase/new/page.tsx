@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useMemo } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { Vehicle, Party, Account, UnitOfMeasurement, Transaction } from '@/lib/types';
@@ -15,10 +15,14 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, History } from 'lucide-react';
 import { generateNextPurchaseNumber } from '@/lib/utils';
 
-const PurchaseForm = dynamic(() => import('../../_components/purchase-form').then(mod => mod.PurchaseForm), {
-  ssr: false,
-  loading: () => <div className="p-12 text-center">Loading Purchase Form...</div>
-});
+// Correctly map the named export for dynamic loading
+const PurchaseForm = dynamic(
+  () => import('../../_components/purchase-form').then(mod => mod.PurchaseForm),
+  {
+    ssr: false,
+    loading: () => <div className="p-12 text-center">Loading Purchase Form...</div>
+  }
+);
 
 export default function NewPurchaseEntryPage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -46,7 +50,6 @@ export default function NewPurchaseEntryPage() {
         return () => unsubs.forEach(u => u());
     }, []);
 
-    // Reactive Purchase Number Generation
     useEffect(() => {
         const purchaseTxns = transactions.filter(t => t.type === 'Purchase');
         generateNextPurchaseNumber(purchaseTxns).then(setNextPurchaseNum);
@@ -77,6 +80,7 @@ export default function NewPurchaseEntryPage() {
             accountId: values.accountId || null,
             partyId: values.partyId || null,
             createdBy: user.username,
+            type: 'Purchase' as const,
         };
 
         try {
@@ -118,7 +122,7 @@ export default function NewPurchaseEntryPage() {
                     uoms={uoms}
                     onFormSubmit={handleFormSubmit}
                     onCancel={() => router.back()}
-                    initialValues={{ purchaseNumber: nextPurchaseNum, type: 'Purchase' }}
+                    initialValues={{ purchaseNumber: nextPurchaseNum }}
                 />
             </Suspense>
         </div>
