@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import type { Account, Party, Vehicle, UnitOfMeasurement } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -150,8 +150,8 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                     {watchedBillingType === 'Credit' && (
                         <FormField control={form.control} name="dueDate" render={({ field }) => (
                             <FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select'}</Button></FormControl></PopoverTrigger><PopoverContent className="p-0"><DualCalendar selected={field.value || undefined} onSelect={field.onChange}/></PopoverContent></Popover></FormItem>
-                        )}/>
-                    )}
+                    )}/>
+                )}
                 </CardContent>
             </Card>
         </div>
