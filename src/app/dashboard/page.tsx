@@ -290,8 +290,7 @@ export default function DashboardPage() {
                 src="https://www.hamropatro.com/widgets/calender-medium.php" 
                 style={{ border: 'none', overflow: 'hidden', width: 295, height: 385 }}
                 scrolling="no" 
-                title="Nepali Calendar"
-                allowTransparency={true}>
+                title="Nepali Calendar">
               </iframe>
             </CardContent>
           </Card>
