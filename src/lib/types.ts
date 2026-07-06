@@ -99,7 +99,7 @@ export interface Report {
   printLog?: PrintLogEntry[];
   createdBy: string;
   lastModifiedBy?: string | null;
-  lastModifiedAt?: string; // ISO string
+  lastModifiedAt?: string | null;
 }
 
 export interface RawMaterial {
@@ -420,8 +420,8 @@ export type InvoiceType = 'Taxable' | 'Normal';
 
 export interface Transaction {
     id: string;
-    purchaseNumber?: string;
-    vehicleId?: string;
+    purchaseNumber?: string | null;
+    vehicleId?: string | null;
     date: string; // Posting Date (ISO string)
     invoiceNumber?: string | null;
     invoiceDate?: string | null;
@@ -435,16 +435,16 @@ export interface Transaction {
     items: TransactionItem[];
     amount: number; // This will be the grand total
     remarks: string | null;
-    tripId?: string; // Link to the trip
+    tripId?: string | null; // Link to the trip
     type: TransactionType;
-    category?: string; // Category for easier auditing (Maintenance, Renewal, Rent, etc.)
+    category?: string | null; // Category for easier auditing (Maintenance, Renewal, Rent, etc.)
     referenceType?: string | null; // e.g. "Trip Sheet", "Rental Bill", "Voucher"
     referenceId?: string | null; // The ID of the source document
-    voucherId?: string; // To group payment/receipt transactions
+    voucherId?: string | null; // To group payment/receipt transactions
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string | null;
-    lastModifiedAt?: string; // ISO string
+    lastModifiedAt?: string | null;
 }
 
 
