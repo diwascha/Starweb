@@ -10,17 +10,16 @@
         "auth,firestore"
       ]
     },
+
     "eslint": {
       "command": "npx",
       "args": [
         "-y",
         "@eslint/mcp@latest"
       ]
-    },
-    "vercel": {
-      "url": "https://mcp.vercel.com"
     }
   },
+
   "enabledTools": {
     "firebase": [
       "auth_get_users",
@@ -60,9 +59,9 @@
       "firestore_list_indexes",
       "firestore_delete_index"
     ],
+
     "eslint": [
       "lint-files"
-    ],
-    "vercel": []
+    ]
   }
 }
