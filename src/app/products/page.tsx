@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -127,7 +126,7 @@ export default function ProductsPage() {
   const openEditProductDialog = (product: Product) => {
     setEditingProduct(product);
     setNewProductName(product.name);
-    setNewMaterialCode(product.materialCode);
+    setNewMaterialCode(product.materialCode || '');
     setNewPartyId(product.partyId || '');
     setNewRate(product.rate || '');
 

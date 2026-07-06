@@ -38,6 +38,7 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -406,9 +407,11 @@ export default function PurchaseOrdersListPage() {
                         <TableCell>
                             <TooltipProvider>
                                 <Tooltip>
-                                    <TooltipTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-default uppercase font-bold">
-                                        {po.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                        <span>{po.lastModifiedBy || po.createdBy}</span>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-default uppercase font-bold">
+                                            {po.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                            <span>{po.lastModifiedBy || po.createdBy}</span>
+                                        </div>
                                     </TooltipTrigger>
                                     <TooltipContent>
                                         <p className="text-xs">Created by: {po.createdBy}{po.createdAt ? ` on ${format(new Date(po.createdAt), "PP")}` : ''}</p>

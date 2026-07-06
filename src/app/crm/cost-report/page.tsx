@@ -503,7 +503,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
     const newItems = selectedProducts.map(p => mapProductToItem(p));
     setItems([...items, ...newItems]);
     const newSelectedForPrint = new Set(selectedForPrint);
-    newItems.forEach(i => newSelectedForPrint.add(i.id));
+    newItems.forEach((i: CostReportItem) => newSelectedForPrint.add(i.id));
     setSelectedForPrint(newSelectedForPrint);
     setIsBatchAddDialogOpen(false);
     setSelectedBatchProductIds(new Set());
