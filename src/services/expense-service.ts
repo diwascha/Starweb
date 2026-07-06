@@ -103,14 +103,14 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id'>, now: string): 
         
         return {
             date: expense.date,
-            vehicleId: expense.vehicleId,
+            vehicleId: expense.vehicleId || null,
             type: 'Payment' as const,
             amount: amt,
             billingType: mode,
             invoiceType: 'Normal' as const,
             category: expense.expenseType,
             partyId: expense.partyId || null,
-            accountId: mode === 'Bank' ? expense.accountId : null,
+            accountId: expense.accountId || null,
             remarks: `Expense Entry: ${expense.expenseType}${expense.destination ? ` (${expense.destination})` : ''}`,
             referenceType: "Expense Entry",
             referenceId: expense.voucherNo,
@@ -137,7 +137,7 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id'>, now: string): 
         }
     } else {
         const totalAmount = expense.amount + (expense.extraAmount || 0);
-        transactions.push(createTxn(expense.paymentMode as any, totalAmount, baseNarrative));
+        transactions.push(createTxn(expense.paymentMode, totalAmount, baseNarrative));
     }
 
     return transactions;

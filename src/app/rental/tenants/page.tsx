@@ -322,7 +322,6 @@ export default function TenantsPage() {
             issueDate: tenantForm.issueDate || undefined,
             expiryDate: tenantForm.expiryDate || undefined,
             rentalMeta,
-            ownership: 'Rental',
             type: 'Tenant' as PartyType,
             ownership: 'Rental' as AccountOwnership,
         };
