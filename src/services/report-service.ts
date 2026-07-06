@@ -1,11 +1,43 @@
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, query, where, DocumentSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, query, where, DocumentSnapshot, WithFieldValue } from 'firebase/firestore';
 import type { Report } from '@/lib/types';
 
 const getReportsCollection = () => {
     const { db } = getFirebase();
-    return collection(db, 'reports');
+    return collection(db, 'reports').withConverter<Report>({
+        toFirestore: (report: Omit<Report, 'id'>) => {
+            return {
+                ...report,
+            };
+        },
+        fromFirestore: (snapshot: QueryDocumentSnapshot): Report => {
+            const data = snapshot.data();
+            return {
+                id: snapshot.id,
+                serialNumber: data.serialNumber,
+                taxInvoiceNumber: data.taxInvoiceNumber,
+                challanNumber: data.challanNumber,
+                quantity: data.quantity,
+                product: {
+                    id: data.product?.id ?? '',
+                    name: data.product?.name ?? '',
+                    partyName: data.product?.partyName ?? '',
+                    rate: data.product?.rate ?? 0,
+                    specification: data.product?.specification ?? {},
+                },
+                date: data.date,
+                createdAt: data.createdAt,
+                createdAt: data.createdAt?.toDate().toISOString() ?? new Date().toISOString(),
+                testData: data.testData,
+                printLog: data.printLog,
+                createdBy: data.createdBy,
+                lastModifiedBy: data.lastModifiedBy,
+                lastModifiedAt: data.lastModifiedAt,
+            };
+        }
+    });
 }
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Report => {
@@ -16,9 +48,16 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Report =>
         taxInvoiceNumber: data.taxInvoiceNumber,
         challanNumber: data.challanNumber,
         quantity: data.quantity,
-        product: data.product,
+        product: {
+            id: data.product?.id ?? '',
+            name: data.product?.name ?? '',
+            partyName: data.product?.partyName ?? '',
+            rate: data.product?.rate ?? 0,
+            specification: data.product?.specification ?? {},
+        },
         date: data.date,
-        createdAt: data.createdAt,
+        createdAt: data.createdAt, // This will be a Timestamp object
+        createdAt: data.createdAt?.toDate().toISOString() ?? new Date().toISOString(),
         testData: data.testData,
         printLog: data.printLog,
         createdBy: data.createdBy,
@@ -27,7 +66,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Report =>
     };
 };
 
-const fromDocSnapshot = (docSnap: DocumentData): Report => {
+const fromDocSnapshot = (docSnap: DocumentSnapshot<DocumentData>): Report => {
     const data = docSnap.data();
     return {
         id: docSnap.id,
@@ -35,9 +74,16 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
         taxInvoiceNumber: data.taxInvoiceNumber,
         challanNumber: data.challanNumber,
         quantity: data.quantity,
-        product: data.product,
+        product: {
+            id: data.product?.id ?? '',
+            name: data.product?.name ?? '',
+            partyName: data.product?.partyName ?? '',
+            rate: data.product?.rate ?? 0,
+            specification: data.product?.specification ?? {},
+        },
         date: data.date,
-        createdAt: data.createdAt,
+        createdAt: data.createdAt, // This will be a Timestamp object
+        createdAt: data.createdAt?.toDate().toISOString() ?? new Date().toISOString(),
         testData: data.testData,
         printLog: data.printLog,
         createdBy: data.createdBy,
@@ -48,7 +94,7 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
 
 export const getReports = async (): Promise<Report[]> => {
     const snapshot = await getDocs(getReportsCollection());
-    return snapshot.docs.map(fromFirestore);
+    return snapshot.docs.map(doc => doc.data());
 };
 
 export const addReport = async (report: Omit<Report, 'id'>): Promise<string> => {
@@ -59,7 +105,7 @@ export const addReport = async (report: Omit<Report, 'id'>): Promise<string> => 
 export const onReportsUpdate = (callback: (reports: Report[]) => void): () => void => {
     return onSnapshot(getReportsCollection(), 
         (snapshot) => {
-            callback(snapshot.docs.map(fromFirestore));
+            callback(snapshot.docs.map(doc => doc.data()));
         },
         (error) => {
             console.error("FIREBASE FAIL MESSAGE (Reports):", error.message, error);
@@ -75,7 +121,7 @@ export const getReport = async (id: string): Promise<Report | null> => {
     const reportDoc = doc(getReportsCollection(), id);
     const docSnap = await getDoc(reportDoc);
     if (docSnap.exists()) {
-        return fromDocSnapshot(docSnap);
+        return docSnap.data();
     } else {
         return null;
     }
@@ -85,7 +131,7 @@ export const getReportsByProductId = async (productId: string): Promise<Report[]
     if (!productId) return [];
     const q = query(getReportsCollection(), where("product.id", "==", productId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(fromFirestore);
+    return snapshot.docs.map(doc => doc.data());
 }
 
 export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'>[]> => {
@@ -98,9 +144,12 @@ export const updateReport = async (id: string, report: Partial<Omit<Report, 'id'
     if (!id) return;
     const reportDoc = doc(getReportsCollection(), id);
     await updateDoc(reportDoc, {
+    const payload: WithFieldValue<Partial<Report>> = {
         ...report,
         lastModifiedAt: new Date().toISOString(),
     });
+    };
+    await updateDoc(reportDoc, payload);
 };
 
 export const deleteReport = async (id: string): Promise<void> => {

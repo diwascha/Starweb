@@ -94,7 +94,7 @@ export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () =>
  * Generates transaction data for the ledger based on an expense.
  * Handles split payments by returning multiple transactions.
  */
-const generateLedgerTransactions = (expense: Omit<Expense, 'id'>, now: string): Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>[] => {
+const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, now: string): Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>[] => {
     const transactions: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>[] = [];
     const baseNarrative = `${expense.voucherNo}: ${expense.expenseType}${expense.destination ? ` to ${expense.destination}` : ''}`;
 
@@ -115,6 +115,8 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id'>, now: string): 
             referenceType: "Expense Entry",
             referenceId: expense.voucherNo,
             items: items,
+            purchaseNumber: null,
+            isSystemTransaction: true,
             createdBy: expense.createdBy,
             invoiceNumber: null,
             invoiceDate: null,
@@ -122,9 +124,8 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id'>, now: string): 
             chequeDate: null,
             dueDate: null,
             tripId: null,
-            voucherId: null,
-            lastModifiedBy: null,
-            purchaseNumber: null,
+            voucherId: expense.voucherNo,
+            lastModifiedBy: null
         };
     };
 
@@ -153,6 +154,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const expenseId = doc(getExpensesCollection()).id;
 
     const expenseRecord = {
+        ...expenseData,
         voucherNo: expenseData.voucherNo,
         date: expenseData.date,
         vehicleId: expenseData.vehicleId,
@@ -174,7 +176,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const batch = writeBatch(db);
     batch.set(doc(getExpensesCollection(), expenseId), expenseRecord);
 
-    const ledgerTxns = generateLedgerTransactions(expenseRecord as any, now);
+    const ledgerTxns = generateLedgerTransactions(expenseRecord, now);
     ledgerTxns.forEach(txn => {
         const txnRef = doc(getTransactionsCollection());
         batch.set(txnRef, { ...txn, createdAt: now, lastModifiedAt: now });
@@ -219,7 +221,7 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
         txnSnap.forEach(d => batch.delete(d.ref));
 
         // Create new ones based on current data
-        const ledgerTxns = generateLedgerTransactions(newData as any, now);
+        const ledgerTxns = generateLedgerTransactions(newData, now);
         ledgerTxns.forEach(txn => {
             const txnRef = doc(getTransactionsCollection());
             batch.set(txnRef, { 

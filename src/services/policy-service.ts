@@ -45,13 +45,22 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
     if (policy.cost > 0) {
         try {
             await addExpense({
+                voucherNo: `POL-${policy.policyNumber}`,
                 date: policy.startDate, 
                 vehicleId: policy.memberType === 'Vehicle' ? policy.memberId : '', 
                 expenseType: 'Membership Renewal',
                 amount: policy.cost,
+                cashAmount: 0,
+                bankAmount: 0,
+                extraAmount: 0,
+                extraRemarks: '',
                 paymentMode: 'Cash', 
                 remarks: `Policy Auto-Entry: ${policy.type} - ${policy.policyNumber} (${policy.provider})`,
                 createdBy: policy.createdBy,
+                partyId: '',
+                accountId: '',
+                itemId: '',
+                destination: '',
             });
         } catch (error) {
             console.error("Auto-expense failed for policy:", error);
