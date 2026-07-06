@@ -42,6 +42,7 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -49,6 +50,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -458,9 +460,11 @@ export default function TripSheetsPage() {
                     <TableCell>
                         <TooltipProvider>
                             <Tooltip>
-                                <TooltipTrigger className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-default uppercase font-bold">
-                                    {trip.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                                    <span>{trip.lastModifiedBy || trip.createdBy}</span>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-default uppercase font-bold">
+                                        {trip.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                                        <span>{trip.lastModifiedBy || trip.createdBy}</span>
+                                    </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                     <p className="text-xs">Created by: {trip.createdBy}{trip.createdAt ? ` on ${format(new Date(trip.createdAt), "PP")}` : ''}</p>

@@ -50,7 +50,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '@/components/ui/badge';
 import { onDestinationsUpdate, addDestination, updateDestination, deleteDestination } from '@/services/destination-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription as AlertDialogDesc, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { 
+    AlertDialog, 
+    AlertDialogAction, 
+    AlertDialogCancel, 
+    AlertDialogContent, 
+    AlertDialogHeader, 
+    AlertDialogTitle, 
+    AlertDialogDescription as AlertDialogDesc, 
+    AlertDialogFooter,
+    AlertDialogTrigger 
+} from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
@@ -224,11 +234,11 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const handleQuickAddParty = async () => {
         if (!user || !partyForm.name || !partyForm.ownership) return;
         try {
-            const id = await addParty({ 
+            const newId = await addParty({ 
                 ...partyForm, 
                 createdBy: user.username 
             });
-            form.setValue('partyId', id);
+            form.setValue('partyId', newId);
             setIsPartyDialogOpen(false);
             setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '', panNumber: '' });
             toast({ title: 'Party Added' });
