@@ -338,7 +338,7 @@ const ChartTooltipContent = React.forwardRef<
                 }
                 value={
                   formatter
-                    ? formatter(item.value, item.name, item, index, payload)
+                    ? formatter(item.value ?? '', item.name, item, index, payload)
                     : item.value
                 }
                 unit={""}

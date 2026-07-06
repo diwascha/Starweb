@@ -4,7 +4,6 @@ import * as React from "react"
 import {
   Pie as RechartsPie,
   PieChart as RechartsPieChart,
-  Tooltip as RechartsTooltip,
 } from "recharts"
 import {
   Cell,
@@ -14,12 +13,8 @@ import {
 import {
   ChartConfig,
   ChartContainer,
-  ChartStyle,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartTooltipFrame,
   useChart,
-  ChartTooltipItem,
+  ChartTooltipContent,
 } from "@/components/ui/chart-core"
 import { cn } from "@/lib/utils"
 
@@ -29,10 +24,13 @@ export type { ChartConfig }
 const Chart = ChartContainer
 
 const ChartLegendContext = React.createContext<
-  | (Pick<ChartConfig, "label" | "color" | "icon"> & {
-      payload: any
-      value?: string | number
-    })[]
+  | {
+      label: string | number | React.ReactNode;
+      color?: string;
+      icon?: React.ComponentType;
+      value?: string | number;
+      payload: any;
+    }[]
   | null
 >(null)
 
@@ -168,7 +166,11 @@ const Pie = React.forwardRef<
         return null
       }
 
-      return <ActiveShape {...props} />
+      if (typeof ActiveShape === 'function') {
+          return ActiveShape(props);
+      }
+
+      return React.isValidElement(ActiveShape) ? ActiveShape : null;
     },
     [props.activeShape]
   )
@@ -181,7 +183,11 @@ const Pie = React.forwardRef<
         return null
       }
 
-      return <InactiveShape {...props} />
+      if (typeof InactiveShape === 'function') {
+          return InactiveShape(props);
+      }
+
+      return React.isValidElement(InactiveShape) ? InactiveShape : null;
     },
     [props.inactiveShape]
   )
@@ -201,7 +207,7 @@ const Pie = React.forwardRef<
       activeShape={props.activeShape ? renderActiveShape : undefined}
       inactiveShape={props.inactiveShape ? renderInactiveShape : undefined}
     >
-      {props.data?.map((entry, index) => (
+      {props.data?.map((entry: any, index: number) => (
         <Cell
           key={`cell-${index}`}
           fill={
@@ -219,15 +225,7 @@ Pie.displayName = "Pie"
 export {
   Chart,
   ChartContainer,
-  ChartStyle,
-  ChartLegend,
-  ChartLegendContext,
-  ChartTooltip,
   ChartTooltipContent,
-  ChartTooltipFrame,
-  ChartTooltipItem,
   PieChart,
   Pie,
 }
-
-export * from "zod"
