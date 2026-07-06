@@ -16,7 +16,9 @@ import {
     Plus,
     ShieldCheck,
     History,
-    Info
+    Info,
+    Settings,
+    AlertTriangle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -81,7 +83,12 @@ export default function FileSystemPage() {
 
             toast({ title: 'File Uploaded', description: file.name });
         } catch (err: any) {
-            toast({ title: 'Upload Failed', description: err.message, variant: 'destructive' });
+            toast({ 
+                title: 'Upload Blocked', 
+                description: err.message, 
+                variant: 'destructive',
+                duration: 6000 
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -122,7 +129,7 @@ export default function FileSystemPage() {
                 <div className="flex gap-2 w-full md:w-auto">
                     <label className="flex-1 md:flex-none">
                         <Input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
-                        <Button asChild disabled={isUploading} className="w-full">
+                        <Button asChild disabled={isUploading} className="w-full h-10 font-bold uppercase text-xs tracking-widest shadow-lg">
                             <span>
                                 {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
                                 Upload Document
@@ -132,7 +139,6 @@ export default function FileSystemPage() {
                 </div>
             </header>
 
-            {/* Purpose & Info Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-primary/[0.03] border-primary/10 shadow-none">
                     <CardHeader className="pb-2">
@@ -176,46 +182,65 @@ export default function FileSystemPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card className="md:col-span-1 shadow-sm h-fit border-gray-200">
-                    <CardHeader className="bg-muted/30 border-b py-3 px-4">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Filter Library</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 pt-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Search by Name</Label>
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                    placeholder="Search files..." 
-                                    className="pl-8 h-9 text-xs" 
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                />
+                <div className="md:col-span-1 space-y-6">
+                    <Card className="shadow-sm border-gray-200">
+                        <CardHeader className="bg-muted/30 border-b py-3 px-4">
+                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Filter Library</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4 pt-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Search by Name</Label>
+                                <div className="relative">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input 
+                                        placeholder="Search files..." 
+                                        className="pl-8 h-9 text-xs" 
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Category</Label>
-                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Documents</SelectItem>
-                                    <SelectItem value="HR">HR Documents</SelectItem>
-                                    <SelectItem value="Fleet">Fleet Records</SelectItem>
-                                    <SelectItem value="Finance">Financial Slips</SelectItem>
-                                    <SelectItem value="CRM">Client Files</SelectItem>
-                                    <SelectItem value="General">Miscellaneous</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <Separator className="my-2 border-dashed" />
-                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 flex gap-2 items-start">
-                            <Info className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
-                            <p className="text-[10px] text-blue-800 leading-normal">
-                                Uploaded documents are securely linked to your organization's cloud storage.
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Category</Label>
+                                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                    <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All">All Documents</SelectItem>
+                                        <SelectItem value="HR">HR Documents</SelectItem>
+                                        <SelectItem value="Fleet">Fleet Records</SelectItem>
+                                        <SelectItem value="Finance">Financial Slips</SelectItem>
+                                        <SelectItem value="CRM">Client Files</SelectItem>
+                                        <SelectItem value="General">Miscellaneous</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="shadow-sm border-amber-200 bg-amber-50/20">
+                        <CardHeader className="py-3 px-4 border-b border-amber-100">
+                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-amber-700 flex items-center gap-2">
+                                <Settings className="h-3 w-3" />
+                                Setup Requirements
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4 space-y-3">
+                            <div className="flex gap-2">
+                                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                                <p className="text-[10px] font-medium text-amber-800 leading-normal">
+                                    If uploads fail, ensure Storage is enabled in your Firebase Console and your Security Rules allow access.
+                                </p>
+                            </div>
+                            <Separator className="bg-amber-100" />
+                            <div className="space-y-1.5 text-[9px] text-amber-900/70 font-bold uppercase tracking-tight">
+                                <p>1. Go to Firebase Console</p>
+                                <p>2. Select 'Storage' Menu</p>
+                                <p>3. Click 'Get Started'</p>
+                                <p>4. Set Rules to 'Public' for testing</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
 
                 <Card className="md:col-span-3 shadow-sm border-gray-200">
                     <CardContent className="p-0">
