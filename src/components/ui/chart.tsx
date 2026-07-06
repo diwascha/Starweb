@@ -21,6 +21,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartTooltipFrame,
+  useChart,
   ChartTooltipItem,
 } from "@/components/ui/chart-core"
 import { cn } from "@/lib/utils"
