@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -7,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Printer, FileDown, View, Search, MoreHorizontal } from 'lucide-react';
+import { Printer, Search, MoreHorizontal, View } from 'lucide-react';
 import { onPayrollUpdate, getPayrollForEmployee } from '@/services/payroll-service';
-import { onEmployeesUpdate, getEmployee } from '@/services/employee-service';
+import { getEmployee } from '@/services/employee-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -182,7 +181,7 @@ function PayslipList() {
                                 {filteredPayroll.map(p => (
                                     <TableRow key={p.id}>
                                         <TableCell className="font-medium">{p.employeeName}</TableCell>
-                                        <TableCell>{p.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{(p.netPayment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>

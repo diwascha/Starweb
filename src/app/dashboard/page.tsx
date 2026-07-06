@@ -291,7 +291,7 @@ export default function DashboardPage() {
                 style={{ border: 'none', overflow: 'hidden', width: 295, height: 385 }}
                 scrolling="no" 
                 title="Nepali Calendar"
-                allowtransparency="true">
+                allowTransparency={true}>
               </iframe>
             </CardContent>
           </Card>

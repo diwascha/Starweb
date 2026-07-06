@@ -41,8 +41,13 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
     }
 
     return (
-        <FirebaseProvider {...firebaseServices}>
-            {/* Re-throw Firebase errors into the React tree for boundary handling */}
+        <FirebaseProvider 
+            app={firebaseServices.app} 
+            auth={firebaseServices.auth} 
+            db={firebaseServices.db} 
+            storage={firebaseServices.storage} 
+            rtdb={firebaseServices.rtdb}
+        >
             <FirebaseErrorListener />
             {children}
             <Toaster />

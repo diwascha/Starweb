@@ -507,7 +507,7 @@ export interface Trip {
     detentionEndDate?: string; // ISO string
     numberOfParties?: number;
     dropOffChargeRate?: number;
-    detentionChargeRate?: string;
+    detentionChargeRate?: number;
     salesTransactionId?: string; // Link to the main sales transaction
     createdBy: string;
     createdAt: string; // ISO string

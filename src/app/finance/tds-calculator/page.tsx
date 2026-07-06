@@ -670,7 +670,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         return;
     }
     try {
-        const newPartyId = await addParty({...partyForm, createdBy: user.username, createdAt: new Date().toISOString()});
+        await addParty({...partyForm, createdBy: user.username });
         setPartyName(partyForm.name);
         toast({title: 'Success', description: 'New party added.'});
         setIsPartyDialogOpen(false);

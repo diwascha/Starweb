@@ -518,7 +518,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
             const accIdx = v.aIdx;
             const subField = f.replace('acc_', '');
             if (subField === 'remove') {
-                item.accessories = item.accessories?.filter((_, i) => i !== v);
+                item.accessories = item.accessories?.filter((_: any, i: number) => i !== v);
             } else {
                 const acc = { ...item.accessories![accIdx], [subField]: v.v };
                 acc.calculated = calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType, true);
@@ -545,7 +545,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         return;
     }
     try {
-        const newPartyId = await addParty({ ...partyForm, createdBy: user.username, createdAt: new Date().toISOString() });
+        const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
         setSelectedPartyId(newPartyId);
         toast({ title: 'Success', description: 'New party added.' });
         setIsPartyDialogOpen(false);
@@ -1007,7 +1007,7 @@ export default function CostReportPage() {
             if (isBox) {
                 const c1 = b + h + 20, d1 = (2 * l) + (2 * b) + 62, c2 = l + h + 20, d2 = (2 * b) + (2 * l) + 62;
                 if (c1 * d1 <= c2 * d2) { sL = c1; sB = d1; } else { sL = c2; sB = d2; }
-            } else { const d = [l, b].sort((x, y) => y - x); sL = d[0]; sB = d[1]; }
+            } else { const d = [l, b].sort((x: number, y: number) => y - x); sL = d[0]; sB = d[1]; }
             const ply = parseInt(item.ply, 10) || 0;
             const g = { l1: parseFloat(item.topGsm) || 0, f1: parseFloat(item.flute1Gsm) || 0, l2: parseFloat(item.middleGsm) || 0, f2: parseFloat(item.flute2Gsm) || 0, l3: parseFloat(item.liner2Gsm) || 0, f3: parseFloat(item.flute3Gsm) || 0, l4: parseFloat(item.liner3Gsm) || 0, f4: parseFloat(item.flute4Gsm) || 0, l5: parseFloat(item.bottomGsm) || 0 };
             let tGsm = 0; const factor = 1.35;

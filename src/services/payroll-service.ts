@@ -1,5 +1,5 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, updateDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit } from 'firebase/firestore';
 import type { Payroll, Employee, AttendanceRecord, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from './settings-service';
@@ -152,7 +152,16 @@ export const calculateAndSavePayrollForMonth = async (
 
             let rate = 0;
             if (employee.wageBasis === 'Monthly') {
-                const daysInMonth = new NepaliDate(bsYear, bsMonth, 1).getMonthDays();
+                const year = bsYear;
+                const month = bsMonth;
+                const date = new NepaliDate(year, month, 1);
+                // Correct way to get days in month for this library is to move to next month and subtract
+                const nextMonth = month === 11 ? 0 : month + 1;
+                const nextYear = month === 11 ? year + 1 : year;
+                const nextMonthDate = new NepaliDate(nextYear, nextMonth, 1);
+                nextMonthDate.setDate(nextMonthDate.getDate() - 1);
+                const daysInMonth = nextMonthDate.getDate();
+
                 rate = (Number(employee.wageAmount) || 0) / daysInMonth / 8;
             } else { 
                 rate = Number(employee.wageAmount) || 0;

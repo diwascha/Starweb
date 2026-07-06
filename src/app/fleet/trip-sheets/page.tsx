@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { 
   PlusCircle, 
@@ -12,15 +12,16 @@ import {
   Search, 
   User, 
   X, 
-  Download, 
-  CalendarIcon, 
   FileSpreadsheet, 
   FileText,
   Printer,
   Loader2,
   Check,
   ChevronDown,
-  FilterX
+  FilterX,
+  Truck,
+  Users,
+  CalendarIcon
 } from 'lucide-react';
 import type { Trip, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,6 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -107,7 +107,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
         ? `All ${placeholder}s`
         : values.length === 1
             ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
-            : `${values.length} ${placeholder}s`;
+            : `${values.length} ${placeholder}s Selected`;
 
     return (
         <div className="space-y-1.5 flex-1 min-w-[140px]">
@@ -117,7 +117,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
                     <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
                         <div className="flex items-center gap-2 overflow-hidden text-left">
                             {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                            <span className="truncate">{displayText}</span>
+                            <span className="truncate text-left">{displayText}</span>
                         </div>
                         <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                     </Button>
@@ -313,12 +313,13 @@ export default function TripSheetsPage() {
         if (sortConfig.key === 'authorship') {
             const aDate = a.lastModifiedAt || a.createdAt;
             const bDate = b.lastModifiedAt || b.createdAt;
+            if (!aDate || !bDate) return 0;
             if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         }
-        const aVal = a[sortConfig.key as keyof typeof a];
-        const bVal = b[sortConfig.key as keyof typeof b];
+        const aVal = (a as any)[sortConfig.key] || '';
+        const bVal = (b as any)[sortConfig.key] || '';
 
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -575,9 +576,11 @@ export default function TripSheetsPage() {
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Custom AD Range</Label>
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs", !dateRange && "text-muted-foreground")}>
+                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}`) : format(dateRange.from, "MMM d")) : (<span>Pick a date range</span>)}
+                                <span className="truncate">
+                                    {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}`) : format(dateRange.from, "MMM d")) : (<span>Pick a date range</span>)}
+                                </span>
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -677,7 +680,9 @@ export default function TripSheetsPage() {
                     </div>
                 </div>
             )}
-            <Button variant="outline" onClick={() => setIsCalcDialogOpen(false)}>Close</Button>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCalcDialogOpen(false)}>Close</Button>
+            </DialogFooter>
         </DialogContent>
     </Dialog>
     </>

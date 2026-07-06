@@ -33,7 +33,7 @@ function EditVoucherComponent() {
                 getVehicles(true),
                 getParties(true),
                 getAccounts(true),
-                getTransactions(true),
+                getTransactions(),
             ]).then(([initialTransactions, vehicleData, partyData, accountData, allTxnsData]) => {
                 if (initialTransactions && initialTransactions.length > 0) {
                     const base = initialTransactions[0];

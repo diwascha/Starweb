@@ -1,18 +1,17 @@
-
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement, Party, PartyType, PurchaseOrderVersion } from '@/lib/types';
+import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement, Party, PartyType, AccountOwnership } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X, ChevronDown, Save, History, Loader2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X, ChevronDown, Save, Loader2 } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
 import { cn, generateNextPONumber, toNepaliDate, normalizeBF } from '@/lib/utils';
@@ -93,7 +92,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
-  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Vendor', address: '', panNumber: ''});
+  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: ''});
   
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['All']);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -212,10 +211,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const handleOpenPartyDialog = (party: Party | null = null, searchName: string = '') => {
       if (party) {
           setEditingParty(party);
-          setPartyForm({ name: party.name, type: party.type, address: party.address || '', panNumber: party.panNumber || '' });
+          setPartyForm({ name: party.name, type: party.type, ownership: party.ownership || 'Both', address: party.address || '', panNumber: party.panNumber || '' });
       } else {
           setEditingParty(null);
-          setPartyForm({ name: searchName, type: 'Vendor', address: '', panNumber: '' });
+          setPartyForm({ name: searchName, type: 'Vendor', ownership: 'Both', address: '', panNumber: '' });
       }
       setIsCompanyPopoverOpen(false);
       setIsPartyDialogOpen(true);
@@ -234,7 +233,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             handleCompanySelect(party.id);
             toast({title: 'Success', description: 'Party updated.'});
         } else {
-            const newPartyId = await addParty({...partyForm, createdBy: user.username});
+            const newPartyId = await addParty({...partyForm, createdBy: user.username });
             handleCompanySelect(newPartyId);
             toast({title: 'Success', description: 'New party added.'});
         }
@@ -570,7 +569,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             <CommandItem key={company.id} value={company.name} onSelect={() => {
                                               handleCompanySelect(company.id);
                                               setCompanySearch('');
-                                            }} className="flex justify-between items-center">
+                                            }} className="flex justify-between items-center text-xs">
                                                 <div className="flex items-center">
                                                     <Check className={cn("mr-2 h-4 w-4", field.value === company.id ? "opacity-100" : "opacity-0")} />
                                                     {company.name}
@@ -645,7 +644,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             {allCategories.map(category => (
                                                 <div key={category} className="flex items-center space-x-2 p-2 rounded hover:bg-muted cursor-pointer" 
                                                      onClick={() => handleToggleCategory(category)}>
-                                                    <Checkbox checked={selectedCategories.includes(category)} />
+                                                    <Checkbox checked={selectedCategories.includes(category)} onCheckedChange={() => handleToggleCategory(category)} />
                                                     <Label className="cursor-pointer">{category}</Label>
                                                 </div>
                                             ))}
@@ -722,10 +721,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                                     <CommandEmpty>
                                                                         <Button
                                                                             variant="ghost"
-                                                                            className="w-full justify-start"
+                                                                            className="w-full justify-start text-xs"
                                                                             onClick={() => setIsQuickAddMaterialDialogOpen(true)}
                                                                         >
-                                                                            Add "{quickAddMaterialSearch}"
+                                                                            <PlusCircle className="mr-2 h-3 w-3"/> Add "{quickAddMaterialSearch}"
                                                                         </Button>
                                                                     </CommandEmpty>
                                                                     <CommandGroup>
@@ -737,6 +736,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                                                     form.setValue(`items.${index}.rawMaterialId`, p.id);
                                                                                     handleItemMaterialChange(index, p.id);
                                                                                 }}
+                                                                                className="text-xs"
                                                                             >
                                                                                 <Check className={cn("mr-2 h-4 w-4", p.id === field.value ? "opacity-100" : "opacity-0")} />
                                                                                 {p.name}
@@ -871,6 +871,17 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     <Label htmlFor="party-name-dialog">Supplier Name</Label>
                     <Input id="party-name-dialog" value={partyForm.name} onChange={(e) => setPartyForm(prev => ({...prev, name: e.target.value}))}/>
                 </div>
+                <div className="space-y-2">
+                    <Label>Ownership</Label>
+                    <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
+                        <SelectTrigger><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                            <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                            <SelectItem value="Both">Both</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
                  <div className="space-y-2">
                     <Label htmlFor="party-pan-dialog">PAN Number</Label>
                     <Input id="party-pan-dialog" value={partyForm.panNumber || ''} onChange={(e) => setPartyForm(prev => ({...prev, panNumber: e.target.value}))}/>
@@ -921,7 +932,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                 <CommandItem key={cat} value={cat} onSelect={() => {
                                                     setQuickAddForm(prev => ({...prev, type: cat}));
                                                     setIsQuickAddTypePopoverOpen(false);
-                                                }}>
+                                                }} className="text-xs">
                                                     <Check className={cn("mr-2 h-4 w-4", quickAddForm.type === cat ? "opacity-100" : "opacity-0")} />
                                                     {cat}
                                                 </CommandItem>
@@ -1060,7 +1071,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                         </CommandEmpty>
                                         <CommandGroup>
                                             {allUnits.filter(u => !quickAddForm.units.includes(u)).map(unit => (
-                                                <CommandItem key={unit} onSelect={() => handleQuickAddUnitSelect(unit)}>
+                                                <CommandItem key={unit} onSelect={() => handleQuickAddUnitSelect(unit)} className="text-xs">
                                                     <Check className={cn("mr-2 h-4 w-4", quickAddForm.units.includes(unit) ? "opacity-100" : "opacity-0")} />
                                                     {unit}
                                                 </CommandItem>

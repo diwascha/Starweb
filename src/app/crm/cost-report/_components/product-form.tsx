@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Product, Party, ProductSpecification, AccountOwnership } from '@/lib/types';
+import type { Product, Party, AccountOwnership } from '@/lib/types';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeBF } from '@/lib/utils';
 import { PLY_OPTIONS, BF_OPTIONS } from '@/lib/constants';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PlusCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -79,8 +79,7 @@ export function ProductForm({ productToEdit, onSaveSuccess }: ProductFormProps) 
                 type: 'Customer', 
                 ownership: partyForm.ownership,
                 address: partyForm.address || '',
-                createdBy: user.username,
-                createdAt: new Date().toISOString()
+                createdBy: user.username
             });
             setForm({ ...form, partyId: newId });
             setIsPartyDialogOpen(false);
@@ -92,7 +91,7 @@ export function ProductForm({ productToEdit, onSaveSuccess }: ProductFormProps) 
 
     const updateSpec = (f: string, v: string) => setForm((p: any) => ({ ...p, specification: { ...p.specification, [f]: v } }));
 
-    const p = parseInt(form.specification.ply, 10);
+    const pValue = parseInt(form.specification.ply, 10);
 
     return (
         <div className="space-y-6 pt-2 pb-8 overflow-y-auto max-h-[75vh]">
@@ -133,25 +132,25 @@ export function ProductForm({ productToEdit, onSaveSuccess }: ProductFormProps) 
                     <div><Label>Paper BF</Label><Select value={normalizeBF(form.specification.paperBf)} onValueChange={v => updateSpec('paperBf', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{BF_OPTIONS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></div>
                     <div><Label>Waste %</Label><Input type="number" value={form.specification.wastagePercent ?? '3.5'} onChange={e => updateSpec('wastagePercent', e.target.value)} /></div>
                 </div>
-                {p > 0 && (
+                {pValue > 0 && (
                 <div className="p-6 bg-muted/10 rounded-lg space-y-4 border border-dashed">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">GSM Composition Layers (Up to {p} Ply)</Label>
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">GSM Composition Layers (Up to {pValue} Ply)</Label>
                     <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
                         <div><Label className="text-[10px] font-bold">L1 (Top)</Label><Input type="number" value={form.specification.topGsm ?? ''} onChange={e => updateSpec('topGsm', e.target.value)} /></div>
                         <div><Label className="text-[10px] font-bold">F1</Label><Input type="number" value={form.specification.flute1Gsm ?? ''} onChange={e => updateSpec('flute1Gsm', e.target.value)} /></div>
-                        {p >= 5 && (
+                        {pValue >= 5 && (
                             <>
                                 <div><Label className="text-[10px] font-bold">L2 (Mid 1)</Label><Input type="number" value={form.specification.middleGsm ?? ''} onChange={e => updateSpec('middleGsm', e.target.value)} /></div>
                                 <div><Label className="text-[10px] font-bold">F2</Label><Input type="number" value={form.specification.flute2Gsm ?? ''} onChange={e => updateSpec('flute2Gsm', e.target.value)} /></div>
                             </>
                         )}
-                        {p >= 7 && (
+                        {pValue >= 7 && (
                             <>
                                 <div><Label className="text-[10px] font-bold">L3 (Mid 2)</Label><Input type="number" value={form.specification.liner2Gsm ?? ''} onChange={e => updateSpec('liner2Gsm', e.target.value)} /></div>
                                 <div><Label className="text-[10px] font-bold">F3</Label><Input type="number" value={form.specification.flute3Gsm ?? ''} onChange={e => updateSpec('flute3Gsm', e.target.value)} /></div>
                             </>
                         )}
-                        {p >= 9 && (
+                        {pValue >= 9 && (
                             <>
                                 <div><Label className="text-[10px] font-bold">L4 (Mid 3)</Label><Input type="number" value={form.specification.liner3Gsm ?? ''} onChange={e => updateSpec('liner3Gsm', e.target.value)} /></div>
                                 <div><Label className="text-[10px] font-bold">F4</Label><Input type="number" value={form.specification.flute4Gsm ?? ''} onChange={e => updateSpec('flute4Gsm', e.target.value)} /></div>

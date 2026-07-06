@@ -1,5 +1,5 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 
@@ -101,7 +101,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
 
         if (type && amount > 0) {
             const transactionRef = doc(transactionsCollection());
-            const newTransaction: Omit<Transaction, 'id'> = {
+            const newTransaction: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
                 date: voucherData.date.toISOString(),
                 type: type,
                 billingType: voucherData.billingType,
@@ -119,8 +119,6 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 referenceType: "Voucher",
                 referenceId: voucherData.voucherNo,
                 createdBy: createdBy,
-                createdAt: now, 
-                lastModifiedAt: now, 
                 dueDate: undefined,
                 invoiceDate: undefined,
                 invoiceNumber: undefined,
@@ -128,7 +126,11 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 lastModifiedBy: undefined,
                 purchaseNumber: undefined,
             };
-            batch.set(transactionRef, newTransaction);
+            batch.set(transactionRef, {
+                ...newTransaction,
+                createdAt: now,
+                lastModifiedAt: now
+            });
             writeCount++;
         }
     }
@@ -267,15 +269,17 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
                 referenceId: voucherData.voucherNo,
                 lastModifiedBy: modifiedBy,
                 lastModifiedAt: now,
-                createdBy: existingTxns[0]?.createdBy || modifiedBy,
-                createdAt: existingTxns[0]?.createdAt || now,
                 dueDate: undefined,
                 invoiceDate: undefined,
                 invoiceNumber: undefined,
                 tripId: undefined,
                 purchaseNumber: undefined,
             };
-            batch.set(transactionRef, newTransaction);
+            batch.set(transactionRef, {
+                ...newTransaction,
+                createdBy: existingTxns[0]?.createdBy || modifiedBy,
+                createdAt: existingTxns[0]?.createdAt || now,
+            });
             writeCount++;
         }
     }

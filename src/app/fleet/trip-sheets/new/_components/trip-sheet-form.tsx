@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Vehicle, Party, Trip, Destination, PartyType, TripDestination, ExtraExpense, FuelEntry, ReturnTrip, AccountOwnership } from '@/lib/types';
+import type { Vehicle, Party, Trip, Destination, PartyType, AccountOwnership, ReturnTrip, ExtraExpense, FuelEntry } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -27,10 +27,10 @@ import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service
 import { addTrip, updateTrip, onTripsUpdate } from '@/services/trip-service';
 import { Loader2, Edit } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { DateRange } from 'react-day-picker';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import { onDestinationsUpdate, addDestination, updateDestination } from '@/services/destination-service';
+import type { DateRange } from 'react-day-picker';
 
 const destinationSchema = z.object({
   name: z.string().optional(),
@@ -127,6 +127,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 date: new Date(tripToEdit.date),
                 detentionStartDate: tripToEdit.detentionStartDate ? new Date(tripToEdit.detentionStartDate) : undefined,
                 detentionEndDate: tripToEdit.detentionEndDate ? new Date(tripToEdit.detentionEndDate) : undefined,
+                detentionChargeRate: tripToEdit.detentionChargeRate ? Number(tripToEdit.detentionChargeRate) : 3000,
                 destinations: tripToEdit.destinations.map(d => ({ ...d, freight: Number(d.freight) })),
                 fuelEntries: tripToEdit.fuelEntries.map(f => ({ ...f, amount: Number(f.amount), liters: f.liters ? Number(f.liters) : undefined, invoiceDate: f.invoiceDate ? new Date(f.invoiceDate) : null })),
                 extraExpenses: tripToEdit.extraExpenses.map(e => ({ ...e, amount: Number(e.amount) })),
@@ -214,7 +215,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
 
     useEffect(() => {
         if (tripToEdit) {
-            form.reset(defaultValues);
+            form.reset(defaultValues as any);
             if (tripToEdit.detentionStartDate) {
                 setDetentionDateRange({ from: new Date(tripToEdit.detentionStartDate), to: tripToEdit.detentionEndDate ? new Date(tripToEdit.detentionEndDate) : undefined });
             }
@@ -230,7 +231,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
 
     useEffect(() => {
         if (finalDestinationName && !tripToEdit) { // Only auto-fill on new trips
-            const sortedTrips = [...trips].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const sortedTrips = [...trips].sort((a: Trip, b: Trip) => new Date(b.date).getTime() - new Date(a.date).getTime());
             const lastTripToDestination = sortedTrips.find(trip => 
                 trip.destinations.length > 0 && trip.destinations[0].name.toLowerCase() === finalDestinationName.toLowerCase()
             );
@@ -245,7 +246,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         if (selectedVehicleId && !tripToEdit) { // Only auto-fill on new trips
             const lastTripForVehicle = [...trips]
                 .filter(trip => trip.vehicleId === selectedVehicleId && trip.odometerEnd)
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                .sort((a: Trip, b: Trip) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
             if (lastTripForVehicle) {
                 form.setValue('odometerStart', lastTripForVehicle.odometerEnd);
@@ -424,7 +425,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
                 toast({title: 'Success', description: 'Party updated.'});
             } else {
-                await addParty({...partyForm, createdBy: user.username});
+                await addParty({...partyForm, createdBy: user.username });
                 toast({title: 'Success', description: 'New party added.'});
             }
             setIsPartyDialogOpen(false);
@@ -482,7 +483,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const handleDestinationSelect = (index: number, destinationName: string) => {
         form.setValue(`destinations.${index}.name`, destinationName);
         
-        const sortedTrips = [...trips].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const sortedTrips = [...trips].sort((a: Trip, b: Trip) => new Date(b.date).getTime() - new Date(a.date).getTime());
         let lastFreight: number | undefined;
 
         // Find the last trip where this destination was used in the same role (final vs. additional)
@@ -544,7 +545,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                             <Popover>
                                                 <PopoverTrigger asChild>
                                                     <FormControl>
-                                                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                    <Button variant="outline" role="combobox" className="w-full justify-between text-left">
                                                         {field.value ? customers.find((c) => c.id === field.value)?.name : "Select customer"}
                                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                     </Button>
@@ -611,7 +612,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                      <Popover>
                                                         <PopoverTrigger asChild>
                                                             <FormControl>
-                                                            <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                            <Button variant="outline" role="combobox" className="w-full justify-between text-left">
                                                                 {field.value || (index === 0 ? "Final Destination" : "Additional Destination")}
                                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                             </Button>
@@ -713,12 +714,10 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                             <Label>Detention</Label>
                                              <div className="flex items-center gap-2">
                                                 <Dialog open={isDetentionDialogOpen} onOpenChange={setIsDetentionDialogOpen}>
-                                                    <DialogTrigger asChild>
-                                                        <Button type="button" variant="outline" className="w-full justify-start font-normal">
-                                                            <Plus className="mr-2 h-4 w-4"/>
-                                                            {detentionDays > 0 ? `${detentionDays} day(s)` : 'Add Detention'}
-                                                        </Button>
-                                                    </DialogTrigger>
+                                                    <Button type="button" variant="outline" className="w-full justify-start font-normal" onClick={() => setIsDetentionDialogOpen(true)}>
+                                                        <Plus className="mr-2 h-4 w-4"/>
+                                                        {detentionDays > 0 ? `${detentionDays} day(s)` : 'Add Detention'}
+                                                    </Button>
                                                     <DialogContent>
                                                         <DialogHeader><DialogTitle>Select Detention Period</DialogTitle></DialogHeader>
                                                         <div className="py-4 flex justify-center">
@@ -777,7 +776,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                         <Popover>
                                                           <PopoverTrigger asChild>
                                                             <FormControl>
-                                                              <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                              <Button variant="outline" role="combobox" className="w-full justify-between text-left">
                                                                 {field.value ? vendors.find((v) => v.id === field.value)?.name : "Select fuel vendor"}
                                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                               </Button>
@@ -842,7 +841,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                 </div>
                                             </div>))}
                                         </div>
-                                        <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: undefined, liters: undefined, invoiceNumber: '', invoiceDate: null })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0, liters: undefined, invoiceNumber: '', invoiceDate: null })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
                                     <div>
                                         <Label className="text-base font-medium">Extra Expenses</Label>
@@ -857,7 +856,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                                 <Popover>
                                                                     <PopoverTrigger asChild>
                                                                         <FormControl>
-                                                                            <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                                            <Button variant="outline" role="combobox" className="w-full justify-between text-left">
                                                                                 {field.value ? vendors.find((v) => v.id === field.value)?.name : "Select vendor (optional)"}
                                                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                                             </Button>
@@ -930,7 +929,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                 </div>
                                             ))}
                                         </div>
-                                        <Button type="button" size="sm" variant="outline" onClick={() => appendExpense({ description: '', amount: undefined, partyId: '' })} className="mt-4">
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendExpense({ description: '', amount: 0, partyId: '' })} className="mt-4">
                                             <PlusCircle className="mr-2 h-4 w-4" /> Add Expense
                                         </Button>
                                     </div>

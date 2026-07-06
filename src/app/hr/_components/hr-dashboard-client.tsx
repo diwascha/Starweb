@@ -1,10 +1,9 @@
-
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Users, CheckCircle, XCircle, Clock, Timer } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import type { Employee, AttendanceRecord } from '@/lib/types';
+import type { Employee, AttendanceRecord, AttendanceStatus } from '@/lib/types';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { startOfToday, startOfMonth, endOfMonth, isToday } from 'date-fns';
@@ -55,7 +54,8 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
         const totalOvertime = monthlyRecords.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
 
         const monthlyStatusCounts = monthlyRecords.reduce((acc, r) => {
-            acc[r.status] = (acc[r.status] || 0) + 1;
+            const status = r.status || 'Unknown';
+            acc[status] = (acc[status] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
         
@@ -201,7 +201,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                                         <p className="font-medium">{record.employeeName}</p>
                                         <p className="text-sm text-muted-foreground">{new Date(record.date).toLocaleDateString()}</p>
                                     </div>
-                                    <Badge variant={getAttendanceBadgeVariant(record.status)}>{record.status}</Badge>
+                                    <Badge variant={getAttendanceBadgeVariant(record.status as AttendanceStatus)}>{record.status}</Badge>
                                 </div>
                             ))}
                         </div>

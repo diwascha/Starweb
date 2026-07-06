@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -8,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit, Sparkles, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit, Sparkles } from 'lucide-react';
 import { onNoteItemsUpdate, addNoteItem, updateNoteItem, deleteNoteItem, cleanupOldItems } from '@/services/notes-service';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -414,10 +413,7 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                     <h2 className="text-lg font-semibold">Nepali Calendar</h2>
                     <iframe 
                         src="https://www.hamropatro.com/widgets/calender-small.php" 
-                        frameBorder="0" 
                         scrolling="no" 
-                        marginWidth="0" 
-                        marginHeight="0" 
                         style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }}
                         >
                     </iframe>

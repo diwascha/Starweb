@@ -1,4 +1,3 @@
-
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -66,6 +65,8 @@ const testDataKeys: (keyof ProductSpecification)[] = [
   'moisture',
   'load',
 ];
+
+const staticFields: (keyof ProductSpecification)[] = ['dimension', 'ply', 'weightOfBox', 'stapleWidth', 'stapling', 'overlapWidth', 'printing'];
 
 type BoxType = 'Wet' | 'Dry' | 'Normal';
 
@@ -137,7 +138,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
 
     if (reportToEdit) {
         setSelectedProduct(reportToEdit.product);
-        form.reset(defaultValues);
+        form.reset(defaultValues as any);
     } else {
         const setInitialSerial = async () => {
             const allReports = await getReportsForSerial();
@@ -165,8 +166,8 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         toast({ title: 'Missing Specification', description: 'Selected product is missing standard specifications.', variant: 'destructive'});
         return;
     }
-    const gsmSpec = parseSpecValue(spec.gsm);
-    const loadSpec = parseSpecValue(spec.load);
+    const gsmSpec = parseSpecValue(spec.gsm || '0');
+    const loadSpec = parseSpecValue(spec.load || '0');
     const loadMin = loadSpec.min;
     
     const moistureLow = 6.5;
@@ -233,8 +234,8 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       setSelectedProduct(product);
       testDataKeys.forEach(field => {
         const isStatic = staticFields.includes(field);
-        form.setValue(`${field}.value`, (isStatic && product.specification) ? product.specification[field] : '');
-        form.setValue(`${field}.remark`, '');
+        form.setValue(`${field}.value` as any, (isStatic && product.specification) ? (product.specification as any)[field] : '');
+        form.setValue(`${field}.remark` as any, '');
       });
       const defaultBoxType = 'Normal';
       setSelectedBoxType(defaultBoxType);
@@ -242,8 +243,8 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     } else {
       setSelectedProduct(null);
        testDataKeys.forEach(field => {
-         form.setValue(`${field}.value`, '');
-         form.setValue(`${field}.remark`, '');
+         form.setValue(`${field}.value` as any, '');
+         form.setValue(`${field}.remark` as any, '');
        });
     }
   };
@@ -274,7 +275,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     setIsSubmitting(true);
     try {
       const { productId, taxInvoiceNumber, challanNumber, quantity, ...testDataValues } = values;
-      const testData: TestResultData = testDataValues as TestResultData;
+      const testData: TestResultData = testDataValues as any;
       
       
       if (reportToEdit) {
@@ -297,7 +298,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           ...selectedProduct,
           createdAt: selectedProduct.createdAt || now, // Ensure createdAt is not undefined
           lastModifiedBy: selectedProduct.lastModifiedBy || null,
-          lastModifiedAt: selectedProduct.lastModifiedAt || null,
+          lastModifiedAt: selectedProduct.lastModifiedAt || undefined,
         };
 
 
@@ -491,7 +492,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                       <div key={key} className="space-y-4">
                         <FormField
                           control={form.control}
-                          name={`${key}.value`}
+                          name={`${key}.value` as any}
                       render={({ field }: any) => (
                             <FormItem>
                               <FormLabel>{formatLabel(key)}</FormLabel>

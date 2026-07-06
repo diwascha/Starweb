@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Users, 
   Search, 
@@ -323,7 +322,6 @@ export default function TenantsPage() {
             expiryDate: tenantForm.expiryDate || undefined,
             rentalMeta,
             type: 'Tenant' as PartyType,
-            // @ts-expect-error
             ownership: 'Rental' as AccountOwnership,
         };
 
@@ -336,9 +334,9 @@ export default function TenantsPage() {
             });
         } else {
             finalTenantId = await addParty({
-                ...partyPayload as Omit<Party, 'id' | 'createdAt'>,
+                ...partyPayload,
                 createdBy: user.username
-            });
+            } as Omit<Party, 'id' | 'createdAt'>);
         }
 
         if (tenantForm.propertyId && tenantForm.unitId && finalTenantId) {
@@ -530,7 +528,7 @@ export default function TenantsPage() {
                                                     </DropdownMenuItem>
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                                            <DropdownMenuItem onSelect={(v) => { if(v) v.preventDefault(); }} className="text-destructive">
                                                                 <Trash2 className="mr-2 h-4 w-4"/> Delete Tenant
                                                             </DropdownMenuItem>
                                                         </AlertDialogTrigger>
@@ -805,8 +803,8 @@ export default function TenantsPage() {
                         <CardContent className="p-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 {Object.entries(tenantForm.utilities).map(([key, config]) => {
-                                    const Icon = { electricity: Zap, water: Droplets, waste: Trash, internet: Wifi, parking: Car, maintenance: Wrench, security: ShieldCheck, other: HelpCircle }[key] || HelpCircle;
-                                    const color = { electricity: "text-blue-600", water: "text-cyan-600", waste: "text-emerald-600", internet: "text-purple-600", parking: "text-indigo-600", maintenance: "text-orange-600", security: "text-blue-700", other: "text-gray-600" }[key] || "text-gray-600";
+                                    const Icon = ({ electricity: Zap, water: Droplets, waste: Trash, internet: Wifi, parking: Car, maintenance: Wrench, security: ShieldCheck, other: HelpCircle } as any)[key] || HelpCircle;
+                                    const color = ({ electricity: "text-blue-600", water: "text-cyan-600", waste: "text-emerald-600", internet: "text-purple-600", parking: "text-indigo-600", maintenance: "text-orange-600", security: "text-blue-700", other: "text-gray-600" } as any)[key] || "text-gray-600";
 
                                     return (
                                         <div key={key} className={cn(

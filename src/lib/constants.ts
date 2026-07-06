@@ -27,6 +27,7 @@ export const COLLECTIONS = {
   CHEQUES: 'cheques',
   EXPENSES: 'expenses',
   LOGS: 'logs',
+  FILES: 'files',
   RENTAL_PROPERTIES: 'rentalProperties',
   RENTAL_UNITS: 'rentalUnits',
   RENTAL_AGREEMENTS: 'rentalAgreements',

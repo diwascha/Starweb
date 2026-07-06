@@ -3,10 +3,9 @@
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, getDocs, setDoc, getDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, getDocs, getDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
-import { addTransaction } from './transaction-service';
 import type { Transaction, TransactionItem } from '@/lib/types';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
 
@@ -98,7 +97,7 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
     const transactions: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>[] = [];
     const baseNarrative = `${expense.voucherNo}: ${expense.expenseType}${expense.destination ? ` to ${expense.destination}` : ''}`;
 
-    const createTxn = (mode: 'Cash' | 'Bank', amt: number, specificNarration: string) => {
+    const createTxn = (mode: 'Cash' | 'Bank', amt: number, specificNarration: string): Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> => {
         const items: TransactionItem[] = [{ particular: specificNarration, quantity: 1, rate: amt }];
         
         return {
@@ -115,15 +114,14 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
             referenceType: "Expense Entry",
             referenceId: expense.voucherNo,
             items: items,
-            purchaseNumber: null,
-            isSystemTransaction: true,
+            purchaseNumber: undefined,
             createdBy: expense.createdBy,
             invoiceNumber: null,
             invoiceDate: null,
             chequeNumber: null,
             chequeDate: null,
             dueDate: null,
-            tripId: null,
+            tripId: undefined,
             voucherId: expense.voucherNo,
             lastModifiedBy: null
         };
@@ -161,14 +159,14 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         expenseType: expenseData.expenseType,
         amount: Number(expenseData.amount) || 0,
         extraAmount: Number(expenseData.extraAmount) || 0,
-        extraRemarks: expenseData.extraRemarks || null,
+        extraRemarks: expenseData.extraRemarks || undefined,
         paymentMode: expenseData.paymentMode,
         cashAmount: Number(expenseData.cashAmount) || 0,
         bankAmount: Number(expenseData.bankAmount) || 0,
         partyId: expenseData.partyId || null,
         accountId: expenseData.accountId || null,
         destination: expenseData.destination || null,
-        remarks: expenseData.remarks || null,
+        remarks: expenseData.remarks || undefined,
         createdBy: expenseData.createdBy,
         createdAt: now,
     };
@@ -176,7 +174,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const batch = writeBatch(db);
     batch.set(doc(getExpensesCollection(), expenseId), expenseRecord);
 
-    const ledgerTxns = generateLedgerTransactions(expenseRecord, now);
+    const ledgerTxns = generateLedgerTransactions(expenseRecord as any, now);
     ledgerTxns.forEach(txn => {
         const txnRef = doc(getTransactionsCollection());
         batch.set(txnRef, { ...txn, createdAt: now, lastModifiedAt: now });
@@ -221,7 +219,7 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
         txnSnap.forEach(d => batch.delete(d.ref));
 
         // Create new ones based on current data
-        const ledgerTxns = generateLedgerTransactions(newData, now);
+        const ledgerTxns = generateLedgerTransactions(newData as any, now);
         ledgerTxns.forEach(txn => {
             const txnRef = doc(getTransactionsCollection());
             batch.set(txnRef, { 

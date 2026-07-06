@@ -5,8 +5,8 @@ import type { PolicyOrMembership, Vehicle, Driver, PolicyStatus } from '@/lib/ty
 import { Button } from '@/components/ui/button';
 import { 
   Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, 
-  CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, 
-  Archive, AlertTriangle, Info, Loader2, Eye 
+  CalendarIcon, Check, ChevronsUpDown, Info, Loader2, Eye,
+  RefreshCcw, Archive
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -226,6 +226,7 @@ export default function PoliciesPage() {
                     ...formState,
                     status: 'Active',
                     createdBy: user.username,
+                    createdAt: nowIso
                 };
                 const newPolicyId = await addPolicy(newData);
                 if (isRenewal && formState.renewedFromId) {
@@ -393,14 +394,14 @@ export default function PoliciesPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="p-0">Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')} className="p-0">Policy # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')} className="p-0">For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')} className="p-0">Expiry Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('cost')} className="p-0 text-right w-full">Premium <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead>Status</TableHead>
-                             <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="p-0">Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="p-0 text-[11px]">Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')} className="p-0 text-[11px]">Policy # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')} className="p-0 text-[11px]">For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')} className="p-0 text-[11px]">Expiry Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('cost')} className="p-0 text-right w-full text-[11px]">Premium <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead className="text-[11px]">Status</TableHead>
+                             <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="p-0 text-[11px]">Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead className="text-right text-[11px]">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -409,27 +410,27 @@ export default function PoliciesPage() {
                                 policy.displayStatus === 'Expired' && 'bg-red-50/50 hover:bg-red-100/50',
                                 (policy.displayStatus === 'Active' && policy.daysRemaining <= 15) && 'bg-amber-50/50 hover:bg-amber-100/50'
                             )}>
-                                <TableCell className="font-medium">{policy.type}</TableCell>
-                                <TableCell>{policy.policyNumber}</TableCell>
-                                <TableCell>{policy.memberName}</TableCell>
+                                <TableCell className="font-medium text-xs">{policy.type}</TableCell>
+                                <TableCell className="text-xs">{policy.policyNumber}</TableCell>
+                                <TableCell className="text-xs">{policy.memberName}</TableCell>
                                 <TableCell>
                                     <div className="flex flex-col">
-                                        <span className="text-sm">{toNepaliDate(policy.endDate)}</span>
+                                        <span className="text-xs">{toNepaliDate(policy.endDate)}</span>
                                         <span className={cn(
-                                            "text-[10px] font-bold uppercase",
+                                            "text-[9px] font-bold uppercase",
                                             policy.daysRemaining < 0 ? 'text-destructive' : (policy.daysRemaining <= 15 ? 'text-amber-600' : 'text-muted-foreground')
                                         )}>
                                             {policy.daysRemaining < 0 ? `${-policy.daysRemaining} days ago` : `${policy.daysRemaining} days left`}
                                         </span>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-right tabular-nums">Rs. {policy.cost.toLocaleString()}</TableCell>
+                                <TableCell className="text-right tabular-nums text-xs font-mono">Rs. {policy.cost.toLocaleString()}</TableCell>
                                 <TableCell>{getStatusBadge(policy)}</TableCell>
                                 <TableCell>
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-help">
+                                                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-help uppercase font-bold">
                                                     <Info className="h-3 w-3" />
                                                     <span>{policy.lastModifiedBy || policy.createdBy}</span>
                                                 </div>

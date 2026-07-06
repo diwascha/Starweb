@@ -2,16 +2,13 @@
 
 import * as React from "react"
 import {
-  Label,
   Pie as RechartsPie,
   PieChart as RechartsPieChart,
-  Sector,
   Tooltip as RechartsTooltip,
 } from "recharts"
 import {
   Cell,
   PieProps as RechartsPieProps,
-  PieSectorDataItem,
 } from "recharts"
 
 import {
@@ -78,7 +75,7 @@ const ChartLegend = React.forwardRef<
           className="flex items-center gap-1.5"
         >
           {Icon ? (
-            <Icon
+            <div
               className="h-3.5 w-3.5"
               style={
                 {
@@ -86,7 +83,9 @@ const ChartLegend = React.forwardRef<
                   "--color-primary": color,
                 } as React.CSSProperties
               }
-            />
+            >
+                <Icon />
+            </div>
           ) : (
             <div
               className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
@@ -95,7 +94,7 @@ const ChartLegend = React.forwardRef<
               }}
             />
           )}
-          {label}
+          {label as React.ReactNode}
           {value && <div className="font-medium">{value}</div>}
         </div>
       ))}
@@ -143,8 +142,8 @@ PieChart.displayName = "PieChart"
 const Pie = React.forwardRef<
   any,
   Omit<RechartsPieProps, "activeShape" | "inactiveShape"> & {
-    activeShape?: React.ComponentType<PieSectorDataItem>
-    inactiveShape?: React.ComponentType<PieSectorDataItem>
+    activeShape?: any
+    inactiveShape?: any
     "data-testid"?: string
   }
 >(({ className, "data-testid": testId, ...props }, ref) => {
@@ -162,7 +161,7 @@ const Pie = React.forwardRef<
   }, [setActiveIndex])
 
   const renderActiveShape = React.useCallback(
-    (props: PieSectorDataItem) => {
+    (props: any) => {
       const { activeShape: ActiveShape } = props as any
 
       if (!ActiveShape) {
@@ -175,7 +174,7 @@ const Pie = React.forwardRef<
   )
 
   const renderInactiveShape = React.useCallback(
-    (props: PieSectorDataItem) => {
+    (props: any) => {
       const { inactiveShape: InactiveShape } = props as any
 
       if (!InactiveShape) {

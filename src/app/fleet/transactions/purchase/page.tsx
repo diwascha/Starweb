@@ -9,13 +9,10 @@ import {
   Search, 
   ArrowUpDown, 
   MoreHorizontal, 
-  View, 
-  Edit, 
   Trash2, 
-  User, 
+  Edit, 
   Download, 
   CalendarIcon, 
-  X, 
   FileSpreadsheet, 
   FileText, 
   Loader2, 
@@ -24,7 +21,7 @@ import {
   ChevronDown,
   FilterX
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -77,9 +74,9 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
-                        <div className="flex items-center gap-2 overflow-hidden">
+                        <div className="flex items-center gap-2 overflow-hidden text-left">
                             {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                            <span className="truncate">{displayText}</span>
+                            <span className="truncate text-left">{displayText}</span>
                         </div>
                         <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                     </Button>
@@ -130,15 +127,15 @@ export default function PurchaseLogsPage() {
     const [filterPartyId, setFilterPartyId] = useState<string>('All');
 
     const { toast } = useToast();
-    const { user, hasPermission } = useAuth();
+    const { hasPermission } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
+            onTransactionsUpdate(setTransactions),
             onVehiclesUpdate(setVehicles),
-            onPartiesUpdate(setParties),
-            onTransactionsUpdate(setTransactions)
+            onPartiesUpdate(setParties)
         ];
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
@@ -165,8 +162,8 @@ export default function PurchaseLogsPage() {
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(t => 
-                (vehiclesById.get(t.vehicleId) || '').toLowerCase().includes(query) ||
-                (partiesById.get(t.partyId!) || '').toLowerCase().includes(query) ||
+                (vehiclesById.get(t.vehicleId || '') || '').toLowerCase().includes(query) ||
+                (partiesById.get(t.partyId || '') || '').toLowerCase().includes(query) ||
                 (t.invoiceNumber || '').toLowerCase().includes(query) ||
                 (t.category || '').toLowerCase().includes(query)
             );
@@ -207,13 +204,13 @@ export default function PurchaseLogsPage() {
                 return sortConfig.direction === 'asc' ? res : -res;
             }
             
-            let aVal, bVal;
+            let aVal: string, bVal: string;
             if (sortConfig.key === 'vehicleName') {
-                aVal = vehiclesById.get(a.vehicleId) || '';
-                bVal = vehiclesById.get(b.vehicleId) || '';
+                aVal = vehiclesById.get(a.vehicleId || '') || '';
+                bVal = vehiclesById.get(b.vehicleId || '') || '';
             } else if (sortConfig.key === 'partyName') {
-                 aVal = partiesById.get(a.partyId!) || '';
-                 bVal = partiesById.get(b.partyId!) || '';
+                 aVal = partiesById.get(a.partyId || '') || '';
+                 bVal = partiesById.get(b.partyId || '') || '';
             } else {
                 aVal = (a[sortConfig.key as keyof Transaction] || '').toString();
                 bVal = (b[sortConfig.key as keyof Transaction] || '').toString();
@@ -266,9 +263,9 @@ export default function PurchaseLogsPage() {
             const XLSX = (await import('xlsx'));
             const dataToExport = filteredAndSortedPurchases.map(p => ({
                 'Date (BS)': toNepaliDate(p.date),
-                'Vehicle': vehiclesById.get(p.vehicleId),
+                'Vehicle': vehiclesById.get(p.vehicleId || ''),
                 'Category': p.category || 'N/A',
-                'Supplier': partiesById.get(p.partyId!) || 'N/A',
+                'Supplier': partiesById.get(p.partyId || ''),
                 'Amount (NPR)': p.amount,
                 'Posted By': p.lastModifiedBy || p.createdBy,
             }));
@@ -286,9 +283,9 @@ export default function PurchaseLogsPage() {
 
             const tableData = filteredAndSortedPurchases.map(p => [
                 toNepaliDate(p.date),
-                vehiclesById.get(p.vehicleId) || 'N/A',
+                vehiclesById.get(p.vehicleId || '') || 'N/A',
                 p.category || 'N/A',
-                partiesById.get(p.partyId!) || 'N/A',
+                partiesById.get(p.partyId || '') || 'N/A',
                 p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })
             ]);
 
@@ -316,7 +313,7 @@ export default function PurchaseLogsPage() {
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input type="search" placeholder="Search logs..." className="pl-8 sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
-                    {hasPermission('fleet', 'create') && (
+                    {hasPermission('purchaseOrders', 'create') && (
                         <Button onClick={() => router.push('/fleet/transactions/purchase/new')}>
                             <PlusCircle className="mr-2 h-4 w-4" /> New Purchase
                         </Button>
@@ -400,7 +397,7 @@ export default function PurchaseLogsPage() {
                         ) : filteredAndSortedPurchases.map(txn => (
                             <TableRow key={txn.id} className="hover:bg-muted/30">
                                 <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(txn.date)}</TableCell>
-                                <TableCell className="font-semibold text-[11px]">{vehiclesById.get(txn.vehicleId) || 'N/A'}</TableCell>
+                                <TableCell className="font-semibold text-[11px]">{vehiclesById.get(txn.vehicleId || '') || 'N/A'}</TableCell>
                                 <TableCell>
                                     <Badge variant="outline" className={cn(
                                         "text-[9px] uppercase font-bold",
@@ -414,7 +411,7 @@ export default function PurchaseLogsPage() {
                                         {txn.category || 'Other'}
                                     </Badge>
                                 </TableCell>
-                                <TableCell className="text-[11px]">{partiesById.get(txn.partyId!) || 'N/A'}</TableCell>
+                                <TableCell className="text-[11px]">{partiesById.get(txn.partyId || '') || 'N/A'}</TableCell>
                                 <TableCell className="text-red-600 font-mono font-bold text-[11px]">-{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell>
                                     <TooltipProvider><Tooltip><TooltipTrigger className="text-[10px] text-muted-foreground uppercase font-bold">{txn.lastModifiedBy || txn.createdBy}</TooltipTrigger><TooltipContent><p className="text-xs">Posted: {format(new Date(txn.createdAt), "PPpp")}</p>{txn.lastModifiedAt && <p className="text-xs">Updated: {format(new Date(txn.lastModifiedAt), "PPpp")}</p>}</TooltipContent></Tooltip></TooltipProvider>

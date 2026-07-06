@@ -122,7 +122,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     status: s.status || 'Due',
                     partialPayments: s.partialPayments || [],
                     cancellationReason: s.cancellationReason || '',
-                }
+                } as ChequeSplit;
             }));
         } else {
             const setNextVoucher = async () => {
@@ -148,14 +148,14 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             const chequeDate = addDays(baseDate, intervalDays);
 
             return {
-                id: existingSplit.id || `${Date.now()}-${i}`,
+                id: (existingSplit as any).id || `${Date.now()}-${i}`,
                 chequeDate: chequeDate,
                 chequeNumber: existingSplit.chequeNumber || '',
                 amount: currentAmount as number | "",
                 remarks: existingSplit.remarks || '',
                 interval: intervalDays,
                 status: 'Due' as ChequeStatus,
-                partialPayments: existingSplit.partialPayments || [],
+                partialPayments: (existingSplit as any).partialPayments || [],
             };
         });
         setChequeSplits(newSplits);
@@ -192,7 +192,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             return;
         }
         try {
-            await addParty({...partyForm, createdBy: user.username, createdAt: new Date().toISOString()});
+            await addParty({...partyForm, createdBy: user.username });
             handlePartySelect(partyForm.name);
             toast({title: 'Success', description: 'New party added.'});
             setIsPartyDialogOpen(false);
@@ -213,8 +213,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 name: accountForm.name,
                 type: 'Bank',
                 ownership: accountForm.ownership,
-                bankName: accountForm.bankName,
                 accountNumber: accountForm.accountNumber,
+                bankName: accountForm.bankName,
                 branch: accountForm.branch,
                 bankAccountType: accountForm.bankAccountType,
                 createdBy: user.username,
@@ -269,8 +269,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     amount: Number(s.amount) || 0,
                     remarks: s.remarks,
                     status: s.status,
-                    partialPayments: s.partialPayments || [],
-                    cancellationReason: s.cancellationReason || '',
+                    partialPayments: (s as any).partialPayments || [],
+                    cancellationReason: (s as any).cancellationReason || '',
                 })),
                 createdBy: chequeToEdit?.createdBy || user.username,
             };
@@ -557,7 +557,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     </TableHeader>
                     <TableBody>
                         {chequeSplits.map((split, index) => (
-                            <TableRow key={split.id}>
+                            <TableRow key={(split as any).id}>
                                 <TableCell>
                                     <Input type="number" value={split.interval} onChange={(e) => handleSplitChange(index, 'interval', e.target.value)} />
                                 </TableCell>

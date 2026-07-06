@@ -86,7 +86,7 @@ const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, ic
     const displayText = isAll
         ? `All ${placeholder}s`
         : values.length === 1
-            ? items.find((i: any) => i.id === values[0])?.name || values[0]
+            ? items.find((i: any) => String(i.id) === values[0])?.name || values[0]
             : `${values.length} ${placeholder}s Selected`;
 
     return (
@@ -95,7 +95,7 @@ const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, ic
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3">
-                        <div className="flex items-center gap-2 overflow-hidden">
+                        <div className="flex items-center gap-2 overflow-hidden text-left">
                             <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                             <span className="truncate">{displayText}</span>
                         </div>
@@ -119,8 +119,8 @@ const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, ic
                                     All {placeholder}s
                                 </CommandItem>
                                 {items.map((item: any) => (
-                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(item.id)}>
-                                        <Check className={cn("mr-2 h-4 w-4", values.includes(item.id) ? "opacity-100" : "opacity-0")} />
+                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))}>
+                                        <Check className={cn("mr-2 h-4 w-4", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
                                         {item.name}
                                     </CommandItem>
                                 ))}
@@ -211,7 +211,7 @@ export default function FleetTransactionsPage() {
                 ...t,
                 debit: isDebit ? amount : 0,
                 credit: isCredit ? amount : 0,
-                vehicleName: vehiclesById.get(t.vehicleId) || 'N/A',
+                vehicleName: vehiclesById.get(t.vehicleId || '') || 'N/A',
                 partyName: t.partyId ? partiesById.get(t.partyId) || 'Unassigned' : 'Unassigned',
                 refNo: t.purchaseNumber || t.referenceId || (t.tripId ? 'Trip' : 'JV'),
                 categoryDisplay: (t.category || (t.type === 'Sales' ? 'Freight' : t.type)).toUpperCase(),

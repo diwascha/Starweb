@@ -242,7 +242,7 @@ const ChartTooltipItem = React.forwardRef<
       <div className="flex flex-1 justify-between">
         <p className="text-muted-foreground">{name}</p>
         <p className="font-medium">
-          {value}
+          {value || ''}
           <span className="ml-1 text-muted-foreground">{unit}</span>
         </p>
       </div>

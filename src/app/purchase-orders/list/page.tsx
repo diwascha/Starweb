@@ -38,7 +38,6 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -170,16 +169,16 @@ export default function PurchaseOrdersListPage() {
 
   const { availableYears, availableCompanies } = useMemo(() => {
     const years = new Set<number>();
-    const companies = new Set<string>();
+    const companiesSet = new Set<string>();
     purchaseOrders.forEach(po => {
         try {
             years.add(new NepaliDate(new Date(po.poDate)).getYear());
-            companies.add(po.companyName);
+            companiesSet.add(po.companyName);
         } catch {}
     });
     return {
         availableYears: Array.from(years).sort((a, b) => b - a),
-        availableCompanies: Array.from(companies).sort().map(c => ({ id: c, name: c })),
+        availableCompanies: Array.from(companiesSet).sort().map(c => ({ id: c, name: c })),
     };
   }, [purchaseOrders]);
 
@@ -366,55 +365,55 @@ export default function PurchaseOrdersListPage() {
             <TableHeader>
                 <TableRow>
                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('poNumber')}>
+                    <Button variant="ghost" onClick={() => requestSort('poNumber')} className="text-xs">
                     PO Number <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('poDate')}>
+                    <Button variant="ghost" onClick={() => requestSort('poDate')} className="text-xs">
                     Date <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('companyName')}>
+                    <Button variant="ghost" onClick={() => requestSort('companyName')} className="text-xs">
                     Company Name <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('status')} className="font-bold text-primary">
+                    <Button variant="ghost" onClick={() => requestSort('status')} className="font-bold text-primary text-xs">
                     Status <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('authorship')}>
+                    <Button variant="ghost" onClick={() => requestSort('authorship')} className="text-xs">
                         Authorship
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right text-xs">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {filteredAndSortedPOs.length > 0 ? (
                     filteredAndSortedPOs.map(po => (
                     <TableRow key={po.id}>
-                        <TableCell className="font-medium">{po.poNumber}</TableCell>
-                        <TableCell>{toNepaliDate(po.poDate)}</TableCell>
-                        <TableCell>{po.companyName}</TableCell>
+                        <TableCell className="font-medium text-xs">{po.poNumber}</TableCell>
+                        <TableCell className="text-xs">{toNepaliDate(po.poDate)}</TableCell>
+                        <TableCell className="text-xs">{po.companyName}</TableCell>
                         <TableCell>
                             {renderStatusBadge(po.status)}
                         </TableCell>
                         <TableCell>
                             <TooltipProvider>
                                 <Tooltip>
-                                    <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                    <TooltipTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-default uppercase font-bold">
                                         {po.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
                                         <span>{po.lastModifiedBy || po.createdBy}</span>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>Created by: {po.createdBy}{po.createdAt ? ` on ${format(new Date(po.createdAt), "PP")}` : ''}</p>
+                                        <p className="text-xs">Created by: {po.createdBy}{po.createdAt ? ` on ${format(new Date(po.createdAt), "PP")}` : ''}</p>
                                         {po.lastModifiedBy && (
-                                          <p>Modified by: {po.lastModifiedBy}{po.updatedAt ? ` on ${format(new Date(po.updatedAt), "PP")}` : ''}</p>
+                                          <p className="text-xs">Modified by: {po.lastModifiedBy}{po.updatedAt ? ` on ${format(new Date(po.updatedAt), "PP")}` : ''}</p>
                                         )}
                                     </TooltipContent>
                                 </Tooltip>
@@ -448,7 +447,7 @@ export default function PurchaseOrdersListPage() {
                             {hasPermission('purchaseOrders', 'edit') && (
                                 <>
                                     {po.status !== 'Delivered' ? (
-                                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)} disabled={po.status === 'Canceled'}>
                                             <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
                                         </DropdownMenuItem>
                                     ) : (

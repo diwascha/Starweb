@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -136,7 +135,7 @@ const getModuleDisplayName = (m: Module): string => {
         case 'rental': return 'Rental Management';
         case 'notes': return 'Notes & To-Do';
         case 'settings': return 'Settings Page';
-        default: return m.charAt(0).toUpperCase() + m.slice(1);
+        default: return (m as string).charAt(0).toUpperCase() + (m as string).slice(1);
     }
 };
 
@@ -490,7 +489,7 @@ export default function SettingsPage() {
             await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
             toast({title: 'Success', description: 'Party updated.'});
         } else {
-            await addParty({...partyForm, createdAt: new Date().toISOString(), createdBy: user.username});
+            await addParty({...partyForm, createdBy: user.username });
             toast({title: 'Success', description: 'New party added.'});
         }
         setIsPartyDialogOpen(false);
@@ -544,7 +543,7 @@ export default function SettingsPage() {
               await addAccount({ ...accountForm, createdAt: new Date().toISOString(), createdBy: user.username });
               toast({title: 'Success', description: 'New account added.'});
           }
-          setIsAccountDialogOpen(false);
+          setIsAccountDialogOpen(true);
       } catch {
            toast({title: 'Error', description: 'Failed to add account.', variant: 'destructive'});
       }
@@ -684,7 +683,7 @@ export default function SettingsPage() {
     setChangePasswordError(null);
     try {
         if (user.is_admin) { await setAdminPassword(newPassword, new Date().toISOString()); }
-        else { const currentUser = users.find(u => u.username === user.username); if (currentUser) { await saveUser({ ...currentUser, passwordLastUpdated: new Date().toISOString() }); } }
+        else { const currentUser = users.find(u => u.username === user.username); if (currentUser) { await saveUser({ ...currentUser, passwordLastUpdated: new Date().toISOString(), permissions: currentUser.permissions }); } }
         toast({ title: 'Success', description: 'Password updated. Please log in again.' });
         setIsChangePasswordDialogOpen(false);
         await logout();
@@ -705,7 +704,7 @@ export default function SettingsPage() {
 
   const usageStats = useMemo(() => {
     const total = pageVisits.reduce((sum, v) => sum + v.count, 0);
-    const sorted = [...pageVisits].sort((a, b) => b.count - a.count);
+    const sorted = [...pageVisits].sort((a, b) => a.count - b.count);
     return { total, top5: sorted.slice(0, 5) };
   }, [pageVisits]);
 
@@ -1039,7 +1038,7 @@ export default function SettingsPage() {
                     <CardHeader className="py-4 px-6 border-b bg-red-50/10 flex flex-row items-center justify-between"><div><CardTitle className="text-sm font-black uppercase text-gray-900">Incident Audit Log</CardTitle></div></CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-[10px]"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6 font-bold">Time</TableHead><TableHead className="font-bold">Module Scope</TableHead><TableHead className="font-bold">Exception Message</TableHead></TableRow></TableHeader><TableBody>
-                        {logs.map(log => (<TableRow key={log?.id || generateId()} className="h-12 border-b-gray-50"><TableCell className="text-gray-500 pl-6 font-mono">{log?.timestamp ? format(new Date(log.timestamp), 'HH:mm:ss') : '-'}</TableCell><TableCell><Badge variant="outline" className="text-[9px] font-black uppercase text-red-600">{log?.module || 'Global'}</Badge></TableCell><TableCell className="font-medium text-gray-900 truncate max-w-sm">{log?.message || 'Undefined Exception'}</TableCell></TableRow>))}
+                        {logs.map((log: any) => (<TableRow key={log?.id || generateId()} className="h-12 border-b-gray-50"><TableCell className="text-gray-500 pl-6 font-mono">{log?.timestamp ? format(new Date(log.timestamp), 'HH:mm:ss') : '-'}</TableCell><TableCell><Badge variant="outline" className="text-[9px] font-black uppercase text-red-600">{log?.module || 'Global'}</Badge></TableCell><TableCell className="font-medium text-gray-900 truncate max-w-sm">{log?.message || 'Undefined Exception'}</TableCell></TableRow>))}
                         </TableBody></Table>
                     </CardContent>
                 </Card>
