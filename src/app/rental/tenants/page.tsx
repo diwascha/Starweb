@@ -335,8 +335,8 @@ export default function TenantsPage() {
                 lastModifiedBy: user.username
             });
         } else {
-            finalTenantId = await addParty(partyPayload as Omit<Party, 'id' | 'createdAt'>);
-                ...partyPayload,
+            finalTenantId = await addParty({
+                ...partyPayload as Omit<Party, 'id' | 'createdAt'>,
                 createdBy: user.username
             });
         }
