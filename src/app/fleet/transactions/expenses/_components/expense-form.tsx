@@ -224,8 +224,10 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const handleQuickAddParty = async () => {
         if (!user || !partyForm.name || !partyForm.ownership) return;
         try {
-            const id = await addParty({ ...partyForm, createdAt: new Date().toISOString(), createdBy: user.username });
-            const id = await addParty({ ...partyForm, createdBy: user.username });
+            const id = await addParty({ 
+                ...partyForm, 
+                createdBy: user.username 
+            });
             form.setValue('partyId', id);
             setIsPartyDialogOpen(false);
             setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '', panNumber: '' });
