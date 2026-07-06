@@ -4,16 +4,15 @@ import * as React from "react"
 import {
   Pie as RechartsPie,
   PieChart as RechartsPieChart,
-} from "recharts"
-import {
   Cell,
-  PieProps as RechartsPieProps,
 } from "recharts"
+import type { PieProps as RechartsPieProps } from "recharts"
 
 import {
   ChartConfig,
   ChartContainer,
   useChart,
+  ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart-core"
 import { cn } from "@/lib/utils"
@@ -66,36 +65,39 @@ const ChartLegend = React.forwardRef<
       )}
       {...props}
     >
-      {legend.map(({ label, color, icon: Icon, value }, index) => (
-        <div
-          key={label as string}
-          data-testid={`chart-legend-item-${index}`}
-          className="flex items-center gap-1.5"
-        >
-          {Icon ? (
-            <div
-              className="h-3.5 w-3.5"
-              style={
-                {
-                  "--color-foreground": "hsl(var(--muted-foreground))",
-                  "--color-primary": color,
-                } as React.CSSProperties
-              }
-            >
-                <Icon />
-            </div>
-          ) : (
-            <div
-              className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
-              style={{
-                backgroundColor: color,
-              }}
-            />
-          )}
-          {label as React.ReactNode}
-          {value && <div className="font-medium">{value}</div>}
-        </div>
-      ))}
+      {legend.map(({ label, color, icon: Icon, value }, index) => {
+        const IconComponent = Icon as any;
+        return (
+          <div
+            key={label as string}
+            data-testid={`chart-legend-item-${index}`}
+            className="flex items-center gap-1.5"
+          >
+            {IconComponent ? (
+              <div
+                className="h-3.5 w-3.5"
+                style={
+                  {
+                    "--color-foreground": "hsl(var(--muted-foreground))",
+                    "--color-primary": color,
+                  } as React.CSSProperties
+                }
+              >
+                  <IconComponent />
+              </div>
+            ) : (
+              <div
+                className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                style={{
+                  backgroundColor: color,
+                }}
+              />
+            )}
+            {label as React.ReactNode}
+            {value && <div className="font-medium">{value}</div>}
+          </div>
+        )
+      })}
     </div>
   )
 })
@@ -170,7 +172,7 @@ const Pie = React.forwardRef<
           return ActiveShape(props);
       }
 
-      return React.isValidElement(ActiveShape) ? ActiveShape : null;
+      return React.isValidElement(ActiveShape) ? (ActiveShape as any) : null;
     },
     [props.activeShape]
   )
@@ -187,7 +189,7 @@ const Pie = React.forwardRef<
           return InactiveShape(props);
       }
 
-      return React.isValidElement(InactiveShape) ? InactiveShape : null;
+      return React.isValidElement(InactiveShape) ? (InactiveShape as any) : null;
     },
     [props.inactiveShape]
   )
@@ -225,6 +227,7 @@ Pie.displayName = "Pie"
 export {
   Chart,
   ChartContainer,
+  ChartTooltip,
   ChartTooltipContent,
   PieChart,
   Pie,

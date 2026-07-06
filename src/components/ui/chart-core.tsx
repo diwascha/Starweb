@@ -34,8 +34,7 @@ const ChartStyle = zod.object({
     .optional(),
 })
 
-// TODO: Use zod transform to apply default values.
-const ChartTooltip = zod.object({
+const ChartTooltipSchema = zod.object({
   /**
    * Whether the tooltip is shared across all data series.
    */
@@ -129,7 +128,7 @@ const ChartConfig = zod.record(
     /**
      * The tooltip configuration for the chart item.
      */
-    tooltip: ChartTooltip.optional(),
+    tooltip: ChartTooltipSchema.optional(),
     /**
      * The label configuration for the chart item.
      */
@@ -199,6 +198,8 @@ const ChartContainer = React.forwardRef<
   )
 })
 ChartContainer.displayName = "Chart"
+
+const ChartTooltip = RechartsPrimitive.Tooltip
 
 const ChartTooltipFrame = React.forwardRef<
   HTMLDivElement,
@@ -338,7 +339,7 @@ const ChartTooltipContent = React.forwardRef<
                 }
                 value={
                   formatter
-                    ? formatter(item.value ?? '', item.name, item, index, payload)
+                    ? formatter(item.value ?? '', (item.name || "") as string, item, index, payload)
                     : item.value
                 }
                 unit={""}
