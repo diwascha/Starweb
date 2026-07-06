@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -90,21 +89,21 @@ function ConnectionStatusIndicator() {
   const isConnected = user?.is_admin ? true : isFirebaseConnected;
 
   return (
-    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground shrink-0">
+    <div className="flex items-center gap-1.5 text-[9px] font-bold shrink-0">
       {isConnected ? (
         <>
-          <span className="relative flex h-2 w-2">
+          <span className="relative flex h-1.5 w-1.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
           </span>
-          <span>Online</span>
+          <span className="text-green-600 uppercase tracking-tighter">Online</span>
         </>
       ) : (
         <>
-           <span className="relative flex h-2 w-2">
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+           <span className="relative flex h-1.5 w-1.5">
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
           </span>
-          <span>Offline</span>
+          <span className="text-red-600 uppercase tracking-tighter">Offline</span>
         </>
       )}
     </div>
@@ -169,9 +168,9 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-3 px-2 py-4">
-            <img src={logo.src} width="32" height="32" alt="Logo" className="rounded-lg group-data-[collapsible=icon]:mx-auto object-contain bg-white" />
-            <h1 className="text-xl font-bold tracking-tight group-data-[collapsible=icon]:hidden truncate">
+        <div className="flex items-center gap-2.5 px-2 py-2">
+            <img src={logo.src} width="28" height="28" alt="Logo" className="rounded-md group-data-[collapsible=icon]:mx-auto object-contain bg-white" />
+            <h1 className="text-lg font-black tracking-tighter group-data-[collapsible=icon]:hidden truncate text-gray-900">
                 {appBranding.appName}
             </h1>
         </div>
@@ -426,37 +425,48 @@ export function AppSidebar() {
             </SidebarMenuItem>
             )}
         </SidebarMenu>
+
+        <SidebarMenu>
+            <SidebarSeparator />
+            <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Backup Data" onClick={handleExportData} disabled={isExporting}>
+                    {isExporting ? <Loader2 className="animate-spin" /> : <Download />}
+                    <span>{isExporting ? 'Backing up...' : 'Backup Data'}</span>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            {hasPermission('settings', 'view') && (
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/settings')} tooltip="Settings">
+                    <Link href="/settings" className="flex items-center gap-2">
+                        <Settings />
+                        <span>Settings</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            )}
+        </SidebarMenu>
       </SidebarContent>
        <SidebarFooter>
         <SidebarMenu>
             <SidebarSeparator />
             <SidebarMenuItem>
-                <Button variant="outline" className="w-full justify-start gap-2" onClick={handleExportData} disabled={isExporting}>
-                    {isExporting ? <Loader2 className="animate-spin" /> : <Download />}
-                    <span>{isExporting ? 'Backing up...' : 'Backup Data'}</span>
-                </Button>
+               <div className="flex items-center justify-between gap-2 px-2 py-1 group-data-[collapsible=icon]:hidden">
+                  <div className="flex flex-col min-w-0">
+                    <p className="text-xs font-black text-sidebar-foreground truncate uppercase">{user.username}</p>
+                    <ConnectionStatusIndicator />
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors" onClick={handleSignOut} title="Sign Out">
+                      <LogOut className="h-3.5 w-3.5" />
+                  </Button>
+               </div>
+               <SidebarMenuButton className="hidden group-data-[collapsible=icon]:flex" tooltip="Sign Out" onClick={handleSignOut}>
+                  <LogOut />
+               </SidebarMenuButton>
             </SidebarMenuItem>
-            {hasPermission('settings', 'view') && (
             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/settings')} tooltip="Settings"><Link href="/settings" className="flex items-center gap-2"><Settings /><span>Settings</span></Link></SidebarMenuButton>
+                <SidebarCollapseButton />
             </SidebarMenuItem>
-            )}
         </SidebarMenu>
-        <SidebarSeparator />
-         <div className="flex items-center justify-between gap-2 p-2 text-sm group-data-[collapsible=icon]:hidden">
-            <p className="font-medium text-sidebar-foreground truncate flex-1">{user.username}</p>
-            <ConnectionStatusIndicator />
-         </div>
-        <SidebarMenuItem>
-            <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleSignOut}>
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out</span>
-            </Button>
-        </SidebarMenuItem>
-        <SidebarSeparator />
-         <SidebarMenuItem>
-            <SidebarCollapseButton />
-        </SidebarMenuItem>
       </SidebarFooter>
     </Sidebar>
   );
