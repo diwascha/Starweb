@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, CalendarIcon, Image as ImageIcon, X, Phone, Heart, GraduationCap, ShieldCheck, FileText, Upload, Download, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, CalendarIcon, Image as ImageIcon, X, Phone, Heart, GraduationCap, ShieldCheck, FileText, Upload, Download, Loader2, Building2, DollarSign } from 'lucide-react';
 import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus, Department, Position, BloodGroup, EmployeeDocument } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -51,6 +51,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import Link from 'next/link';
 
 type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender' | 'joiningDate' | 'status' | 'department' | 'position';
 type SortDirection = 'asc' | 'desc';
