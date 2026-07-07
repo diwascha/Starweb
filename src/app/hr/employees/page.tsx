@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, CalendarIcon, Image as ImageIcon, X } from 'lucide-react';
-import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus, Department, Position } from '@/lib/types';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, CalendarIcon, Image as ImageIcon, X, Phone, Heart, GraduationCap, ShieldCheck, FileText, Upload, Download, Loader2 } from 'lucide-react';
+import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus, Department, Position, BloodGroup, EmployeeDocument } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,18 +44,21 @@ import { format } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { cn, toNepaliDate } from '@/lib/utils';
-import { uploadFile } from '@/services/storage-service';
+import { cn, toNepaliDate, generateId } from '@/lib/utils';
+import { uploadFile, deleteFile } from '@/services/storage-service';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender' | 'joiningDate' | 'status' | 'department' | 'position';
 type SortDirection = 'asc' | 'desc';
 
 const employeeStatuses: EmployeeStatus[] = ['Working', 'Long Leave', 'Resigned', 'Dismissed'];
 const departments: Department[] = ['Production', 'Admin'];
-const positions: Position[] = ['Manager', 'Supervisor', 'Machine Operator', 'Helpers'];
+const positions: Position[] = ['Manager', 'Supervisor', 'Machine Operator', 'Helpers', 'Staff'];
+const bloodGroups: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 
 const initialFormState = {
@@ -69,12 +72,18 @@ const initialFormState = {
     address: '',
     gender: 'Male' as Gender,
     mobileNumber: '',
+    email: '',
     dateOfBirth: new Date().toISOString(),
     joiningDate: new Date().toISOString(),
     identityType: 'Citizenship' as IdentityType,
     documentNumber: '',
+    bloodGroup: '' as BloodGroup | '',
+    emergencyContactName: '',
+    emergencyContactNumber: '',
+    qualification: '',
     referredBy: '',
     photoURL: '',
+    documents: [] as EmployeeDocument[],
 };
 
 export default function EmployeesPage() {
@@ -89,6 +98,8 @@ export default function EmployeesPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: EmployeeSortKey; direction: SortDirection }>({
@@ -113,9 +124,8 @@ export default function EmployeesPage() {
     setEditingEmployee(null);
     setPhotoFile(null);
     setPhotoPreview(null);
-    if (photoInputRef.current) {
-        photoInputRef.current.value = '';
-    }
+    if (photoInputRef.current) photoInputRef.current.value = '';
+    if (docInputRef.current) docInputRef.current.value = '';
   };
 
   const openAddEmployeeDialog = () => {
@@ -136,12 +146,18 @@ export default function EmployeesPage() {
         address: employee.address || '',
         gender: employee.gender || 'Male',
         mobileNumber: employee.mobileNumber || '',
+        email: employee.email || '',
         dateOfBirth: employee.dateOfBirth || new Date().toISOString(),
         joiningDate: employee.joiningDate || new Date().toISOString(),
         identityType: employee.identityType || 'Citizenship',
         documentNumber: employee.documentNumber || '',
+        bloodGroup: employee.bloodGroup || '',
+        emergencyContactName: employee.emergencyContactName || '',
+        emergencyContactNumber: employee.emergencyContactNumber || '',
+        qualification: employee.qualification || '',
         referredBy: employee.referredBy || '',
         photoURL: employee.photoURL || '',
+        documents: employee.documents || [],
     });
     if (employee.photoURL) {
       setPhotoPreview(employee.photoURL);
@@ -152,12 +168,8 @@ export default function EmployeesPage() {
    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 25 * 1024) { // 25 KB size limit
-                toast({
-                    title: 'Image Too Large',
-                    description: 'Please select a photo smaller than 25 KB.',
-                    variant: 'destructive',
-                });
+            if (file.size > 100 * 1024) { // 100 KB limit for profile photo
+                toast({ title: 'Image Too Large', description: 'Max size for profile photo is 100KB.', variant: 'destructive' });
                 return;
             }
             setPhotoFile(file);
@@ -169,8 +181,44 @@ export default function EmployeesPage() {
         setPhotoFile(null);
         setPhotoPreview(null);
         setFormState(prev => ({...prev, photoURL: ''}));
-        if (photoInputRef.current) {
-            photoInputRef.current.value = '';
+        if (photoInputRef.current) photoInputRef.current.value = '';
+    };
+
+    const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !user) return;
+        
+        setIsUploadingDoc(true);
+        try {
+            const filePath = `employee-docs/${user.username}-${Date.now()}-${file.name}`;
+            const url = await uploadFile(file, filePath);
+            
+            const newDoc: EmployeeDocument = {
+                id: generateId(),
+                name: file.name,
+                url,
+                type: file.type,
+                category: 'Other',
+                uploadedAt: new Date().toISOString()
+            };
+            
+            setFormState(prev => ({ ...prev, documents: [...prev.documents, newDoc] }));
+            toast({ title: 'Document Uploaded', description: file.name });
+        } catch (err: any) {
+            toast({ title: 'Upload Failed', description: err.message, variant: 'destructive' });
+        } finally {
+            setIsUploadingDoc(false);
+            if (docInputRef.current) docInputRef.current.value = '';
+        }
+    };
+
+    const removeDocument = async (docId: string, url: string) => {
+        try {
+            await deleteFile(url);
+            setFormState(prev => ({ ...prev, documents: prev.documents.filter(d => d.id !== docId) }));
+            toast({ title: 'Document Removed' });
+        } catch {
+            toast({ title: 'Error removing document' });
         }
     };
   
@@ -179,7 +227,7 @@ export default function EmployeesPage() {
     setFormState(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (name: keyof typeof initialFormState, value: string) => {
+  const handleSelectChange = (name: string, value: string) => {
       setFormState(prev => ({ ...prev, [name]: value }));
   };
   
@@ -191,30 +239,12 @@ export default function EmployeesPage() {
 
 
   const handleEmployeeSubmit = async () => {
-    if (!user) {
-      toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
-      return;
-    }
+    if (!user) return;
 
-    const requiredFields: (keyof typeof formState)[] = ['name', 'department', 'position', 'wageAmount', 'address', 'mobileNumber', 'status'];
-    const emptyFields = requiredFields.filter(field => !formState[field] || String(formState[field]).trim() === '');
-
-    if (emptyFields.length > 0) {
-        toast({
-            title: 'Missing Information',
-            description: `Please fill out all required fields: ${emptyFields.join(', ')}`,
-            variant: 'destructive',
-        });
+    if (!formState.name.trim() || !formState.wageAmount || !formState.mobileNumber) {
+        toast({ title: 'Missing Info', description: 'Name, Wage, and Mobile are mandatory.', variant: 'destructive' });
         return;
     }
-
-    const amount = parseFloat(formState.wageAmount);
-    if (isNaN(amount) || amount <= 0) {
-        toast({ title: 'Invalid Wage Amount', description: 'Please enter a valid, positive number for the wage amount.', variant: 'destructive' });
-        return;
-    }
-    
-    const allowanceAmount = parseFloat(formState.allowance) || 0;
 
     try {
       let photoURL = editingEmployee?.photoURL || '';
@@ -226,31 +256,18 @@ export default function EmployeesPage() {
       }
 
       const employeeData = {
+          ...formState,
           name: formState.name.trim(),
-          status: formState.status,
-          department: formState.department,
-          position: formState.position,
-          wageBasis: formState.wageBasis,
-          wageAmount: amount,
-          allowance: allowanceAmount,
-          address: formState.address,
-          gender: formState.gender,
-          mobileNumber: formState.mobileNumber,
-          dateOfBirth: formState.dateOfBirth,
-          joiningDate: formState.joiningDate,
-          identityType: formState.identityType,
-          documentNumber: formState.documentNumber,
-          referredBy: formState.referredBy,
+          wageAmount: parseFloat(formState.wageAmount) || 0,
+          allowance: parseFloat(formState.allowance) || 0,
           photoURL: photoURL,
       };
 
       if (editingEmployee) {
-        const updatedEmployeeData = { ...employeeData, lastModifiedBy: user.username };
-        await updateEmployee(editingEmployee.id, updatedEmployeeData);
+        await updateEmployee(editingEmployee.id, { ...employeeData, lastModifiedBy: user.username });
         toast({ title: 'Success', description: 'Employee updated.' });
       } else {
-        const newEmployeeData = { ...employeeData, createdBy: user.username, createdAt: new Date().toISOString() };
-        await addEmployee(newEmployeeData);
+        await addEmployee({ ...employeeData, createdBy: user.username, createdAt: new Date().toISOString() });
         toast({ title: 'Success', description: 'New employee added.' });
       }
       resetForm();
@@ -263,7 +280,7 @@ export default function EmployeesPage() {
   const handleDeleteEmployee = async (id: string, photoURL?: string) => {
     try {
       await deleteEmployee(id, photoURL);
-      toast({ title: 'Employee Deleted', description: 'The employee record has been deleted.' });
+      toast({ title: 'Employee Deleted' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete employee.', variant: 'destructive' });
     }
@@ -271,46 +288,21 @@ export default function EmployeesPage() {
 
   const requestSort = (key: EmployeeSortKey) => {
     let direction: SortDirection = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
     setSortConfig({ key, direction });
   };
   
   const filteredAndSortedEmployees = useMemo(() => {
     let filtered = employees;
-    
     if (searchQuery) {
-      const lowercasedQuery = searchQuery.toLowerCase();
-      filtered = filtered.filter(employee =>
-        employee.name.toLowerCase().includes(lowercasedQuery) ||
-        (employee.mobileNumber || '').toLowerCase().includes(lowercasedQuery)
-      );
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(e => e.name.toLowerCase().includes(q) || (e.mobileNumber || '').includes(q));
     }
-
     filtered.sort((a, b) => {
-        if (sortConfig.key === 'authorship') {
-             const aDate = a.lastModifiedAt || a.createdAt;
-             const bDate = b.lastModifiedAt || b.createdAt;
-             if (!aDate || !bDate) return 0;
-             if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
-             if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
-             return 0;
-        }
-
-      const aVal = a[sortConfig.key as keyof Employee] ?? '';
-      const bVal = b[sortConfig.key as keyof Employee] ?? '';
-
-
-      if (aVal < bVal) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (aVal > bVal) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
-      }
-      return 0;
+        const aVal = a[sortConfig.key as keyof Employee] ?? '';
+        const bVal = b[sortConfig.key as keyof Employee] ?? '';
+        return sortConfig.direction === 'asc' ? (aVal < bVal ? -1 : 1) : (aVal > bVal ? -1 : 1);
     });
-    
     return filtered;
   }, [employees, sortConfig, searchQuery]);
 
@@ -325,308 +317,285 @@ export default function EmployeesPage() {
     }
   };
 
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-          <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
-        </div>
-      );
-    }
-
-    if (employees.length === 0) {
-      return (
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <h3 className="text-2xl font-bold tracking-tight">No employees found</h3>
-            <p className="text-sm text-muted-foreground">Get started by adding a new employee.</p>
-            {hasPermission('hr', 'create') && (
-              <Button className="mt-4" onClick={openAddEmployeeDialog}>
-                <Plus className="mr-2 h-4 w-4" /> Add Employee
-              </Button>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('status')} className="font-bold text-primary">Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('department')}>Department <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('position')}>Position <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('joiningDate')}>Joining Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('mobileNumber')}>Mobile Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('wageAmount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('allowance')}>Allowance <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSortedEmployees.map(employee => (
-              <TableRow key={employee.id}>
-                <TableCell className="font-medium">
-                    <div className="flex items-center gap-3">
-                        <Avatar>
-                            <AvatarImage src={employee.photoURL} alt={employee.name} />
-                            <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        {employee.name}
-                    </div>
-                </TableCell>
-                <TableCell>
-                  {renderStatusBadge(employee.status)}
-                </TableCell>
-                 <TableCell>{employee.department || 'N/A'}</TableCell>
-                <TableCell>{employee.position || 'N/A'}</TableCell>
-                <TableCell>{employee.joiningDate ? toNepaliDate(employee.joiningDate) : 'N/A'}</TableCell>
-                <TableCell>{employee.mobileNumber || 'N/A'}</TableCell>
-                <TableCell>{employee.wageAmount.toLocaleString()}</TableCell>
-                <TableCell>{(employee.allowance || 0).toLocaleString()}</TableCell>
-                <TableCell>
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                {employee.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                <span>{employee.lastModifiedBy || employee.createdBy}</span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>
-                                    Created by: {employee.createdBy}
-                                    {employee.createdAt ? ` on ${format(new Date(employee.createdAt), "PP")}` : ''}
-                                </p>
-                                {employee.lastModifiedBy && employee.lastModifiedAt && (
-                                    <p>
-                                    Modified by: {employee.lastModifiedBy}
-                                    {employee.lastModifiedAt ? ` on ${format(new Date(employee.lastModifiedAt), "PP")}` : ''}
-                                    </p>
-                                )}
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {hasPermission('hr', 'edit') && <DropdownMenuItem onSelect={() => openEditEmployeeDialog(employee)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
-                      {hasPermission('hr', 'delete') && <DropdownMenuSeparator />}
-                      {hasPermission('hr', 'delete') && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the employee record. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEmployee(employee.id, employee.photoURL)}>Delete</AlertDialogAction></AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-    );
-  };
-  
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
-          <p className="text-muted-foreground">Manage employee records and wage information.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Digital Workforce</h1>
+          <p className="text-muted-foreground text-sm">Full lifecycle management for Shivam Packaging employees.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search employees..."
-              className="pl-8 sm:w-[300px]"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="relative flex-1 md:w-80">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input type="search" placeholder="Search by name or mobile..." className="pl-8 bg-white" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
           {hasPermission('hr', 'create') && (
-            <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
-              <DialogTrigger asChild><Button onClick={openAddEmployeeDialog}><Plus className="mr-2 h-4 w-4" /> Add Employee</Button></DialogTrigger>
-              <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
-                  <DialogDescription>{editingEmployee ? 'Update the details for this employee.' : 'Enter the details for the new employee.'}</DialogDescription>
-                </DialogHeader>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
-                    <div className="md:col-span-1 flex flex-col items-center gap-4">
-                        <Label htmlFor="photo">Passport Photo (Max 25KB)</Label>
-                         <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/50 relative overflow-hidden">
-                            {photoPreview ? (
-                                <>
-                                    <Image src={photoPreview} alt="Employee preview" layout="fill" objectFit="cover" />
-                                    <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7 rounded-full" onClick={removePhoto}>
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </>
-                            ) : (
-                                <ImageIcon className="h-16 w-16 text-muted-foreground" />
-                            )}
-                        </div>
-                         <Input id="photo" type="file" accept="image/*" onChange={handlePhotoChange} ref={photoInputRef} className="hidden" />
-                        <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click()}>
-                            {photoPreview ? 'Change Photo' : 'Upload Photo'}
-                        </Button>
-                    </div>
-                    <div className="md:col-span-2 grid gap-4">
-                         <div className="space-y-2">
-                            <Label htmlFor="employee-name">Employee Name</Label>
-                            <Input id="employee-name" name="name" value={formState.name} onChange={handleFormChange} />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="mobileNumber">Mobile Number</Label>
-                                <Input id="mobileNumber" name="mobileNumber" type="tel" value={formState.mobileNumber} onChange={handleFormChange} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="gender">Gender</Label>
-                                <Select value={formState.gender} onValueChange={(value: Gender) => handleSelectChange('gender', value)}>
-                                    <SelectTrigger id="gender"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Male">Male</SelectItem>
-                                        <SelectItem value="Female">Female</SelectItem>
-                                        <SelectItem value="Other">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Address</Label>
-                            <Textarea id="address" name="address" value={formState.address} onChange={handleFormChange} />
-                        </div>
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.dateOfBirth && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {formState.dateOfBirth ? `${toNepaliDate(formState.dateOfBirth)} BS (${format(new Date(formState.dateOfBirth), "PPP")})` : <span>Pick a date</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <DualCalendar selected={new Date(formState.dateOfBirth)} onSelect={(date) => handleDateChange('dateOfBirth', date)} />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="referredBy">Referred By</Label>
-                        <Input id="referredBy" name="referredBy" value={formState.referredBy} onChange={handleFormChange} />
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="identityType">Type of Identity</Label>
-                        <Select value={formState.identityType} onValueChange={(value: IdentityType) => handleSelectChange('identityType', value)}>
-                            <SelectTrigger id="identityType"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Citizenship">Citizenship</SelectItem>
-                                <SelectItem value="Voters Card">Voters Card</SelectItem>
-                                <SelectItem value="License">License</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="documentNumber">Document Number</Label>
-                        <Input id="documentNumber" name="documentNumber" value={formState.documentNumber} onChange={handleFormChange} />
-                    </div>
-                 </div>
-                 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                     <div className="space-y-2">
-                        <Label htmlFor="joiningDate">Joining Date</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.joiningDate && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {formState.joiningDate ? `${toNepaliDate(formState.joiningDate)} BS (${format(new Date(formState.joiningDate), "PPP")})` : <span>Pick a date</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <DualCalendar selected={new Date(formState.joiningDate)} onSelect={(date) => handleDateChange('joiningDate', date)} />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
-                        <Select value={formState.status} onValueChange={(value: EmployeeStatus) => handleSelectChange('status', value)}>
-                            <SelectTrigger id="status"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {employeeStatuses.map(status => (
-                                    <SelectItem key={status} value={status}>{status}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="department">Department</Label>
-                        <Select value={formState.department} onValueChange={(value: Department) => handleSelectChange('department', value)}>
-                            <SelectTrigger id="department"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="position">Position</Label>
-                        <Select value={formState.position} onValueChange={(value: Position) => handleSelectChange('position', value)}>
-                            <SelectTrigger id="position"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {positions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="wage-basis">Wage Basis</Label>
-                        <Select value={formState.wageBasis} onValueChange={(value: WageBasis) => handleSelectChange('wageBasis', value)}>
-                        <SelectTrigger id="wage-basis"><SelectValue placeholder="Select a basis" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Monthly">Monthly</SelectItem>
-                            <SelectItem value="Hourly">Hourly</SelectItem>
-                        </SelectContent>
-                        </Select>
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="wage-amount">Amount</Label>
-                        <Input id="wage-amount" name="wageAmount" type="number" value={formState.wageAmount} onChange={handleFormChange} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="allowance">Allowance</Label>
-                        <Input id="allowance" name="allowance" type="number" value={formState.allowance} onChange={handleFormChange} placeholder="e.g. 500" />
-                    </div>
-                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsEmployeeDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleEmployeeSubmit}>{editingEmployee ? 'Save Changes' : 'Save Employee'}</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={openAddEmployeeDialog} className="shadow-lg shadow-primary/20 font-bold">
+                <Plus className="mr-2 h-4 w-4" /> Add Employee
+            </Button>
           )}
         </div>
       </header>
-      {renderContent()}
+
+      {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1,2,3].map(i => <Card key={i} className="h-40 animate-pulse bg-muted/50" />)}
+          </div>
+      ) : (
+          <Card className="shadow-sm border-gray-100 bg-white">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                    <TableRow>
+                        <TableHead className="w-[300px]"><Button variant="ghost" onClick={() => requestSort('name')} className="font-bold">Employee <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                        <TableHead className="text-center font-bold">Status</TableHead>
+                        <TableHead className="font-bold">Department / Position</TableHead>
+                        <TableHead className="font-bold">Joining Date</TableHead>
+                        <TableHead className="text-right font-bold">Wage Basis</TableHead>
+                        <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {filteredAndSortedEmployees.map(employee => (
+                    <TableRow key={employee.id} className="group h-16 hover:bg-muted/30">
+                        <TableCell>
+                            <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10 border shadow-sm">
+                                    <AvatarImage src={employee.photoURL} />
+                                    <AvatarFallback className="bg-primary/10 text-primary font-bold">{employee.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                    <span className="font-black text-gray-900 group-hover:text-primary transition-colors">{employee.name}</span>
+                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1 uppercase font-bold"><Phone className="h-2.5 w-2.5"/> {employee.mobileNumber}</span>
+                                </div>
+                            </div>
+                        </TableCell>
+                        <TableCell className="text-center">{renderStatusBadge(employee.status)}</TableCell>
+                        <TableCell>
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-gray-700">{employee.department}</span>
+                                <span className="text-[10px] text-muted-foreground uppercase">{employee.position}</span>
+                            </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-medium">{employee.joiningDate ? toNepaliDate(employee.joiningDate) : '—'}</TableCell>
+                        <TableCell className="text-right font-mono font-bold text-xs">
+                            <div className="flex flex-col">
+                                <span>Rs. {employee.wageAmount.toLocaleString()}</span>
+                                <span className="text-[9px] text-muted-foreground uppercase tracking-widest">{employee.wageBasis}</span>
+                            </div>
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                    <DropdownMenuItem onSelect={() => openEditEmployeeDialog(employee)}><Edit className="mr-2 h-4 w-4" /> Edit Profile</DropdownMenuItem>
+                                    <DropdownMenuItem asChild><Link href={`/hr/payslip?employeeId=${employee.id}`} className="flex items-center"><FileText className="mr-2 h-4 w-4" /> View Payslips</Link></DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Purge Employee</DropdownMenuItem></AlertDialogTrigger>
+                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the employee and their metadata.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEmployee(employee.id, employee.photoURL)} className="bg-destructive">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                                    </AlertDialog>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+          </Card>
+      )}
+
+      {/* Modern Multi-Step Employee Dialog */}
+      <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
+        <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+            <DialogHeader className="p-6 pb-2 border-b bg-muted/5 shrink-0">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-xl"><User className="h-6 w-6 text-primary"/></div>
+                    <div>
+                        <DialogTitle className="text-2xl font-black text-gray-900 tracking-tight">{editingEmployee ? 'Account Configuration' : 'Cloud Onboarding'}</DialogTitle>
+                        <DialogDescription className="text-xs uppercase font-bold tracking-widest text-muted-foreground mt-1">HR Digital Records Management</DialogDescription>
+                    </div>
+                </div>
+            </DialogHeader>
+
+            <ScrollArea className="flex-1 p-0 bg-gray-50/30">
+                <div className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    {/* Left: Identity & Media */}
+                    <div className="lg:col-span-4 space-y-8">
+                        <section className="flex flex-col items-center gap-4 text-center">
+                            <div className="relative group">
+                                <Avatar className="h-40 w-40 border-4 border-white shadow-2xl ring-1 ring-black/5 rounded-[2rem]">
+                                    <AvatarImage src={photoPreview || ''} className="object-cover" />
+                                    <AvatarFallback className="bg-primary/5 text-4xl font-black text-primary/40"><ImageIcon className="h-12 w-12"/></AvatarFallback>
+                                </Avatar>
+                                {photoPreview && (
+                                    <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-8 w-8 rounded-full shadow-lg" onClick={removePhoto}>
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
+                                <div className="absolute inset-0 bg-black/40 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => photoInputRef.current?.click()}>
+                                    <Upload className="h-8 w-8 text-white" />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="font-black text-sm uppercase tracking-widest text-gray-900">Profile Photo</h3>
+                                <p className="text-[10px] text-muted-foreground uppercase font-bold">Standard passport format (max 100KB)</p>
+                            </div>
+                            <Input type="file" accept="image/*" ref={photoInputRef} onChange={handlePhotoChange} className="hidden" />
+                        </section>
+
+                        <Separator className="border-dashed" />
+
+                        <section className="space-y-6">
+                            <div className="flex items-center gap-2 text-primary">
+                                <Phone className="h-3.5 w-3.5" />
+                                <h4 className="text-[10px] font-black uppercase tracking-widest">Contact & Basic</h4>
+                            </div>
+                            <div className="grid gap-5">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[9px] uppercase font-black text-muted-foreground tracking-widest px-1">Mobile Number</Label>
+                                    <Input name="mobileNumber" value={formState.mobileNumber} onChange={handleFormChange} className="h-10 bg-white font-bold" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[9px] uppercase font-black text-muted-foreground tracking-widest px-1">Email (Optional)</Label>
+                                    <Input name="email" value={formState.email} onChange={handleFormChange} className="h-10 bg-white" placeholder="john@shivampack.com" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[9px] uppercase font-black text-muted-foreground tracking-widest px-1">Gender</Label>
+                                        <Select value={formState.gender} onValueChange={v => handleSelectChange('gender', v)}>
+                                            <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
+                                            <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[9px] uppercase font-black text-muted-foreground tracking-widest px-1">Blood Group</Label>
+                                        <Select value={formState.bloodGroup} onValueChange={v => handleSelectChange('bloodGroup', v)}>
+                                            <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="—"/></SelectTrigger>
+                                            <SelectContent>{bloodGroups.map(bg => <SelectItem key={bg} value={bg}>{bg}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    {/* Right: Work, Docs & Financial */}
+                    <div className="lg:col-span-8 space-y-10">
+                        <section className="space-y-6">
+                            <div className="flex items-center gap-2 border-b-2 border-primary/10 pb-2">
+                                <Building2 className="h-5 w-5 text-primary" />
+                                <h3 className="text-sm font-black uppercase tracking-widest text-gray-900">Employment Details</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-1.5 md:col-span-2">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Full Legal Name <span className="text-destructive">*</span></Label>
+                                    <Input name="name" value={formState.name} onChange={handleFormChange} className="h-11 text-lg font-black bg-white" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Department</Label>
+                                    <Select value={formState.department} onValueChange={v => handleSelectChange('department', v)}>
+                                        <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
+                                        <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Position</Label>
+                                    <Select value={formState.position} onValueChange={v => handleSelectChange('position', v)}>
+                                        <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
+                                        <SelectContent>{positions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Joining Date (AD)</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-start h-10 bg-white font-bold text-xs"><CalendarIcon className="mr-2 h-4 w-4"/> {formState.joiningDate ? toNepaliDate(formState.joiningDate) : 'Select'}</Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0"><DualCalendar selected={new NepaliDate(formState.joiningDate).toJsDate()} onSelect={d => handleDateChange('joiningDate', d)} /></PopoverContent>
+                                    </Popover>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Current Status</Label>
+                                    <Select value={formState.status} onValueChange={v => handleSelectChange('status', v)}>
+                                        <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
+                                        <SelectContent>{employeeStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="space-y-6">
+                            <div className="flex items-center gap-2 border-b-2 border-primary/10 pb-2">
+                                <DollarSign className="h-5 w-5 text-primary" />
+                                <h3 className="text-sm font-black uppercase tracking-widest text-gray-900">Wage Structure</h3>
+                            </div>
+                            <div className="p-6 rounded-2xl bg-blue-50/50 border-2 border-blue-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Wage Basis</Label>
+                                    <Select value={formState.wageBasis} onValueChange={v => handleSelectChange('wageBasis', v)}>
+                                        <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
+                                        <SelectContent><SelectItem value="Monthly">Monthly Salary</SelectItem><SelectItem value="Hourly">Hourly Wage</SelectItem></SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Amount (रु)</Label>
+                                    <Input type="number" name="wageAmount" value={formState.wageAmount} onChange={handleFormChange} className="h-10 text-lg font-black bg-white text-blue-900" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Allowance (Optional)</Label>
+                                    <Input type="number" name="allowance" value={formState.allowance} onChange={handleFormChange} className="h-10 bg-white" placeholder="0" />
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="space-y-6 pb-12">
+                            <div className="flex items-center justify-between border-b-2 border-primary/10 pb-2">
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck className="h-5 w-5 text-primary" />
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-900">Verification Vault</h3>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={() => docInputRef.current?.click()} disabled={isUploadingDoc} className="h-8 text-[10px] uppercase font-black tracking-widest border-gray-300">
+                                    {isUploadingDoc ? <Loader2 className="animate-spin h-3 w-3 mr-2" /> : <Upload className="h-3 w-3 mr-2" />}
+                                    Upload Document
+                                </Button>
+                                <input type="file" ref={docInputRef} onChange={handleDocumentUpload} className="hidden" />
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {formState.documents.map((doc) => (
+                                    <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl border bg-white group hover:border-primary/30 transition-all">
+                                        <div className="flex items-center gap-3 overflow-hidden">
+                                            <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-primary/5"><FileText className="h-4 w-4 text-primary/60"/></div>
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="text-xs font-black truncate text-gray-900">{doc.name}</span>
+                                                <span className="text-[9px] uppercase font-bold text-muted-foreground">{new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" asChild><a href={doc.url} target="_blank"><Download className="h-3.5 w-3.5"/></a></Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeDocument(doc.id, doc.url)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {formState.documents.length === 0 && (
+                                    <div className="col-span-2 py-8 text-center border border-dashed rounded-2xl bg-gray-50/50">
+                                        <p className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground">Digital Vault Empty</p>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </ScrollArea>
+
+            <DialogFooter className="p-6 border-t bg-white shrink-0">
+                <Button variant="outline" onClick={() => setIsEmployeeDialogOpen(false)} className="h-11 px-8 font-bold text-xs uppercase tracking-widest border-gray-300">Cancel</Button>
+                <Button onClick={handleEmployeeSubmit} className="h-11 px-12 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                    {editingEmployee ? 'Commit Updates' : 'Authorize Onboarding'}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

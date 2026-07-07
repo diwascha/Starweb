@@ -175,11 +175,20 @@ export interface PurchaseOrder {
 // --- HR Module Types ---
 export type WageBasis = 'Monthly' | 'Hourly';
 export type Gender = 'Male' | 'Female' | 'Other';
-export type IdentityType = 'Citizenship' | 'Voters Card' | 'License';
+export type IdentityType = 'Citizenship' | 'Voters Card' | 'License' | 'Passport';
 export type EmployeeStatus = 'Working' | 'Long Leave' | 'Resigned' | 'Dismissed';
 export type Department = 'Production' | 'Admin';
-export type Position = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers';
+export type Position = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers' | 'Staff';
+export type BloodGroup = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
 
+export interface EmployeeDocument {
+    id: string;
+    name: string;
+    url: string;
+    type: string; // MIME type
+    category: 'ID Proof' | 'Contract' | 'Education' | 'Other';
+    uploadedAt: string;
+}
 
 export interface Employee {
   id: string;
@@ -193,12 +202,21 @@ export interface Employee {
   address?: string;
   gender?: Gender;
   mobileNumber?: string;
+  email?: string;
   dateOfBirth?: string; // ISO string
   joiningDate?: string; // ISO string
   identityType?: IdentityType;
   documentNumber?: string;
   referredBy?: string;
   photoURL?: string;
+  
+  // Advanced HR Fields
+  bloodGroup?: BloodGroup;
+  emergencyContactName?: string;
+  emergencyContactNumber?: string;
+  qualification?: string;
+  documents?: EmployeeDocument[];
+  
   createdBy: string;
   createdAt: string; // ISO string
   lastModifiedBy?: string;
