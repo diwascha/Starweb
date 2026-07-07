@@ -368,8 +368,6 @@ export interface WorkforceAnalytics {
 export interface HrConfig {
   hours: {
     baseDayHours: number;
-    breakStart: string;
-    breakEnd: string;
     roundStep: number;
     graceMin: number;
     blockMin: number;
@@ -958,8 +956,6 @@ export interface RentalUnit {
   lastModifiedAt?: string;
 }
 
-export type AgreementStatus = 'Active' | 'Pending' | 'Expired' | 'Terminated';
-
 export interface RentalAgreement {
   id: string;
   unitId: string;
@@ -974,7 +970,7 @@ export interface RentalAgreement {
   lateFee: number;
   startDate: string;
   endDate: string;
-  status: AgreementStatus;
+  status: 'Active' | 'Pending' | 'Expired' | 'Terminated';
   createdBy: string;
   createdAt: string;
   lastModifiedBy?: string;

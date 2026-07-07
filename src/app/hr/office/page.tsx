@@ -56,8 +56,6 @@ import NepaliDate from 'nepali-date-converter';
 const INITIAL_HR_CONFIG: HrConfig = {
     hours: {
         baseDayHours: 8,
-        breakStart: '12:00',
-        breakEnd: '13:00',
         roundStep: 0.5,
         graceMin: 5,
         blockMin: 30,
@@ -258,14 +256,6 @@ export default function HrOfficePage() {
                                     <div className="space-y-1.5">
                                         <Label className="text-[10px] font-bold uppercase text-muted-foreground">Rounding Step</Label>
                                         <Input type="number" step="0.25" value={hrConfig.hours.roundStep} onChange={e => updateNestedConfig('hours', 'roundStep', Number(e.target.value))} className="h-9 font-bold" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Break Start</Label>
-                                        <Input type="time" value={hrConfig.hours.breakStart} onChange={e => updateNestedConfig('hours', 'breakStart', e.target.value)} className="h-9" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Break End</Label>
-                                        <Input type="time" value={hrConfig.hours.breakEnd} onChange={e => updateNestedConfig('hours', 'breakEnd', e.target.value)} className="h-9" />
                                     </div>
                                     <div className="space-y-1.5">
                                         <Label className="text-[10px] font-bold uppercase text-muted-foreground">Grace (Min)</Label>
