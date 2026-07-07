@@ -91,6 +91,30 @@
         "context": { "type": "object" }
       },
       "required": ["timestamp", "level", "message"]
+    },
+    "HrShift": {
+      "title": "HR Shift",
+      "description": "Definition of standard working hours and grace periods.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "onDuty": { "type": "string" },
+        "offDuty": { "type": "string" },
+        "graceMinutes": { "type": "number" },
+        "isDefault": { "type": "boolean" }
+      },
+      "required": ["name", "onDuty", "offDuty"]
+    },
+    "PublicHoliday": {
+      "title": "Public Holiday",
+      "description": "A calendar date marked as a non-working day for all employees.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "isRecurring": { "type": "boolean" }
+      },
+      "required": ["name", "date"]
     }
   },
   "auth": {
@@ -112,6 +136,14 @@
     "/logs/{logId}": {
       "schema": { "$ref": "#/entities/SystemLog" },
       "description": "Historical audit log of system exceptions and events."
+    },
+    "/hr_shifts/{shiftId}": {
+        "schema": { "$ref": "#/entities/HrShift" },
+        "description": "Configuration for employee shifts."
+    },
+    "/public_holidays/{holidayId}": {
+        "schema": { "$ref": "#/entities/PublicHoliday" },
+        "description": "Registry of company-wide public holidays."
     }
   }
 }

@@ -1,3 +1,4 @@
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -223,7 +224,7 @@ export interface Employee {
   lastModifiedAt?: string; // ISO string
 }
 
-export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday' | 'C/I Miss' | 'C/O Miss' | 'EXTRAOK';
+export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday' | 'C/I Miss' | 'C/O Miss' | 'EXTRAOK' | 'Leave';
 
 export interface RawAttendanceRow {
     dateAD?: any; 
@@ -262,6 +263,40 @@ export interface AttendanceRecord {
     importedBy: string;
     sourceSheet?: string;
     rawImportData?: Record<string, any>;
+}
+
+export interface HrShift {
+    id: string;
+    name: string;
+    onDuty: string; // HH:mm
+    offDuty: string; // HH:mm
+    graceMinutes: number;
+    isDefault: boolean;
+    createdAt: string;
+    createdBy: string;
+}
+
+export interface PublicHoliday {
+    id: string;
+    name: string;
+    date: string; // ISO
+    isRecurring: boolean;
+    createdAt: string;
+    createdBy: string;
+}
+
+export interface LeaveRequest {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    leaveType: 'Casual' | 'Sick' | 'Sick (Paid)' | 'Paid' | 'Unpaid';
+    startDate: string; // ISO
+    endDate: string; // ISO
+    totalDays: number;
+    reason: string;
+    status: 'Pending' | 'Approved' | 'Rejected';
+    createdAt: string;
+    createdBy: string;
 }
 
 export interface Payroll {
@@ -539,7 +574,9 @@ export const modules = [
     'dashboard', 
     'finance', 
     'reports', 
+    'products',
     'purchaseOrders', 
+    'rawMaterials', 
     'crm', 
     'hr', 
     'fleet', 
