@@ -1,10 +1,26 @@
 /**
  * @fileOverview Party service for vendors, suppliers, and tenants.
- * Refactored for non-blocking offline writes.
+ * Refactored for non-blocking offline writes and robust cache handling.
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, writeBatch, limit, setDoc } from 'firebase/firestore';
+import { 
+    collection, 
+    onSnapshot, 
+    DocumentData, 
+    QueryDocumentSnapshot, 
+    doc, 
+    updateDoc, 
+    deleteDoc, 
+    getDoc, 
+    getDocs, 
+    query, 
+    where, 
+    limit, 
+    setDoc,
+    getDocFromCache,
+    getDocsFromCache
+} from 'firebase/firestore';
 import type { Party } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -32,44 +48,56 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getParties = async (useCache = false): Promise<Party[]> => {
-    if (useCache && typeof window !== 'undefined') {
-        const cached = sessionStorage.getItem('parties');
-        if (cached) {
-            try {
-                return JSON.parse(cached);
-            } catch (e) {
-                console.error("Failed to parse cached parties:", e);
-                sessionStorage.removeItem('parties');
-            }
+/**
+ * Fetches parties with a fallback to cache for offline support.
+ */
+export const getParties = async (): Promise<Party[]> => {
+    try {
+        const snapshot = await getDocs(getPartiesCollection());
+        return snapshot.docs.map(fromFirestore);
+    } catch (error) {
+        // Fallback to cache if network fails
+        try {
+            const cacheSnap = await getDocsFromCache(getPartiesCollection());
+            return cacheSnap.docs.map(fromFirestore);
+        } catch {
+            return [];
         }
     }
-    const snapshot = await getDocs(getPartiesCollection());
-    const parties = snapshot.docs.map(fromFirestore);
-     if (typeof window !== 'undefined') {
-        sessionStorage.setItem('parties', JSON.stringify(parties));
-    }
-    return parties;
 };
 
 export const getParty = async (id: string): Promise<Party | null> => {
-    if (!id || typeof id !== 'string') return null;
+    if (!id) return null;
     const docRef = doc(getPartiesCollection(), id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-        return fromFirestore(docSnap);
+    try {
+        const snap = await getDoc(docRef);
+        return snap.exists() ? fromFirestore(snap) : null;
+    } catch {
+        try {
+            const cacheSnap = await getDocFromCache(docRef);
+            return cacheSnap.exists() ? fromFirestore(cacheSnap) : null;
+        } catch {
+            return null;
+        }
     }
-    return null;
 }
 
 export const getPartyByName = async (name: string): Promise<Party | null> => {
-    if (!name || typeof name !== 'string') return null;
+    if (!name) return null;
     const q = query(getPartiesCollection(), where("name", "==", name), limit(1));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-        return fromFirestore(querySnapshot.docs[0]);
+    try {
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) return fromFirestore(querySnapshot.docs[0]);
+        return null;
+    } catch {
+        try {
+            const cacheSnap = await getDocsFromCache(q);
+            if (!cacheSnap.empty) return fromFirestore(cacheSnap.docs[0]);
+            return null;
+        } catch {
+            return null;
+        }
     }
-    return null;
 };
 
 export const addParty = async (party: Omit<Party, 'id' | 'createdAt'>): Promise<string> => {
@@ -82,6 +110,7 @@ export const addParty = async (party: Omit<Party, 'id' | 'createdAt'>): Promise<
         createdAt: now,
     };
 
+    // Non-blocking setDoc for offline resilience
     setDoc(docRef, payload).catch(async (err) => {
         const permissionError = new FirestorePermissionError({
             path: docRef.path,
@@ -97,11 +126,7 @@ export const addParty = async (party: Omit<Party, 'id' | 'createdAt'>): Promise<
 export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => void => {
     return onSnapshot(getPartiesCollection(), 
         (snapshot) => {
-            const parties = snapshot.docs.map(fromFirestore);
-            if (typeof window !== 'undefined') {
-                sessionStorage.setItem('parties', JSON.stringify(parties));
-            }
-            callback(parties);
+            callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
              errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.PARTIES, operation: 'list' }));
@@ -112,14 +137,16 @@ export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => voi
 export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>): Promise<void> => {
     if (!id) return;
     const partyDoc = doc(getPartiesCollection(), id);
-    updateDoc(partyDoc, {
+    const payload = {
         ...party,
         lastModifiedAt: new Date().toISOString(),
-    }).catch(async (err) => {
+    };
+
+    updateDoc(partyDoc, payload).catch(async (err) => {
         const permissionError = new FirestorePermissionError({
             path: partyDoc.path,
             operation: 'update',
-            requestResourceData: party,
+            requestResourceData: payload,
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
     });
@@ -135,58 +162,47 @@ export const deleteParty = async (id: string): Promise<void> => {
 
 export const mergeParties = async (sourceId: string, destinationId: string): Promise<void> => {
     const { db } = getFirebase();
-    if (sourceId === destinationId) {
-        throw new Error("Cannot merge a party into itself.");
-    }
+    if (sourceId === destinationId) throw new Error("Cannot merge a party into itself.");
 
-    const destinationDocRef = doc(db, 'parties', destinationId);
-    const destinationSnap = await getDoc(destinationDocRef);
-    if (!destinationSnap.exists()) {
-        throw new Error("The party to merge into could not be found.");
+    // This operation is complex and requires current data, so we attempt to read first.
+    const destSnap = await getDoc(doc(db, COLLECTIONS.PARTIES, destinationId));
+    const sourceSnap = await getDoc(doc(db, COLLECTIONS.PARTIES, sourceId));
+    
+    if (!destSnap.exists() || !sourceSnap.exists()) {
+        throw new Error("One or more parties not found for merge.");
     }
-    const destinationParty = fromFirestore(destinationSnap);
-
-    const sourceDocRef = doc(db, 'parties', sourceId);
-    const sourceSnap = await getDoc(sourceDocRef);
-    if (!sourceSnap.exists()) {
-        throw new Error("The party to merge from could not be found.");
-    }
+    
+    const destinationParty = fromFirestore(destSnap);
     const sourceParty = fromFirestore(sourceSnap);
 
     const collectionsToUpdateById = [
-        { name: 'purchaseOrders', field: 'partyId', payload: { partyId: destinationParty.id, companyName: destinationParty.name, companyAddress: destinationParty.address, panNumber: destinationParty.panNumber } },
-        { name: 'products', field: 'partyId', payload: { partyId: destinationParty.id, partyName: destinationParty.name, partyAddress: destinationParty.address } },
-        { name: 'costReports', field: 'partyId', payload: { partyId: destinationParty.id, partyName: destinationParty.name } },
-        { name: 'trips', field: 'partyId', payload: { partyId: destinationParty.id } },
-        { name: 'transactions', field: 'partyId', payload: { partyId: destinationParty.id } },
+        { name: COLLECTIONS.PURCHASE_ORDERS, field: 'partyId', payload: { partyId: destinationParty.id, companyName: destinationParty.name, companyAddress: destinationParty.address, panNumber: destinationParty.panNumber } },
+        { name: COLLECTIONS.PRODUCTS, field: 'partyId', payload: { partyId: destinationParty.id, partyName: destinationParty.name, partyAddress: destinationParty.address } },
+        { name: COLLECTIONS.TRIPS, field: 'partyId', payload: { partyId: destinationParty.id } },
+        { name: COLLECTIONS.TRANSACTIONS, field: 'partyId', payload: { partyId: destinationParty.id } },
     ];
     
     const collectionsToUpdateByName = [
-        { name: 'estimatedInvoices', field: 'partyName', payload: { partyName: destinationParty.name, panNumber: destinationParty.panNumber } },
-        { name: 'cheques', field: 'partyName', payload: { partyName: destinationParty.name, payeeName: destinationParty.name } },
+        { name: COLLECTIONS.ESTIMATED_INVOICES, field: 'partyName', payload: { partyName: destinationParty.name, panNumber: destinationParty.panNumber } },
+        { name: COLLECTIONS.CHEQUES, field: 'partyName', payload: { partyName: destinationParty.name, payeeName: destinationParty.name } },
     ];
 
-    const batch = writeBatch(db);
+    const batch = (await import('firebase/firestore')).writeBatch(db);
 
     for (const coll of collectionsToUpdateById) {
         const q = query(collection(db, coll.name), where(coll.field, "==", sourceId));
         const snapshot = await getDocs(q);
-        snapshot.forEach(docToUpdate => {
-            batch.update(docToUpdate.ref, coll.payload);
-        });
+        snapshot.forEach(d => batch.update(d.ref, coll.payload));
     }
 
     for (const coll of collectionsToUpdateByName) {
         const q = query(collection(db, coll.name), where(coll.field, "==", sourceParty.name));
         const snapshot = await getDocs(q);
-        snapshot.forEach(docToUpdate => {
-            batch.update(docToUpdate.ref, coll.payload);
-        });
+        snapshot.forEach(d => batch.update(d.ref, coll.payload));
     }
 
-    batch.delete(sourceDocRef);
-
-    batch.commit().catch(async (err) => {
-         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'batch-merge', operation: 'write' }));
+    batch.delete(sourceSnap.ref);
+    batch.commit().catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'batch-merge', operation: 'write' }));
     });
 };

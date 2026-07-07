@@ -1,10 +1,23 @@
 /**
  * @fileOverview Expense service for recording truck-related costs.
- * Refactored for non-blocking offline writes.
+ * Optimized for deterministic ledger tracking and non-blocking offline writes.
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, getDocs, getDoc, updateDoc, where, writeBatch, setDoc } from 'firebase/firestore';
+import { 
+    collection, 
+    onSnapshot, 
+    DocumentData, 
+    QueryDocumentSnapshot, 
+    doc, 
+    query, 
+    orderBy, 
+    getDocs, 
+    getDoc, 
+    writeBatch, 
+    setDoc,
+    deleteDoc
+} from 'firebase/firestore';
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
 import type { Transaction, TransactionItem } from '@/lib/types';
@@ -46,31 +59,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense =
     };
 };
 
-export const getExpenses = async (): Promise<Expense[]> => {
-    try {
-        const q = query(getExpensesCollection(), orderBy('createdAt', 'desc'));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        logServiceError('getExpenses', error);
-        return [];
-    }
-};
-
-export const getExpense = async (id: string): Promise<Expense | null> => {
-    try {
-        const docRef = doc(getExpensesCollection(), id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            return fromFirestore(docSnap as QueryDocumentSnapshot<DocumentData>);
-        }
-        return null;
-    } catch (error) {
-        logServiceError('getExpense', error);
-        return null;
-    }
-};
-
 export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () => void => {
     const q = query(getExpensesCollection(), orderBy('createdAt', 'desc'));
     return onSnapshot(q, 
@@ -78,23 +66,26 @@ export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () =>
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
-            const permissionError = new FirestorePermissionError({
-                path: COLLECTIONS.EXPENSES,
-                operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.EXPENSES, operation: 'list' }));
         }
     );
 };
 
-const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, now: string): Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>[] => {
-    const transactions: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>[] = [];
+/**
+ * Generates deterministic transactions for a given expense.
+ * Using deterministic IDs based on voucherNo allows us to update ledger entries
+ * without first querying for existing ones.
+ */
+const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, createdAt: string): Transaction[] => {
+    const transactions: Transaction[] = [];
     const baseNarrative = `${expense.voucherNo}: ${expense.expenseType}${expense.destination ? ` to ${expense.destination}` : ''}`;
+    const now = createTimestamp();
 
-    const createTxn = (mode: 'Cash' | 'Bank', amt: number, specificNarration: string): Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> => {
-        const items: TransactionItem[] = [{ particular: specificNarration, quantity: 1, rate: amt }];
+    const createTxn = (mode: 'Cash' | 'Bank', amt: number, suffix: string): Transaction => {
+        const items: TransactionItem[] = [{ particular: `${baseNarrative} (${suffix})`, quantity: 1, rate: amt }];
         
         return {
+            id: `ledger-${expense.voucherNo}-${mode.toLowerCase()}`, // Deterministic ID
             date: expense.date,
             vehicleId: expense.vehicleId || null,
             type: 'Payment' as const,
@@ -104,15 +95,17 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
             category: expense.expenseType,
             partyId: expense.partyId || null,
             accountId: expense.accountId || null,
-            remarks: `Expense Entry: ${expense.expenseType}${expense.destination ? ` (${expense.destination})` : ''}`,
+            remarks: expense.remarks || `Expense: ${expense.expenseType}`,
             referenceType: "Expense Entry",
             referenceId: expense.voucherNo,
             items: items,
             purchaseNumber: null,
             createdBy: expense.createdBy,
+            createdAt: createdAt,
+            lastModifiedAt: now,
             invoiceNumber: null,
             invoiceDate: null,
-            chequeNumber: null,
+            chequeNumber: expense.paymentMode === 'Bank' ? null : null, // Handle cheque details if needed
             chequeDate: null,
             dueDate: null,
             tripId: null,
@@ -122,15 +115,11 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
     };
 
     if (expense.paymentMode === 'Mixed') {
-        if ((expense.cashAmount || 0) > 0) {
-            transactions.push(createTxn('Cash', expense.cashAmount!, `${baseNarrative} (Cash Portion)`));
-        }
-        if ((expense.bankAmount || 0) > 0) {
-            transactions.push(createTxn('Bank', expense.bankAmount!, `${baseNarrative} (Bank Portion)`));
-        }
+        if ((expense.cashAmount || 0) > 0) transactions.push(createTxn('Cash', expense.cashAmount!, 'Cash Portion'));
+        if ((expense.bankAmount || 0) > 0) transactions.push(createTxn('Bank', expense.bankAmount!, 'Bank Portion'));
     } else {
         const totalAmount = expense.amount + (expense.extraAmount || 0);
-        transactions.push(createTxn(expense.paymentMode, totalAmount, baseNarrative));
+        transactions.push(createTxn(expense.paymentMode as any, totalAmount, expense.paymentMode));
     }
 
     return transactions;
@@ -143,21 +132,10 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
 
     const expenseRecord = {
         ...expenseData,
-        voucherNo: expenseData.voucherNo,
-        date: expenseData.date,
-        vehicleId: expenseData.vehicleId,
-        expenseType: expenseData.expenseType,
         amount: Number(expenseData.amount) || 0,
         extraAmount: Number(expenseData.extraAmount) || 0,
-        extraRemarks: expenseData.extraRemarks || null,
-        paymentMode: expenseData.paymentMode,
         cashAmount: Number(expenseData.cashAmount) || 0,
         bankAmount: Number(expenseData.bankAmount) || 0,
-        partyId: expenseData.partyId || null,
-        accountId: expenseData.accountId || null,
-        destination: expenseData.destination || null,
-        remarks: expenseData.remarks || null,
-        createdBy: expenseData.createdBy,
         createdAt: now,
     };
 
@@ -166,17 +144,16 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
 
     const ledgerTxns = generateLedgerTransactions(expenseRecord as any, now);
     ledgerTxns.forEach(txn => {
-        const txnRef = doc(getTransactionsCollection());
-        batch.set(txnRef, { ...txn, createdAt: now, lastModifiedAt: now });
+        const { id, ...data } = txn;
+        batch.set(doc(getTransactionsCollection(), id), data);
     });
 
-    batch.commit().catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
+    batch.commit().catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: `expenses/${expenseId}`,
             operation: 'write',
             requestResourceData: expenseRecord,
-        } satisfies SecurityRuleContext);
-        errorEmitter.emit('permission-error', permissionError);
+        }));
     });
 
     return expenseId;
@@ -184,85 +161,67 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
 
 export const updateExpense = async (id: string, updates: Partial<Expense>, modifiedBy: string): Promise<void> => {
     const { db } = getFirebase();
-    const now = createTimestamp();
     const expenseRef = doc(getExpensesCollection(), id);
+    
+    // We attempt a read, but since persistence is on, this will pull from cache if offline.
+    const snap = await getDoc(expenseRef);
+    if (!snap.exists()) throw new Error("Original expense record not found.");
+    
+    const oldData = snap.data() as Expense;
+    const newData = { ...oldData, ...updates };
+    const now = createTimestamp();
 
-    try {
-        const expenseSnap = await getDoc(expenseRef);
-        if (!expenseSnap.exists()) throw new Error("Expense not found");
-        
-        const oldData = expenseSnap.data() as Expense;
-        const newData = { ...oldData, ...updates };
+    const batch = writeBatch(db);
+    batch.update(expenseRef, { ...updates, lastModifiedBy: modifiedBy, lastModifiedAt: now });
 
-        const batch = writeBatch(db);
+    // Deterministic IDs allow us to simply overwrite the old ledger entries.
+    // If the payment mode changed from Bank to Cash, the old 'ledger-Voucher-bank' will remain.
+    // To handle this perfectly offline without a query, we'd need to clear possible siblings.
+    ['cash', 'bank'].forEach(mode => {
+        batch.delete(doc(getTransactionsCollection(), `ledger-${oldData.voucherNo}-${mode}`));
+    });
 
-        batch.update(expenseRef, {
-            ...updates,
-            lastModifiedBy: modifiedBy,
-            lastModifiedAt: now,
-        });
+    const ledgerTxns = generateLedgerTransactions(newData as any, oldData.createdAt);
+    ledgerTxns.forEach(txn => {
+        const { id: txnId, ...data } = txn;
+        batch.set(doc(getTransactionsCollection(), txnId), { ...data, lastModifiedBy: modifiedBy });
+    });
 
-        const q = query(
-            getTransactionsCollection(), 
-            where("referenceType", "==", "Expense Entry"),
-            where("referenceId", "==", oldData.voucherNo)
-        );
-        const txnSnap = await getDocs(q);
-        txnSnap.forEach(d => batch.delete(d.ref));
-
-        const ledgerTxns = generateLedgerTransactions(newData as any, now);
-        ledgerTxns.forEach(txn => {
-            const txnRef = doc(getTransactionsCollection());
-            batch.set(txnRef, { 
-                ...txn, 
-                createdAt: oldData.createdAt, 
-                lastModifiedAt: now,
-                lastModifiedBy: modifiedBy
-            });
-        });
-
-        batch.commit().catch(async (error) => {
-            const permissionError = new FirestorePermissionError({
-                path: expenseRef.path,
-                operation: 'update',
-                requestResourceData: updates,
-            } satisfies SecurityRuleContext);
-            errorEmitter.emit('permission-error', permissionError);
-        });
-    } catch (error) {
-        logServiceError('updateExpense', error);
-        throw error;
-    }
+    batch.commit().catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: expenseRef.path, operation: 'update' }));
+    });
 };
 
 export const deleteExpense = async (id: string): Promise<void> => {
     const { db } = getFirebase();
+    const expenseRef = doc(getExpensesCollection(), id);
+    const snap = await getDoc(expenseRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const batch = writeBatch(db);
+    batch.delete(expenseRef);
+
+    ['cash', 'bank'].forEach(mode => {
+        batch.delete(doc(getTransactionsCollection(), `ledger-${data.voucherNo}-${mode}`));
+    });
+
+    batch.commit().catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: expenseRef.path, operation: 'delete' }));
+    });
+};
+
+export const getExpense = async (id: string): Promise<Expense | null> => {
+    const docRef = doc(getExpensesCollection(), id);
     try {
-        const expenseSnap = await getDoc(doc(getExpensesCollection(), id));
-        if (!expenseSnap.exists()) return;
-
-        const data = expenseSnap.data();
-        const batch = writeBatch(db);
-
-        batch.delete(expenseSnap.ref);
-
-        const q = query(
-            getTransactionsCollection(), 
-            where("referenceType", "==", "Expense Entry"),
-            where("referenceId", "==", data.voucherNo)
-        );
-        const txnSnap = await getDocs(q);
-        txnSnap.forEach(d => batch.delete(d.ref));
-
-        batch.commit().catch(async (error) => {
-            const permissionError = new FirestorePermissionError({
-                path: expenseSnap.ref.path,
-                operation: 'delete',
-            } satisfies SecurityRuleContext);
-            errorEmitter.emit('permission-error', permissionError);
-        });
-    } catch (error) {
-        logServiceError('deleteExpense', error);
-        throw error;
+        const snap = await getDoc(docRef);
+        return snap.exists() ? fromFirestore(snap as QueryDocumentSnapshot<DocumentData>) : null;
+    } catch {
+        try {
+            const cacheSnap = await getDocFromCache(docRef);
+            return cacheSnap.exists() ? fromFirestore(cacheSnap as QueryDocumentSnapshot<DocumentData>) : null;
+        } catch {
+            return null;
+        }
     }
 };
