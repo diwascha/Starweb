@@ -364,6 +364,44 @@ export interface WorkforceAnalytics {
     saturdaysWorked: number;
 }
 
+export interface HrConfig {
+  hours: {
+    baseDayHours: number;
+    breakStart: string;
+    breakEnd: string;
+    roundStep: number;
+    graceMin: number;
+    blockMin: number;
+    freeLate: number;
+    freeLatePeriod: 'WEEKLY' | 'MONTHLY';
+    freeEarly: number;
+    freeEarlyPeriod: 'WEEKLY' | 'MONTHLY';
+    reviewThresh: number;
+  };
+  payroll: {
+    defaultHourly: number;
+    fallbackHourly: number;
+    tdsRate: number;
+    monthDays: number;
+    stdWorkdays: number;
+    attendReqPct: number;
+    punctHighPct: number;
+    punctMidPct: number;
+    lateDaysHigh: number;
+    lateDaysMid: number;
+    otHighHours: number;
+    otMidHours: number;
+    dowLateHighPct: number;
+    dowLateMidPct: number;
+  };
+  bonus: {
+    bonusEligReq: number;
+    bonusAbsFactor: number;
+  };
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
 
 // --- Fleet Management Types ---
 export type VehicleStatus = 'Active' | 'In Maintenance' | 'Decommissioned';
@@ -831,9 +869,8 @@ export interface CostReport {
   kraftPaperCosts: Record<string, number>;
   virginPaperCost: number;
   conversionCost: number;
-  accessoryConversionCost?: number; // Added
-  transportCost?: number; // Added
-  transportCostType?: 'Per Piece' | 'Per Consignment'; // Added
+  transportCost: number;
+  transportCostType: 'Per Piece' | 'Per Consignment';
   items: Omit<CostReportItem, 'calculated'>[]; // We only store the inputs, not the calculated values
   totalCost: number;
   termsAndConditions?: CostReportTerm[];
