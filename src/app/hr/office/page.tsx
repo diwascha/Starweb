@@ -21,7 +21,9 @@ import {
     Save,
     Loader2,
     Terminal,
-    History as HistoryIcon
+    History as HistoryIcon,
+    ChevronRight,
+    Search
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +53,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
 
@@ -239,202 +247,223 @@ export default function HrOfficePage() {
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="operations" className="space-y-8 animate-in fade-in slide-in-from-top-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-8">
-                        {/* Hour Calculation Rules */}
-                        <Card className="xl:col-span-4 shadow-sm border-gray-100 bg-white">
-                            <CardHeader className="bg-muted/10 py-4 px-6 border-b">
-                                <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                    <Clock className="h-4 w-4" /> Hour Calculation
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-6 space-y-5">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Base Day (Hrs)</Label>
-                                        <Input type="number" value={hrConfig.hours.baseDayHours} onChange={e => updateNestedConfig('hours', 'baseDayHours', Number(e.target.value))} className="h-9 font-bold" />
+                <TabsContent value="operations" className="animate-in fade-in slide-in-from-top-2">
+                    <div className="max-w-4xl mx-auto">
+                        <Accordion type="multiple" defaultValue={["hourly-rules"]} className="space-y-4">
+                            {/* Hourly Calculation Rules */}
+                            <AccordionItem value="hourly-rules" className="border rounded-xl bg-white shadow-sm overflow-hidden">
+                                <AccordionTrigger className="px-6 py-4 hover:bg-muted/30 hover:no-underline">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-blue-50 rounded-lg"><Clock className="h-4 w-4 text-blue-600" /></div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-black uppercase tracking-widest text-gray-900">Hourly Calculation Rules</p>
+                                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Standard day, grace periods, and rounding logic</p>
+                                        </div>
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Rounding Step</Label>
-                                        <Input type="number" step="0.25" value={hrConfig.hours.roundStep} onChange={e => updateNestedConfig('hours', 'roundStep', Number(e.target.value))} className="h-9 font-bold" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Grace (Min)</Label>
-                                        <Input type="number" value={hrConfig.hours.graceMin} onChange={e => updateNestedConfig('hours', 'graceMin', Number(e.target.value))} className="h-9" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Block (Min)</Label>
-                                        <Input type="number" value={hrConfig.hours.blockMin} onChange={e => updateNestedConfig('hours', 'blockMin', Number(e.target.value))} className="h-9" />
-                                    </div>
-                                </div>
-                                <Separator />
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
+                                </AccordionTrigger>
+                                <AccordionContent className="p-6 pt-2 space-y-6">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                                         <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Free Lates</Label>
-                                            <Input type="number" value={hrConfig.hours.freeLate} onChange={e => updateNestedConfig('hours', 'freeLate', Number(e.target.value))} className="h-9" />
+                                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Base Day (Hrs)</Label>
+                                            <Input type="number" value={hrConfig.hours.baseDayHours} onChange={e => updateNestedConfig('hours', 'baseDayHours', Number(e.target.value))} className="h-9 font-bold" />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Period</Label>
-                                            <Select value={hrConfig.hours.freeLatePeriod} onValueChange={v => updateNestedConfig('hours', 'freeLatePeriod', v)}>
-                                                <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
-                                                <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Free Early</Label>
-                                            <Input type="number" value={hrConfig.hours.freeEarly} onChange={e => updateNestedConfig('hours', 'freeEarly', Number(e.target.value))} className="h-9" />
+                                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Rounding Step</Label>
+                                            <Input type="number" step="0.25" value={hrConfig.hours.roundStep} onChange={e => updateNestedConfig('hours', 'roundStep', Number(e.target.value))} className="h-9 font-bold" />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Period</Label>
-                                            <Select value={hrConfig.hours.freeEarlyPeriod} onValueChange={v => updateNestedConfig('hours', 'freeEarlyPeriod', v)}>
-                                                <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
-                                                <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
-                                            </Select>
+                                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Grace (Min)</Label>
+                                            <Input type="number" value={hrConfig.hours.graceMin} onChange={e => updateNestedConfig('hours', 'graceMin', Number(e.target.value))} className="h-9" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Block (Min)</Label>
+                                            <Input type="number" value={hrConfig.hours.blockMin} onChange={e => updateNestedConfig('hours', 'blockMin', Number(e.target.value))} className="h-9" />
                                         </div>
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Review Threshold (Hrs)</Label>
-                                        <Input type="number" step="0.1" value={hrConfig.hours.reviewThresh} onChange={e => updateNestedConfig('hours', 'reviewThresh', Number(e.target.value))} className="h-9 font-black text-amber-600" />
+                                    <Separator className="border-dashed" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                        <div className="space-y-4">
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-primary border-b pb-1">Tardiness Tolerance</h4>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[9px] font-bold uppercase text-muted-foreground">Free Lates</Label>
+                                                    <Input type="number" value={hrConfig.hours.freeLate} onChange={e => updateNestedConfig('hours', 'freeLate', Number(e.target.value))} className="h-8" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[9px] font-bold uppercase text-muted-foreground">Reset Cycle</Label>
+                                                    <Select value={hrConfig.hours.freeLatePeriod} onValueChange={v => updateNestedConfig('hours', 'freeLatePeriod', v)}>
+                                                        <SelectTrigger className="h-8 text-[10px]"><SelectValue/></SelectTrigger>
+                                                        <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[9px] font-bold uppercase text-muted-foreground">Free Early Departure</Label>
+                                                    <Input type="number" value={hrConfig.hours.freeEarly} onChange={e => updateNestedConfig('hours', 'freeEarly', Number(e.target.value))} className="h-8" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[9px] font-bold uppercase text-muted-foreground">Reset Cycle</Label>
+                                                    <Select value={hrConfig.hours.freeEarlyPeriod} onValueChange={v => updateNestedConfig('hours', 'freeEarlyPeriod', v)}>
+                                                        <SelectTrigger className="h-8 text-[10px]"><SelectValue/></SelectTrigger>
+                                                        <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-primary border-b pb-1">Oversight Thresholds</h4>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[9px] font-bold uppercase text-muted-foreground">Review Flag (Working Hrs/Day)</Label>
+                                                <Input type="number" step="0.1" value={hrConfig.hours.reviewThresh} onChange={e => updateNestedConfig('hours', 'reviewThresh', Number(e.target.value))} className="h-9 font-black text-amber-600" />
+                                                <p className="text-[9px] text-muted-foreground italic">Alert admin when an employee exceeds these daily hours.</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </AccordionContent>
+                            </AccordionItem>
 
-                        {/* Payroll & Punctuality Engine */}
-                        <Card className="xl:col-span-8 shadow-sm border-gray-100 bg-white">
-                            <CardHeader className="bg-muted/10 py-4 px-6 border-b">
-                                <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                    <Calculator className="h-4 w-4" /> Payroll & Punctuality Engine
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    {/* Rates & Standard Days */}
-                                    <div className="space-y-5">
-                                        <h4 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b pb-1">Wage & Standard Cycles</h4>
-                                        <div className="grid gap-4">
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Default Hourly Rate</Label>
-                                                <Input type="number" value={hrConfig.payroll.defaultHourly} onChange={e => updateNestedConfig('payroll', 'defaultHourly', Number(e.target.value))} className="h-9" />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Fallback Rate</Label>
-                                                <Input type="number" value={hrConfig.payroll.fallbackHourly} onChange={e => updateNestedConfig('payroll', 'fallbackHourly', Number(e.target.value))} className="h-9 italic" />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Month Days</Label>
-                                                    <Input type="number" value={hrConfig.payroll.monthDays} onChange={e => updateNestedConfig('payroll', 'monthDays', Number(e.target.value))} className="h-9" />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Std Workdays</Label>
-                                                    <Input type="number" value={hrConfig.payroll.stdWorkdays} onChange={e => updateNestedConfig('payroll', 'stdWorkdays', Number(e.target.value))} className="h-9" />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">TDS Deduction (Dec)</Label>
-                                                <Input type="number" step="0.001" value={hrConfig.payroll.tdsRate} onChange={e => updateNestedConfig('payroll', 'tdsRate', Number(e.target.value))} className="h-9 font-bold text-blue-600" />
-                                            </div>
+                            {/* Payroll & Punctuality Engine */}
+                            <AccordionItem value="payroll-engine" className="border rounded-xl bg-white shadow-sm overflow-hidden">
+                                <AccordionTrigger className="px-6 py-4 hover:bg-muted/30 hover:no-underline">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-emerald-50 rounded-lg"><Calculator className="h-4 w-4 text-emerald-600" /></div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-black uppercase tracking-widest text-gray-900">Payroll & Punctuality Engine</p>
+                                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Financial baselines, behavioral bands, and fatigue monitoring</p>
                                         </div>
                                     </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="p-6 pt-2 space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                                        {/* Financial Baselines */}
+                                        <div className="space-y-5">
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-600 border-b pb-1">Financial Baselines</h4>
+                                            <div className="grid gap-4">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Default Hourly Rate (रु)</Label>
+                                                    <Input type="number" value={hrConfig.payroll.defaultHourly} onChange={e => updateNestedConfig('payroll', 'defaultHourly', Number(e.target.value))} className="h-9 font-bold" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Fallback Hourly Rate</Label>
+                                                    <Input type="number" value={hrConfig.payroll.fallbackHourly} onChange={e => updateNestedConfig('payroll', 'fallbackHourly', Number(e.target.value))} className="h-9 border-dashed" />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Month Days</Label>
+                                                        <Input type="number" value={hrConfig.payroll.monthDays} onChange={e => updateNestedConfig('payroll', 'monthDays', Number(e.target.value))} className="h-9" />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Std Workdays</Label>
+                                                        <Input type="number" value={hrConfig.payroll.stdWorkdays} onChange={e => updateNestedConfig('payroll', 'stdWorkdays', Number(e.target.value))} className="h-9" />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">TDS Deduction Rate (Dec)</Label>
+                                                    <Input type="number" step="0.001" value={hrConfig.payroll.tdsRate} onChange={e => updateNestedConfig('payroll', 'tdsRate', Number(e.target.value))} className="h-9 font-black text-blue-600 bg-blue-50/50" />
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                    {/* Punctuality Bands */}
-                                    <div className="space-y-5">
-                                        <h4 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b pb-1">Behavioral Thresholds</h4>
-                                        <div className="grid gap-4">
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Attend. Req (Bonus) %</Label>
-                                                <Input type="number" value={hrConfig.payroll.attendReqPct} onChange={e => updateNestedConfig('payroll', 'attendReqPct', Number(e.target.value))} className="h-9 font-black" />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
+                                        {/* Punctuality Bands */}
+                                        <div className="space-y-5">
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-600 border-b pb-1">Behavioral Bands</h4>
+                                            <div className="grid gap-4">
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground text-green-600">Punct High %</Label>
-                                                    <Input type="number" value={hrConfig.payroll.punctHighPct} onChange={e => updateNestedConfig('payroll', 'punctHighPct', Number(e.target.value))} className="h-9 border-green-200" />
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Bonus Qualifier Attendance %</Label>
+                                                    <Input type="number" value={hrConfig.payroll.attendReqPct} onChange={e => updateNestedConfig('payroll', 'attendReqPct', Number(e.target.value))} className="h-9 font-black" />
                                                 </div>
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground text-amber-600">Punct Mid %</Label>
-                                                    <Input type="number" value={hrConfig.payroll.punctMidPct} onChange={e => updateNestedConfig('payroll', 'punctMidPct', Number(e.target.value))} className="h-9 border-amber-200" />
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] font-bold uppercase text-green-600">Punct High %</Label>
+                                                        <Input type="number" value={hrConfig.payroll.punctHighPct} onChange={e => updateNestedConfig('payroll', 'punctHighPct', Number(e.target.value))} className="h-9 border-green-200" />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] font-bold uppercase text-amber-600">Punct Mid %</Label>
+                                                        <Input type="number" value={hrConfig.payroll.punctMidPct} onChange={e => updateNestedConfig('payroll', 'punctMidPct', Number(e.target.value))} className="h-9 border-amber-200" />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Late Days High</Label>
-                                                    <Input type="number" value={hrConfig.payroll.lateDaysHigh} onChange={e => updateNestedConfig('payroll', 'lateDaysHigh', Number(e.target.value))} className="h-9" />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Late Days Mid</Label>
-                                                    <Input type="number" value={hrConfig.payroll.lateDaysMid} onChange={e => updateNestedConfig('payroll', 'lateDaysMid', Number(e.target.value))} className="h-9" />
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Late Limit (High)</Label>
+                                                        <Input type="number" value={hrConfig.payroll.lateDaysHigh} onChange={e => updateNestedConfig('payroll', 'lateDaysHigh', Number(e.target.value))} className="h-9" />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Late Limit (Mid)</Label>
+                                                        <Input type="number" value={hrConfig.payroll.lateDaysMid} onChange={e => updateNestedConfig('payroll', 'lateDaysMid', Number(e.target.value))} className="h-9" />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {/* Overtime & DOW Monitoring */}
-                                    <div className="space-y-5">
-                                        <h4 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b pb-1">Overtime & Heatmap</h4>
-                                        <div className="grid gap-4">
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">OT High Thresh (Hrs)</Label>
-                                                <Input type="number" value={hrConfig.payroll.otHighHours} onChange={e => updateNestedConfig('payroll', 'otHighHours', Number(e.target.value))} className="h-9 font-black text-red-600" />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">OT Mid Thresh (Hrs)</Label>
-                                                <Input type="number" value={hrConfig.payroll.otMidHours} onChange={e => updateNestedConfig('payroll', 'otMidHours', Number(e.target.value))} className="h-9" />
-                                            </div>
-                                            <Separator />
-                                            <div className="grid grid-cols-2 gap-3">
+                                        {/* Overtime & Heatmap */}
+                                        <div className="space-y-5">
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-600 border-b pb-1">Workload Oversight</h4>
+                                            <div className="grid gap-4">
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">DOW Late High %</Label>
-                                                    <Input type="number" value={hrConfig.payroll.dowLateHighPct} onChange={e => updateNestedConfig('payroll', 'dowLateHighPct', Number(e.target.value))} className="h-9" />
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">OT High Threshold (Monthly Hrs)</Label>
+                                                    <Input type="number" value={hrConfig.payroll.otHighHours} onChange={e => updateNestedConfig('payroll', 'otHighHours', Number(e.target.value))} className="h-9 font-black text-red-600" />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">DOW Late Mid %</Label>
-                                                    <Input type="number" value={hrConfig.payroll.dowLateMidPct} onChange={e => updateNestedConfig('payroll', 'dowLateMidPct', Number(e.target.value))} className="h-9" />
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">OT Mid Threshold</Label>
+                                                    <Input type="number" value={hrConfig.payroll.otMidHours} onChange={e => updateNestedConfig('payroll', 'otMidHours', Number(e.target.value))} className="h-9" />
+                                                </div>
+                                                <Separator className="border-dashed" />
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">DOW Late (High %)</Label>
+                                                        <Input type="number" value={hrConfig.payroll.dowLateHighPct} onChange={e => updateNestedConfig('payroll', 'dowLateHighPct', Number(e.target.value))} className="h-9" />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">DOW Late (Mid %)</Label>
+                                                        <Input type="number" value={hrConfig.payroll.dowLateMidPct} onChange={e => updateNestedConfig('payroll', 'dowLateMidPct', Number(e.target.value))} className="h-9" />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </AccordionContent>
+                            </AccordionItem>
 
-                        {/* Bonus Rules */}
-                        <Card className="xl:col-span-12 shadow-sm border-gray-100 bg-white">
-                            <CardHeader className="bg-muted/10 py-4 px-6 border-b">
-                                <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                    <Award className="h-4 w-4" /> Bonus Logic Engine
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-6">
-                                <div className="flex flex-col md:flex-row gap-10">
-                                    <div className="flex-1 space-y-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Bonus Eligibility Required Attend %</Label>
-                                                <Input type="number" value={hrConfig.bonus.bonusEligReq} onChange={e => updateNestedConfig('bonus', 'bonusEligReq', Number(e.target.value))} className="h-10 text-xl font-black text-primary" />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Absent Deduction Factor</Label>
-                                                <Input type="number" step="0.1" value={hrConfig.bonus.bonusAbsFactor} onChange={e => updateNestedConfig('bonus', 'bonusAbsFactor', Number(e.target.value))} className="h-10 text-xl font-bold" />
-                                            </div>
+                            {/* Bonus Logic Engine */}
+                            <AccordionItem value="bonus-logic" className="border rounded-xl bg-white shadow-sm overflow-hidden">
+                                <AccordionTrigger className="px-6 py-4 hover:bg-muted/30 hover:no-underline">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-amber-50 rounded-lg"><Award className="h-4 w-4 text-amber-600" /></div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-black uppercase tracking-widest text-gray-900">Bonus Logic Engine</p>
+                                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Eligibility requirements and deduction factors</p>
                                         </div>
                                     </div>
-                                    <div className="w-full md:w-80 p-5 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
-                                        <div className="flex items-center gap-2 text-primary">
-                                            <Info className="h-4 w-4" />
-                                            <h4 className="text-[10px] font-black uppercase tracking-widest">Logic Breakdown</h4>
+                                </AccordionTrigger>
+                                <AccordionContent className="p-6 pt-2 space-y-6">
+                                    <div className="flex flex-col md:flex-row gap-10">
+                                        <div className="flex-1 space-y-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground px-1">Bonus Eligibility Required Attend %</Label>
+                                                    <Input type="number" value={hrConfig.bonus.bonusEligReq} onChange={e => updateNestedConfig('bonus', 'bonusEligReq', Number(e.target.value))} className="h-10 text-xl font-black text-amber-700 bg-amber-50/30" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground px-1">Absent Deduction Factor</Label>
+                                                    <Input type="number" step="0.1" value={hrConfig.bonus.bonusAbsFactor} onChange={e => updateNestedConfig('bonus', 'bonusAbsFactor', Number(e.target.value))} className="h-10 text-xl font-bold" />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <p className="text-[11px] text-muted-foreground leading-relaxed italic">
-                                            Formula: Max(0, 1 - AbsentWD * Factor / StdWorkdays). 
-                                            The **Absent Deduction Factor** ensures that absences exponentially impact bonus accrual beyond standard pro-rating.
-                                        </p>
+                                        <div className="w-full md:w-96 p-5 rounded-2xl bg-amber-50/50 border border-amber-100 space-y-3">
+                                            <div className="flex items-center gap-2 text-amber-700">
+                                                <Info className="h-4 w-4" />
+                                                <h4 className="text-[10px] font-black uppercase tracking-widest">Logic Breakdown</h4>
+                                            </div>
+                                            <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+                                                Formula: <code className="bg-white px-1 py-0.5 rounded border">Max(0, 1 - AbsentWD * Factor / StdWorkdays)</code>. 
+                                                The **Absent Deduction Factor** ensures that absences exponentially impact bonus accrual beyond standard pro-rating.
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
                     </div>
                 </TabsContent>
 
@@ -706,7 +735,7 @@ export default function HrOfficePage() {
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Reason / Remarks</Label>
-                                <Textarea value={leaveForm.reason} onChange={e => setLeaveForm({...leaveForm, reason: e.target.value})} placeholder="Purpose of leave..." className="min-h-[80px] text-sm" />
+                                <Textarea value={leaveForm.reason} onChange={e => setLeaveForm({...leaveForm, reason: e.target.value})} placeholder="Purpose of leave..." className="min-h-[100px] text-sm" />
                             </div>
                         </div>
                     </ScrollArea>
