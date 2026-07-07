@@ -1,12 +1,19 @@
+/**
+ * @fileOverview Party service for vendors, suppliers, and tenants.
+ * Refactored for non-blocking offline writes.
+ */
+
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, writeBatch, limit } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, writeBatch, limit, setDoc } from 'firebase/firestore';
 import type { Party } from '@/lib/types';
+import { COLLECTIONS } from '@/lib/constants';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getPartiesCollection = () => {
     const { db } = getFirebase();
-    return collection(db, 'parties');
+    return collection(db, COLLECTIONS.PARTIES || 'parties');
 };
-
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Party => {
     const data = snapshot.data();
@@ -14,7 +21,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         id: snapshot.id,
         name: data.name,
         type: data.type,
-        ownership: data.ownership || 'Both', // Categorization
+        ownership: data.ownership || 'Both',
         address: data.address,
         panNumber: data.panNumber,
         photoURL: data.photoURL,
@@ -65,13 +72,26 @@ export const getPartyByName = async (name: string): Promise<Party | null> => {
     return null;
 };
 
-
 export const addParty = async (party: Omit<Party, 'id' | 'createdAt'>): Promise<string> => {
-    const docRef = await addDoc(getPartiesCollection(), {
+    const docRef = doc(getPartiesCollection());
+    const id = docRef.id;
+    const now = new Date().toISOString();
+    
+    const payload = {
         ...party,
-        createdAt: new Date().toISOString(),
+        createdAt: now,
+    };
+
+    setDoc(docRef, payload).catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'create',
+            requestResourceData: payload,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
     });
-    return docRef.id;
+
+    return id;
 };
 
 export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => void => {
@@ -83,8 +103,8 @@ export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => voi
             }
             callback(parties);
         },
-        (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Parties):", error.message, error);
+        async (error) => {
+             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.PARTIES, operation: 'list' }));
         }
     );
 };
@@ -92,18 +112,26 @@ export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => voi
 export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>): Promise<void> => {
     if (!id) return;
     const partyDoc = doc(getPartiesCollection(), id);
-    await updateDoc(partyDoc, {
+    updateDoc(partyDoc, {
         ...party,
         lastModifiedAt: new Date().toISOString(),
+    }).catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+            path: partyDoc.path,
+            operation: 'update',
+            requestResourceData: party,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
     });
 };
 
 export const deleteParty = async (id: string): Promise<void> => {
     if (!id) return;
     const partyDoc = doc(getPartiesCollection(), id);
-    await deleteDoc(partyDoc);
+    deleteDoc(partyDoc).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: partyDoc.path, operation: 'delete' }));
+    });
 };
-
 
 export const mergeParties = async (sourceId: string, destinationId: string): Promise<void> => {
     const { db } = getFirebase();
@@ -156,8 +184,9 @@ export const mergeParties = async (sourceId: string, destinationId: string): Pro
         });
     }
 
-    // After updating all references, delete the source party
     batch.delete(sourceDocRef);
 
-    await batch.commit();
+    batch.commit().catch(async (err) => {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'batch-merge', operation: 'write' }));
+    });
 };

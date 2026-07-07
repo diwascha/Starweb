@@ -1,8 +1,15 @@
+/**
+ * @fileOverview Trip service.
+ * Refactored for non-blocking offline writes.
+ */
+
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch, query, where, setDoc } from 'firebase/firestore';
 import type { Trip, Transaction } from '@/lib/types';
 import { differenceInDays } from 'date-fns';
 import { COLLECTIONS } from '@/lib/constants';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getTripsCollection = () => {
     const { db } = getFirebase();
@@ -47,7 +54,6 @@ export const getTrips = async (): Promise<Trip[]> => {
     return snapshot.docs.map(fromFirestore);
 };
 
-
 const calculateNetPay = (trip: Omit<Trip, 'id' | 'salesTransactionId' | 'createdAt'>): number => {
     const days = trip.detentionStartDate && trip.detentionEndDate ? differenceInDays(new Date(trip.detentionEndDate), new Date(trip.detentionStartDate)) + 1 : 0;
     
@@ -66,19 +72,9 @@ const calculateNetPay = (trip: Omit<Trip, 'id' | 'salesTransactionId' | 'created
     return grossAmount - tdsAmount;
 };
 
-const BATCH_LIMIT = 499;
-
-const commitBatch = async (batch: ReturnType<typeof writeBatch>) => {
-    const { db } = getFirebase();
-    await batch.commit();
-    return writeBatch(db);
-};
-
-
 export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransactionId'>): Promise<string> => {
     const { db } = getFirebase();
     let batch = writeBatch(db);
-    let writeCount = 0;
     const now = new Date().toISOString();
     
     const tripId = doc(getTripsCollection()).id;
@@ -113,14 +109,9 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
         remarks: null,
     };
     batch.set(salesTransactionRef, salesTransaction);
-    writeCount++;
 
     const fuelEntriesWithPurchaseIds = [];
     for (const fuelEntry of trip.fuelEntries) {
-        if (writeCount >= BATCH_LIMIT) {
-            batch = await commitBatch(batch);
-            writeCount = 0;
-        }
         const purchaseTransactionRef = doc(getTransactionsCollection());
         const purchaseTx: Omit<Transaction, 'id'> = {
             vehicleId: trip.vehicleId,
@@ -148,13 +139,7 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
             accountId: null,
         };
         batch.set(purchaseTransactionRef, purchaseTx);
-        writeCount++;
         fuelEntriesWithPurchaseIds.push({ ...fuelEntry, purchaseTransactionId: purchaseTransactionRef.id });
-    }
-
-    if (writeCount >= BATCH_LIMIT) {
-        batch = await commitBatch(batch);
-        writeCount = 0;
     }
 
     const newTripData = {
@@ -164,9 +149,11 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
       salesTransactionId: salesTransactionRef.id,
     };
     batch.set(tripRef, newTripData);
-    writeCount++;
 
-    await batch.commit();
+    batch.commit().catch(async (err) => {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'trip-creation-batch', operation: 'write' }));
+    });
+
     return tripId;
 };
 
@@ -175,8 +162,8 @@ export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
-        (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Trips):", error.message, error);
+        async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.TRIPS, operation: 'list' }));
         }
     );
 };
@@ -196,7 +183,6 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
     if (!id) return;
     const { db } = getFirebase();
     let batch = writeBatch(db);
-    let writeCount = 0;
     const tripRef = doc(getTripsCollection(), id);
     const now = new Date().toISOString();
 
@@ -205,7 +191,6 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
 
     const fullTripDataForCalc: Omit<Trip, 'id' | 'createdAt'> = { ...originalTrip, ...tripUpdate };
     
-    // 1. Update Sales Transaction
     const netPay = calculateNetPay(fullTripDataForCalc);
     if (fullTripDataForCalc.salesTransactionId) {
         const transactionRef = doc(getTransactionsCollection(), fullTripDataForCalc.salesTransactionId);
@@ -218,34 +203,20 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
             lastModifiedBy: tripUpdate.lastModifiedBy,
             lastModifiedAt: now,
         });
-        writeCount++;
     }
     
-    // 2. Handle Fuel Entries
     const newFuelEntries = tripUpdate.fuelEntries || [];
     const oldFuelEntries = originalTrip.fuelEntries || [];
     const fuelEntriesWithPurchaseIds = [];
 
-    // Delete purchase transactions for removed fuel entries
     for (const oldEntry of oldFuelEntries) {
         if (oldEntry.purchaseTransactionId && !newFuelEntries.some(newEntry => newEntry.purchaseTransactionId === oldEntry.purchaseTransactionId)) {
-            if (writeCount >= BATCH_LIMIT) {
-                batch = await commitBatch(batch);
-                writeCount = 0;
-            }
             batch.delete(doc(getTransactionsCollection(), oldEntry.purchaseTransactionId));
-            writeCount++;
         }
     }
 
     for (const fuelEntry of newFuelEntries) {
-        if (writeCount >= BATCH_LIMIT) {
-            batch = await commitBatch(batch);
-            writeCount = 0;
-        }
-
         if (fuelEntry.purchaseTransactionId) {
-            // Update existing purchase transaction
             const purchaseTxRef = doc(getTransactionsCollection(), fuelEntry.purchaseTransactionId);
             batch.update(purchaseTxRef, {
                 vehicleId: fullTripDataForCalc.vehicleId,
@@ -259,10 +230,8 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
                 lastModifiedBy: tripUpdate.lastModifiedBy,
                 lastModifiedAt: now,
             });
-            writeCount++;
             fuelEntriesWithPurchaseIds.push(fuelEntry);
         } else {
-            // Create new purchase transaction
             const purchaseTransactionRef = doc(getTransactionsCollection());
             const purchaseTx: Omit<Transaction, 'id'> = {
                 vehicleId: fullTripDataForCalc.vehicleId,
@@ -286,61 +255,42 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
                 lastModifiedAt: now,
             };
             batch.set(purchaseTransactionRef, purchaseTx);
-            writeCount++;
             fuelEntriesWithPurchaseIds.push({ ...fuelEntry, purchaseTransactionId: purchaseTransactionRef.id });
         }
     }
     
-    if (writeCount >= BATCH_LIMIT) {
-        batch = await commitBatch(batch);
-        writeCount = 0;
-    }
-
-    // 3. Update the Trip document
     batch.update(tripRef, {
         ...tripUpdate,
         fuelEntries: fuelEntriesWithPurchaseIds,
         lastModifiedAt: now,
     });
     
-    await batch.commit();
+    batch.commit().catch(async (err) => {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'trip-update-batch', operation: 'write' }));
+    });
 };
-
 
 export const deleteTrip = async (id: string): Promise<void> => {
     if (!id) return;
     const { db } = getFirebase();
     let batch = writeBatch(db);
-    let writeCount = 0;
 
     const trip = await getTrip(id);
     if (!trip) return;
 
-    const allRefsToDelete = [];
-
     if (trip.salesTransactionId) {
-        allRefsToDelete.push(doc(getTransactionsCollection(), trip.salesTransactionId));
+        batch.delete(doc(getTransactionsCollection(), trip.salesTransactionId));
     }
     
     for (const fuelEntry of trip.fuelEntries) {
         if (fuelEntry.purchaseTransactionId) {
-            allRefsToDelete.push(doc(getTransactionsCollection(), fuelEntry.purchaseTransactionId));
+            batch.delete(doc(getTransactionsCollection(), fuelEntry.purchaseTransactionId));
         }
     }
     
-    allRefsToDelete.push(doc(getTripsCollection(), id));
+    batch.delete(doc(getTripsCollection(), id));
 
-    for (const docRef of allRefsToDelete) {
-        if (writeCount >= BATCH_LIMIT) {
-            await batch.commit();
-            batch = writeBatch(db);
-            writeCount = 0;
-        }
-        batch.delete(docRef);
-        writeCount++;
-    }
-
-    if (writeCount > 0) {
-        await batch.commit();
-    }
+    batch.commit().catch(async (err) => {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'trip-deletion-batch', operation: 'write' }));
+    });
 };

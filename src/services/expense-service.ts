@@ -1,13 +1,16 @@
 /**
  * @fileOverview Expense service for recording truck-related costs.
+ * Refactored for non-blocking offline writes.
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, getDocs, getDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, getDocs, getDoc, updateDoc, where, writeBatch, setDoc } from 'firebase/firestore';
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
 import type { Transaction, TransactionItem } from '@/lib/types';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getExpensesCollection = () => {
     const { db } = getFirebase();
@@ -43,9 +46,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense =
     };
 };
 
-/**
- * Fetches all expenses (standard getter).
- */
 export const getExpenses = async (): Promise<Expense[]> => {
     try {
         const q = query(getExpensesCollection(), orderBy('createdAt', 'desc'));
@@ -57,9 +57,6 @@ export const getExpenses = async (): Promise<Expense[]> => {
     }
 };
 
-/**
- * Fetches a single expense by ID.
- */
 export const getExpense = async (id: string): Promise<Expense | null> => {
     try {
         const docRef = doc(getExpensesCollection(), id);
@@ -74,25 +71,22 @@ export const getExpense = async (id: string): Promise<Expense | null> => {
     }
 };
 
-/**
- * Listens for real-time updates to the expenses collection.
- */
 export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () => void => {
     const q = query(getExpensesCollection(), orderBy('createdAt', 'desc'));
     return onSnapshot(q, 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
-        (error) => {
-            logServiceError('onExpensesUpdate', error);
+        async (error) => {
+            const permissionError = new FirestorePermissionError({
+                path: COLLECTIONS.EXPENSES,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
         }
     );
 };
 
-/**
- * Generates transaction data for the ledger based on an expense.
- * Handles split payments by returning multiple transactions.
- */
 const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, now: string): Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>[] => {
     const transactions: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>[] = [];
     const baseNarrative = `${expense.voucherNo}: ${expense.expenseType}${expense.destination ? ` to ${expense.destination}` : ''}`;
@@ -142,13 +136,9 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
     return transactions;
 };
 
-/**
- * Adds a new expense record and automatically syncs it to the general accounting ledger.
- */
 export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>): Promise<string> => {
     const { db } = getFirebase();
     const now = createTimestamp();
-    
     const expenseId = doc(getExpensesCollection()).id;
 
     const expenseRecord = {
@@ -180,13 +170,18 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         batch.set(txnRef, { ...txn, createdAt: now, lastModifiedAt: now });
     });
 
-    await batch.commit();
+    batch.commit().catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+            path: `expenses/${expenseId}`,
+            operation: 'write',
+            requestResourceData: expenseRecord,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+    });
+
     return expenseId;
 };
 
-/**
- * Updates an expense record and its linked transaction(s).
- */
 export const updateExpense = async (id: string, updates: Partial<Expense>, modifiedBy: string): Promise<void> => {
     const { db } = getFirebase();
     const now = createTimestamp();
@@ -201,15 +196,12 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
 
         const batch = writeBatch(db);
 
-        // 1. Update Expense Document
         batch.update(expenseRef, {
             ...updates,
             lastModifiedBy: modifiedBy,
             lastModifiedAt: now,
         });
 
-        // 2. Refresh Ledger Entries
-        // Delete all old linked txns for this voucher
         const q = query(
             getTransactionsCollection(), 
             where("referenceType", "==", "Expense Entry"),
@@ -218,7 +210,6 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
         const txnSnap = await getDocs(q);
         txnSnap.forEach(d => batch.delete(d.ref));
 
-        // Create new ones based on current data
         const ledgerTxns = generateLedgerTransactions(newData as any, now);
         ledgerTxns.forEach(txn => {
             const txnRef = doc(getTransactionsCollection());
@@ -230,16 +221,20 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
             });
         });
 
-        await batch.commit();
+        batch.commit().catch(async (error) => {
+            const permissionError = new FirestorePermissionError({
+                path: expenseRef.path,
+                operation: 'update',
+                requestResourceData: updates,
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        });
     } catch (error) {
         logServiceError('updateExpense', error);
         throw error;
     }
 };
 
-/**
- * Deletes an expense record and its linked transaction.
- */
 export const deleteExpense = async (id: string): Promise<void> => {
     const { db } = getFirebase();
     try {
@@ -249,10 +244,8 @@ export const deleteExpense = async (id: string): Promise<void> => {
         const data = expenseSnap.data();
         const batch = writeBatch(db);
 
-        // 1. Delete Expense
         batch.delete(expenseSnap.ref);
 
-        // 2. Delete linked transaction(s)
         const q = query(
             getTransactionsCollection(), 
             where("referenceType", "==", "Expense Entry"),
@@ -261,7 +254,13 @@ export const deleteExpense = async (id: string): Promise<void> => {
         const txnSnap = await getDocs(q);
         txnSnap.forEach(d => batch.delete(d.ref));
 
-        await batch.commit();
+        batch.commit().catch(async (error) => {
+            const permissionError = new FirestorePermissionError({
+                path: expenseSnap.ref.path,
+                operation: 'delete',
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        });
     } catch (error) {
         logServiceError('deleteExpense', error);
         throw error;

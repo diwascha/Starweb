@@ -1,7 +1,14 @@
+/**
+ * @fileOverview Transaction service for the general ledger.
+ * Refactored for non-blocking offline writes.
+ */
+
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc, setDoc } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const transactionsCollection = () => {
     const { db } = getFirebase();
@@ -11,7 +18,6 @@ const transactionsCollection = () => {
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Transaction => {
     const data = snapshot.data();
     
-    // Normalize types for backward compatibility and strict tab logic
     let type = data.type;
     if (type === 'Expense') type = 'Payment';
     if (type === 'Income') type = 'Receipt';
@@ -34,7 +40,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         amount: data.amount,
         remarks: data.remarks ?? null,
         tripId: data.tripId ?? null,
-        type: type, // Use normalized type
+        type: type,
         category: data.category ?? null,
         referenceType: data.referenceType ?? null,
         referenceId: data.referenceId ?? null,
@@ -53,23 +59,45 @@ export const getTransactionsForParty = async (partyId: string): Promise<Transact
     return querySnapshot.docs.map(fromFirestore);
 };
 
-
 export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>): Promise<string> => {
-    const docRef = await addDoc(transactionsCollection(), {
+    const docRef = doc(transactionsCollection());
+    const id = docRef.id;
+    const now = new Date().toISOString();
+    
+    const payload = {
         ...transaction,
-        createdAt: new Date().toISOString(),
+        createdAt: now,
+        lastModifiedAt: now,
+    };
+
+    setDoc(docRef, payload).catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'create',
+            requestResourceData: payload,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
     });
-    return docRef.id;
+
+    return id;
 };
 
 export const updateTransaction = async (id: string, transaction: Partial<Omit<Transaction, 'id'>>): Promise<void> => {
     const transactionDoc = doc(transactionsCollection(), id);
-    await updateDoc(transactionDoc, {
+    const now = new Date().toISOString();
+    
+    updateDoc(transactionDoc, {
         ...transaction,
-        lastModifiedAt: new Date().toISOString(),
+        lastModifiedAt: now,
+    }).catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+            path: transactionDoc.path,
+            operation: 'update',
+            requestResourceData: transaction,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
     });
 };
-
 
 export const saveVoucher = async (voucherData: any, createdBy: string) => {
     const { db } = getFirebase();
@@ -81,7 +109,9 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
 
     for (const item of voucherData.items) {
         if (writeCount >= BATCH_LIMIT) {
-            await batch.commit();
+            batch.commit().catch(async (err) => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.TRANSACTIONS, operation: 'write' }));
+            });
             batch = writeBatch(db);
             writeCount = 0;
         }
@@ -136,18 +166,19 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
     }
     
     if (writeCount > 0) {
-        await batch.commit();
+        batch.commit().catch(async (err) => {
+             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.TRANSACTIONS, operation: 'write' }));
+        });
     }
 };
-
 
 export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => void): () => void => {
     return onSnapshot(transactionsCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
-        (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Transactions):", error.message, error);
+        async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.TRANSACTIONS, operation: 'list' }));
         }
     );
 };
@@ -168,7 +199,6 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     return snapshot.docs.map(fromFirestore);
 };
 
-
 export const getVoucherTransactions = async (voucherId: string): Promise<Transaction[]> => {
     if (!voucherId || typeof voucherId !== 'string') return [];
     const q = query(transactionsCollection(), where("voucherId", "==", voucherId));
@@ -177,7 +207,6 @@ export const getVoucherTransactions = async (voucherId: string): Promise<Transac
         return querySnapshot.docs.map(fromFirestore);
     }
     
-    // Fallback for legacy vouchers
     const { db } = getFirebase();
     const legacyId = voucherId.replace('legacy-', '');
     const docSnap = await getDoc(doc(db, COLLECTIONS.TRANSACTIONS, legacyId));
@@ -188,20 +217,6 @@ export const getVoucherTransactions = async (voucherId: string): Promise<Transac
     return [];
 };
 
-
-export const onVoucherTransactionsUpdate = (voucherId: string, callback: (transactions: Transaction[]) => void): () => void => {
-    const q = query(transactionsCollection(), where("voucherId", "==", voucherId));
-    return onSnapshot(q, 
-        (snapshot) => {
-            callback(snapshot.docs.map(fromFirestore));
-        },
-        (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Voucher Transactions):", error.message, error);
-        }
-    );
-};
-
-
 export const updateVoucher = async (voucherId: string, voucherData: any, modifiedBy: string) => {
     const { db } = getFirebase();
     let batch = writeBatch(db);
@@ -209,28 +224,24 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
     const BATCH_LIMIT = 499;
     const now = new Date().toISOString();
 
-    // 1. Delete all existing transactions for this voucher
     const existingTxns = await getVoucherTransactions(voucherId);
     for (const txn of existingTxns) {
         if (writeCount >= BATCH_LIMIT) {
-            await batch.commit();
+            batch.commit().catch(async (err) => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.TRANSACTIONS, operation: 'write' }));
+            });
             batch = writeBatch(db);
             writeCount = 0;
         }
         batch.delete(doc(db, COLLECTIONS.TRANSACTIONS, txn.id));
         writeCount++;
     }
-    if (writeCount > 0) {
-        await batch.commit();
-        batch = writeBatch(db);
-        writeCount = 0;
-    }
-
-
-    // 2. Create new transactions based on the updated form data
+    
     for (const item of voucherData.items) {
         if (writeCount >= BATCH_LIMIT) {
-            await batch.commit();
+            batch.commit().catch(async (err) => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.TRANSACTIONS, operation: 'write' }));
+            });
             batch = writeBatch(db);
             writeCount = 0;
         }
@@ -285,15 +296,18 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
     }
 
     if (writeCount > 0) {
-        await batch.commit();
+        batch.commit().catch(async (err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.TRANSACTIONS, operation: 'write' }));
+        });
     }
 };
-
 
 export const deleteTransaction = async (id: string): Promise<void> => {
     if (!id) return;
     const transactionDoc = doc(transactionsCollection(), id);
-    await deleteDoc(transactionDoc);
+    deleteDoc(transactionDoc).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: transactionDoc.path, operation: 'delete' }));
+    });
 };
 
 export const deleteVoucher = async (voucherId: string): Promise<void> => {
@@ -303,7 +317,9 @@ export const deleteVoucher = async (voucherId: string): Promise<void> => {
     if (voucherId.startsWith('legacy-')) {
         const docId = voucherId.replace('legacy-', '');
         const docRef = doc(db, COLLECTIONS.TRANSACTIONS, docId);
-        await deleteDoc(docRef);
+        deleteDoc(docRef).catch(async (err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' }));
+        });
     } else {
         const q = query(transactionsCollection(), where("voucherId", "==", voucherId));
         const querySnapshot = await getDocs(q);
@@ -317,14 +333,18 @@ export const deleteVoucher = async (voucherId: string): Promise<void> => {
             batch.delete(doc.ref);
             writeCount++;
             if (writeCount >= BATCH_LIMIT) {
-                await batch.commit();
+                batch.commit().catch(async (err) => {
+                     errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.TRANSACTIONS, operation: 'write' }));
+                });
                 batch = writeBatch(db);
                 writeCount = 0;
             }
         }
         
         if (writeCount > 0) {
-            await batch.commit();
+            batch.commit().catch(async (err) => {
+                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.TRANSACTIONS, operation: 'write' }));
+            });
         }
     }
 };
