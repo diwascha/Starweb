@@ -196,6 +196,9 @@ export function AppSidebar() {
                         <CollapsibleContent>
                             <SidebarMenuSub>
                                 <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/finance', true)}><Link href="/finance" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/finance/estimate-invoice')}><Link href="/finance/estimate-invoice" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Estimate Invoice</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
@@ -225,6 +228,9 @@ export function AppSidebar() {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/reports', true)}><Link href="/reports" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
                                 {hasPermission('reports', 'create') && (
                                     <SidebarMenuSubItem>
                                         <SidebarMenuSubButton asChild isActive={getIsActive('/report/new', true)}><Link href="/report/new" className="flex items-center gap-2"><PlusCircle className="h-4 w-4" /><span>New QT Reports</span></Link></SidebarMenuSubButton>
@@ -261,6 +267,9 @@ export function AppSidebar() {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/purchase-orders', true)}><Link href="/purchase-orders" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
                                 {hasPermission('purchaseOrders', 'view') && (
                                     <SidebarMenuSubItem>
                                         <SidebarMenuSubButton asChild isActive={getIsActive('/purchase-orders/list')}><Link href="/purchase-orders/list" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>Purchase Orders</span></Link></SidebarMenuSubButton>
@@ -293,6 +302,9 @@ export function AppSidebar() {
                         <CollapsibleContent>
                             <SidebarMenuSub>
                                 <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm', true)}><Link href="/crm" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report" className="flex items-center gap-2"><Calculator className="h-4 w-4" /><span>Cost Report</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
@@ -319,6 +331,9 @@ export function AppSidebar() {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/hr', true)}><Link href="/hr" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees" className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Employees</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance" className="flex items-center gap-2"><Calendar className="h-4 w-4" /><span>Attendance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics" className="flex items-center gap-2"><BarChart2 className="h-4 w-4" /><span>Analytics</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
@@ -346,6 +361,9 @@ export function AppSidebar() {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/fleet', true)}><Link href="/fleet" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/registry')}><Link href="/fleet/registry" className="flex items-center gap-2"><Truck className="h-4 w-4" /><span>Vehicles & Drivers</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies" className="flex items-center gap-2"><ShieldCheck className="h-4 w-4" /><span>Policies & Memberships</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
