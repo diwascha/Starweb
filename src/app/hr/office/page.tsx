@@ -10,7 +10,9 @@ import {
     CalendarCheck,
     Briefcase,
     Settings2,
-    Clock
+    Clock,
+    CalendarIcon,
+    X
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,12 +27,14 @@ import {
 } from '@/services/hr-admin-service';
 import type { HrShift, PublicHoliday, LeaveRequest, Employee } from '@/lib/types';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { toNepaliDate } from '@/lib/utils';
+import { toNepaliDate, cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DualCalendar } from '@/components/ui/dual-calendar';
 
 export default function HrOfficePage() {
     const { user } = useAuth();
@@ -48,7 +52,7 @@ export default function HrOfficePage() {
     const [shiftForm, setShiftForm] = useState({ name: '', onDuty: '09:00', offDuty: '17:00', graceMinutes: 15, isDefault: false });
 
     const [isHolidayDialogOpen, setIsHolidayDialogOpen] = useState(false);
-    const [holidayForm, setHolidayForm] = useState({ name: '', date: new Date().toISOString().split('T')[0], isRecurring: true });
+    const [holidayForm, setHolidayForm] = useState({ name: '', date: new Date().toISOString(), isRecurring: true });
 
     useEffect(() => {
         const unsubs = [
@@ -150,7 +154,7 @@ export default function HrOfficePage() {
                                     Public Holidays
                                 </CardTitle>
                             </div>
-                            <Button size="sm" onClick={() => setIsHolidayDialogOpen(true)} className="h-8 text-[10px] uppercase font-black tracking-widest">
+                            <Button size="sm" onClick={() => { setHolidayForm({ name: '', date: new Date().toISOString(), isRecurring: true }); setIsHolidayDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest">
                                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Log Holiday
                             </Button>
                         </CardHeader>
@@ -250,7 +254,20 @@ export default function HrOfficePage() {
                     </DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Holiday Name / Occasion</Label><Input value={holidayForm.name} onChange={e => setHolidayForm({...holidayForm, name: e.target.value})} placeholder="e.g. Dashain Festival" className="h-10" /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Holiday Date</Label><Input type="date" value={holidayForm.date} onChange={e => setHolidayForm({...holidayForm, date: e.target.value})} className="h-10" /></div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Holiday Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10 bg-white shadow-none", !holidayForm.date && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {holidayForm.date ? `${toNepaliDate(holidayForm.date)} BS (${format(new Date(holidayForm.date), "PP")})` : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <DualCalendar selected={new Date(holidayForm.date)} onSelect={(d) => setHolidayForm({...holidayForm, date: d?.toISOString() || new Date().toISOString()})} />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                         <div className="flex items-center space-x-2 pt-2"><Checkbox id="holiday-recur" checked={holidayForm.isRecurring} onCheckedChange={(v) => setHolidayForm({...holidayForm, isRecurring: !!v})} /><Label htmlFor="holiday-recur" className="text-xs font-bold uppercase cursor-pointer">Recurring Holiday (Annual)</Label></div>
                     </div>
                     <DialogFooter><Button onClick={handleSaveHoliday} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">Publish to Calendar</Button></DialogFooter>
