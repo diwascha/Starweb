@@ -112,7 +112,7 @@ export default function HrOfficePage() {
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [leaveForm, setLeaveForm] = useState({ 
         employeeId: '', 
-        leaveType: 'Casual' as any, 
+        leaveType: 'Paid' as any, 
         startDate: new Date().toISOString(), 
         endDate: new Date().toISOString(), 
         reason: '' 
@@ -459,7 +459,7 @@ export default function HrOfficePage() {
                                         <div>
                                             <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Leave Request Oversight</CardTitle>
                                         </div>
-                                        <Button size="sm" onClick={() => { setLeaveForm({ employeeId: '', leaveType: 'Casual', startDate: new Date().toISOString(), endDate: new Date().toISOString(), reason: '' }); setIsLeaveDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-blue-600 hover:bg-blue-700 text-white">
+                                        <Button size="sm" onClick={() => { setLeaveForm({ employeeId: '', leaveType: 'Paid', startDate: new Date().toISOString(), endDate: new Date().toISOString(), reason: '' }); setIsLeaveDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-blue-600 hover:bg-blue-700 text-white">
                                             <Plus className="mr-1.5 h-3.5 w-3.5" /> Apply for Leave
                                         </Button>
                                     </div>
@@ -477,7 +477,7 @@ export default function HrOfficePage() {
                                                             <span className="text-[9px] uppercase font-bold text-muted-foreground">{r.totalDays} Work Days</span>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold">{r.leaveType}</Badge></TableCell>
+                                                    <TableCell><Badge variant="outline" className={cn("text-[9px] uppercase font-bold", r.leaveType === 'Paid' ? "text-emerald-600" : "text-red-600")}>{r.leaveType}</Badge></TableCell>
                                                     <TableCell className="text-muted-foreground max-w-xs truncate">{r.reason}</TableCell>
                                                     <TableCell className="text-center">
                                                         <Badge className={cn(
@@ -575,15 +575,12 @@ export default function HrOfficePage() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Leave Type</Label>
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Leave Category</Label>
                                     <Select value={leaveForm.leaveType} onValueChange={v => setLeaveForm({...leaveForm, leaveType: v})}>
                                         <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="Casual">Casual Leave</SelectItem>
-                                            <SelectItem value="Sick">Sick Leave</SelectItem>
-                                            <SelectItem value="Sick (Paid)">Sick (Paid)</SelectItem>
-                                            <SelectItem value="Paid">Earned (Paid)</SelectItem>
-                                            <SelectItem value="Unpaid">Loss of Pay</SelectItem>
+                                            <SelectItem value="Paid">Paid Leave</SelectItem>
+                                            <SelectItem value="Unpaid">Unpaid (Loss of Pay)</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -597,24 +594,16 @@ export default function HrOfficePage() {
                             <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100 space-y-3">
                                 <div className="flex items-center gap-2 text-blue-800">
                                     <Info className="h-3.5 w-3.5" />
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest">Leave Type Guide</h4>
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest">Payroll Impact Guide</h4>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
                                     <div className="space-y-0.5">
-                                        <p className="text-[10px] font-black text-gray-900 uppercase">Casual Leave</p>
-                                        <p className="text-[9px] text-muted-foreground leading-tight">Short-term unplanned personal leave.</p>
+                                        <p className="text-[10px] font-black text-gray-900 uppercase">Paid Leave</p>
+                                        <p className="text-[9px] text-muted-foreground leading-tight">Covers Casual, Sick, or Earned leave. Full pay is preserved.</p>
                                     </div>
                                     <div className="space-y-0.5">
-                                        <p className="text-[10px] font-black text-gray-900 uppercase">Sick (Paid/Unpaid)</p>
-                                        <p className="text-[9px] text-muted-foreground leading-tight">Medical absence. "Paid" uses quota; "Sick" is standard.</p>
-                                    </div>
-                                    <div className="space-y-0.5">
-                                        <p className="text-[10px] font-black text-gray-900 uppercase">Earned (Paid)</p>
-                                        <p className="text-[9px] text-muted-foreground leading-tight">Accumulated vacation days. Full pay preserved.</p>
-                                    </div>
-                                    <div className="space-y-0.5">
-                                        <p className="text-[10px] font-black text-gray-900 uppercase">Loss of Pay (Unpaid)</p>
-                                        <p className="text-[9px] text-muted-foreground leading-tight">Unauthorized absence or exceeded leave quota.</p>
+                                        <p className="text-[10px] font-black text-gray-900 uppercase">Unpaid (Loss of Pay)</p>
+                                        <p className="text-[9px] text-muted-foreground leading-tight">Used when quotas are exceeded. Results in salary deduction.</p>
                                     </div>
                                 </div>
                             </div>

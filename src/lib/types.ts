@@ -1,4 +1,3 @@
-
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -289,7 +288,7 @@ export interface LeaveRequest {
     id: string;
     employeeId: string;
     employeeName: string;
-    leaveType: 'Casual' | 'Sick' | 'Sick (Paid)' | 'Paid' | 'Unpaid';
+    leaveType: 'Paid' | 'Unpaid';
     startDate: string; // ISO
     endDate: string; // ISO
     totalDays: number;
