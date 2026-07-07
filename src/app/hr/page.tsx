@@ -9,7 +9,8 @@ import {
     Award, 
     Wallet, 
     BarChart2, 
-    LayoutDashboard
+    CalendarCheck,
+    Settings2
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,9 +21,11 @@ const hrModules = [
     { name: 'Employees', description: 'Manage employee records and wage information.', href: '/hr/employees', icon: Users },
     { name: 'Attendance', description: 'Record and track daily employee attendance.', href: '/hr/attendance', icon: Calendar },
     { name: 'Analytics', description: 'Generate attendance analytics for any period.', href: '/hr/analytics', icon: BarChart2 },
+    { name: 'Holidays & Leaves', description: 'Manage leave requests and public holidays.', href: '/hr/holiday', icon: CalendarCheck },
     { name: 'Payroll', description: 'View and process payroll reports.', href: '/hr/payroll', icon: FileText },
     { name: 'Bonus', description: 'Calculate and track employee bonuses.', href: '/hr/bonus', icon: Award },
     { name: 'Payslip', description: 'View and print employee payslips.', href: '/hr/payslip', icon: Wallet },
+    { name: 'HR Office', description: 'Configure shifts and operational rules.', href: '/hr/office', icon: Settings2 },
 ];
 
 function DashboardSkeleton() {

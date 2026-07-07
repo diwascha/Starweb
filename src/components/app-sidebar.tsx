@@ -46,7 +46,8 @@ import {
   ChevronRight,
   Home,
   HardDrive,
-  Settings2
+  Settings2,
+  CalendarCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -338,6 +339,7 @@ export function AppSidebar() {
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees" className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Employees</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance" className="flex items-center gap-2"><Calendar className="h-4 w-4" /><span>Attendance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics" className="flex items-center gap-2"><BarChart2 className="h-4 w-4" /><span>Analytics</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/holiday')}><Link href="/hr/holiday" className="flex items-center gap-2"><CalendarCheck className="h-4 w-4" /><span>Holidays & Leaves</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Payroll</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/bonus')}><Link href="/hr/bonus" className="flex items-center gap-2"><Award className="h-4 w-4" /><span>Bonus</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Payslip</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
