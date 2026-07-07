@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
@@ -19,9 +18,10 @@ import {
     CalendarCheck,
     Briefcase,
     Loader2,
-    Settings2
+    Settings2,
+    LayoutDashboard
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import HrDashboardClient from './_components/hr-dashboard-client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -43,6 +43,9 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 const hrModules = [
     { name: 'Employees', description: 'Manage employee records and wage information.', href: '/hr/employees', icon: Users },
@@ -100,7 +103,7 @@ export default function HRPage() {
     const handleSaveShift = async () => {
         if (!user) return;
         try {
-            await saveShift({ ...shiftForm, createdBy: user.username }, editingShift?.id);
+            await saveShift({ ...shiftForm, name: shiftForm.name, onDuty: shiftForm.onDuty, offDuty: shiftForm.offDuty, graceMinutes: shiftForm.graceMinutes, isDefault: shiftForm.isDefault, createdBy: user.username }, editingShift?.id);
             toast({ title: 'Shift Configuration Saved' });
             setIsShiftDialogOpen(false);
         } catch {
@@ -188,13 +191,13 @@ export default function HRPage() {
                                         Shift Configurations
                                     </CardTitle>
                                 </div>
-                                <Button size="sm" onClick={() => { setEditingShift(null); setIsShiftDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest">
+                                <Button size="sm" onClick={() => { setEditingShift(null); setShiftForm({ name: '', onDuty: '09:00', offDuty: '17:00', graceMinutes: 15, isDefault: false }); setIsShiftDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest">
                                     <Plus className="mr-1.5 h-3.5 w-3.5" /> Define Shift
                                 </Button>
                             </CardHeader>
                             <CardContent className="p-0">
                                 <Table className="text-xs">
-                                    <TableHeader><TableRow className="bg-muted/30"><TableHead className="pl-6 font-bold">Shift Name</TableHead><TableHead className="font-bold">Hours</TableHead><TableHead className="font-bold">Grace</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
+                                    <TableHeader><TableRow className="bg-muted/50"><TableHead className="pl-6 font-bold">Shift Name</TableHead><TableHead className="font-bold">Hours</TableHead><TableHead className="font-bold">Grace</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {shifts.map(s => (
                                             <TableRow key={s.id} className="h-12">
@@ -227,7 +230,7 @@ export default function HRPage() {
                             </CardHeader>
                             <CardContent className="p-0">
                                 <Table className="text-xs">
-                                    <TableHeader><TableRow className="bg-muted/30"><TableHead className="pl-6 font-bold">Holiday Event</TableHead><TableHead className="font-bold">BS Date</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
+                                    <TableHeader><TableRow className="bg-muted/50"><TableHead className="pl-6 font-bold">Holiday Event</TableHead><TableHead className="font-bold">BS Date</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {holidays.map(h => (
                                             <TableRow key={h.id} className="h-12">
@@ -254,7 +257,7 @@ export default function HRPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             <Table className="text-xs">
-                                <TableHeader><TableRow className="bg-muted/30"><TableHead className="pl-6 font-bold">Employee</TableHead><TableHead className="font-bold">Leave Period</TableHead><TableHead className="font-bold">Type</TableHead><TableHead className="font-bold">Reason</TableHead><TableHead className="text-center font-bold">Status</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow className="bg-muted/50"><TableHead className="pl-6 font-bold">Employee</TableHead><TableHead className="font-bold">Leave Period</TableHead><TableHead className="font-bold">Type</TableHead><TableHead className="font-bold">Reason</TableHead><TableHead className="text-center font-bold">Status</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {leaveRequests.map(r => (
                                         <TableRow key={r.id} className="h-14">
