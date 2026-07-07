@@ -6,7 +6,27 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History, Image as ImageIcon, Save, Loader2, Check, X, Clock, FilterX } from 'lucide-react';
+import { 
+  Search, 
+  ArrowUpDown, 
+  MoreHorizontal, 
+  Printer, 
+  Trash2, 
+  Edit, 
+  AlertTriangle, 
+  PlusCircle, 
+  History, 
+  Image as ImageIcon, 
+  Save, 
+  Loader2, 
+  Check, 
+  X, 
+  Clock, 
+  FilterX, 
+  Users, 
+  ShieldCheck, 
+  ChevronDown 
+} from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
@@ -189,29 +209,44 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             return s;
         });
         await updateCheque(cheque.id, { splits: updatedSplits, lastModifiedBy: user.username });
-        toast({ title: 'Success' });
+        toast({ title: 'Status Updated', description: `Cheque marked as ${newStatus}.` });
     }, [user, toast]);
+
+    const requestSort = (key: SortKey) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
 
     const isFiltered = filterParty !== 'All' || filterStatus !== 'All' || searchQuery !== '';
 
     return (
         <div className="space-y-4">
-            <Card>
-                <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <Card className="border-gray-100 shadow-sm overflow-hidden">
+                <CardHeader className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 py-5 px-6 bg-muted/20 border-b">
                     <div>
-                        <CardTitle>Cheque History</CardTitle>
-                        <CardDescription>View and manage post-dated and issued cheques.</CardDescription>
+                        <CardTitle className="text-xl font-bold text-gray-900">Cheque History</CardTitle>
+                        <CardDescription className="text-xs text-muted-foreground mt-1">View and manage post-dated and issued cheques.</CardDescription>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Search Payee or Cheque #..." className="pl-8 h-9 text-xs" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                        <div className="relative flex-1 sm:flex-none sm:min-w-[240px]">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                            <Input 
+                                placeholder="Search Payee or Cheque #..." 
+                                className="pl-8 h-9 text-xs bg-white border-gray-200 focus-visible:ring-primary shadow-none" 
+                                value={searchQuery} 
+                                onChange={(e) => setSearchQuery(e.target.value)} 
+                            />
                         </div>
                         
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                             <Select value={filterParty} onValueChange={setFilterParty}>
-                                <SelectTrigger className="h-9 w-[160px] text-xs">
-                                    <SelectValue placeholder="Party Filter" />
+                                <SelectTrigger className="h-9 w-[160px] text-xs bg-white border-gray-200 shadow-none">
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <Users className="h-3 w-3 text-muted-foreground shrink-0" />
+                                        <SelectValue placeholder="All Parties" />
+                                    </div>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="All">All Parties</SelectItem>
@@ -220,8 +255,11 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             </Select>
 
                             <Select value={filterStatus} onValueChange={setFilterStatus}>
-                                <SelectTrigger className="h-9 w-[130px] text-xs">
-                                    <SelectValue placeholder="Status" />
+                                <SelectTrigger className="h-9 w-[130px] text-xs bg-white border-gray-200 shadow-none">
+                                    <div className="flex items-center gap-2">
+                                        <ShieldCheck className="h-3 w-3 text-muted-foreground shrink-0" />
+                                        <SelectValue placeholder="Status" />
+                                    </div>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="All">All Statuses</SelectItem>
@@ -234,46 +272,61 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         </div>
 
                         {isFiltered && (
-                            <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setFilterParty('All'); setFilterStatus('All'); }} className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground">
-                                <FilterX className="mr-2 h-4 w-4" /> Reset
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => { setSearchQuery(''); setFilterParty('All'); setFilterStatus('All'); }} 
+                                className="h-9 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
+                            >
+                                <FilterX className="mr-1.5 h-3.5 w-3.5" /> Clear
                             </Button>
                         )}
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="bg-muted/50">
-                                <TableHead className="text-xs uppercase font-bold"><Button variant="ghost" onClick={() => requestSort('chequeDate')} className="h-8 px-2 text-xs">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                                <TableHead className="text-xs uppercase font-bold"><Button variant="ghost" onClick={() => requestSort('payeeName')} className="h-8 px-2 text-xs">Payee <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                                <TableHead className="text-xs uppercase font-bold">Cheque #</TableHead>
-                                <TableHead className="text-xs uppercase font-bold">Amount</TableHead>
-                                <TableHead className="text-xs uppercase font-bold">Rem.</TableHead>
-                                <TableHead className="text-xs uppercase font-bold">Status</TableHead>
-                                <TableHead className="text-right text-xs uppercase font-bold pr-6">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedAndFilteredSplits.map(split => (
-                                <ChequeSplitRow 
-                                    key={`${split.parentCheque.id}-${split.id}`}
-                                    split={split}
-                                    onManagePayments={(s) => { setPayingSplit(s); setIsPaymentDialogOpen(true); }}
-                                    onEditVoucher={onEdit}
-                                    onPrintVoucher={(c) => { setChequeToPrint(c); setIsPrintPreviewOpen(true); }}
-                                    onMarkAsPaid={(c, id) => { setSplitToPay({cheque: c, splitId: id}); setIsPaidDialogOpen(true); }}
-                                    onMarkAsCanceled={(c, id) => { setSplitToCancel({cheque: c, splitId: id}); setIsCancelDialogOpen(true); }}
-                                    onMarkAsDue={(c, id) => handleStatusUpdate(c, id, 'Due')}
-                                    onDeleteVoucher={(id) => deleteCheque(id)}
-                                />
-                            ))}
-                            {sortedAndFilteredSplits.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-20 text-muted-foreground italic">No cheque records match your filters.</TableCell>
+                    <div className="overflow-x-auto">
+                        <Table className="text-[13px]">
+                            <TableHeader className="bg-muted/50 border-b">
+                                <TableRow className="hover:bg-transparent h-11">
+                                    <TableHead className="w-[140px] font-bold text-gray-700">
+                                        <Button variant="ghost" onClick={() => requestSort('chequeDate')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">
+                                            Date <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === 'chequeDate' ? "text-primary opacity-100" : "opacity-30")} />
+                                        </Button>
+                                    </TableHead>
+                                    <TableHead className="font-bold text-gray-700">
+                                        <Button variant="ghost" onClick={() => requestSort('payeeName')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">
+                                            Payee <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === 'payeeName' ? "text-primary opacity-100" : "opacity-30")} />
+                                        </Button>
+                                    </TableHead>
+                                    <TableHead className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">Cheque #</TableHead>
+                                    <TableHead className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">Amount</TableHead>
+                                    <TableHead className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">Balance</TableHead>
+                                    <TableHead className="text-[11px] font-black uppercase tracking-wider text-muted-foreground text-center">Status</TableHead>
+                                    <TableHead className="text-right pr-6 text-[11px] font-black uppercase tracking-wider text-muted-foreground">Actions</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody className="bg-white">
+                                {sortedAndFilteredSplits.map(split => (
+                                    <ChequeSplitRow 
+                                        key={`${split.parentCheque.id}-${split.id}`}
+                                        split={split}
+                                        onManagePayments={(s) => { setPayingSplit(s); setIsPaymentDialogOpen(true); }}
+                                        onEditVoucher={onEdit}
+                                        onPrintVoucher={(c) => { setChequeToPrint(c); setIsPrintPreviewOpen(true); }}
+                                        onMarkAsPaid={(c, id) => { setSplitToPay({cheque: c, splitId: id}); setIsPaidDialogOpen(true); }}
+                                        onMarkAsCanceled={(c, id) => { setSplitToCancel({cheque: c, splitId: id}); setIsCancelDialogOpen(true); }}
+                                        onMarkAsDue={(c, id) => handleStatusUpdate(c, id, 'Due')}
+                                        onDeleteVoucher={(id) => deleteCheque(id)}
+                                    />
+                                ))}
+                                {sortedAndFilteredSplits.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="text-center py-20 text-muted-foreground italic">No cheque records match your filters.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -349,13 +402,13 @@ export default function ChequeGeneratorPage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-          <h1 className="text-3xl font-bold tracking-tight">Cheque Control Center</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Cheque Control Center</h1>
           <p className="text-muted-foreground">Manage payment vouchers and post-dated cheque distribution.</p>
       </header>
        <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
-                <TabsTrigger value="generator" className="gap-2"><PlusCircle className="h-4 w-4"/> Generator</TabsTrigger>
-                <TabsTrigger value="history" className="gap-2"><History className="h-4 w-4"/> History Logs</TabsTrigger>
+            <TabsList className="mb-4 bg-muted/50 p-1">
+                <TabsTrigger value="generator" className="gap-2 px-6"><PlusCircle className="h-4 w-4"/> Generator</TabsTrigger>
+                <TabsTrigger value="history" className="gap-2 px-6"><History className="h-4 w-4"/> History Logs</TabsTrigger>
             </TabsList>
             <TabsContent value="generator">
                  <Suspense fallback={<Skeleton className="h-96 w-full" />}>
