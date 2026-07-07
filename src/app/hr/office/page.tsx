@@ -281,6 +281,19 @@ export default function HrOfficePage() {
                                             </Select>
                                         </div>
                                     </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Free Early</Label>
+                                            <Input type="number" value={hrConfig.hours.freeEarly} onChange={e => updateNestedConfig('hours', 'freeEarly', Number(e.target.value))} className="h-9" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Period</Label>
+                                            <Select value={hrConfig.hours.freeEarlyPeriod} onValueChange={v => updateNestedConfig('hours', 'freeEarlyPeriod', v)}>
+                                                <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
+                                                <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
                                     <div className="space-y-1.5">
                                         <Label className="text-[10px] font-bold uppercase text-muted-foreground">Review Threshold (Hrs)</Label>
                                         <Input type="number" step="0.1" value={hrConfig.hours.reviewThresh} onChange={e => updateNestedConfig('hours', 'reviewThresh', Number(e.target.value))} className="h-9 font-black text-amber-600" />
