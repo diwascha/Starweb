@@ -182,26 +182,39 @@ export const formatTimeForDisplay = (timeString: string | null | undefined): str
 };
 
 export const toWords = (num: number): string => {
+    if (num === 0) return 'Zero Only.';
+    
     const a = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
     const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
     
     const inWords = (n: number): string => {
+        if (n === 0) return '';
         if (n < 20) return a[n];
-        let digit = n % 10;
-        return `${b[Math.floor(n/10)]} ${a[digit]}`.trim();
+        if (n < 100) {
+            return `${b[Math.floor(n/10)]} ${a[n % 10]}`.trim();
+        }
+        if (n < 1000) {
+            return `${a[Math.floor(n/100)]} hundred ${inWords(n % 100)}`.trim();
+        }
+        if (n < 100000) {
+            return `${inWords(Math.floor(n/1000))} thousand ${inWords(n % 1000)}`.trim();
+        }
+        if (n < 10000000) {
+            return `${inWords(Math.floor(n/100000))} lakh ${inWords(n % 100000)}`.trim();
+        }
+        return `${inWords(Math.floor(n/10000000))} crore ${inWords(n % 10000000)}`.trim();
     }
     
-    let n = Math.floor(num);
-    let str = '';
-    str += n > 9999999 ? `${inWords(Math.floor(n/10000000))} crore ` : '';
-    n %= 10000000;
-    str += n > 99999 ? `${inWords(Math.floor(n/100000))} lakh ` : '';
-    n %= 100000;
-    str += n > 999 ? `${inWords(Math.floor(n/1000))} thousand ` : '';
-    n %= 1000;
-    str += n > 99 ? `${inWords(Math.floor(n/100))} hundred ` : '';
-    n %= 100;
-    str += inWords(n);
+    const whole = Math.floor(Math.abs(num));
+    const decimal = Math.round((Math.abs(num) - whole) * 100);
     
-    return str.split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') + ' Only.';
+    let str = inWords(whole);
+    if (decimal > 0) {
+        if (str) str += ' and ';
+        str += inWords(decimal) + ' paisa';
+    }
+    
+    if (!str) return 'Zero Only.';
+
+    return str.split(' ').filter(s => s !== '').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') + ' Only.';
 };
