@@ -19,15 +19,21 @@ interface FirebaseContextType {
 
 const FirebaseContext = createContext<FirebaseContextType | null>(null);
 
-interface FirebaseProviderProps extends Omit<FirebaseContextType, 'isConnected'> {
+interface FirebaseProviderProps {
     children: React.ReactNode;
+    app: FirebaseApp;
+    auth: Auth;
+    db: Firestore;
+    storage: FirebaseStorage;
+    rtdb?: Database;
 }
 
 export const FirebaseProvider = ({ children, app, auth, db, storage, rtdb }: FirebaseProviderProps) => {
     const [isConnected, setIsConnected] = useState(true);
 
     useEffect(() => {
-        // If RTDB failed to initialize in the service layer, skip the connection listener
+        // Realtime Database is used here only to monitor connection status.
+        // It provides a special '.info/connected' path that toggles automatically.
         if (!rtdb) return;
         
         try {
@@ -35,14 +41,15 @@ export const FirebaseProvider = ({ children, app, auth, db, storage, rtdb }: Fir
             const listener = onValue(connectedRef, (snap) => {
                 setIsConnected(snap.val() === true);
             }, (err) => {
-                console.warn("Connection status listener failed:", err);
+                // If this fails (e.g. offline start), we assume we're just not connected to cloud yet
+                setIsConnected(false);
             });
 
             return () => {
                 off(connectedRef, 'value', listener);
             };
         } catch (e) {
-            console.warn("Failed to attach connection listener:", e);
+            setIsConnected(false);
         }
     }, [rtdb]);
 

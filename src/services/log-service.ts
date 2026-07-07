@@ -1,6 +1,7 @@
 'use client';
 /**
  * @fileOverview Logging service for capturing system exceptions and telemetry.
+ * Optimized to handle offline states gracefully by allowing Firestore to queue logs.
  */
 
 import { getFirebase } from '@/lib/firebase';
@@ -13,10 +14,10 @@ export interface SystemLog {
     level: 'error' | 'warn' | 'info';
     module: string;
     message: string;
-    stack?: string;
+    stack?: string | null;
     username: string;
     userId: string;
-    context?: any;
+    context?: any | null;
     createdAt: any;
 }
 
@@ -28,16 +29,18 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): SystemLog
         level: data.level,
         module: data.module,
         message: data.message,
-        stack: data.stack,
+        stack: data.stack ?? null,
         username: data.username,
         userId: data.userId,
-        context: data.context,
+        context: data.context ?? null,
         createdAt: data.createdAt,
     };
 };
 
 /**
- * Logs an error to Firestore with improved resiliency.
+ * Logs an error to Firestore. 
+ * Because persistent cache is enabled, this will save locally if offline
+ * and sync to the cloud later.
  */
 export const logError = async (error: Error | any, moduleName: string, context?: any) => {
     try {
@@ -51,10 +54,10 @@ export const logError = async (error: Error | any, moduleName: string, context?:
             // Silently fail session parsing
         }
 
-        // Safe property access to prevent "reading 'stack' of undefined"
         const errorMessage = error?.message || (typeof error === 'string' ? error : 'Unknown Error');
         const errorStack = error?.stack || null;
 
+        // addDoc will work offline and sync automatically
         await addDoc(collection(db, COLLECTIONS.LOGS), {
             timestamp: new Date().toISOString(),
             level: 'error',
@@ -63,7 +66,7 @@ export const logError = async (error: Error | any, moduleName: string, context?:
             stack: errorStack,
             username: user?.username || 'Guest',
             userId: user?.id || 'anonymous',
-            context: context || null,
+            context: context ?? null,
             createdAt: serverTimestamp()
         });
     } catch (e) {
