@@ -83,10 +83,7 @@ function SidebarCollapseButton() {
 }
 
 function ConnectionStatusIndicator() {
-  const { user } = useAuth();
-  const isFirebaseConnected = useConnectionStatus();
-
-  const isConnected = user?.is_admin ? true : isFirebaseConnected;
+  const isConnected = useConnectionStatus();
 
   return (
     <div className="flex items-center gap-1.5 text-[9px] font-bold shrink-0">
