@@ -1,18 +1,26 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getFirestore, Firestore } from "firebase/firestore";
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager, 
+  Firestore 
+} from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getAuth, Auth } from 'firebase/auth';
 import { getDatabase, Database } from 'firebase/database';
 import { firebaseConfig } from "@/firebase/config";
 
 /**
- * @fileOverview Resilient Firebase initialization utility.
+ * @fileOverview Resilient Firebase initialization utility with Native Offline Persistence.
+ * This enables the app to function without internet, queuing writes and syncing 
+ * automatically upon reconnection.
  */
 
 export const getFirebase = () => {
   let app: FirebaseApp;
 
-  // Use existing app if already initialized to prevent redundant connections
+  // Initialize or retrieve existing App instance
   if (getApps().length === 0) {
     app = initializeApp(firebaseConfig);
   } else {
@@ -20,12 +28,25 @@ export const getFirebase = () => {
   }
 
   const auth = getAuth(app);
-  const db = getFirestore(app);
   const storage = getStorage(app);
   
-  // Initialize Realtime Database (used for connection status)
-  // We use a try-catch specifically for DB as it can fail on some networks/proxies
-  let rtdb;
+  // Use initializeFirestore with Persistent Cache enabled.
+  // This allows data to be saved locally when offline and synced when online.
+  let db: Firestore;
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+  } catch (e) {
+    // If Firestore is already initialized (e.g. during Hot Module Replacement),
+    // we retrieve the existing instance.
+    db = getFirestore(app);
+  }
+
+  // Initialize Realtime Database (used primarily for connection status monitoring)
+  let rtdb: Database | undefined;
   try {
     rtdb = getDatabase(app);
   } catch (e) {
