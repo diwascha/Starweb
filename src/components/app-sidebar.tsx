@@ -45,7 +45,8 @@ import {
   Briefcase,
   ChevronRight,
   Home,
-  HardDrive
+  HardDrive,
+  Settings2
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -340,6 +341,7 @@ export function AppSidebar() {
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Payroll</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/bonus')}><Link href="/hr/bonus" className="flex items-center gap-2"><Award className="h-4 w-4" /><span>Bonus</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Payslip</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/office')}><Link href="/hr/office" className="flex items-center gap-2"><Settings2 className="h-4 w-4" /><span>HR Office</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>
                     </SidebarMenuItem>
