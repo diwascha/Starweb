@@ -52,6 +52,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
+import NepaliDate from 'nepali-date-converter';
 
 type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender' | 'joiningDate' | 'status' | 'department' | 'position';
 type SortDirection = 'asc' | 'desc';
@@ -489,34 +490,36 @@ export default function EmployeesPage() {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-1.5 md:col-span-2">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Full Legal Name <span className="text-destructive">*</span></Label>
+                                    <Label className="text-[10px] font-bold text-muted-foreground px-1">Full Legal Name <span className="text-destructive">*</span></Label>
                                     <Input name="name" value={formState.name} onChange={handleFormChange} className="h-11 text-lg font-black bg-white" />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Department</Label>
+                                    <Label className="text-[10px] font-bold text-muted-foreground px-1">Department</Label>
                                     <Select value={formState.department} onValueChange={v => handleSelectChange('department', v)}>
                                         <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
                                         <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Position</Label>
+                                    <Label className="text-[10px] font-bold text-muted-foreground px-1">Position</Label>
                                     <Select value={formState.position} onValueChange={v => handleSelectChange('position', v)}>
                                         <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
                                         <SelectContent>{positions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Joining Date (AD)</Label>
+                                    <Label className="text-[10px] font-bold text-muted-foreground px-1">Joining Date (AD)</Label>
                                     <Popover>
                                         <PopoverTrigger asChild>
                                             <Button variant="outline" className="w-full justify-start h-10 bg-white font-bold text-xs"><CalendarIcon className="mr-2 h-4 w-4"/> {formState.joiningDate ? toNepaliDate(formState.joiningDate) : 'Select'}</Button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0"><DualCalendar selected={new NepaliDate(formState.joiningDate).toJsDate()} onSelect={d => handleDateChange('joiningDate', d)} /></PopoverContent>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <DualCalendar selected={new NepaliDate(formState.joiningDate).toJsDate()} onSelect={d => handleDateChange('joiningDate', d)} />
+                                        </PopoverContent>
                                     </Popover>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Current Status</Label>
+                                    <Label className="text-[10px] font-bold text-muted-foreground px-1">Current Status</Label>
                                     <Select value={formState.status} onValueChange={v => handleSelectChange('status', v)}>
                                         <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
                                         <SelectContent>{employeeStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
@@ -532,18 +535,18 @@ export default function EmployeesPage() {
                             </div>
                             <div className="p-6 rounded-2xl bg-blue-50/50 border-2 border-blue-100 grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Wage Basis</Label>
+                                    <Label className="text-[10px] font-bold text-muted-foreground px-1">Wage Basis</Label>
                                     <Select value={formState.wageBasis} onValueChange={v => handleSelectChange('wageBasis', v)}>
                                         <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
                                         <SelectContent><SelectItem value="Monthly">Monthly Salary</SelectItem><SelectItem value="Hourly">Hourly Wage</SelectItem></SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Amount (रु)</Label>
+                                    <Label className="text-[10px] font-bold text-muted-foreground px-1">Amount (रु)</Label>
                                     <Input type="number" name="wageAmount" value={formState.wageAmount} onChange={handleFormChange} className="h-10 text-lg font-black bg-white text-blue-900" />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground px-1">Allowance (Optional)</Label>
+                                    <Label className="text-[10px] font-bold text-muted-foreground px-1">Allowance (Optional)</Label>
                                     <Input type="number" name="allowance" value={formState.allowance} onChange={handleFormChange} className="h-10 bg-white" placeholder="0" />
                                 </div>
                             </div>
