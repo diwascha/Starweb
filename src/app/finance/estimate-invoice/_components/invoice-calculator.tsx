@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Trash2, Printer, Save, Loader2, Plus, Image as ImageIcon } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Trash2, Printer, Save, Loader2, Plus, Image as ImageIcon, ChevronDown } from 'lucide-react';
 import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber, generateId } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
-import { onProductsUpdate, addProduct, updateProduct } from '@/services/product-service';
+import { onProductsUpdate } from '@/services/product-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -20,10 +20,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { addEstimatedInvoice, onEstimatedInvoicesUpdate, updateEstimatedInvoice } from '@/services/estimate-invoice-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { InvoiceView } from './invoice-view';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface InvoiceCalculatorProps {
   invoiceToEdit?: EstimatedInvoice;
@@ -54,9 +56,6 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     const printRef = React.useRef<HTMLDivElement>(null);
     const [isExporting, setIsExporting] = useState(false);
     
-    const [addProductDialog, setAddProductDialog] = useState({ isOpen: false, rowIndex: null as number | null, searchQuery: '' });
-    const [newProductForm, setNewProductForm] = useState({ name: '', materialCode: '', rate: '' });
-
     useEffect(() => {
         const unsubs = [
             onEstimatedInvoicesUpdate(setAllInvoices),
@@ -74,7 +73,6 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
           setDate(new Date(invoiceToEdit.date));
           setInvoiceNumber(invoiceToEdit.invoiceNumber);
           setItems(invoiceToEdit.items);
-          // Look up party from local state instead of async service call to prevent offline hangs
           const existingParty = parties.find(p => p.name === invoiceToEdit.partyName);
           if (existingParty) setParty(existingParty);
         } else if (allInvoices.length > 0) {
@@ -109,8 +107,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
                 toast({ title: 'Party Updated' });
             } else {
-                const newId = await addParty({ ...partyForm, createdBy: user.username });
-                // Note: The listener will update 'parties' and 'allParties' automatically
+                await addParty({ ...partyForm, createdBy: user.username });
                 toast({ title: 'New party added.' });
             }
             setIsPartyDialogOpen(false);
