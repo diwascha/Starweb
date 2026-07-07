@@ -52,6 +52,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
+import { NEPALI_MONTHS } from '@/lib/constants';
 
 const INITIAL_HR_CONFIG: HrConfig = {
     hours: {
@@ -239,9 +240,9 @@ export default function HrOfficePage() {
                 </TabsList>
 
                 <TabsContent value="operations" className="space-y-8 animate-in fade-in slide-in-from-top-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-8">
                         {/* Hour Calculation Rules */}
-                        <Card className="shadow-sm border-gray-100 bg-white">
+                        <Card className="xl:col-span-4 shadow-sm border-gray-100 bg-white">
                             <CardHeader className="bg-muted/10 py-4 px-6 border-b">
                                 <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                                     <Clock className="h-4 w-4" /> Hour Calculation
@@ -302,44 +303,98 @@ export default function HrOfficePage() {
                             </CardContent>
                         </Card>
 
-                        {/* Payroll Rules */}
-                        <Card className="shadow-sm border-gray-100 bg-white">
+                        {/* Payroll & Punctuality Engine */}
+                        <Card className="xl:col-span-8 shadow-sm border-gray-100 bg-white">
                             <CardHeader className="bg-muted/10 py-4 px-6 border-b">
                                 <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                    <Calculator className="h-4 w-4" /> Payroll & Punctuality
+                                    <Calculator className="h-4 w-4" /> Payroll & Punctuality Engine
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="p-6 space-y-5">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">TDS Rate (Dec)</Label>
-                                        <Input type="number" step="0.001" value={hrConfig.payroll.tdsRate} onChange={e => updateNestedConfig('payroll', 'tdsRate', Number(e.target.value))} className="h-9 font-bold" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Std Workdays</Label>
-                                        <Input type="number" value={hrConfig.payroll.stdWorkdays} onChange={e => updateNestedConfig('payroll', 'stdWorkdays', Number(e.target.value))} className="h-9 font-bold" />
-                                    </div>
-                                </div>
-                                <Separator />
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Punct High %</Label>
-                                            <Input type="number" value={hrConfig.payroll.punctHighPct} onChange={e => updateNestedConfig('payroll', 'punctHighPct', Number(e.target.value))} className="h-9 text-green-600 font-black" />
+                            <CardContent className="p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    {/* Rates & Standard Days */}
+                                    <div className="space-y-5">
+                                        <h4 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b pb-1">Wage & Standard Cycles</h4>
+                                        <div className="grid gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Default Hourly Rate</Label>
+                                                <Input type="number" value={hrConfig.payroll.defaultHourly} onChange={e => updateNestedConfig('payroll', 'defaultHourly', Number(e.target.value))} className="h-9" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Fallback Rate</Label>
+                                                <Input type="number" value={hrConfig.payroll.fallbackHourly} onChange={e => updateNestedConfig('payroll', 'fallbackHourly', Number(e.target.value))} className="h-9 italic" />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Month Days</Label>
+                                                    <Input type="number" value={hrConfig.payroll.monthDays} onChange={e => updateNestedConfig('payroll', 'monthDays', Number(e.target.value))} className="h-9" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Std Workdays</Label>
+                                                    <Input type="number" value={hrConfig.payroll.stdWorkdays} onChange={e => updateNestedConfig('payroll', 'stdWorkdays', Number(e.target.value))} className="h-9" />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">TDS Deduction (Dec)</Label>
+                                                <Input type="number" step="0.001" value={hrConfig.payroll.tdsRate} onChange={e => updateNestedConfig('payroll', 'tdsRate', Number(e.target.value))} className="h-9 font-bold text-blue-600" />
+                                            </div>
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Punct Mid %</Label>
-                                            <Input type="number" value={hrConfig.payroll.punctMidPct} onChange={e => updateNestedConfig('payroll', 'punctMidPct', Number(e.target.value))} className="h-9 text-amber-600 font-black" />
+                                    </div>
+
+                                    {/* Punctuality Bands */}
+                                    <div className="space-y-5">
+                                        <h4 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b pb-1">Behavioral Thresholds</h4>
+                                        <div className="grid gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Attend. Req (Bonus) %</Label>
+                                                <Input type="number" value={hrConfig.payroll.attendReqPct} onChange={e => updateNestedConfig('payroll', 'attendReqPct', Number(e.target.value))} className="h-9 font-black" />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground text-green-600">Punct High %</Label>
+                                                    <Input type="number" value={hrConfig.payroll.punctHighPct} onChange={e => updateNestedConfig('payroll', 'punctHighPct', Number(e.target.value))} className="h-9 border-green-200" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground text-amber-600">Punct Mid %</Label>
+                                                    <Input type="number" value={hrConfig.payroll.punctMidPct} onChange={e => updateNestedConfig('payroll', 'punctMidPct', Number(e.target.value))} className="h-9 border-amber-200" />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Late Days High</Label>
+                                                    <Input type="number" value={hrConfig.payroll.lateDaysHigh} onChange={e => updateNestedConfig('payroll', 'lateDaysHigh', Number(e.target.value))} className="h-9" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Late Days Mid</Label>
+                                                    <Input type="number" value={hrConfig.payroll.lateDaysMid} onChange={e => updateNestedConfig('payroll', 'lateDaysMid', Number(e.target.value))} className="h-9" />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">OT High (Hrs)</Label>
-                                            <Input type="number" value={hrConfig.payroll.otHighHours} onChange={e => updateNestedConfig('payroll', 'otHighHours', Number(e.target.value))} className="h-9" />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Late Days High</Label>
-                                            <Input type="number" value={hrConfig.payroll.lateDaysHigh} onChange={e => updateNestedConfig('payroll', 'lateDaysHigh', Number(e.target.value))} className="h-9" />
+
+                                    {/* Overtime & DOW Monitoring */}
+                                    <div className="space-y-5">
+                                        <h4 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b pb-1">Overtime & Heatmap</h4>
+                                        <div className="grid gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">OT High Thresh (Hrs)</Label>
+                                                <Input type="number" value={hrConfig.payroll.otHighHours} onChange={e => updateNestedConfig('payroll', 'otHighHours', Number(e.target.value))} className="h-9 font-black text-red-600" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">OT Mid Thresh (Hrs)</Label>
+                                                <Input type="number" value={hrConfig.payroll.otMidHours} onChange={e => updateNestedConfig('payroll', 'otMidHours', Number(e.target.value))} className="h-9" />
+                                            </div>
+                                            <Separator />
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">DOW Late High %</Label>
+                                                    <Input type="number" value={hrConfig.payroll.dowLateHighPct} onChange={e => updateNestedConfig('payroll', 'dowLateHighPct', Number(e.target.value))} className="h-9" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">DOW Late Mid %</Label>
+                                                    <Input type="number" value={hrConfig.payroll.dowLateMidPct} onChange={e => updateNestedConfig('payroll', 'dowLateMidPct', Number(e.target.value))} className="h-9" />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -347,29 +402,36 @@ export default function HrOfficePage() {
                         </Card>
 
                         {/* Bonus Rules */}
-                        <Card className="shadow-sm border-gray-100 bg-white">
+                        <Card className="xl:col-span-12 shadow-sm border-gray-100 bg-white">
                             <CardHeader className="bg-muted/10 py-4 px-6 border-b">
                                 <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                    <Award className="h-4 w-4" /> Bonus Logic
+                                    <Award className="h-4 w-4" /> Bonus Logic Engine
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="p-6 space-y-6">
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Bonus Eligibility Attend %</Label>
-                                    <Input type="number" value={hrConfig.bonus.bonusEligReq} onChange={e => updateNestedConfig('bonus', 'bonusEligReq', Number(e.target.value))} className="h-10 text-xl font-black text-primary" />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Absent Deduction Factor</Label>
-                                    <Input type="number" step="0.1" value={hrConfig.bonus.bonusAbsFactor} onChange={e => updateNestedConfig('bonus', 'bonusAbsFactor', Number(e.target.value))} className="h-9" />
-                                </div>
-                                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-3">
-                                    <div className="flex items-center gap-2">
-                                        <Info className="h-3 w-3 text-primary" />
-                                        <h4 className="text-[9px] font-black uppercase tracking-widest">Logic Breakdown</h4>
+                            <CardContent className="p-6">
+                                <div className="flex flex-col md:flex-row gap-10">
+                                    <div className="flex-1 space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Bonus Eligibility Required Attend %</Label>
+                                                <Input type="number" value={hrConfig.bonus.bonusEligReq} onChange={e => updateNestedConfig('bonus', 'bonusEligReq', Number(e.target.value))} className="h-10 text-xl font-black text-primary" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Absent Deduction Factor</Label>
+                                                <Input type="number" step="0.1" value={hrConfig.bonus.bonusAbsFactor} onChange={e => updateNestedConfig('bonus', 'bonusAbsFactor', Number(e.target.value))} className="h-10 text-xl font-bold" />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <p className="text-[10px] text-muted-foreground leading-relaxed italic">
-                                        Formula: Max(0, 1 - AbsentWD * Factor / StdWorkdays). Default factor 1.0 ensures full pro-rated deduction for absences.
-                                    </p>
+                                    <div className="w-full md:w-80 p-5 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
+                                        <div className="flex items-center gap-2 text-primary">
+                                            <Info className="h-4 w-4" />
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest">Logic Breakdown</h4>
+                                        </div>
+                                        <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+                                            Formula: Max(0, 1 - AbsentWD * Factor / StdWorkdays). 
+                                            The **Absent Deduction Factor** ensures that absences exponentially impact bonus accrual beyond standard pro-rating.
+                                        </p>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
