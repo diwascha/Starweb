@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History, Image as ImageIcon, Save, Loader2, Check, X, Clock } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History, Image as ImageIcon, Save, Loader2, Check, X, Clock, FilterX } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
@@ -25,6 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { onAccountsUpdate } from '@/services/account-service';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
@@ -75,14 +76,14 @@ const ChequeSplitRow = React.memo(({
     return (
         <TableRow>
             <TableCell>{toNepaliDate(split.chequeDate.toISOString())}</TableCell>
-            <TableCell>{split.parentCheque.payeeName}</TableCell>
-            <TableCell>{split.chequeNumber}</TableCell>
-            <TableCell>{Number(split.amount).toLocaleString()}</TableCell>
-            <TableCell>{split.remainingAmount.toLocaleString()}</TableCell>
+            <TableCell className="font-medium">{split.parentCheque.payeeName}</TableCell>
+            <TableCell className="font-mono text-xs">{split.chequeNumber}</TableCell>
+            <TableCell className="font-mono">Rs. {Number(split.amount).toLocaleString()}</TableCell>
+            <TableCell className="font-mono">Rs. {split.remainingAmount.toLocaleString()}</TableCell>
             <TableCell>{getStatusBadge()}</TableCell>
             <TableCell className="text-right">
                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Voucher #{split.parentCheque.voucherNo}</DropdownMenuLabel>
                         <DropdownMenuSeparator />
@@ -113,6 +114,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [cheques, setCheques] = useState<Cheque[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterParty, setFilterParty] = useState('All');
+    const [filterStatus, setFilterStatus] = useState('All');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'chequeDate', direction: 'asc' });
     const { toast } = useToast();
     const { user } = useAuth();
@@ -139,6 +142,11 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         return () => unsubs.forEach(u => u());
     }, []);
 
+    const uniqueParties = useMemo(() => {
+        const parties = new Set(cheques.map(c => c.payeeName));
+        return Array.from(parties).sort();
+    }, [cheques]);
+
     const sortedAndFilteredSplits = useMemo(() => {
         const today = startOfToday().getTime();
         const q = searchQuery.toLowerCase();
@@ -150,7 +158,12 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 const days = Math.ceil((new Date(s.chequeDate).getTime() - today) / (1000 * 60 * 60 * 24));
                 return { ...s, chequeDate: new Date(s.chequeDate), daysRemaining: days, isOverdue: days < 0, parentCheque: c, paidAmount: paid, remainingAmount: total - paid } as AugmentedChequeSplit;
             })
-        ).filter(s => q === '' || s.parentCheque.payeeName.toLowerCase().includes(q) || (s.chequeNumber || '').toLowerCase().includes(q));
+        ).filter(s => {
+            const matchesSearch = q === '' || s.parentCheque.payeeName.toLowerCase().includes(q) || (s.chequeNumber || '').toLowerCase().includes(q);
+            const matchesParty = filterParty === 'All' || s.parentCheque.payeeName === filterParty;
+            const matchesStatus = filterStatus === 'All' || s.status === filterStatus;
+            return matchesSearch && matchesParty && matchesStatus;
+        });
 
         res.sort((a, b) => {
             const aVal = (a as any)[sortConfig.key] ?? (a.parentCheque as any)[sortConfig.key];
@@ -160,7 +173,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         });
 
         return res;
-    }, [cheques, searchQuery, sortConfig]);
+    }, [cheques, searchQuery, sortConfig, filterParty, filterStatus]);
 
     const handleStatusUpdate = useCallback(async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, remark?: string) => {
         if (!user) return;
@@ -179,51 +192,153 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         toast({ title: 'Success' });
     }, [user, toast]);
 
+    const isFiltered = filterParty !== 'All' || filterStatus !== 'All' || searchQuery !== '';
+
     return (
-        <>
+        <div className="space-y-4">
             <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div><CardTitle>History</CardTitle></div>
-                <div className="relative w-64"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search..." className="pl-8" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                <TableHeader><TableRow>
-                    <TableHead>Date</TableHead><TableHead>Payee</TableHead><TableHead>Cheque #</TableHead><TableHead>Amount</TableHead><TableHead>Rem.</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                    {sortedAndFilteredSplits.map(split => (
-                        <ChequeSplitRow 
-                            key={`${split.parentCheque.id}-${split.id}`}
-                            split={split}
-                            onManagePayments={(s) => { setPayingSplit(s); setIsPaymentDialogOpen(true); }}
-                            onEditVoucher={onEdit}
-                            onPrintVoucher={(c) => { setChequeToPrint(c); setIsPrintPreviewOpen(true); }}
-                            onMarkAsPaid={(c, id) => { setSplitToPay({cheque: c, splitId: id}); setIsPaidDialogOpen(true); }}
-                            onMarkAsCanceled={(c, id) => { setSplitToCancel({cheque: c, splitId: id}); setIsCancelDialogOpen(true); }}
-                            onMarkAsDue={(c, id) => handleStatusUpdate(c, id, 'Due')}
-                            onDeleteVoucher={(id) => deleteCheque(id)}
-                        />
-                    ))}
-                </TableBody>
-                </Table>
-            </CardContent>
+                <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <CardTitle>Cheque History</CardTitle>
+                        <CardDescription>View and manage post-dated and issued cheques.</CardDescription>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search Payee or Cheque #..." className="pl-8 h-9 text-xs" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        </div>
+                        
+                        <div className="flex gap-2">
+                            <Select value={filterParty} onValueChange={setFilterParty}>
+                                <SelectTrigger className="h-9 w-[160px] text-xs">
+                                    <SelectValue placeholder="Party Filter" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Parties</SelectItem>
+                                    {uniqueParties.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+
+                            <Select value={filterStatus} onValueChange={setFilterStatus}>
+                                <SelectTrigger className="h-9 w-[130px] text-xs">
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Statuses</SelectItem>
+                                    <SelectItem value="Due">Due Only</SelectItem>
+                                    <SelectItem value="Paid">Paid Only</SelectItem>
+                                    <SelectItem value="Canceled">Canceled</SelectItem>
+                                    <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {isFiltered && (
+                            <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setFilterParty('All'); setFilterStatus('All'); }} className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground">
+                                <FilterX className="mr-2 h-4 w-4" /> Reset
+                            </Button>
+                        )}
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-muted/50">
+                                <TableHead className="text-xs uppercase font-bold"><Button variant="ghost" onClick={() => requestSort('chequeDate')} className="h-8 px-2 text-xs">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                <TableHead className="text-xs uppercase font-bold"><Button variant="ghost" onClick={() => requestSort('payeeName')} className="h-8 px-2 text-xs">Payee <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                <TableHead className="text-xs uppercase font-bold">Cheque #</TableHead>
+                                <TableHead className="text-xs uppercase font-bold">Amount</TableHead>
+                                <TableHead className="text-xs uppercase font-bold">Rem.</TableHead>
+                                <TableHead className="text-xs uppercase font-bold">Status</TableHead>
+                                <TableHead className="text-right text-xs uppercase font-bold pr-6">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedAndFilteredSplits.map(split => (
+                                <ChequeSplitRow 
+                                    key={`${split.parentCheque.id}-${split.id}`}
+                                    split={split}
+                                    onManagePayments={(s) => { setPayingSplit(s); setIsPaymentDialogOpen(true); }}
+                                    onEditVoucher={onEdit}
+                                    onPrintVoucher={(c) => { setChequeToPrint(c); setIsPrintPreviewOpen(true); }}
+                                    onMarkAsPaid={(c, id) => { setSplitToPay({cheque: c, splitId: id}); setIsPaidDialogOpen(true); }}
+                                    onMarkAsCanceled={(c, id) => { setSplitToCancel({cheque: c, splitId: id}); setIsCancelDialogOpen(true); }}
+                                    onMarkAsDue={(c, id) => handleStatusUpdate(c, id, 'Due')}
+                                    onDeleteVoucher={(id) => deleteCheque(id)}
+                                />
+                            ))}
+                            {sortedAndFilteredSplits.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="text-center py-20 text-muted-foreground italic">No cheque records match your filters.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
             </Card>
 
             <Dialog open={isPaidDialogOpen} onOpenChange={setIsPaidDialogOpen}>
-                <DialogContent><DialogHeader><DialogTitle>Confirm Payment</DialogTitle></DialogHeader>
-                    <Input value={paidRemark} onChange={e => setPaidRemark(e.target.value)} placeholder="Remark..." />
-                    <DialogFooter><Button onClick={() => { if(splitToPay) handleStatusUpdate(splitToPay.cheque, splitToPay.splitId, 'Paid', paidRemark); setIsPaidDialogOpen(false); }}>Paid</Button></DialogFooter>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle>Confirm Full Payment</DialogTitle></DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <Label>Remarks / Internal Notes</Label>
+                        <Input value={paidRemark} onChange={e => setPaidRemark(e.target.value)} placeholder="e.g. Paid via mobile banking..." />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPaidDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={() => { if(splitToPay) handleStatusUpdate(splitToPay.cheque, splitToPay.splitId, 'Paid', paidRemark); setIsPaidDialogOpen(false); }}>Mark as Paid</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-                <DialogContent><DialogHeader><DialogTitle>Cancel Cheque</DialogTitle></DialogHeader>
-                    <Textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="Reason..." />
-                    <DialogFooter><Button variant="destructive" onClick={() => { if(splitToCancel) handleStatusUpdate(splitToCancel.cheque, splitToCancel.splitId, 'Canceled', cancelReason); setIsCancelDialogOpen(false); }}>Cancel</Button></DialogFooter>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle>Cancel Cheque Issue</DialogTitle></DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <Label>Reason for Cancellation</Label>
+                        <Textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="e.g. Cheque damaged, Order changed..." />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>Go Back</Button>
+                        <Button variant="destructive" onClick={() => { if(splitToCancel) handleStatusUpdate(splitToCancel.cheque, splitToCancel.splitId, 'Canceled', cancelReason); setIsCancelDialogOpen(false); }}>Confirm Cancellation</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </>
+
+            <Dialog open={isPrintPreviewOpen} onOpenChange={setIsPrintPreviewOpen}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+                    <DialogHeader className="p-6 border-b">
+                        <DialogTitle>Print Voucher Preview</DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="flex-1 bg-muted/20 p-8">
+                        <div ref={printRef} className="mx-auto w-[210mm] shadow-2xl">
+                            {chequeToPrint && (
+                                <ChequeView 
+                                    voucherNo={chequeToPrint.voucherNo} 
+                                    voucherDate={new Date(chequeToPrint.paymentDate)} 
+                                    payeeName={chequeToPrint.payeeName} 
+                                    account={accounts.find(a => a.id === chequeToPrint.accountId)} 
+                                    splits={chequeToPrint.splits.map(s => ({...s, chequeDate: new Date(s.chequeDate)}))} 
+                                />
+                            )}
+                        </div>
+                    </ScrollArea>
+                    <DialogFooter className="p-6 border-t bg-white">
+                        <Button variant="outline" onClick={() => setIsPrintPreviewOpen(false)}>Close</Button>
+                        <Button onClick={() => {
+                             const win = window.open('', '', 'height=800,width=800');
+                             win?.document.write('<html><head><title>Print</title><style>body{margin:0;} @media print { .print-hidden { display: none; } }</style></head><body>');
+                             win?.document.write(printRef.current?.innerHTML || '');
+                             win?.document.write('</body></html>');
+                             win?.document.close();
+                             win?.print();
+                        }}>
+                            <Printer className="mr-2 h-4 w-4" /> Print Document
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
     );
 }
 
@@ -233,15 +348,23 @@ export default function ChequeGeneratorPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header><h1 className="text-3xl font-bold">Cheque Control</h1></header>
+      <header>
+          <h1 className="text-3xl font-bold tracking-tight">Cheque Control Center</h1>
+          <p className="text-muted-foreground">Manage payment vouchers and post-dated cheque distribution.</p>
+      </header>
        <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList><TabsTrigger value="generator">Generator</TabsTrigger><TabsTrigger value="history">History</TabsTrigger></TabsList>
+            <TabsList className="mb-4">
+                <TabsTrigger value="generator" className="gap-2"><PlusCircle className="h-4 w-4"/> Generator</TabsTrigger>
+                <TabsTrigger value="history" className="gap-2"><History className="h-4 w-4"/> History Logs</TabsTrigger>
+            </TabsList>
             <TabsContent value="generator">
                  <Suspense fallback={<Skeleton className="h-96 w-full" />}>
                     <ChequeGeneratorForm key={chequeToEdit?.id || 'new'} chequeToEdit={chequeToEdit} onSaveSuccess={() => { setCheckToEdit(null); setActiveTab('history'); }} />
                  </Suspense>
             </TabsContent>
-            <TabsContent value="history"><SavedChequesList onEdit={(c) => { setCheckToEdit(c); setActiveTab('generator'); }} /></TabsContent>
+            <TabsContent value="history">
+                <SavedChequesList onEdit={(c) => { setCheckToEdit(c); setActiveTab('generator'); }} />
+            </TabsContent>
         </Tabs>
     </div>
   );
