@@ -20,7 +20,8 @@ import {
     Award,
     Save,
     Loader2,
-    Terminal
+    Terminal,
+    History as HistoryIcon
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import NepaliDate from 'nepali-date-converter';
 
 const INITIAL_HR_CONFIG: HrConfig = {
     hours: {
@@ -234,7 +236,7 @@ export default function HrOfficePage() {
                         <Terminal className="h-4 w-4"/> Operational Rules
                     </TabsTrigger>
                     <TabsTrigger value="registry" className="gap-2 px-8 py-2 font-bold text-xs uppercase tracking-widest">
-                        <History className="h-4 w-4"/> Global Registry
+                        <HistoryIcon className="h-4 w-4"/> Global Registry
                     </TabsTrigger>
                 </TabsList>
 
