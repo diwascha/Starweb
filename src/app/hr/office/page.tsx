@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
     Timer, 
     ShieldCheck, 
@@ -12,9 +12,11 @@ import {
     Settings2,
     Clock,
     CalendarIcon,
-    X
+    X,
+    User,
+    CheckCircle2
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -32,9 +34,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function HrOfficePage() {
     const { user } = useAuth();
@@ -44,6 +48,7 @@ export default function HrOfficePage() {
     const [shifts, setShifts] = useState<HrShift[]>([]);
     const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [isLoadingAdmin, setIsLoadingAdmin] = useState(true);
 
     // Dialog & Form States
@@ -54,12 +59,21 @@ export default function HrOfficePage() {
     const [isHolidayDialogOpen, setIsHolidayDialogOpen] = useState(false);
     const [holidayForm, setHolidayForm] = useState({ name: '', date: new Date().toISOString(), isRecurring: true });
 
+    const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+    const [leaveForm, setLeaveForm] = useState({ 
+        employeeId: '', 
+        leaveType: 'Casual' as any, 
+        startDate: new Date().toISOString(), 
+        endDate: new Date().toISOString(), 
+        reason: '' 
+    });
+
     useEffect(() => {
         const unsubs = [
             onShiftsUpdate(setShifts),
             onHolidaysUpdate(setHolidays),
             onLeaveRequestsUpdate(setLeaveRequests),
-            onEmployeesUpdate(() => {}) // Just to keep employees in sync if needed elsewhere
+            onEmployeesUpdate(setEmployees)
         ];
         setIsLoadingAdmin(false);
         return () => unsubs.forEach(u => u());
@@ -82,6 +96,28 @@ export default function HrOfficePage() {
             await saveHoliday({ ...holidayForm, date: new Date(holidayForm.date).toISOString(), createdBy: user.username });
             toast({ title: 'Public Holiday Recorded' });
             setIsHolidayDialogOpen(false);
+        } catch {
+            toast({ title: 'Error', variant: 'destructive' });
+        }
+    };
+
+    const handleSaveLeaveRequest = async () => {
+        if (!user || !leaveForm.employeeId) return;
+        const employee = employees.find(e => e.id === leaveForm.employeeId);
+        if (!employee) return;
+
+        const totalDays = differenceInDays(new Date(leaveForm.endDate), new Date(leaveForm.startDate)) + 1;
+
+        try {
+            await saveLeaveRequest({ 
+                ...leaveForm, 
+                employeeName: employee.name,
+                totalDays,
+                status: 'Pending',
+                createdBy: user.username 
+            } as any);
+            toast({ title: 'Leave Request Logged' });
+            setIsLeaveDialogOpen(false);
         } catch {
             toast({ title: 'Error', variant: 'destructive' });
         }
@@ -180,11 +216,16 @@ export default function HrOfficePage() {
 
                 {/* Leave Management Queue */}
                 <Card className="shadow-sm border-gray-100 bg-white">
-                    <CardHeader className="py-4 px-6 border-b bg-muted/5">
-                        <CardTitle className="text-sm font-black uppercase flex items-center gap-2">
-                            <Briefcase className="h-4 w-4 text-primary"/>
-                            Leave Request Oversight
-                        </CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between py-4 border-b bg-muted/5">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-50 rounded-xl"><Briefcase className="h-5 w-5 text-blue-600"/></div>
+                            <div>
+                                <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Leave Request Oversight</CardTitle>
+                            </div>
+                        </div>
+                        <Button size="sm" onClick={() => { setLeaveForm({ employeeId: '', leaveType: 'Casual', startDate: new Date().toISOString(), endDate: new Date().toISOString(), reason: '' }); setIsLeaveDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-blue-600 hover:bg-blue-700 text-white">
+                            <Plus className="mr-1.5 h-3.5 w-3.5" /> Apply for Leave
+                        </Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs">
@@ -271,6 +312,79 @@ export default function HrOfficePage() {
                         <div className="flex items-center space-x-2 pt-2"><Checkbox id="holiday-recur" checked={holidayForm.isRecurring} onCheckedChange={(v) => setHolidayForm({...holidayForm, isRecurring: !!v})} /><Label htmlFor="holiday-recur" className="text-xs font-bold uppercase cursor-pointer">Recurring Holiday (Annual)</Label></div>
                     </div>
                     <DialogFooter><Button onClick={handleSaveHoliday} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">Publish to Calendar</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Leave Request Dialog */}
+            <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Apply for Leave</DialogTitle>
+                        <DialogDescription>Submit a formal leave request for an employee.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-5 py-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Select Employee</Label>
+                            <Select value={leaveForm.employeeId} onValueChange={v => setLeaveForm({...leaveForm, employeeId: v})}>
+                                <SelectTrigger className="h-10"><SelectValue placeholder="Search employee..."/></SelectTrigger>
+                                <SelectContent>
+                                    {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Leave Type</Label>
+                                <Select value={leaveForm.leaveType} onValueChange={v => setLeaveForm({...leaveForm, leaveType: v})}>
+                                    <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Casual">Casual Leave</SelectItem>
+                                        <SelectItem value="Sick">Sick Leave</SelectItem>
+                                        <SelectItem value="Sick (Paid)">Sick (Paid)</SelectItem>
+                                        <SelectItem value="Paid">Earned (Paid)</SelectItem>
+                                        <SelectItem value="Unpaid">Loss of Pay</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Status Preview</Label>
+                                <Badge className="h-10 w-full justify-center bg-amber-500 text-white font-black text-[10px] uppercase tracking-widest">Pending</Badge>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Start Date</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full justify-start h-10 bg-white font-bold text-xs"><CalendarIcon className="mr-2 h-4 w-4"/> {leaveForm.startDate ? toNepaliDate(leaveForm.startDate) : 'Select'}</Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <DualCalendar selected={new Date(leaveForm.startDate)} onSelect={d => setLeaveForm({...leaveForm, startDate: d?.toISOString() || ''})} />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">End Date</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full justify-start h-10 bg-white font-bold text-xs"><CalendarIcon className="mr-2 h-4 w-4"/> {leaveForm.endDate ? toNepaliDate(leaveForm.endDate) : 'Select'}</Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <DualCalendar selected={new Date(leaveForm.endDate)} onSelect={d => setLeaveForm({...leaveForm, endDate: d?.toISOString() || ''})} />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Reason / Remarks</Label>
+                            <Textarea value={leaveForm.reason} onChange={e => setLeaveForm({...leaveForm, reason: e.target.value})} placeholder="Purpose of leave..." className="min-h-[80px] text-sm" />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleSaveLeaveRequest} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                            <CheckCircle2 className="mr-2 h-4 w-4"/> Log Leave Request
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
