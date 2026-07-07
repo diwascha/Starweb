@@ -14,7 +14,8 @@ import {
     CalendarIcon,
     X,
     User,
-    CheckCircle2
+    CheckCircle2,
+    Info
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -216,16 +217,18 @@ export default function HrOfficePage() {
 
                 {/* Leave Management Queue */}
                 <Card className="shadow-sm border-gray-100 bg-white">
-                    <CardHeader className="flex flex-row items-center justify-between py-4 border-b bg-muted/5">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-50 rounded-xl"><Briefcase className="h-5 w-5 text-blue-600"/></div>
-                            <div>
-                                <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Leave Request Oversight</CardTitle>
+                    <CardHeader className="py-4 px-6 border-b bg-muted/5">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-50 rounded-xl"><Briefcase className="h-5 w-5 text-blue-600"/></div>
+                                <div>
+                                    <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Leave Request Oversight</CardTitle>
+                                </div>
                             </div>
+                            <Button size="sm" onClick={() => { setLeaveForm({ employeeId: '', leaveType: 'Casual', startDate: new Date().toISOString(), endDate: new Date().toISOString(), reason: '' }); setIsLeaveDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-blue-600 hover:bg-blue-700 text-white">
+                                <Plus className="mr-1.5 h-3.5 w-3.5" /> Apply for Leave
+                            </Button>
                         </div>
-                        <Button size="sm" onClick={() => { setLeaveForm({ employeeId: '', leaveType: 'Casual', startDate: new Date().toISOString(), endDate: new Date().toISOString(), reason: '' }); setIsLeaveDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-blue-600 hover:bg-blue-700 text-white">
-                            <Plus className="mr-1.5 h-3.5 w-3.5" /> Apply for Leave
-                        </Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs">
@@ -317,70 +320,99 @@ export default function HrOfficePage() {
 
             {/* Leave Request Dialog */}
             <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+                    <DialogHeader className="p-6 border-b shrink-0">
                         <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Apply for Leave</DialogTitle>
                         <DialogDescription>Submit a formal leave request for an employee.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-5 py-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Select Employee</Label>
-                            <Select value={leaveForm.employeeId} onValueChange={v => setLeaveForm({...leaveForm, employeeId: v})}>
-                                <SelectTrigger className="h-10"><SelectValue placeholder="Search employee..."/></SelectTrigger>
-                                <SelectContent>
-                                    {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+                    <ScrollArea className="flex-1 p-6">
+                        <div className="space-y-6">
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Leave Type</Label>
-                                <Select value={leaveForm.leaveType} onValueChange={v => setLeaveForm({...leaveForm, leaveType: v})}>
-                                    <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Select Employee</Label>
+                                <Select value={leaveForm.employeeId} onValueChange={v => setLeaveForm({...leaveForm, employeeId: v})}>
+                                    <SelectTrigger className="h-10"><SelectValue placeholder="Search employee..."/></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Casual">Casual Leave</SelectItem>
-                                        <SelectItem value="Sick">Sick Leave</SelectItem>
-                                        <SelectItem value="Sick (Paid)">Sick (Paid)</SelectItem>
-                                        <SelectItem value="Paid">Earned (Paid)</SelectItem>
-                                        <SelectItem value="Unpaid">Loss of Pay</SelectItem>
+                                        {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Leave Type</Label>
+                                    <Select value={leaveForm.leaveType} onValueChange={v => setLeaveForm({...leaveForm, leaveType: v})}>
+                                        <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Casual">Casual Leave</SelectItem>
+                                            <SelectItem value="Sick">Sick Leave</SelectItem>
+                                            <SelectItem value="Sick (Paid)">Sick (Paid)</SelectItem>
+                                            <SelectItem value="Paid">Earned (Paid)</SelectItem>
+                                            <SelectItem value="Unpaid">Loss of Pay</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Status Preview</Label>
+                                    <Badge className="h-10 w-full justify-center bg-amber-500 text-white font-black text-[10px] uppercase tracking-widest">Pending Approval</Badge>
+                                </div>
+                            </div>
+
+                            {/* Leave Type Definitions */}
+                            <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100 space-y-3">
+                                <div className="flex items-center gap-2 text-blue-800">
+                                    <Info className="h-3.5 w-3.5" />
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest">Leave Type Guide</h4>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                                    <div className="space-y-0.5">
+                                        <p className="text-[10px] font-black text-gray-900 uppercase">Casual Leave</p>
+                                        <p className="text-[9px] text-muted-foreground leading-tight">Short-term unplanned personal leave.</p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <p className="text-[10px] font-black text-gray-900 uppercase">Sick (Paid/Unpaid)</p>
+                                        <p className="text-[9px] text-muted-foreground leading-tight">Medical absence. "Paid" uses quota; "Sick" is standard.</p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <p className="text-[10px] font-black text-gray-900 uppercase">Earned (Paid)</p>
+                                        <p className="text-[9px] text-muted-foreground leading-tight">Accumulated vacation days. Full pay preserved.</p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <p className="text-[10px] font-black text-gray-900 uppercase">Loss of Pay (Unpaid)</p>
+                                        <p className="text-[9px] text-muted-foreground leading-tight">Unauthorized absence or exceeded leave quota.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Start Date (BS)</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-start h-10 bg-white font-bold text-xs"><CalendarIcon className="mr-2 h-4 w-4"/> {leaveForm.startDate ? toNepaliDate(leaveForm.startDate) : 'Select'}</Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <DualCalendar selected={new Date(leaveForm.startDate)} onSelect={d => setLeaveForm({...leaveForm, startDate: d?.toISOString() || ''})} />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">End Date (BS)</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-start h-10 bg-white font-bold text-xs"><CalendarIcon className="mr-2 h-4 w-4"/> {leaveForm.endDate ? toNepaliDate(leaveForm.endDate) : 'Select'}</Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <DualCalendar selected={new Date(leaveForm.endDate)} onSelect={d => setLeaveForm({...leaveForm, endDate: d?.toISOString() || ''})} />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Status Preview</Label>
-                                <Badge className="h-10 w-full justify-center bg-amber-500 text-white font-black text-[10px] uppercase tracking-widest">Pending</Badge>
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Reason / Remarks</Label>
+                                <Textarea value={leaveForm.reason} onChange={e => setLeaveForm({...leaveForm, reason: e.target.value})} placeholder="Purpose of leave..." className="min-h-[80px] text-sm" />
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Start Date</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start h-10 bg-white font-bold text-xs"><CalendarIcon className="mr-2 h-4 w-4"/> {leaveForm.startDate ? toNepaliDate(leaveForm.startDate) : 'Select'}</Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <DualCalendar selected={new Date(leaveForm.startDate)} onSelect={d => setLeaveForm({...leaveForm, startDate: d?.toISOString() || ''})} />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">End Date</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start h-10 bg-white font-bold text-xs"><CalendarIcon className="mr-2 h-4 w-4"/> {leaveForm.endDate ? toNepaliDate(leaveForm.endDate) : 'Select'}</Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <DualCalendar selected={new Date(leaveForm.endDate)} onSelect={d => setLeaveForm({...leaveForm, endDate: d?.toISOString() || ''})} />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Reason / Remarks</Label>
-                            <Textarea value={leaveForm.reason} onChange={e => setLeaveForm({...leaveForm, reason: e.target.value})} placeholder="Purpose of leave..." className="min-h-[80px] text-sm" />
-                        </div>
-                    </div>
-                    <DialogFooter>
+                    </ScrollArea>
+                    <DialogFooter className="p-6 border-t bg-muted/5 shrink-0">
                         <Button onClick={handleSaveLeaveRequest} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
                             <CheckCircle2 className="mr-2 h-4 w-4"/> Log Leave Request
                         </Button>
