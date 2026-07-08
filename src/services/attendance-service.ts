@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Attendance service handling raw machine logs and calculated labor metrics.
  */
@@ -21,7 +20,7 @@ import {
     orderBy,
     setDoc
 } from 'firebase/firestore';
-import { isValid, startOfDay, isEqual, isWithinInterval, format, parse } from 'date-fns';
+import { isValid, startOfDay, isEqual, isWithinInterval, format, parse, differenceInMinutes } from 'date-fns';
 import type { AttendanceRecord, RawMachineLog, Employee, HrConfig, HrShift } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { processAttendanceImport } from '@/lib/attendance';
