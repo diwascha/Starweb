@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -18,7 +17,9 @@ import {
     Edit,
     Clock,
     PlusCircle,
-    CheckCircle2
+    CheckCircle2,
+    ChevronDown,
+    Check
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog, deleteRawLogsForMonth, deleteAllRawLogs, updateRawLog, addBulkManualLogs } from '@/services/attendance-service';
+import { addRawMachineLogs, deleteRawLog, deleteAllRawLogs, updateRawLog, addBulkManualLogs, onRawLogsUpdate } from '@/services/attendance-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onHolidaysUpdate, onLeaveRequestsUpdate } from '@/services/hr-admin-service';
 import { cn, toNepaliDate, formatTimeForDisplay, getAttendanceBadgeVariant } from '@/lib/utils';
@@ -55,6 +56,8 @@ import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -104,8 +107,9 @@ export default function RawMachineLogsPage() {
         const unsubEmployees = onEmployeesUpdate(setEmployees);
         const unsubLogs = onRawLogsUpdate((data) => {
             setLogs(data);
-            setIsLoading(false);
+            setIsDataLoading(false);
         });
+        const setIsDataLoading = (v: boolean) => setIsLoading(v);
         return () => {
             unsubHolidays();
             unsubLeaves();
@@ -189,10 +193,10 @@ export default function RawMachineLogsPage() {
                 const data = new Uint8Array(ev.target?.result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                 
-                const sheetsInfo = workbook.SheetNames.map(name => {
-                    const ws = workbook.Sheets[name];
+                const sheetsInfo = workbook.SheetNames.map(sheetName => {
+                    const ws = workbook.Sheets[sheetName];
                     const json = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
-                    return { name, rowCount: json.length > 1 ? json.length - 1 : 0, jsonData: json };
+                    return { name: sheetName, rowCount: json.length > 1 ? json.length - 1 : 0, jsonData: json };
                 }).filter(s => s.rowCount > 0);
 
                 if (sheetsInfo.length === 0) {
@@ -555,9 +559,21 @@ export default function RawMachineLogsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-4">
                                     <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">1. Select Target Period</Label>
-                                    <div className="flex justify-center border rounded-xl p-2 bg-white shadow-inner">
-                                        <DualDateRangePicker selected={bulkDateRange} onSelect={setBulkDateRange} />
-                                    </div>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10 bg-white shadow-none", !bulkDateRange && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {bulkDateRange?.from ? (
+                                                    bulkDateRange.to ? (
+                                                        `${toNepaliDate(bulkDateRange.from.toISOString())} - ${toNepaliDate(bulkDateRange.to.toISOString())} BS`
+                                                    ) : toNepaliDate(bulkDateRange.from.toISOString())
+                                                ) : <span>Select period range</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <DualDateRangePicker selected={bulkDateRange} onSelect={setBulkDateRange} />
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                                 
                                 <div className="space-y-4">
