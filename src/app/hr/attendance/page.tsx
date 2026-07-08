@@ -101,10 +101,11 @@ export default function AttendanceRegistryPage() {
 
   const getDisplayRemark = useCallback((record: AttendanceRecord) => {
     const recordDate = startOfDay(new Date(record.date));
+    const finalRemarks: string[] = [];
     
     // 1. Check for Holiday
     const holiday = holidays.find(h => isEqual(startOfDay(new Date(h.date)), recordDate));
-    if (holiday) return `Public Holiday: ${holiday.name}`;
+    if (holiday) finalRemarks.push(`Public Holiday: ${holiday.name}`);
 
     // 2. Check for Approved Leave
     const leave = leaveRequests.find(l => 
@@ -115,12 +116,26 @@ export default function AttendanceRegistryPage() {
             end: startOfDay(new Date(l.endDate)) 
         })
     );
-    if (leave) return `${leave.leaveType} Leave: ${leave.reason}`;
+    if (leave) finalRemarks.push(`${leave.leaveType} Leave: ${leave.reason}`);
 
     // 3. Saturday
-    if (recordDate.getDay() === 6) return 'Weekly Off (Saturday)';
+    if (recordDate.getDay() === 6) finalRemarks.push('Weekly Off (Saturday)');
 
-    return record.remarks || '';
+    // 4. Missing Punches
+    if (!record.clockIn && !record.clockOut) {
+        if (finalRemarks.length === 0) finalRemarks.push('Absent');
+    } else if (!record.clockIn) {
+        finalRemarks.push('Clock In Missing');
+    } else if (!record.clockOut) {
+        finalRemarks.push('Clock Out Missing');
+    }
+
+    // 5. Existing Remarks
+    if (record.remarks && !finalRemarks.some(fr => record.remarks?.includes(fr) || fr.includes(record.remarks))) {
+        finalRemarks.push(record.remarks);
+    }
+
+    return finalRemarks.join('; ') || '—';
   }, [holidays, leaveRequests]);
 
   const filteredAndSortedRecords = useMemo(() => {
@@ -256,7 +271,7 @@ export default function AttendanceRegistryPage() {
                             <TableRow className="hover:bg-transparent h-12">
                                 <TableHead className="pl-6 font-bold">
                                     <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs font-bold text-foreground hover:bg-transparent">
-                                        Date (AD) <ArrowUpDown className="ml-2 h-3 w-3" />
+                                        Date (AD) <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'date' ? "opacity-100" : "opacity-30")} />
                                     </Button>
                                 </TableHead>
                                 <TableHead className="font-bold">Date (BS)</TableHead>
@@ -286,8 +301,8 @@ export default function AttendanceRegistryPage() {
                                     </TableCell>
                                     <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>
                                     <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>
-                                    <TableCell className="max-w-[150px] truncate text-[10px] text-muted-foreground italic" title={getDisplayRemark(r)}>
-                                        {getDisplayRemark(r) || '—'}
+                                    <TableCell className="max-w-[200px] truncate text-[10px] text-muted-foreground italic" title={getDisplayRemark(r)}>
+                                        {getDisplayRemark(r)}
                                     </TableCell>
                                     <TableCell className="text-right pr-6">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(r)}><Edit className="h-4 w-4 text-primary"/></Button>

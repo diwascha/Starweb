@@ -102,13 +102,13 @@ export default function RawMachineLogsPage() {
 
     const getDisplayRemark = useCallback((log: any) => {
         const logDate = startOfDay(new Date(log.date));
+        const finalRemarks: string[] = [];
         
         // 1. Check for Holiday
         const holiday = holidays.find(h => isEqual(startOfDay(new Date(h.date)), logDate));
-        if (holiday) return `Public Holiday: ${holiday.name}`;
+        if (holiday) finalRemarks.push(`Public Holiday: ${holiday.name}`);
 
-        // 2. Check for Approved Leave (Requires mapping names to IDs if possible, else match name)
-        // Note: For raw logs, we might only have names. Best to fetch employee list too if needed.
+        // 2. Check for Approved Leave
         const leave = leaveRequests.find(l => 
             l.employeeName === log.employeeName && 
             l.status === 'Approved' &&
@@ -117,12 +117,26 @@ export default function RawMachineLogsPage() {
                 end: startOfDay(new Date(l.endDate)) 
             })
         );
-        if (leave) return `${leave.leaveType} Leave: ${leave.reason}`;
+        if (leave) finalRemarks.push(`${leave.leaveType} Leave: ${leave.reason}`);
 
         // 3. Saturday
-        if (logDate.getDay() === 6) return 'Weekly Off (Saturday)';
+        if (logDate.getDay() === 6) finalRemarks.push('Weekly Off (Saturday)');
 
-        return log.remarks || '';
+        // 4. Missing Punches (Dynamic detection)
+        if (!log.clockIn && !log.clockOut) {
+            if (finalRemarks.length === 0) finalRemarks.push('Absent');
+        } else if (!log.clockIn) {
+            finalRemarks.push('Clock In Missing');
+        } else if (!log.clockOut) {
+            finalRemarks.push('Clock Out Missing');
+        }
+
+        // 5. Existing Machine Remarks
+        if (log.remarks && !finalRemarks.some(fr => log.remarks.includes(fr) || fr.includes(log.remarks))) {
+            finalRemarks.push(log.remarks);
+        }
+
+        return finalRemarks.join('; ') || '—';
     }, [holidays, leaveRequests]);
 
     const requestSort = (key: SortKey) => {
@@ -352,13 +366,11 @@ export default function RawMachineLogsPage() {
                                 <TableRow className="hover:bg-transparent" key="header-row">
                                     <TableHead className="pl-6 font-bold">
                                         <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs font-bold text-foreground hover:bg-transparent">
-                                            Date (AD) <ArrowUpDown className="ml-2 h-3 w-3" />
+                                            Date (AD) <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'date' ? "opacity-100" : "opacity-30")} />
                                         </Button>
                                     </TableHead>
                                     <TableHead className="font-bold">Date (BS)</TableHead>
                                     <TableHead className="font-bold">Employee Name</TableHead>
-                                    <TableHead className="font-bold">On Duty</TableHead>
-                                    <TableHead className="font-bold">Off Duty</TableHead>
                                     <TableHead className="font-bold">Clock In</TableHead>
                                     <TableHead className="font-bold">Clock Out</TableHead>
                                     <TableHead className="font-bold text-center">Status</TableHead>
@@ -368,14 +380,12 @@ export default function RawMachineLogsPage() {
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow key="loading-row"><TableCell colSpan={10} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                                    <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                                 ) : filteredLogs.map(l => (
                                     <TableRow key={l.id} className="h-12 border-b-gray-50 group hover:bg-muted/20 transition-colors">
                                         <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
                                         <TableCell className="font-mono font-bold text-blue-900">{toNepaliDate(l.date)}</TableCell>
                                         <TableCell className="font-black text-gray-900">{l.employeeName}</TableCell>
-                                        <TableCell className="text-muted-foreground font-medium">{formatTimeForDisplay(l.onDuty)}</TableCell>
-                                        <TableCell className="text-muted-foreground font-medium">{formatTimeForDisplay(l.offDuty)}</TableCell>
                                         <TableCell className="font-bold text-blue-600">{formatTimeForDisplay(l.clockIn)}</TableCell>
                                         <TableCell className="font-bold text-blue-600">{formatTimeForDisplay(l.clockOut)}</TableCell>
                                         <TableCell className="text-center">
@@ -383,8 +393,8 @@ export default function RawMachineLogsPage() {
                                                 {l.statusFromMachine}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="max-w-[150px] truncate text-muted-foreground italic font-medium" title={getDisplayRemark(l)}>
-                                            {getDisplayRemark(l) || '—'}
+                                        <TableCell className="max-w-[200px] truncate text-muted-foreground italic font-medium" title={getDisplayRemark(l)}>
+                                            {getDisplayRemark(l)}
                                         </TableCell>
                                         <TableCell className="text-right pr-6">
                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deleteRawLog(l.id)} title="Delete log entry">
@@ -395,7 +405,7 @@ export default function RawMachineLogsPage() {
                                 ))}
                                 {!isLoading && filteredLogs.length === 0 && (
                                     <TableRow key="empty-row">
-                                        <TableCell colSpan={10} className="h-60 text-center text-muted-foreground italic">
+                                        <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
                                             <div className="flex flex-col items-center gap-3">
                                                 <AlertCircle className="h-10 w-10 opacity-10"/>
                                                 <p>No raw machine data found matching the current filters.<br/><span className="text-[10px] font-bold uppercase not-italic">Upload an attendance machine Excel file to populate this dump.</span></p>
