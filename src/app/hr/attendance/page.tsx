@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -213,6 +212,7 @@ export default function AttendanceRegistryPage() {
                     <TableHeader className="bg-muted/50">
                         <TableRow className="hover:bg-transparent h-12">
                             <TableHead className="pl-6 font-bold">Date (BS)</TableHead>
+                            <TableHead className="font-bold text-muted-foreground opacity-50">Date (AD)</TableHead>
                             <TableHead className="font-bold">Employee Name</TableHead>
                             <TableHead className="text-center font-bold">Status</TableHead>
                             <TableHead className="text-center font-bold">Clock In/Out</TableHead>
@@ -223,10 +223,11 @@ export default function AttendanceRegistryPage() {
                     </TableHeader>
                     <TableBody>
                         {isDataLoading ? (
-                            <TableRow key="loading-row"><TableCell colSpan={7} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                            <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                         ) : filteredAndSortedRecords.map(r => (
                             <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors">
-                                <TableCell className="pl-6 font-mono text-gray-500">{toNepaliDate(r.date)}</TableCell>
+                                <TableCell className="pl-6 font-mono font-bold text-blue-900">{toNepaliDate(r.date)}</TableCell>
+                                <TableCell className="font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
                                 <TableCell className="font-black text-gray-900">{r.employeeName}</TableCell>
                                 <TableCell className="text-center"><Badge variant={getAttendanceBadgeVariant(r.status as any)} className="text-[9px] font-black uppercase h-5">{r.status}</Badge></TableCell>
                                 <TableCell className="text-center font-medium text-blue-800">
@@ -244,7 +245,7 @@ export default function AttendanceRegistryPage() {
                         ))}
                         {!isDataLoading && filteredAndSortedRecords.length === 0 && (
                             <TableRow key="no-records-row">
-                                <TableCell colSpan={7} className="h-60 text-center text-muted-foreground italic">
+                                <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
                                     <div className="flex flex-col items-center gap-3">
                                         <AlertCircle className="h-10 w-10 opacity-10"/>
                                         <p>No processed records found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Run the Hourly Calculation Logic to generate records.</span></p>
@@ -271,7 +272,7 @@ export default function AttendanceRegistryPage() {
                     <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Overtime Hrs</Label><Input type="number" step="0.5" value={editForm.overtimeHours} onChange={e => setEditForm({...editForm, overtimeHours: Number(e.target.value)})} className="h-10 font-bold text-emerald-600" /></div>
                     <div className="space-y-1.5 col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Status / Remarks</Label><Input value={editForm.remarks} onChange={e => setEditForm({...editForm, remarks: e.target.value})} className="h-10" /></div>
                 </div>
-                <DialogFooter><Button onClick={handleSaveEdit} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">Confirm Adjustments</Button></DialogFooter>
+                <DialogFooter><Button onClick={handleSaveEdit} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">Confirm Adjustments</Button></DialogFooter>
             </DialogContent>
         </Dialog>
     </div>
