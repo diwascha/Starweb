@@ -20,8 +20,8 @@ import {
     orderBy,
     setDoc
 } from 'firebase/firestore';
-import { isValid, startOfDay, isEqual, isWithinInterval, format, parse, differenceInMinutes } from 'date-fns';
-import type { AttendanceRecord, RawMachineLog, Employee, HrConfig, HrShift } from '@/lib/types';
+import { isValid, startOfDay, isEqual, isWithinInterval, format, parse, differenceInMinutes, addMinutes, startOfWeek } from 'date-fns';
+import type { AttendanceRecord, RawMachineLog, Employee, HrConfig, HrShift, PublicHoliday, LeaveRequest } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { processAttendanceImport } from '@/lib/attendance';
 import { getEmployees } from './employee-service';
@@ -106,10 +106,6 @@ export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () =
     });
 };
 
-/**
- * Intelligent raw log importer with duplicate detection, override capabilities,
- * and automatic employee/shift onboarding.
- */
 export const addRawMachineLogs = async (
     jsonData: any[][],
     importedBy: string, 
@@ -126,7 +122,6 @@ export const addRawMachineLogs = async (
         const { processedData } = processAttendanceImport(jsonData);
         if (processedData.length === 0) return { createdCount: 0, updatedCount: 0, skippedCount: 0, newEmployeesCount: 0 };
 
-        // 1. Handle Automatic Employee Onboarding
         const employees = await getEmployees();
         const existingEmpNames = new Set(employees.map(e => e.name.toLowerCase().trim()));
         const uniqueNamesInSheet = Array.from(new Set(processedData.map(p => p.employeeName.trim()))).filter(n => n.length > 0);
@@ -155,7 +150,6 @@ export const addRawMachineLogs = async (
             await employeeBatch.commit();
         }
 
-        // 2. Handle Automatic Shift Discovery
         const shiftSnap = await getDocs(collection(db, 'hr_shifts'));
         const existingShifts = shiftSnap.docs.map(d => d.data() as HrShift);
         const shiftBatch = writeBatch(db);
@@ -194,7 +188,6 @@ export const addRawMachineLogs = async (
 
         const defaultShift = existingShifts.find(s => s.isDefault) || existingShifts[0];
 
-        // 3. Determine the scope for log duplicates
         const periods = new Set<string>();
         processedData.forEach(p => periods.add(`${p.bsYear}-${p.bsMonth}`));
         
@@ -279,9 +272,6 @@ export const addRawMachineLogs = async (
     }
 };
 
-/**
- * Records manual bulk entries directly into the raw machine dump.
- */
 export const addBulkManualLogs = async (
     dateRange: { from: Date, to: Date },
     employeeNames: string[],
@@ -392,17 +382,45 @@ export const deleteAllRawLogs = async (): Promise<void> => {
 // --- Hourly Calculation Logic ---
 
 /**
- * Calculates duration between two times in decimal hours.
+ * Robust time utilities for the attendance logic engine
  */
-function calculateHours(start: string, end: string): number {
-    const s = parse(start, 'HH:mm:ss', new Date());
-    const e = parse(end, 'HH:mm:ss', new Date());
-    if (!isValid(s) || !isValid(e)) return 0;
+const timeToMinutes = (time: string): number => {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+};
+
+const roundToNearest = (value: number, step: number): number => {
+    return Math.round(value / step) * step;
+};
+
+const getFixedBreakOverlap = (startMins: number, endMins: number): number => {
+    const breakStart = 12 * 60; // 12:00
+    const breakEnd = 13 * 60;   // 13:00
+    const overlapStart = Math.max(startMins, breakStart);
+    const overlapEnd = Math.min(endMins, breakEnd);
+    return Math.max(0, overlapEnd - overlapStart);
+};
+
+const calculatePaidHoursWithBreak = (startMins: number, endMins: number): number => {
+    const duration = endMins - startMins;
+    if (duration <= 0) return 0;
     
-    let mins = differenceInMinutes(e, s);
-    if (mins < 0) mins += 1440; // Handle cross-midnight shifts
-    return parseFloat((mins / 60).toFixed(2));
-}
+    const overlap = getFixedBreakOverlap(startMins, endMins);
+    let finalMins = duration;
+    if (overlap > 0 && duration > 240) { // Only deduct if shift > 4 hours
+        finalMins -= overlap;
+    }
+    return finalMins / 60;
+};
+
+const getPeriodBucket = (dateStr: string, period: 'WEEKLY' | 'MONTHLY'): string => {
+    const d = new Date(dateStr);
+    if (period === 'WEEKLY') {
+        const sunday = startOfWeek(d, { weekStartsOn: 0 });
+        return format(sunday, 'yyyyMMdd');
+    }
+    return format(d, 'yyyyMM');
+};
 
 export const runHourlyCalculation = async (year: number, month: number, calculatedBy: string): Promise<{ processed: number }> => {
     const { db } = getFirebase();
@@ -417,11 +435,10 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
 
     const employees = await getEmployees();
     const employeeMap = new Map(employees.map(e => [e.name.toLowerCase().trim(), e]));
-
     const holidays = await getHolidays();
     const leaveRequests = await getLeaveRequests();
-    const approvedLeaves = leaveRequests.filter(l => l.status === 'Approved');
     
+    // Clear existing processed records
     const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const processedSnap = await getDocs(qProcessed);
     if (!processedSnap.empty) {
@@ -430,158 +447,155 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         await deleteBatch.commit();
     }
 
+    // Counters for Free Passes
+    const latePasses = new Map<string, number>();
+    const earlyPasses = new Map<string, number>();
+
+    const rawLogs = rawSnap.docs.map(d => fromFirestoreLog(d as any)).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const results: Omit<AttendanceRecord, 'id'>[] = [];
     const now = createTimestamp();
 
-    rawSnap.forEach(docSnap => {
-        const log = fromFirestoreLog(docSnap as QueryDocumentSnapshot<DocumentData>);
+    for (const log of rawLogs) {
         const employee = employeeMap.get(log.employeeName.toLowerCase().trim());
-        
-        if (employee) {
-            const logDate = startOfDay(new Date(log.date));
-            const holiday = holidays.find(h => isEqual(startOfDay(new Date(h.date)), logDate));
-            const leave = approvedLeaves.find(l => 
-                l.employeeId === employee.id && 
-                isWithinInterval(logDate, { 
-                    start: startOfDay(new Date(l.startDate)), 
-                    end: startOfDay(new Date(l.endDate)) 
-                })
-            );
+        if (!employee) continue;
 
-            let reg = 0;
-            let ot = 0;
-            let finalStatus = log.statusFromMachine;
-            let finalRemarks = log.remarks;
+        const logDate = startOfDay(new Date(log.date));
+        const holiday = holidays.find(h => isEqual(startOfDay(new Date(h.date)), logDate));
+        const leave = leaveRequests.find(l => 
+            l.employeeId === employee.id && 
+            l.status === 'Approved' &&
+            isWithinInterval(logDate, { 
+                start: startOfDay(new Date(l.startDate)), 
+                end: startOfDay(new Date(l.endDate)) 
+            })
+        );
 
-            if (holiday) {
-                finalStatus = 'Public Holiday';
-                finalRemarks = `Public Holiday: ${holiday.name}`;
-                reg = config.hours.baseDayHours;
-                ot = 0;
-            } else if (leave) {
-                finalStatus = 'Leave';
-                finalRemarks = `${leave.leaveType} Leave: ${leave.reason}`;
-                reg = leave.leaveType === 'Paid' ? config.hours.baseDayHours : 0;
-                ot = 0;
-            } else if (logDate.getDay() === 6) {
-                finalStatus = 'Saturday';
-                finalRemarks = 'Weekly Off (Saturday)';
-                // If they actually worked on Saturday, calculate hours as normal
-                if (log.clockIn && log.clockOut) {
-                    const worked = calculateHours(log.clockIn, log.clockOut);
-                    reg = Math.min(worked, config.hours.baseDayHours);
-                    ot = Math.max(0, worked - config.hours.baseDayHours);
-                } else if (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK') {
-                    reg = config.hours.baseDayHours;
-                }
-            } else if (log.clockIn && log.clockOut) {
-                // APPLY HR OFFICE RULES: Grace, Rounding, and Strict OT Classification
-                const sOn = parse(log.onDuty || '09:00:00', 'HH:mm:ss', new Date());
-                const sOff = parse(log.offDuty || '17:00:00', 'HH:mm:ss', new Date());
-                let aIn = parse(log.clockIn, 'HH:mm:ss', new Date());
-                let aOut = parse(log.clockOut, 'HH:mm:ss', new Date());
-                
-                // Track original punches for OT audit
-                const rawIn = log.clockIn;
-                const rawOut = log.clockOut;
+        let reg = 0;
+        let ot = 0;
+        let finalStatus = log.statusFromMachine;
+        let finalRemarks = '';
 
-                // 1. Arrival Logic (Grace Period - Criterion 3)
-                // If arrived before shift start or within grace: Align to Shift Start.
-                const arrivalLateMins = differenceInMinutes(aIn, sOn);
-                if (arrivalLateMins <= config.hours.graceMin) {
-                    aIn = sOn; 
-                }
-                
-                // 2. Departure Logic (Grace Period - Criterion 3)
-                // If left early within grace: Align to Shift End.
-                const departureEarlyMins = differenceInMinutes(sOff, aOut);
-                if (departureEarlyMins >= 0 && departureEarlyMins <= config.hours.graceMin) {
-                    aOut = sOff;
-                }
-
-                // 3. Regular Hours Calculation (Criterion 1)
-                // Rule: Regular hours are ONLY earned between shift boundaries.
-                // Arriving early does NOT count toward Normal hours span.
-                const effectiveRegIn = aIn > sOn ? aIn : sOn;
-                const effectiveRegOut = aOut < sOff ? aOut : sOff;
-                
-                let workedRegMins = differenceInMinutes(effectiveRegOut, effectiveRegIn);
-                if (workedRegMins < 0) workedRegMins = 0;
-                
-                // Break Deduction
-                let shiftSpanMins = differenceInMinutes(sOff, sOn);
-                if (shiftSpanMins < 0) shiftSpanMins += 1440;
-                const breakMins = Math.max(0, shiftSpanMins - (config.hours.baseDayHours * 60));
-                
-                if (workedRegMins > (shiftSpanMins / 2)) {
-                    workedRegMins -= breakMins;
-                }
-
-                const rawRegHrs = Math.max(0, workedRegMins / 60);
-                // Criterion 2: Rounding
-                reg = Math.floor(rawRegHrs / config.hours.roundStep) * config.hours.roundStep;
-                // Criterion 1: Cap at Base Day
-                reg = Math.min(reg, config.hours.baseDayHours);
-
-                // 4. Overtime Logic (Criterion 4: Strict Compliance with blockMin)
-                // Rule: OT is earned ONLY by staying late beyond Shift End.
-                let extraStayMins = differenceInMinutes(parse(rawOut, 'HH:mm:ss', new Date()), sOff);
-                if (extraStayMins < 0) extraStayMins = 0;
-                
-                if (extraStayMins >= config.hours.blockMin) {
-                    const rawOtHrs = extraStayMins / 60;
-                    // Criterion 2: Rounding
-                    ot = Math.floor(rawOtHrs / config.hours.roundStep) * config.hours.roundStep;
-                } else {
-                    ot = 0;
-                }
-
-                // Criterion 9: Review Flag
-                if ((reg + ot) >= config.hours.reviewThresh) {
-                    finalRemarks = finalRemarks ? `Admin Review Required; ${finalRemarks}` : `Admin Review Required: High Hours`;
-                }
-
-                // Audit Remarks (Criteria 5-8)
-                if (arrivalLateMins > config.hours.graceMin) {
-                    finalRemarks = finalRemarks ? `${finalRemarks}; Late ${arrivalLateMins}m` : `Late ${arrivalLateMins}m`;
-                }
-                if (departureEarlyMins > config.hours.graceMin) {
-                    finalRemarks = finalRemarks ? `${finalRemarks}; Early exit ${departureEarlyMins}m` : `Early exit ${departureEarlyMins}m`;
-                }
-                
-                finalStatus = 'Present';
-            } else if (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK') {
-                reg = config.hours.baseDayHours;
-                finalStatus = 'Present';
+        // BRANCH A: Public Holiday
+        if (holiday) {
+            finalStatus = 'Public Holiday';
+            finalRemarks = `Public Holiday: ${holiday.name}`;
+            reg = config.hours.baseDayHours;
+            if (log.clockIn && log.clockOut) {
+                ot = roundToNearest(calculatePaidHoursWithBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut)), config.hours.roundStep);
             }
-
-            results.push({
-                date: log.date,
-                bsDate: log.dateBS || new NepaliDate(new Date(log.date)).format('YYYY/MM/DD'),
-                bsYear: year,
-                bsMonth: month,
-                employeeName: employee.name,
-                employeeId: employee.id,
-                onDuty: log.onDuty || '09:00:00',
-                offDuty: log.offDuty || '17:00:00',
-                clockIn: log.clockIn,
-                clockOut: log.clockOut,
-                status: finalStatus,
-                regularHours: reg,
-                overtimeHours: ot,
-                grossHours: reg + ot,
-                calculatedAt: now,
-                calculatedBy: calculatedBy,
-                remarks: finalRemarks,
-                sourceLogId: log.id,
-                rowIndex: log.rowIndex,
-            });
+        } 
+        // BRANCH B: Absent (Status TRUE)
+        else if (log.statusFromMachine === 'Absent' || log.statusFromMachine === 'TRUE') {
+            finalStatus = 'Absent';
+            reg = 0; ot = 0;
         }
-    });
+        // BRANCH C: Saturday
+        else if (logDate.getDay() === 6) {
+            finalStatus = 'Saturday';
+            finalRemarks = 'Weekly Off (Saturday)';
+            if (log.clockIn && log.clockOut) {
+                const worked = calculatePaidHoursWithBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut));
+                ot = roundToNearest(worked, config.hours.roundStep);
+            }
+        }
+        // BRANCH D: Normal Working Day
+        else {
+            if (!log.onDuty || !log.offDuty || !log.clockIn || !log.clockOut) {
+                finalStatus = log.clockIn || log.clockOut ? 'C/I/O Miss' : 'Absent';
+                finalRemarks = "Missing IN/OUT";
+                reg = 0; ot = 0;
+            } else {
+                const sOn = timeToMinutes(log.onDuty);
+                const sOff = timeToMinutes(log.offDuty);
+                const aIn = timeToMinutes(log.clockIn);
+                const aOut = timeToMinutes(log.clockOut);
 
-    const writeChunkSize = 400;
-    for (let i = 0; i < results.length; i += writeChunkSize) {
-        const chunk = results.slice(i, i + writeChunkSize);
+                const lateMin = Math.max(0, aIn - sOn);
+                const earlyMin = Math.max(0, sOff - aOut);
+
+                // Penalty Logic per direction
+                const calculatePenalty = (mins: number, type: 'L' | 'E', period: 'WEEKLY' | 'MONTHLY', countLimit: number, passMap: Map<string, number>) => {
+                    if (mins <= 0) return 0;
+                    if (mins <= config.hours.graceMin) {
+                        const bucket = getPeriodBucket(log.date, period);
+                        const key = `${employee.id}|${type}|${bucket}`;
+                        const used = passMap.get(key) || 0;
+                        if (countLimit > 0 && used < countLimit) {
+                            passMap.set(key, used + 1);
+                            return 0; // Free pass consumed
+                        }
+                        return config.hours.blockMin; // No passes left
+                    }
+                    return Math.ceil((mins - config.hours.graceMin) / config.hours.blockMin) * config.hours.blockMin;
+                };
+
+                const latePen = calculatePenalty(lateMin, 'L', config.hours.freeLatePeriod, config.hours.freeLate, latePasses);
+                const earlyPen = calculatePenalty(earlyMin, 'E', config.hours.freeEarlyPeriod, config.hours.freeEarly, earlyPasses);
+
+                const effInMins = sOn + latePen;
+                const effOutMins = sOff - earlyPen;
+
+                let paidHrs = 0;
+                if (effOutMins > effInMins) {
+                    paidHrs = calculatePaidHoursWithBreak(effInMins, effOutMins);
+                }
+
+                // ExtraOK credit
+                let extraBefore = 0;
+                let extraAfter = 0;
+                if (log.statusFromMachine.toUpperCase().includes('EXTRAOK')) {
+                    extraBefore = Math.floor((Math.max(0, sOn - aIn) + 5) / 30) * 0.5;
+                    extraAfter = Math.floor((Math.max(0, aOut - sOff) + 5) / 30) * 0.5;
+                }
+
+                const gross = roundToNearest(paidHrs + extraBefore + extraAfter + 0.000001, config.hours.roundStep);
+                reg = Math.min(gross, config.hours.baseDayHours);
+                ot = Math.max(0, gross - config.hours.baseDayHours);
+                
+                finalStatus = 'Present';
+
+                // Review Flag Check
+                const actualWorked = calculatePaidHoursWithBreak(aIn, aOut);
+                if (actualWorked > config.hours.reviewThresh) {
+                    finalRemarks = "Review Hours";
+                }
+            }
+        }
+
+        // Leave Override (Highest Priority for final status)
+        if (leave && !holiday) {
+            finalStatus = 'Leave';
+            finalRemarks = `${leave.leaveType} Leave: ${leave.reason}`;
+            reg = leave.leaveType === 'Paid' ? config.hours.baseDayHours : 0;
+            ot = 0;
+        }
+
+        results.push({
+            date: log.date,
+            bsDate: log.dateBS || new NepaliDate(new Date(log.date)).format('YYYY/MM/DD'),
+            bsYear: year,
+            bsMonth: month,
+            employeeName: employee.name,
+            employeeId: employee.id,
+            onDuty: log.onDuty,
+            offDuty: log.offDuty,
+            clockIn: log.clockIn,
+            clockOut: log.clockOut,
+            status: finalStatus,
+            regularHours: reg,
+            overtimeHours: ot,
+            grossHours: reg + ot,
+            calculatedAt: now,
+            calculatedBy: calculatedBy,
+            remarks: finalRemarks || null,
+            sourceLogId: log.id,
+            rowIndex: log.rowIndex,
+        });
+    }
+
+    const batchSize = 400;
+    for (let i = 0; i < results.length; i += batchSize) {
+        const chunk = results.slice(i, i + batchSize);
         const batch = writeBatch(db);
         chunk.forEach(record => {
             const docRef = doc(getAttendanceCollection());
