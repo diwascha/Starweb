@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense } from 'react';
@@ -10,7 +11,9 @@ import {
     Wallet, 
     BarChart2, 
     CalendarCheck,
-    Settings2
+    Settings2,
+    HardDrive,
+    Calculator
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,7 +22,9 @@ import { Separator } from '@/components/ui/separator';
 
 const hrModules = [
     { name: 'Employees', description: 'Manage employee records and wage information.', href: '/hr/employees', icon: Users },
-    { name: 'Attendance', description: 'Record and track daily employee attendance.', href: '/hr/attendance', icon: Calendar },
+    { name: 'Machine Logs', description: 'Direct raw data dump from attendance machines.', href: '/hr/attendance/raw', icon: HardDrive },
+    { name: 'Calculation Logic', description: 'Process raw logs into billable hours.', href: '/hr/attendance/calculate', icon: Calculator },
+    { name: 'Attendance Registry', description: 'Validated work-hour records and metrics.', href: '/hr/attendance', icon: Calendar },
     { name: 'Analytics', description: 'Generate attendance analytics for any period.', href: '/hr/analytics', icon: BarChart2 },
     { name: 'Holidays & Leaves', description: 'Manage leave requests and public holidays.', href: '/hr/holiday', icon: CalendarCheck },
     { name: 'Payroll', description: 'View and process payroll reports.', href: '/hr/payroll', icon: FileText },
@@ -60,7 +65,7 @@ export default function HRPage() {
 
                 <div>
                     <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 px-1">Operational Modules</h2>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         {hrModules.map((module) => (
                             <Link href={module.href} key={module.name}>
                                 <Card className="h-full transition-all hover:shadow-lg border-none ring-1 ring-black/5 bg-white group">
@@ -69,7 +74,7 @@ export default function HRPage() {
                                         <module.icon className="h-5 w-5 text-muted-foreground group-hover:scale-110 transition-transform" />
                                     </CardHeader>
                                     <CardContent>
-                                        <p className="text-xs text-muted-foreground font-medium leading-relaxed">{module.description}</p>
+                                        <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase">{module.description}</p>
                                     </CardContent>
                                 </Card>
                             </Link>

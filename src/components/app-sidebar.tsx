@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -337,7 +338,13 @@ export function AppSidebar() {
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/hr', true)}><Link href="/hr" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees" className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Employees</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance" className="flex items-center gap-2"><Calendar className="h-4 w-4" /><span>Attendance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                
+                                <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Attendance</SidebarGroupLabel>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance/raw')}><Link href="/hr/attendance/raw" className="flex items-center gap-2"><HardDrive className="h-3.5 w-3.5" /><span>Machine Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance/calculate')}><Link href="/hr/attendance/calculate" className="flex items-center gap-2"><Calculator className="h-3.5 w-3.5" /><span>Calculation Logic</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance', true)}><Link href="/hr/attendance" className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /><span>Registry</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                
+                                <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Operations</SidebarGroupLabel>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics" className="flex items-center gap-2"><BarChart2 className="h-4 w-4" /><span>Analytics</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/holiday')}><Link href="/hr/holiday" className="flex items-center gap-2"><CalendarCheck className="h-4 w-4" /><span>Holidays & Leaves</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Payroll</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>

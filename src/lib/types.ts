@@ -1,3 +1,4 @@
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -244,24 +245,50 @@ export interface RawAttendanceRow {
     [key: string]: any;
 }
 
-
-export interface AttendanceRecord {
+/**
+ * Represents a raw dump of machine data before any system calculation.
+ */
+export interface RawMachineLog {
     id: string;
-    date: string; // AD Date as ISO string
-    bsDate: string;
+    date: string; // AD Date ISO
+    bsYear: number;
+    bsMonth: number;
     employeeName: string;
     onDuty: string | null;
     offDuty: string | null;
     clockIn: string | null;
     clockOut: string | null;
-    status: string; // Storing the raw status from Excel
+    statusFromMachine: string;
+    regularHoursFromMachine: number;
+    overtimeHoursFromMachine: number;
+    remarks: string | null;
+    importId: string;
+    importedAt: string;
+    importedBy: string;
+    sourceSheet: string;
+    rawPayload: Record<string, any>;
+}
+
+export interface AttendanceRecord {
+    id: string;
+    date: string; // AD Date as ISO string
+    bsDate: string;
+    bsYear: number;
+    bsMonth: number;
+    employeeName: string;
+    employeeId: string;
+    onDuty: string | null;
+    offDuty: string | null;
+    clockIn: string | null;
+    clockOut: string | null;
+    status: string; 
     grossHours: number;
     overtimeHours: number;
     regularHours: number;
+    calculatedAt: string;
+    calculatedBy: string;
     remarks: string | null;
-    importedBy: string;
-    sourceSheet?: string;
-    rawImportData?: Record<string, any>;
+    sourceLogId?: string; // Link to the raw machine log
 }
 
 export interface HrShift {

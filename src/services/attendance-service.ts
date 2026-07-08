@@ -1,30 +1,56 @@
 
+/**
+ * @fileOverview Attendance service handling raw machine logs and calculated labor metrics.
+ */
+
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import type { AttendanceRecord, RawAttendanceRow, Employee } from '@/lib/types';
+import { 
+    collection, 
+    doc, 
+    writeBatch, 
+    onSnapshot, 
+    DocumentData, 
+    QueryDocumentSnapshot, 
+    getDocs, 
+    query, 
+    where, 
+    limit, 
+    getDoc, 
+    updateDoc, 
+    deleteDoc, 
+    orderBy,
+    setDoc
+} from 'firebase/firestore';
+import type { AttendanceRecord, RawMachineLog, Employee, HrConfig, HrShift } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { processAttendanceImport } from '@/lib/attendance';
-import { addEmployee } from './employee-service';
+import { addEmployee, getEmployees } from './employee-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
+import { getSetting } from './settings-service';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getAttendanceCollection = () => {
     const { db } = getFirebase();
     return collection(db, COLLECTIONS.ATTENDANCE);
 };
 
-const getPayrollCollection = () => {
+const getRawLogsCollection = () => {
     const { db } = getFirebase();
-    return collection(db, COLLECTIONS.PAYROLL);
-}
+    return collection(db, 'raw_machine_logs');
+};
 
-const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): AttendanceRecord => {
+const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData>): AttendanceRecord => {
     const data = snapshot.data();
     return {
         id: snapshot.id,
         date: data.date,
         bsDate: data.bsDate,
+        bsYear: data.bsYear,
+        bsMonth: data.bsMonth,
         employeeName: String(data.employeeName || ''),
+        employeeId: data.employeeId,
         onDuty: data.onDuty || null,
         offDuty: data.offDuty || null,
         clockIn: data.clockIn || null,
@@ -34,244 +60,242 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
         overtimeHours: Number(data.overtimeHours) || 0,
         regularHours: Number(data.regularHours) || 0,
         remarks: data.remarks || null,
-        importedBy: data.importedBy,
-        sourceSheet: data.sourceSheet,
-        rawImportData: data.rawImportData,
+        calculatedAt: data.calculatedAt,
+        calculatedBy: data.calculatedBy,
+        sourceLogId: data.sourceLogId
     };
 };
 
-export const getAttendance = async (): Promise<AttendanceRecord[]> => {
-    try {
-        const snapshot = await getDocs(getAttendanceCollection());
-        return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        logServiceError('getAttendance', error);
-        throw error;
-    }
+const fromFirestoreLog = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMachineLog => {
+    const data = snapshot.data();
+    return {
+        id: snapshot.id,
+        date: data.date,
+        bsYear: data.bsYear,
+        bsMonth: data.bsMonth,
+        employeeName: data.employeeName,
+        onDuty: data.onDuty,
+        offDuty: data.offDuty,
+        clockIn: data.clockIn,
+        clockOut: data.clockOut,
+        statusFromMachine: data.statusFromMachine,
+        regularHoursFromMachine: data.regularHoursFromMachine,
+        overtimeHoursFromMachine: data.overtimeHoursFromMachine,
+        remarks: data.remarks,
+        importId: data.importId,
+        importedAt: data.importedAt,
+        importedBy: data.importedBy,
+        sourceSheet: data.sourceSheet,
+        rawPayload: data.rawPayload
+    };
 };
 
-export const addAttendanceRecords = async (
+// --- Raw Log Management ---
+
+export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () => void => {
+    const q = query(getRawLogsCollection(), orderBy('importedAt', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestoreLog));
+    }, (error) => {
+        logServiceError('onRawLogsUpdate', error);
+    });
+};
+
+export const addRawMachineLogs = async (
     jsonData: any[][],
-    existingEmployees: Employee[],
     importedBy: string, 
     bsYear: number,
     bsMonth: number,
     sourceSheetName: string,
     onProgress: (progress: number) => void
-): Promise<{ attendanceCount: number, newEmployees: string[], skippedCount: number }> => {
+): Promise<{ logCount: number }> => {
     const { db } = getFirebase();
+    const importId = generateId();
+    const now = createTimestamp();
     const CHUNK_SIZE = 400;
-    
+
     try {
-        const headerRow = jsonData[0];
-        const dataRows = jsonData.slice(1);
-        
-        const nameIndex = headerRow.map(h => String(h).toLowerCase()).indexOf('name');
-        if (nameIndex === -1) {
-            throw new Error("Could not find 'name' column in the imported sheet.");
-        }
-        const nonEmptyRows = dataRows.filter(row => row.length > nameIndex && row[nameIndex] != null && String(row[nameIndex]).trim() !== '');
+        const { processedData } = processAttendanceImport(jsonData, bsYear, bsMonth);
 
-        const existingEmployeeNames = new Set(existingEmployees.map(emp => emp.name.toLowerCase()));
-        const uniqueNamesInSheet = new Set(nonEmptyRows.map(row => String(row[nameIndex]).trim()));
-        const newEmployeeNames = new Set<string>();
-
-        for (const name of uniqueNamesInSheet) {
-            if (!existingEmployeeNames.has(name.toLowerCase())) {
-                newEmployeeNames.add(name);
-            }
-        }
-
-        if (newEmployeeNames.size > 0) {
-            const creationPromises = Array.from(newEmployeeNames).map(name => {
-                const now = createTimestamp();
-                const newEmployee: Omit<Employee, 'id'> = {
-                    name: name,
-                    wageBasis: 'Monthly',
-                    wageAmount: 0,
-                    createdBy: importedBy,
-                    createdAt: now,
-                    joiningDate: now, 
-                    status: 'Working'
-                };
-                return addEmployee(newEmployee);
-            });
-            await Promise.all(creationPromises);
-        }
-        
-        const { processedData, skippedCount } = processAttendanceImport(jsonData, bsYear, bsMonth);
-
-        const newAttendanceRecords = processedData
-          .filter(p => p.dateADISO)
-          .map(p => ({
-            date: p.dateADISO, 
-            bsDate: p.dateBS, 
+        const logs: Omit<RawMachineLog, 'id'>[] = processedData.map(p => ({
+            date: p.dateADISO,
+            bsYear,
+            bsMonth,
             employeeName: p.employeeName,
-            onDuty: p.onDuty || null, 
-            offDuty: p.offDuty || null,
-            clockIn: p.clockIn || null, 
-            clockOut: p.clockOut || null,
-            status: p.status, 
-            grossHours: p.regularHours + p.overtimeHours,
-            overtimeHours: p.overtimeHours, 
-            regularHours: p.regularHours,
-            remarks: p.remarks || null, 
-            importedBy: importedBy, 
-            sourceSheet: sourceSheetName || null,
-            rawImportData: p.rawImportData,
+            onDuty: p.onDuty,
+            offDuty: p.offDuty,
+            clockIn: p.clockIn,
+            clockOut: p.clockOut,
+            statusFromMachine: p.status,
+            regularHoursFromMachine: p.regularHours,
+            overtimeHoursFromMachine: p.overtimeHours,
+            remarks: p.remarks,
+            importId,
+            importedAt: now,
+            importedBy,
+            sourceSheet: sourceSheetName,
+            rawPayload: p.rawImportData
         }));
-        
+
         let processedCount = 0;
-        for (let i = 0; i < newAttendanceRecords.length; i += CHUNK_SIZE) {
-            const chunk = newAttendanceRecords.slice(i, i + CHUNK_SIZE);
+        for (let i = 0; i < logs.length; i += CHUNK_SIZE) {
+            const chunk = logs.slice(i, i + CHUNK_SIZE);
             const batch = writeBatch(db);
-            chunk.forEach(record => {
-                const docRef = doc(getAttendanceCollection());
-                batch.set(docRef, record);
+            chunk.forEach(log => {
+                const docRef = doc(getRawLogsCollection());
+                batch.set(docRef, log);
             });
             await batch.commit();
             processedCount += chunk.length;
             onProgress(processedCount);
         }
 
-        return { attendanceCount: newAttendanceRecords.length, newEmployees: Array.from(newEmployeeNames), skippedCount };
+        return { logCount: logs.length };
     } catch (error) {
-        logServiceError('addAttendanceRecords', error);
+        logServiceError('addRawMachineLogs', error);
         throw error;
     }
 };
 
-
-export const updateAttendanceRecord = async (id: string, record: Partial<AttendanceRecord>): Promise<void> => {
-    try {
-        const recordDoc = doc(getAttendanceCollection(), id);
-        await updateDoc(recordDoc, record);
-    } catch (error) {
-        logServiceError('updateAttendanceRecord', error);
-        throw error;
-    }
+export const deleteRawLog = async (id: string) => {
+    await deleteDoc(doc(getRawLogsCollection(), id));
 };
 
-export const deleteAttendanceRecord = async (id: string): Promise<void> => {
-    try {
-        const recordDoc = doc(getAttendanceCollection(), id);
-        await deleteDoc(recordDoc);
-    } catch (error) {
-        logServiceError('deleteAttendanceRecord', error);
-        throw error;
-    }
-};
+// --- Hourly Calculation Logic ---
 
-export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
+export const runHourlyCalculation = async (year: number, month: number, calculatedBy: string): Promise<{ processed: number }> => {
     const { db } = getFirebase();
-    try {
-        const payrollCollection = getPayrollCollection();
-        const attendanceCollection = getAttendanceCollection();
+    const configSetting = await getSetting('hr_config');
+    const config = configSetting?.value as HrConfig;
+    if (!config) throw new Error("HR Operational Rules not found. Please configure them in HR Office.");
 
-        const qPayroll = query(payrollCollection, where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
-        const payrollSnapshot = await getDocs(qPayroll);
+    // 1. Fetch Raw Logs for the period
+    const qRaw = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
+    const rawSnap = await getDocs(qRaw);
+    if (rawSnap.empty) throw new Error("No raw machine logs found for selected period.");
 
-        const attendanceSnapshot = await getDocs(attendanceCollection);
-        const recordsToDelete = attendanceSnapshot.docs.filter(doc => {
-            const data = doc.data();
-            if (data.date) {
-                try {
-                    const nepaliDate = new NepaliDate(new Date(data.date));
-                    return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
-                } catch {
-                    return false;
-                }
-            }
-            return false;
-        });
+    // 2. Fetch Employees to map IDs
+    const employees = await getEmployees();
+    const employeeMap = new Map(employees.map(e => [e.name.toLowerCase(), e]));
 
-        const allDocsToDelete = [...payrollSnapshot.docs, ...recordsToDelete];
-
-        if (allDocsToDelete.length === 0) return;
-
-        const CHUNK_SIZE = 400;
-        for (let i = 0; i < allDocsToDelete.length; i += CHUNK_SIZE) {
-            const chunk = allDocsToDelete.slice(i, i + CHUNK_SIZE);
-            const batch = writeBatch(db);
-            chunk.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-            await batch.commit();
-        }
-    } catch (error) {
-        logServiceError('deleteAttendanceForMonth', error);
-        throw error;
+    // 3. Clear existing processed records for this period (Fault Isolation)
+    const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
+    const processedSnap = await getDocs(qProcessed);
+    if (!processedSnap.empty) {
+        const deleteBatch = writeBatch(db);
+        processedSnap.forEach(d => deleteBatch.delete(d.ref));
+        await deleteBatch.commit();
     }
+
+    // 4. Run Calculation Loop
+    const results: Omit<AttendanceRecord, 'id'>[] = [];
+    const now = createTimestamp();
+
+    rawSnap.forEach(docSnap => {
+        const log = fromFirestoreLog(docSnap as QueryDocumentSnapshot<DocumentData>);
+        const employee = employeeMap.get(log.employeeName.toLowerCase());
+        
+        if (employee) {
+            // Apply Logic: This is where we calculate from onDuty/clockIn
+            // For now, we trust the machine's hours or standard day, but allow for logic expansion
+            let reg = log.regularHoursFromMachine;
+            let ot = log.overtimeHoursFromMachine;
+
+            // Sample Logic Implementation (Refining machine data)
+            if (reg === 0 && (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK')) {
+                reg = config.hours.baseDayHours;
+            }
+
+            results.push({
+                date: log.date,
+                bsDate: new NepaliDate(new Date(log.date)).format('YYYY/MM/DD'),
+                bsYear: year,
+                bsMonth: month,
+                employeeName: employee.name,
+                employeeId: employee.id,
+                onDuty: log.onDuty,
+                offDuty: log.offDuty,
+                clockIn: log.clockIn,
+                clockOut: log.clockOut,
+                status: log.statusFromMachine,
+                regularHours: reg,
+                overtimeHours: ot,
+                grossHours: reg + ot,
+                calculatedAt: now,
+                calculatedBy: calculatedBy,
+                remarks: log.remarks,
+                sourceLogId: log.id
+            });
+        }
+    });
+
+    // 5. Batch Write Processed Records
+    const writeChunkSize = 400;
+    for (let i = 0; i < results.length; i += writeChunkSize) {
+        const chunk = results.slice(i, i + writeChunkSize);
+        const batch = writeBatch(db);
+        chunk.forEach(record => {
+            const docRef = doc(getAttendanceCollection());
+            batch.set(docRef, record);
+        });
+        await batch.commit();
+    }
+
+    return { processed: results.length };
+};
+
+// --- Attendance Registry (Processed) ---
+
+export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
+    return onSnapshot(getAttendanceCollection(), (snapshot) => {
+        callback(snapshot.docs.map(fromFirestoreRecord));
+    }, (error) => {
+        logServiceError('onAttendanceUpdate', error);
+    });
+};
+
+export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<AttendanceRecord[]> => {
+    const q = query(getAttendanceCollection(), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(fromFirestoreRecord);
+};
+
+export const deleteAttendanceRecord = async (id: string) => {
+    await deleteDoc(doc(getAttendanceCollection(), id));
+};
+
+export const getAttendanceYears = async (): Promise<number[]> => {
+    const snapshot = await getDocs(getAttendanceCollection());
+    const years = new Set(snapshot.docs.map(d => d.data().bsYear as number));
+    return Array.from(years).sort((a, b) => b - a);
 };
 
 export const deleteAllAttendance = async (): Promise<void> => {
     const { db } = getFirebase();
-    try {
-        const attendanceSnapshot = await getDocs(getAttendanceCollection());
-        const payrollSnapshot = await getDocs(getPayrollCollection());
+    const snaps = await Promise.all([
+        getDocs(getAttendanceCollection()),
+        getDocs(getRawLogsCollection()),
+        getDocs(collection(db, COLLECTIONS.PAYROLL))
+    ]);
 
-        const allDocsToDelete = [...attendanceSnapshot.docs, ...payrollSnapshot.docs];
-
-        if (allDocsToDelete.length === 0) return;
-
-        const CHUNK_SIZE = 400;
-        for (let i = 0; i < allDocsToDelete.length; i += CHUNK_SIZE) {
-            const chunk = allDocsToDelete.slice(i, i + CHUNK_SIZE);
-            const batch = writeBatch(db);
-            chunk.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-            await batch.commit();
-        }
-    } catch (error) {
-        logServiceError('deleteAllAttendance', error);
-        throw error;
-    }
+    const batch = writeBatch(db);
+    snaps.forEach(snap => snap.forEach(d => batch.delete(d.ref)));
+    await batch.commit();
 };
 
-export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
-    return onSnapshot(getAttendanceCollection(), 
-        (snapshot) => {
-            callback(snapshot.docs.map(fromFirestore));
-        },
-        (error) => {
-            logServiceError('onAttendanceUpdate', error);
-        }
-    );
+export const updateAttendanceRecord = async (id: string, updates: Partial<AttendanceRecord>) => {
+    await updateDoc(doc(getAttendanceCollection(), id), updates);
 };
 
-export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<AttendanceRecord[]> => {
-    try {
-        const allRecords = await getAttendance();
-        return allRecords.filter(r => {
-            try {
-                if (!r.date) return false;
-                const nepaliDate = new NepaliDate(new Date(r.date));
-                return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
-            } catch {
-                return false;
-            }
-        });
-    } catch (error) {
-        logServiceError('getAttendanceForMonth', error);
-        return [];
-    }
+export const deleteAttendanceForMonth = async (year: number, month: number) => {
+    const { db } = getFirebase();
+    const q = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
+    const snap = await getDocs(q);
+    const batch = writeBatch(db);
+    snap.forEach(d => batch.delete(d.ref));
+    await batch.commit();
 };
 
-export const getAttendanceYears = async (): Promise<number[]> => {
-    try {
-        const allRecords = await getAttendance();
-        const years = new Set(allRecords.map(r => {
-            try {
-                if (!r.date) return null;
-                return new NepaliDate(new Date(r.date)).getYear();
-            } catch {
-                return null;
-            }
-        }).filter(year => year !== null) as number[]);
-        return Array.from(years).sort((a, b) => b - a);
-    } catch (error) {
-        logServiceError('getAttendanceYears', error);
-        return [];
-    }
-};
+function generateId(): string {
+    return Math.random().toString(36).substring(2, 11);
+}
