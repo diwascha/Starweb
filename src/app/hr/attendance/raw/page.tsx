@@ -30,7 +30,6 @@ import { cn, toNepaliDate, formatTimeForDisplay, getAttendanceBadgeVariant } fro
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import type { PublicHoliday, LeaveRequest } from '@/lib/types';
-import NepaliDate from 'nepali-date-converter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,6 +47,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import NepaliDate from 'nepali-date-converter';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -62,7 +62,6 @@ export default function RawMachineLogsPage() {
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [importProgress, setImportProgress] = useState<string | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
     const [isCleaningAll, setIsCleaningAll] = useState(false);
     
     // Filters & Sorting
@@ -212,7 +211,7 @@ export default function RawMachineLogsPage() {
             let currentOffset = 0;
 
             for (const sheetName of selectedSheets) {
-                const sheet = availableSheets.find(as => as.name === name);
+                const sheet = availableSheets.find(as => as.name === sheetName);
                 if (sheet) {
                     const result = await addRawMachineLogs(
                         sheet.jsonData,
@@ -242,19 +241,6 @@ export default function RawMachineLogsPage() {
                 setSelectedSheets([]);
                 setOverwriteExisting(false);
             }, 1000);
-        }
-    };
-
-    const handleDeleteMonth = async () => {
-        if (selectedYear === 'All' || selectedMonth === 'All') return;
-        setIsDeleting(true);
-        try {
-            await deleteRawLogsForMonth(parseInt(selectedYear), parseInt(selectedMonth));
-            toast({ title: 'Raw Logs Cleared', description: `Deleted all raw logs for ${NEPALI_MONTHS[parseInt(selectedMonth)].name} ${selectedYear}.` });
-        } catch {
-            toast({ title: 'Error', variant: 'destructive' });
-        } finally {
-            setIsDeleting(false);
         }
     };
 
