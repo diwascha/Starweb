@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -162,8 +161,8 @@ export default function AttendanceRegistryPage() {
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             return sortConfig.direction === 'asc' ? 1 : -1;
         }
-        // Use rowIndex for consistent sequencing within identical dates
-        return (a.rowIndex || 0) - (b.rowIndex || 0);
+        // Secondary sort: alphabetical by name for same date/value
+        return a.employeeName.localeCompare(b.employeeName);
     });
     return filtered;
   }, [attendance, selectedBsYear, selectedBsMonth, sortConfig, searchQuery, filterEmployeeName, filterStatus]);

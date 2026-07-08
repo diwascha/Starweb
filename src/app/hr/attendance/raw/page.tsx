@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -232,7 +231,7 @@ export default function RawMachineLogsPage() {
             await deleteRawLogsForMonth(parseInt(selectedYear), parseInt(selectedMonth));
             toast({ title: 'Raw Logs Cleared', description: `Deleted all raw logs for ${NEPALI_MONTHS[parseInt(selectedMonth)].name} ${selectedYear}.` });
         } catch {
-            toast({ title: 'Error', description: 'Failed to clear raw logs.', variant: 'destructive' });
+            toast({ title: 'Error', variant: 'destructive' });
         } finally {
             setIsDeleting(false);
         }
@@ -244,7 +243,7 @@ export default function RawMachineLogsPage() {
             await deleteAllRawLogs();
             toast({ title: 'System Purge Complete', description: 'All raw machine logs have been permanently deleted.' });
         } catch {
-            toast({ title: 'Error', description: 'Failed to purge raw logs.', variant: 'destructive' });
+            toast({ title: 'Error', variant: 'destructive' });
         } finally {
             setIsCleaningAll(false);
         }
@@ -303,8 +302,8 @@ export default function RawMachineLogsPage() {
                 if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
                 return sortConfig.direction === 'asc' ? 1 : -1;
             }
-            // Secondary sort: preserve original Excel order
-            return (a.rowIndex || 0) - (b.rowIndex || 0);
+            // Secondary sort: alphabetical by name for same date/value
+            return a.employeeName.localeCompare(b.employeeName);
         });
 
         return filtered;
