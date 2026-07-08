@@ -22,7 +22,7 @@ import {
 } from 'firebase/firestore';
 import type { AttendanceRecord, RawMachineLog, Employee, HrConfig } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
-import { processAttendanceImport, type ImportPeriod } from '@/lib/attendance';
+import { processAttendanceImport } from '@/lib/attendance';
 import { getEmployees } from './employee-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
@@ -103,7 +103,6 @@ export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () =
 export const addRawMachineLogs = async (
     jsonData: any[][],
     importedBy: string, 
-    allowedPeriods: ImportPeriod[],
     sourceSheetName: string,
     onProgress: (progress: number) => void
 ): Promise<{ logCount: number }> => {
@@ -113,7 +112,7 @@ export const addRawMachineLogs = async (
     const CHUNK_SIZE = 400;
 
     try {
-        const { processedData } = processAttendanceImport(jsonData, allowedPeriods);
+        const { processedData } = processAttendanceImport(jsonData);
 
         if (processedData.length === 0) return { logCount: 0 };
 

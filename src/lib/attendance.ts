@@ -102,8 +102,7 @@ const parseExcelDate = (dateInput: any): Date | null => {
    Core processor
    ========================= */
 export const processAttendanceImport = (
-    jsonData: any[][], 
-    allowedPeriods: ImportPeriod[]
+    jsonData: any[][]
 ): { processedData: CalcAttendanceRow[], skippedCount: number } => {
     if (!jsonData || jsonData.length < 2) return { processedData: [], skippedCount: 0 };
 
@@ -170,10 +169,6 @@ export const processAttendanceImport = (
         const nepaliDate = new NepaliDate(adFromSheet);
         const year = nepaliDate.getYear();
         const month = nepaliDate.getMonth();
-
-        // Single-pass filter: Only keep if it matches one of the requested target periods
-        const isAllowed = allowedPeriods.some(p => p.year === year && p.month === month);
-        if (!isAllowed) return null; 
 
         return {
           ...row,

@@ -51,7 +51,7 @@ export default function RawMachineLogsPage() {
     // Import Dialog
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
     const [availableSheets, setAvailableSheets] = useState<any[]>([]);
-    const [selectedSheets, setSelectedSheets] = useState<{ name: string; periods: { year: string; month: string }[] }[]>([]);
+    const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -81,7 +81,6 @@ export default function RawMachineLogsPage() {
         const result = Array.from(months).sort((a, b) => a - b);
         
         // If no logs for this year, show all months so user can still select something
-        // or if data was just cleared. 
         if (result.length === 0) return NEPALI_MONTHS;
         
         return NEPALI_MONTHS.filter(m => result.includes(m.value));
@@ -141,20 +140,14 @@ export default function RawMachineLogsPage() {
 
         try {
             let total = 0;
-            for (const sheetSelection of selectedSheets) {
-                const sheet = availableSheets.find(as => as.name === sheetSelection.name);
+            for (const sheetName of selectedSheets) {
+                const sheet = availableSheets.find(as => as.name === sheetName);
                 if (sheet) {
-                    const periods = sheetSelection.periods.map(p => ({ 
-                        year: parseInt(p.year), 
-                        month: parseInt(p.month) 
-                    }));
-                    
                     const { logCount } = await addRawMachineLogs(
                         sheet.jsonData,
                         user.username,
-                        periods,
-                        sheetSelection.name,
-                        (p) => setImportProgress(`Importing ${sheetSelection.name}: ${p} records`)
+                        sheetName,
+                        (p) => setImportProgress(`Importing ${sheetName}: ${p} records`)
                     );
                     total += logCount;
                 }
@@ -205,7 +198,7 @@ export default function RawMachineLogsPage() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Machine Data Dump</h1>
-                    <p className="text-muted-foreground text-sm font-medium italic">Immutable storage for raw attendance machine logs.</p>
+                    <p className="text-muted-foreground text-sm font-medium italic">Immutable storage for raw attendance machine logs mapped to BS dates.</p>
                 </div>
                 <div className="flex gap-2">
                     <AlertDialog>
@@ -299,22 +292,24 @@ export default function RawMachineLogsPage() {
                             <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
                                 <TableRow className="hover:bg-transparent" key="header-row">
                                     <TableHead className="pl-6 font-bold">Employee Name</TableHead>
-                                    <TableHead className="font-bold">Date (AD)</TableHead>
+                                    <TableHead className="font-bold">Date (BS)</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground opacity-50">Date (AD)</TableHead>
                                     <TableHead className="font-bold">On Duty</TableHead>
                                     <TableHead className="font-bold">Off Duty</TableHead>
                                     <TableHead className="font-bold">Clock In</TableHead>
                                     <TableHead className="font-bold">Clock Out</TableHead>
-                                    <TableHead className="font-bold text-center">Status (Absent)</TableHead>
+                                    <TableHead className="font-bold text-center">Status</TableHead>
                                     <TableHead className="text-right pr-6 font-bold">System</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                                    <TableRow key="loading-row"><TableCell colSpan={9} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                                 ) : filteredLogs.map(l => (
                                     <TableRow key={l.id} className="h-12 border-b-gray-50 group hover:bg-muted/20 transition-colors">
                                         <TableCell className="pl-6 font-black text-gray-900">{l.employeeName}</TableCell>
-                                        <TableCell className="font-mono text-gray-500">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
+                                        <TableCell className="font-mono font-bold text-blue-900">{toNepaliDate(l.date)}</TableCell>
+                                        <TableCell className="font-mono text-gray-400 text-[10px]">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
                                         <TableCell className="text-muted-foreground font-medium">{formatTimeForDisplay(l.onDuty)}</TableCell>
                                         <TableCell className="text-muted-foreground font-medium">{formatTimeForDisplay(l.offDuty)}</TableCell>
                                         <TableCell className="font-bold text-blue-600">{formatTimeForDisplay(l.clockIn)}</TableCell>
@@ -333,7 +328,7 @@ export default function RawMachineLogsPage() {
                                 ))}
                                 {!isLoading && filteredLogs.length === 0 && (
                                     <TableRow key="empty-row">
-                                        <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
+                                        <TableCell colSpan={9} className="h-60 text-center text-muted-foreground italic">
                                             <div className="flex flex-col items-center gap-3">
                                                 <AlertCircle className="h-10 w-10 opacity-10"/>
                                                 <p>No raw machine data found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Upload an attendance machine Excel file to populate this dump.</span></p>
@@ -349,88 +344,34 @@ export default function RawMachineLogsPage() {
 
             {/* Sheet Selection Dialog */}
             <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-0">
+                <DialogContent className="sm:max-w-xl">
                     <DialogHeader className="p-6 border-b shrink-0">
                         <DialogTitle className="text-xl font-black text-gray-900">Configure Data Dump</DialogTitle>
-                        <DialogDescription>Map Excel sheets to specific periods before importing into raw storage. Record dates must match selected periods.</DialogDescription>
+                        <DialogDescription>Select the Excel sheets to import. The system will automatically map records to the correct BS periods based on their AD dates.</DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="flex-1 p-6">
+                    <div className="p-6">
                         <div className="space-y-4">
-                            {availableSheets.map(sheet => {
-                                const selection = selectedSheets.find(s => s.name === sheet.name);
-                                return (
-                                    <div key={sheet.name} className={cn(
-                                        "p-4 rounded-xl border-2 transition-all",
-                                        selection ? "border-primary bg-primary/5 shadow-sm" : "border-gray-100 bg-gray-50/50"
-                                    )}>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <Checkbox id={`check-${sheet.name}`} checked={!!selection} onCheckedChange={(v) => {
-                                                    if (v) setSelectedSheets([...selectedSheets, { name: sheet.name, periods: [{ year: selectedYear, month: selectedMonth }] }]);
-                                                    else setSelectedSheets(selectedSheets.filter(s => s.name !== sheet.name));
-                                                }} />
-                                                <Label htmlFor={`check-${sheet.name}`} className="font-black text-sm">{sheet.name}</Label>
-                                            </div>
-                                            <Badge variant="secondary" className="uppercase text-[9px] font-black">{sheet.rowCount} rows</Badge>
-                                        </div>
-                                        {selection && (
-                                            <div className="space-y-4 animate-in fade-in slide-in-from-top-1">
-                                                {selection.periods.map((period, pIdx) => (
-                                                    <div key={pIdx} className="flex gap-4 items-end">
-                                                        <div className="space-y-1 flex-1">
-                                                            <Label className="text-[9px] font-black uppercase text-muted-foreground">Target BS Year</Label>
-                                                            <Select value={period.year} onValueChange={(v) => {
-                                                                const newPeriods = [...selection.periods];
-                                                                newPeriods[pIdx] = { ...newPeriods[pIdx], year: v };
-                                                                setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, periods: newPeriods } : s));
-                                                            }}>
-                                                                <SelectTrigger className="h-8 bg-white"><SelectValue /></SelectTrigger>
-                                                                <SelectContent>{[2080, 2081, 2082].map(y => <SelectItem key={`sel-year-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                        <div className="space-y-1 flex-1">
-                                                            <Label className="text-[9px] font-black uppercase text-muted-foreground">Target BS Month</Label>
-                                                            <Select value={period.month} onValueChange={(v) => {
-                                                                const newPeriods = [...selection.periods];
-                                                                newPeriods[pIdx] = { ...newPeriods[pIdx], month: v };
-                                                                setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, periods: newPeriods } : s));
-                                                            }}>
-                                                                <SelectTrigger className="h-8 bg-white"><SelectValue /></SelectTrigger>
-                                                                <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`sel-month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                        {selection.periods.length > 1 && (
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => {
-                                                                const newPeriods = selection.periods.filter((_, i) => i !== pIdx);
-                                                                setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, periods: newPeriods } : s));
-                                                            }}>
-                                                                <X className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="sm" 
-                                                    className="h-7 text-[10px] uppercase font-black text-primary hover:bg-primary/5"
-                                                    onClick={() => {
-                                                        const newPeriods = [...selection.periods, { year: selectedYear, month: selectedMonth }];
-                                                        setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, periods: newPeriods } : s));
-                                                    }}
-                                                >
-                                                    <Plus className="mr-1 h-3 w-3" /> Add Target Period
-                                                </Button>
-                                            </div>
-                                        )}
+                            {availableSheets.map(sheet => (
+                                <div key={sheet.name} className={cn(
+                                    "p-4 rounded-xl border-2 transition-all flex items-center justify-between",
+                                    selectedSheets.includes(sheet.name) ? "border-primary bg-primary/5 shadow-sm" : "border-gray-100 bg-gray-50/50"
+                                )}>
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox id={`check-${sheet.name}`} checked={selectedSheets.includes(sheet.name)} onCheckedChange={(v) => {
+                                            if (v) setSelectedSheets([...selectedSheets, sheet.name]);
+                                            else setSelectedSheets(selectedSheets.filter(s => s !== sheet.name));
+                                        }} />
+                                        <Label htmlFor={`check-${sheet.name}`} className="font-black text-sm">{sheet.name}</Label>
                                     </div>
-                                );
-                            })}
+                                    <Badge variant="secondary" className="uppercase text-[9px] font-black">{sheet.rowCount} rows detected</Badge>
+                                </div>
+                            ))}
                         </div>
-                    </ScrollArea>
+                    </div>
                     <DialogFooter className="p-6 border-t bg-muted/5 shrink-0">
                         <Button variant="outline" onClick={() => setIsImportDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest">Cancel</Button>
                         <Button onClick={handleConfirmImport} disabled={selectedSheets.length === 0} className="font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20 px-8">
-                            Confirm Data Dump
+                            Start Automatic Import
                         </Button>
                     </DialogFooter>
                 </DialogContent>
