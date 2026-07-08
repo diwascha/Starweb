@@ -108,12 +108,14 @@ export const addRawMachineLogs = async (
     onProgress: (progress: number) => void
 ): Promise<{ logCount: number }> => {
     const { db } = getFirebase();
-    const importId = generateId();
+    const importId = generateLocalId();
     const now = createTimestamp();
     const CHUNK_SIZE = 400;
 
     try {
         const { processedData } = processAttendanceImport(jsonData, allowedPeriods);
+
+        if (processedData.length === 0) return { logCount: 0 };
 
         const logs: Omit<RawMachineLog, 'id'>[] = processedData.map(p => ({
             date: p.dateADISO,
@@ -167,16 +169,13 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const config = configSetting?.value as HrConfig;
     if (!config) throw new Error("HR Operational Rules not found. Please configure them in HR Office.");
 
-    // 1. Fetch Raw Logs for the period
     const qRaw = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const rawSnap = await getDocs(qRaw);
     if (rawSnap.empty) throw new Error("No raw machine logs found for selected period.");
 
-    // 2. Fetch Employees to map IDs
     const employees = await getEmployees();
     const employeeMap = new Map(employees.map(e => [e.name.toLowerCase(), e]));
 
-    // 3. Clear existing processed records for this period (Fault Isolation)
     const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const processedSnap = await getDocs(qProcessed);
     if (!processedSnap.empty) {
@@ -185,7 +184,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         await deleteBatch.commit();
     }
 
-    // 4. Run Calculation Loop
     const results: Omit<AttendanceRecord, 'id'>[] = [];
     const now = createTimestamp();
 
@@ -290,6 +288,6 @@ export const deleteAttendanceForMonth = async (year: number, month: number) => {
     await batch.commit();
 };
 
-function generateId(): string {
+function generateLocalId(): string {
     return Math.random().toString(36).substring(2, 11);
 }

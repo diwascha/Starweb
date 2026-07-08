@@ -21,10 +21,10 @@ export type CalcAttendanceRow = RawAttendanceRow & {
   bsYear: number;
   bsMonth: number;
   weekdayAD: number;              // 0=Sun..6=Sat
-  status: string; // Keep status as a string from the sheet
+  status: string; 
   regularHours: number;
   overtimeHours: number;
-  rawImportData: Record<string, any>; // To store the original row
+  rawImportData: Record<string, any>; 
 };
 
 
@@ -40,9 +40,8 @@ function parseTimeToString(timeInput: any): string | null {
     }
 
     const t = String(timeInput).trim();
-    if (t === '-' || t === '') return null;
+    if (t === '-' || t === '' || t.toLowerCase() === 'null') return null;
     
-    // Handle Excel's time format (decimal number)
     const numericTime = parseFloat(t);
     if (!isNaN(numericTime) && numericTime < 1 && numericTime > 0) {
         const totalSeconds = Math.round(numericTime * 86400);
@@ -52,7 +51,6 @@ function parseTimeToString(timeInput: any): string | null {
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
 
-    // Handle string formats
     const formats = ['h:mm:ss a', 'h:mm a', 'HH:mm:ss', 'HH:mm'];
     for (const f of formats) {
         try {
@@ -63,7 +61,7 @@ function parseTimeToString(timeInput: any): string | null {
         } catch {}
     }
     
-    return t; // Return original string if parsing fails
+    return t; 
 }
 
 
@@ -71,9 +69,7 @@ const parseExcelDate = (dateInput: any): Date | null => {
     if (!dateInput) return null;
     if (dateInput instanceof Date && isValid(dateInput)) return dateInput;
 
-    // Prioritize Excel's numeric date format (most reliable)
     if (typeof dateInput === 'number') {
-        // Excel date (serial number) to JS Date. 25569 is the offset between Excel's epoch and Unix's.
         const date = new Date((dateInput - 25569) * 86400 * 1000);
         if (isValid(date)) return date;
     }
@@ -83,14 +79,11 @@ const parseExcelDate = (dateInput: any): Date | null => {
         const formatsToTry = [
             'yyyy-MM-dd', 
             'yyyy/MM/dd',
-            'dd-MMM-yyyy',
-            'MMMM d, yyyy',
-            'MM/dd/yyyy',
             'dd/MM/yyyy',
+            'MM/dd/yyyy',
+            'dd-MMM-yyyy',
             'dd-MM-yyyy',
-            'M/d/yy',
-            'dd/MM/yy', 
-            'MM/dd/yy'
+            'MM-dd-yyyy'
         ];
         for (const fmt of formatsToTry) {
             try {
@@ -106,61 +99,63 @@ const parseExcelDate = (dateInput: any): Date | null => {
 
 
 /* =========================
-   Core calculator
+   Core processor
    ========================= */
 export const processAttendanceImport = (
     jsonData: any[][], 
     allowedPeriods: ImportPeriod[]
 ): { processedData: CalcAttendanceRow[], skippedCount: number } => {
-    
-    const headerRow = jsonData[0].slice(0, 16); 
+    if (!jsonData || jsonData.length < 2) return { processedData: [], skippedCount: 0 };
+
+    const headerRow = jsonData[0]; 
     const dataRows = jsonData.slice(1);
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
-    const originalHeaders = headerRow.map(h => String(h || '').trim());
     
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string[] } = {
-        dateAD: ['date'],
-        bsDate: ['bs date'],
-        employeeName: ['name'],
-        weekday: ['weekday'],
-        onDuty: ['on duty'],
-        offDuty: ['off duty'],
-        clockIn: ['clock in'],
-        clockOut: ['clock out'],
-        status: ['absent'], 
-        overtimeHours: ['overtime', 'ot'],
-        regularHours: ['regular hours', 'normal hrs'],
-        remarks: ['remarks'],
+        dateAD: ['date (ad dates)', 'date ad', 'date'],
+        employeeName: ['employee name', 'name'],
+        onDuty: ['on duty (shift start time)', 'on duty', 'on-duty'],
+        offDuty: ['off duty (shift end time)', 'off duty', 'off-duty'],
+        clockIn: ['clock in (employee came)', 'clock in', 'in time', 'check-in'],
+        clockOut: ['clock out (employee left)', 'clock out', 'out time', 'check-out'],
+        status: ['absent', 'status'], 
+        overtimeHours: ['overtime', 'ot hours', 'ot'],
+        regularHours: ['regular hours', 'normal hrs', 'normal hours'],
+        remarks: ['remarks', 'notes'],
     };
 
     const headerMap: { [key: string]: number } = {};
     for (const key in headerMapConfig) {
-        const headerNames = headerMapConfig[key as keyof RawAttendanceRow];
-        for (const headerName of headerNames) {
-            const index = normalizedHeaders.indexOf(headerName);
-            if (index !== -1) {
-                headerMap[key] = index;
-                break;
-            }
+        const aliases = headerMapConfig[key as keyof RawAttendanceRow];
+        // 1. Try Exact match
+        let index = normalizedHeaders.findIndex(h => aliases.includes(h));
+        
+        // 2. Try Partial match if no exact match found
+        if (index === -1) {
+            index = normalizedHeaders.findIndex(h => 
+                aliases.some(alias => h.includes(alias))
+            );
+        }
+
+        if (index !== -1) {
+            headerMap[key] = index;
         }
     }
 
     let skippedCount = 0;
 
     const processedData = dataRows.map((rowArray): CalcAttendanceRow | null => {
-        const rowSlice = rowArray.slice(0, 16);
-        const rawImportData: Record<string, any> = {};
+        if (!rowArray || rowArray.length === 0) return null;
         
-        rowSlice.forEach((cell, index) => {
-            if (originalHeaders[index]) {
-                rawImportData[originalHeaders[index]] = cell;
-            }
+        const rawImportData: Record<string, any> = {};
+        headerRow.forEach((h, i) => {
+            if (h) rawImportData[String(h)] = rowArray[i];
         });
         
         const row: RawAttendanceRow = {};
         for (const key in headerMap) {
-            row[key as keyof RawAttendanceRow] = rowSlice[headerMap[key as keyof RawAttendanceRow]!];
+            row[key as keyof RawAttendanceRow] = rowArray[headerMap[key]];
         }
 
         const employeeName = String(row.employeeName || '').trim();
@@ -176,20 +171,15 @@ export const processAttendanceImport = (
         const year = nepaliDate.getYear();
         const month = nepaliDate.getMonth();
 
+        // Single-pass filter: Only keep if it matches one of the requested target periods
         const isAllowed = allowedPeriods.some(p => p.year === year && p.month === month);
-        if (!isAllowed) {
-            return null; 
-        }
-
-        const dateBS = nepaliDate.format('YYYY-MM-DD');
-        const regularHours: number = parseFloat(String(row.regularHours)) || 0;
-        const overtimeHours: number = parseFloat(String(row.overtimeHours)) || 0;
+        if (!isAllowed) return null; 
 
         return {
           ...row,
           employeeName: employeeName,
-          dateADISO: format(adFromSheet, 'yyyy-MM-dd'),
-          dateBS: dateBS,
+          dateADISO: adFromSheet.toISOString(),
+          dateBS: nepaliDate.format('YYYY/MM/DD'),
           bsYear: year,
           bsMonth: month,
           weekdayAD: adFromSheet.getDay(),
@@ -198,12 +188,12 @@ export const processAttendanceImport = (
           clockIn: parseTimeToString(row.clockIn), 
           clockOut: parseTimeToString(row.clockOut),
           status: String(row.status || '').trim(),
-          regularHours: regularHours,
-          overtimeHours: overtimeHours,
+          regularHours: parseFloat(String(row.regularHours || 0)) || 0,
+          overtimeHours: parseFloat(String(row.overtimeHours || 0)) || 0,
           remarks: String(row.remarks || '').trim(),
           rawImportData: rawImportData,
         };
-    }).filter(item => item !== null) as CalcAttendanceRow[];
+    }).filter((item): item is CalcAttendanceRow => item !== null);
     
     return {
         processedData,
