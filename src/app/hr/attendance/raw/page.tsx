@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -15,7 +16,9 @@ import {
     FilterX,
     ArrowUpDown,
     Edit,
-    Clock
+    Clock,
+    PlusCircle,
+    CheckCircle2
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,12 +28,13 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog, deleteRawLogsForMonth, deleteAllRawLogs, updateRawLog } from '@/services/attendance-service';
+import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog, deleteRawLogsForMonth, deleteAllRawLogs, updateRawLog, addBulkManualLogs } from '@/services/attendance-service';
+import { onEmployeesUpdate } from '@/services/employee-service';
 import { onHolidaysUpdate, onLeaveRequestsUpdate } from '@/services/hr-admin-service';
 import { cn, toNepaliDate, formatTimeForDisplay, getAttendanceBadgeVariant } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
-import type { PublicHoliday, LeaveRequest } from '@/lib/types';
+import type { PublicHoliday, LeaveRequest, Employee, RawMachineLog } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -49,6 +53,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import type { DateRange } from 'react-day-picker';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -58,7 +64,8 @@ export default function RawMachineLogsPage() {
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [logs, setLogs] = useState<any[]>([]);
+    const [logs, setLogs] = useState<RawMachineLog[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -78,6 +85,13 @@ export default function RawMachineLogsPage() {
     const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
     const [overwriteExisting, setOverwriteExisting] = useState(false);
 
+    // Bulk Entry Dialog
+    const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+    const [bulkDateRange, setBulkDateRange] = useState<DateRange | undefined>(undefined);
+    const [bulkEmployeeNames, setBulkEmployeeNames] = useState<string[]>([]);
+    const [bulkTimes, setBulkTimes] = useState({ onDuty: '09:00:00', offDuty: '17:00:00', clockIn: '09:00:00', clockOut: '17:00:00', remarks: 'Manual Attendance Entry' });
+    const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
+
     // Edit Dialog
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingLog, setEditingLog] = useState<any>(null);
@@ -87,6 +101,7 @@ export default function RawMachineLogsPage() {
         setIsLoading(true);
         const unsubHolidays = onHolidaysUpdate(setHolidays);
         const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
+        const unsubEmployees = onEmployeesUpdate(setEmployees);
         const unsubLogs = onRawLogsUpdate((data) => {
             setLogs(data);
             setIsLoading(false);
@@ -94,6 +109,7 @@ export default function RawMachineLogsPage() {
         return () => {
             unsubHolidays();
             unsubLeaves();
+            unsubEmployees();
             unsubLogs();
         };
     }, []);
@@ -245,6 +261,31 @@ export default function RawMachineLogsPage() {
         }
     };
 
+    const handleBulkSubmit = async () => {
+        if (!user || !bulkDateRange?.from || !bulkDateRange?.to || bulkEmployeeNames.length === 0) {
+            toast({ title: 'Validation Error', description: 'Please select date range and at least one employee.', variant: 'destructive' });
+            return;
+        }
+
+        setIsSubmittingBulk(true);
+        try {
+            const count = await addBulkManualLogs(
+                { from: bulkDateRange.from, to: bulkDateRange.to },
+                bulkEmployeeNames,
+                bulkTimes,
+                user.username
+            );
+            toast({ title: 'Bulk Entry Success', description: `Successfully recorded ${count} logs for ${bulkEmployeeNames.length} employees.` });
+            setIsBulkDialogOpen(false);
+            setBulkDateRange(undefined);
+            setBulkEmployeeNames([]);
+        } catch (error: any) {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsSubmittingBulk(false);
+        }
+    };
+
     const handleClearAll = async () => {
         setIsCleaningAll(true);
         try {
@@ -356,6 +397,9 @@ export default function RawMachineLogsPage() {
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
+                    <Button variant="outline" onClick={() => setIsBulkDialogOpen(true)} className="h-10 font-bold uppercase text-xs tracking-widest border-primary/20 text-primary hover:bg-primary/5">
+                        <PlusCircle className="mr-2 h-4 w-4" /> Bulk Entry
+                    </Button>
                     <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls" />
                     <Button onClick={() => fileInputRef.current?.click()} disabled={!!importProgress} className="h-10 font-bold uppercase text-xs tracking-widest shadow-lg">
                         {importProgress ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
@@ -454,8 +498,12 @@ export default function RawMachineLogsPage() {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-blue-600">{formatTimeForDisplay(l.clockIn)}</span>
-                                                <span className="font-bold text-blue-600">{formatTimeForDisplay(l.clockOut)}</span>
+                                                <span className={cn("font-bold", l.isManual ? "text-indigo-600 font-black" : "text-blue-600")}>
+                                                    {formatTimeForDisplay(l.clockIn)}
+                                                </span>
+                                                <span className={cn("font-bold", l.isManual ? "text-indigo-600 font-black" : "text-blue-600")}>
+                                                    {formatTimeForDisplay(l.clockOut)}
+                                                </span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center">
@@ -493,6 +541,91 @@ export default function RawMachineLogsPage() {
                     </ScrollArea>
                 </CardContent>
             </Card>
+
+            {/* Bulk Entry Dialog */}
+            <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+                <DialogContent className="sm:max-w-3xl max-h-[95vh] flex flex-col p-0 shadow-2xl border-none">
+                    <DialogHeader className="p-6 border-b bg-indigo-50/30 shrink-0">
+                        <DialogTitle className="text-2xl font-black text-gray-900 uppercase tracking-tight">Manual Bulk Entry</DialogTitle>
+                        <DialogDescription className="text-xs font-bold uppercase tracking-widest text-indigo-600">HR Direct Input Module</DialogDescription>
+                    </DialogHeader>
+                    
+                    <ScrollArea className="flex-1 p-6 bg-gray-50/30">
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-4">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">1. Select Target Period</Label>
+                                    <div className="flex justify-center border rounded-xl p-2 bg-white shadow-inner">
+                                        <DualDateRangePicker selected={bulkDateRange} onSelect={setBulkDateRange} />
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-4">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">2. Configure Schedule & Times</Label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[9px] font-bold uppercase text-muted-foreground">On Duty (Ref)</Label>
+                                            <Input type="time" value={bulkTimes.onDuty} onChange={e => setBulkTimes({...bulkTimes, onDuty: e.target.value})} className="h-9 bg-white" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[9px] font-bold uppercase text-muted-foreground">Off Duty (Ref)</Label>
+                                            <Input type="time" value={bulkTimes.offDuty} onChange={e => setBulkTimes({...bulkTimes, offDuty: e.target.value})} className="h-9 bg-white" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[9px] font-black uppercase text-indigo-600">Clock In (Actual)</Label>
+                                            <Input type="time" value={bulkTimes.clockIn} onChange={e => setBulkTimes({...bulkTimes, clockIn: e.target.value})} className="h-9 border-indigo-200 bg-white focus-visible:ring-indigo-500 font-black" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[9px] font-black uppercase text-indigo-600">Clock Out (Actual)</Label>
+                                            <Input type="time" value={bulkTimes.clockOut} onChange={e => setBulkTimes({...bulkTimes, clockOut: e.target.value})} className="h-9 border-indigo-200 bg-white focus-visible:ring-indigo-500 font-black" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[9px] font-bold uppercase text-muted-foreground">Audit Remark</Label>
+                                        <Input value={bulkTimes.remarks} onChange={e => setBulkTimes({...bulkTimes, remarks: e.target.value})} className="h-9 bg-white" placeholder="Reason for manual entry..." />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between px-1">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">3. Select Employees ({bulkEmployeeNames.length} selected)</Label>
+                                    <div className="flex items-center gap-2">
+                                         <Button variant="ghost" size="sm" onClick={() => setBulkEmployeeNames(employees.map(e => e.name))} className="h-6 text-[9px] font-black uppercase text-indigo-600 hover:bg-indigo-50">Select All</Button>
+                                         <Button variant="ghost" size="sm" onClick={() => setBulkEmployeeNames([])} className="h-6 text-[9px] font-black uppercase text-muted-foreground hover:bg-muted">Clear</Button>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                    {employees.map(e => (
+                                        <div key={e.id} className={cn(
+                                            "flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer",
+                                            bulkEmployeeNames.includes(e.name) ? "bg-indigo-600 border-indigo-600 text-white shadow-md" : "bg-white border-gray-100 hover:border-indigo-200 text-gray-700"
+                                        )} onClick={() => {
+                                            if (bulkEmployeeNames.includes(e.name)) setBulkEmployeeNames(bulkEmployeeNames.filter(n => n !== e.name));
+                                            else setBulkEmployeeNames([...bulkEmployeeNames, e.name]);
+                                        }}>
+                                            <Checkbox checked={bulkEmployeeNames.includes(e.name)} onCheckedChange={() => {}} className={bulkEmployeeNames.includes(e.name) ? "border-white data-[state=checked]:bg-white data-[state=checked]:text-indigo-600" : ""} />
+                                            <span className="text-[11px] font-bold truncate">{e.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </ScrollArea>
+                    
+                    <DialogFooter className="p-6 border-t bg-white shrink-0">
+                        <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest h-11 border-gray-300">Cancel</Button>
+                        <Button 
+                            onClick={handleBulkSubmit} 
+                            disabled={isSubmittingBulk || !bulkDateRange?.from || bulkEmployeeNames.length === 0}
+                            className="font-black uppercase text-[10px] tracking-widest h-11 shadow-xl shadow-indigo-500/20 bg-indigo-600 hover:bg-indigo-700 text-white px-10"
+                        >
+                            {isSubmittingBulk ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle2 className="mr-2 h-4 w-4"/>}
+                            Commit Bulk Manual Entries
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Edit Log Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

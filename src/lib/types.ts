@@ -269,6 +269,7 @@ export interface RawMachineLog {
     sourceSheet: string;
     rawPayload: Record<string, any>;
     rowIndex?: number; // Preserves Excel row order
+    isManual?: boolean;
 }
 
 export interface AttendanceRecord {

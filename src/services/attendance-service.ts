@@ -92,6 +92,7 @@ const fromFirestoreLog = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMac
         sourceSheet: data.sourceSheet,
         rawPayload: data.rawPayload,
         rowIndex: data.rowIndex,
+        isManual: !!data.isManual,
     };
 };
 
@@ -215,6 +216,73 @@ export const addRawMachineLogs = async (
         logServiceError('addRawMachineLogs', error);
         throw error;
     }
+};
+
+/**
+ * Records manual bulk entries directly into the raw machine dump.
+ */
+export const addBulkManualLogs = async (
+    dateRange: { from: Date, to: Date },
+    employeeNames: string[],
+    times: { onDuty: string, offDuty: string, clockIn: string, clockOut: string, remarks: string },
+    createdBy: string
+): Promise<number> => {
+    const { db } = getFirebase();
+    const now = createTimestamp();
+    const importId = `manual-bulk-${Date.now()}`;
+    const CHUNK_SIZE = 400;
+
+    const dates: Date[] = [];
+    let curr = startOfDay(new Date(dateRange.from));
+    const end = startOfDay(new Date(dateRange.to));
+    
+    while (curr <= end) {
+        dates.push(new Date(curr));
+        curr.setDate(curr.getDate() + 1);
+    }
+
+    const operations: { ref: any, data: any }[] = [];
+
+    employeeNames.forEach(name => {
+        dates.forEach(adDate => {
+            const nepaliDate = new NepaliDate(adDate);
+            const compositeKey = `${name.toLowerCase().replace(/\s+/g, '_')}_${adDate.toISOString()}`;
+            
+            const logData: Omit<RawMachineLog, 'id'> = {
+                date: adDate.toISOString(),
+                dateBS: nepaliDate.format('YYYY/MM/DD'),
+                bsYear: nepaliDate.getYear(),
+                bsMonth: nepaliDate.getMonth(),
+                employeeName: name,
+                onDuty: times.onDuty || null,
+                offDuty: times.offDuty || null,
+                clockIn: times.clockIn || null,
+                clockOut: times.clockOut || null,
+                statusFromMachine: (times.clockIn && times.clockOut) ? 'Present' : 'Absent',
+                regularHoursFromMachine: 0, 
+                overtimeHoursFromMachine: 0,
+                remarks: times.remarks || null,
+                importId,
+                importedAt: now,
+                importedBy: createdBy,
+                sourceSheet: 'Manual Bulk Entry',
+                rawPayload: {},
+                isManual: true,
+            };
+
+            const docRef = doc(getRawLogsCollection(), compositeKey);
+            operations.push({ ref: docRef, data: logData });
+        });
+    });
+
+    for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
+        const chunk = operations.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach(o => batch.set(o.ref, o.data));
+        await batch.commit();
+    }
+
+    return operations.length;
 };
 
 export const updateRawLog = async (id: string, updates: Partial<RawMachineLog>) => {
