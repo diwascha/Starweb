@@ -167,6 +167,10 @@ export default function AttendanceRegistryPage() {
     return filtered;
   }, [attendance, selectedBsYear, selectedBsMonth, sortConfig, searchQuery, filterEmployeeName, filterStatus]);
   
+  const sortedEmployeesForFilter = useMemo(() => {
+    return [...employees].sort((a, b) => a.name.localeCompare(b.name));
+  }, [employees]);
+
   const handleOpenEditDialog = (record: AttendanceRecord) => {
     setEditingRecord(record);
     setEditForm({
@@ -205,6 +209,12 @@ export default function AttendanceRegistryPage() {
     }
   };
 
+  const handleResetFilters = () => {
+    setFilterEmployeeName('All');
+    setFilterStatus('All');
+    setSearchQuery('');
+  };
+
   return (
     <div className="flex flex-col gap-8">
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -226,44 +236,79 @@ export default function AttendanceRegistryPage() {
         </header>
 
         <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-end bg-muted/20 p-4 rounded-xl border border-dashed">
-            <div className="space-y-1.5 w-[120px]">
+            <div className="space-y-1.5 w-[100px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
                 <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
                     <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
                     <SelectContent>{bsYears.map(y => <SelectItem key={`year-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                 </Select>
             </div>
-            <div className="space-y-1.5 w-[150px]">
+            <div className="space-y-1.5 w-[140px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
                 <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
                     <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
                     <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
                 </Select>
             </div>
-            <div className="space-y-1.5 flex-1 min-w-[200px]">
+            <div className="space-y-1.5 w-[180px]">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employee</Label>
+                <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}>
+                    <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Employees" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Employees</SelectItem>
+                        {sortedEmployeesForFilter.map(e => <SelectItem key={`filter-emp-${e.id}`} value={e.name}>{e.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="space-y-1.5 w-[150px]">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Status" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Status</SelectItem>
+                        <SelectItem value="Present">Present</SelectItem>
+                        <SelectItem value="Absent">Absent</SelectItem>
+                        <SelectItem value="Public Holiday">Public Holiday</SelectItem>
+                        <SelectItem value="Saturday">Saturday</SelectItem>
+                        <SelectItem value="Leave">Leave</SelectItem>
+                        <SelectItem value="C/I Miss">Clock In Missing</SelectItem>
+                        <SelectItem value="C/O Miss">Clock Out Missing</SelectItem>
+                        <SelectItem value="EXTRAOK">EXTRAOK</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="space-y-1.5 flex-1 min-w-[150px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Quick Search</Label>
                 <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search employee..." className="pl-8 h-9 text-xs bg-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
             </div>
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]">
-                        <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Clear Period
+            
+            <div className="flex items-center gap-2">
+                {(filterEmployeeName !== 'All' || filterStatus !== 'All' || searchQuery !== '') && (
+                    <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-9 text-muted-foreground hover:text-foreground font-bold uppercase text-[10px]">
+                        <FilterX className="mr-1.5 h-3.5 w-3.5" /> Reset
                     </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Clear Processed Records?</AlertDialogTitle>
-                        <AlertDialogDescription>This will remove all calculated work hours for this month. Raw machine data will be preserved.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteMonth} className="bg-destructive text-white">Clear Now</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                )}
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]">
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Clear Period
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Clear Processed Records?</AlertDialogTitle>
+                            <AlertDialogDescription>This will remove all calculated work hours for this month. Raw machine data will be preserved.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteMonth} className="bg-destructive text-white">Clear Now</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
         </div>
 
         <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
