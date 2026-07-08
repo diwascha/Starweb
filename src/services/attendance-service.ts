@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Attendance service handling raw machine logs and calculated labor metrics.
  */
@@ -25,7 +26,7 @@ import type { AttendanceRecord, RawMachineLog, Employee, HrConfig, HrShift } fro
 import NepaliDate from 'nepali-date-converter';
 import { processAttendanceImport } from '@/lib/attendance';
 import { getEmployees } from './employee-service';
-import { getHolidays, getLeaveRequests, onShiftsUpdate } from './hr-admin-service';
+import { getHolidays, getLeaveRequests } from './hr-admin-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
 import { getSetting } from './settings-service';
@@ -155,11 +156,16 @@ export const addRawMachineLogs = async (
             await employeeBatch.commit();
         }
 
-        // 2. Determine the scope (which periods are being imported)
+        // 2. Fetch System Default Shift for fallback
+        const shiftSnap = await getDocs(collection(db, 'hr_shifts'));
+        const allShifts = shiftSnap.docs.map(d => ({ id: d.id, ...d.data() } as HrShift));
+        const defaultShift = allShifts.find(s => s.isDefault) || allShifts[0];
+
+        // 3. Determine the scope (which periods are being imported)
         const periods = new Set<string>();
         processedData.forEach(p => periods.add(`${p.bsYear}-${p.bsMonth}`));
         
-        // 3. Fetch existing logs in those periods to check for duplicates
+        // 4. Fetch existing logs in those periods to check for duplicates
         const existingMap = new Map<string, RawMachineLog>();
         for (const period of Array.from(periods)) {
             const [y, m] = period.split('-').map(Number);
@@ -184,14 +190,18 @@ export const addRawMachineLogs = async (
             const compositeKey = `${p.employeeName.toLowerCase().replace(/\s+/g, '_')}_${dateKey}`;
             const existing = existingMap.get(compositeKey);
             
+            // Core Reconcilliation: Priority: Sheet -> HR Office Default
+            const finalOnDuty = p.onDuty || defaultShift?.onDuty || '09:00:00';
+            const finalOffDuty = p.offDuty || defaultShift?.offDuty || '17:00:00';
+
             const logData: Omit<RawMachineLog, 'id'> = {
                 date: p.dateADISO,
                 dateBS: p.dateBS,
                 bsYear: p.bsYear,
                 bsMonth: p.bsMonth,
                 employeeName: p.employeeName,
-                onDuty: p.onDuty,
-                offDuty: p.offDuty,
+                onDuty: finalOnDuty,
+                offDuty: finalOffDuty,
                 clockIn: p.clockIn,
                 clockOut: p.clockOut,
                 statusFromMachine: p.status,
@@ -381,10 +391,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const leaveRequests = await getLeaveRequests();
     const approvedLeaves = leaveRequests.filter(l => l.status === 'Approved');
     
-    const snapshotShifts = await getDocs(collection(db, 'hr_shifts'));
-    const allShifts = snapshotShifts.docs.map(d => ({ id: d.id, ...d.data() } as HrShift));
-    const defaultShift = allShifts.find(s => s.isDefault) || allShifts[0];
-
     // 3. Clear Existing Processed Records for this month
     const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const processedSnap = await getDocs(qProcessed);
@@ -414,11 +420,9 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
             );
 
             // Calculation Logic Priority:
-            // 1. Shift times from Machine Log (OnDuty/OffDuty)
-            // 2. Default Shift from HR Office
-            // 3. System hard-defaults
-            let onDutyRef = log.onDuty || defaultShift?.onDuty || '09:00';
-            let offDutyRef = log.offDuty || defaultShift?.offDuty || '17:00';
+            // Shift timings from Raw Log (which now defaults to HR Office shift if sheet was empty)
+            let onDutyRef = log.onDuty || '09:00:00';
+            let offDutyRef = log.offDuty || '17:00:00';
 
             let reg = log.regularHoursFromMachine;
             let ot = log.overtimeHoursFromMachine;
@@ -438,12 +442,10 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
             } else if (logDate.getDay() === 6) {
                 finalStatus = 'Saturday';
                 finalRemarks = 'Weekly Off (Saturday)';
-                // If they actually worked on Saturday, it's all OT usually, but here we record reg for base pay if applicable
                 if (reg === 0 && (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK')) {
                     reg = config.hours.baseDayHours;
                 }
             } else {
-                // Standard weekday calculation logic
                 if (reg === 0 && (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK')) {
                     reg = config.hours.baseDayHours;
                 }
@@ -538,7 +540,3 @@ export const deleteAttendanceForMonth = async (year: number, month: number) => {
     snap.forEach(d => batch.delete(d.ref));
     await batch.commit();
 };
-
-function generateLocalId(): string {
-    return Math.random().toString(36).substring(2, 11);
-}
