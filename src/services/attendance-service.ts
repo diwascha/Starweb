@@ -174,7 +174,7 @@ export const addRawMachineLogs = async (
             if (!exists) {
                 const shiftRef = doc(collection(db, 'hr_shifts'));
                 const newShift: Omit<HrShift, 'id'> = {
-                    name: `Machine: ${on}-${off}`,
+                    name: `Log Discovery: ${on}-${off}`,
                     onDuty: `${on}:00`,
                     offDuty: `${off}:00`,
                     breakStart: '12:00:00',
@@ -475,33 +475,73 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                     reg = config.hours.baseDayHours;
                 }
             } else if (log.clockIn && log.clockOut) {
-                // APPLY HR OFFICE RULES: Grace and Rounding
+                // APPLY HR OFFICE RULES: Grace, Rounding, and Strict OT Classification
                 const sOn = parse(log.onDuty || '09:00:00', 'HH:mm:ss', new Date());
                 const sOff = parse(log.offDuty || '17:00:00', 'HH:mm:ss', new Date());
                 let aIn = parse(log.clockIn, 'HH:mm:ss', new Date());
                 let aOut = parse(log.clockOut, 'HH:mm:ss', new Date());
                 
-                // 1. Grace Period Arrival
-                const lateMins = differenceInMinutes(aIn, sOn);
-                if (lateMins > 0 && lateMins <= config.hours.graceMin) {
+                // Track original punches for OT audit
+                const rawIn = log.clockIn;
+                const rawOut = log.clockOut;
+
+                // 1. Arrival Logic (Grace Period)
+                // If arrived before shift start or within grace: Align to Shift Start.
+                const arrivalLateMins = differenceInMinutes(aIn, sOn);
+                if (arrivalLateMins <= config.hours.graceMin) {
                     aIn = sOn; 
                 }
                 
-                // 2. Grace Period Departure
-                const earlyMins = differenceInMinutes(sOff, aOut);
-                if (earlyMins > 0 && earlyMins <= config.hours.graceMin) {
+                // 2. Departure Logic (Grace Period)
+                // If left early within grace: Align to Shift End.
+                const departureEarlyMins = differenceInMinutes(sOff, aOut);
+                if (departureEarlyMins >= 0 && departureEarlyMins <= config.hours.graceMin) {
                     aOut = sOff;
                 }
 
-                let workedMins = differenceInMinutes(aOut, aIn);
-                if (workedMins < 0) workedMins += 1440; // Cross midnight
+                // 3. Regular Hours Calculation
+                // Rule: Regular hours are ONLY earned between shift boundaries.
+                // Arriving early does NOT count toward Normal hours span.
+                const effectiveRegIn = aIn > sOn ? aIn : sOn;
+                const effectiveRegOut = aOut < sOff ? aOut : sOff;
                 
-                // 3. Rounding Step Logic
-                const rawHrs = workedMins / 60;
-                const roundedHrs = Math.floor(rawHrs / config.hours.roundStep) * config.hours.roundStep;
+                let workedRegMins = differenceInMinutes(effectiveRegOut, effectiveRegIn);
+                if (workedRegMins < 0) workedRegMins = 0;
                 
-                reg = Math.min(roundedHrs, config.hours.baseDayHours);
-                ot = Math.max(0, roundedHrs - config.hours.baseDayHours);
+                // Break Deduction
+                let shiftSpanMins = differenceInMinutes(sOff, sOn);
+                if (shiftSpanMins < 0) shiftSpanMins += 1440;
+                const breakMins = Math.max(0, shiftSpanMins - (config.hours.baseDayHours * 60));
+                
+                if (workedRegMins > (shiftSpanMins / 2)) {
+                    workedRegMins -= breakMins;
+                }
+
+                const rawRegHrs = Math.max(0, workedRegMins / 60);
+                reg = Math.floor(rawRegHrs / config.hours.roundStep) * config.hours.roundStep;
+                reg = Math.min(reg, config.hours.baseDayHours);
+
+                // 4. Overtime Logic (Strict Compliance with blockMin)
+                // Rule: OT is earned ONLY by staying late beyond Shift End.
+                // Early arrival (before Shift Start) does NOT trigger OT.
+                let extraStayMins = differenceInMinutes(parse(rawOut, 'HH:mm:ss', new Date()), sOff);
+                if (extraStayMins < 0) extraStayMins = 0;
+                
+                if (extraStayMins >= config.hours.blockMin) {
+                    const rawOtHrs = extraStayMins / 60;
+                    ot = Math.floor(rawOtHrs / config.hours.roundStep) * config.hours.roundStep;
+                } else {
+                    ot = 0;
+                }
+
+                // Audit Remarks
+                if (arrivalLateMins > config.hours.graceMin) {
+                    finalRemarks = finalRemarks ? `${finalRemarks}; Late ${arrivalLateMins}m` : `Late ${arrivalLateMins}m`;
+                }
+                if (departureEarlyMins > config.hours.graceMin) {
+                    finalRemarks = finalRemarks ? `${finalRemarks}; Early exit ${departureEarlyMins}m` : `Early exit ${departureEarlyMins}m`;
+                }
+                
                 finalStatus = 'Present';
             } else if (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK') {
                 reg = config.hours.baseDayHours;
