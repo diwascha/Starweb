@@ -217,6 +217,25 @@ export const processAttendanceImport = (
             statusStr = (clockIn || clockOut) ? 'Present' : 'Absent';
         }
 
+        // --- ENHANCED REMARK & STATUS LOGIC ---
+        let generatedRemark = String(row.remarks || '').trim();
+        if (generatedRemark === '-' || generatedRemark === 'null') generatedRemark = '';
+
+        if (!clockIn && !clockOut) {
+            // Both missing = Absent
+            statusStr = 'Absent';
+        } else if (!clockIn) {
+            // Only Clock In missing
+            statusStr = 'C/I Miss';
+            const missingNote = 'Clock In Missing';
+            generatedRemark = generatedRemark ? `${generatedRemark}; ${missingNote}` : missingNote;
+        } else if (!clockOut) {
+            // Only Clock Out missing
+            statusStr = 'C/O Miss';
+            const missingNote = 'Clock Out Missing';
+            generatedRemark = generatedRemark ? `${generatedRemark}; ${missingNote}` : missingNote;
+        }
+
         return {
           ...row,
           employeeName: employeeName,
@@ -232,7 +251,7 @@ export const processAttendanceImport = (
           status: statusStr,
           regularHours: parseFloat(String(row.regularHours || 0)) || 0,
           overtimeHours: parseFloat(String(row.overtimeHours || 0)) || 0,
-          remarks: String(row.remarks || '').trim(),
+          remarks: generatedRemark,
           rawImportData: rawImportData,
         };
     }).filter((item): item is CalcAttendanceRow => item !== null);
