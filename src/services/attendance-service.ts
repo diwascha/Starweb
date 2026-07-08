@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Attendance service handling raw machine logs and calculated labor metrics.
  */
@@ -220,11 +219,12 @@ export const addRawMachineLogs = async (
 
 /**
  * Records manual bulk entries directly into the raw machine dump.
+ * Uses merge: true to avoid overwriting existing shift schedules (onDuty/offDuty).
  */
 export const addBulkManualLogs = async (
     dateRange: { from: Date, to: Date },
     employeeNames: string[],
-    times: { onDuty: string, offDuty: string, clockIn: string, clockOut: string, remarks: string },
+    times: { clockIn: string, clockOut: string, remarks: string, punchMode: 'BOTH' | 'IN_ONLY' | 'OUT_ONLY' },
     createdBy: string
 ): Promise<number> => {
     const { db } = getFirebase();
@@ -249,17 +249,13 @@ export const addBulkManualLogs = async (
             const dateKey = format(adDate, 'yyyy-MM-dd');
             const compositeKey = `${name.toLowerCase().replace(/\s+/g, '_')}_${dateKey}`;
             
-            const logData: Omit<RawMachineLog, 'id'> = {
+            const logData: Partial<RawMachineLog> = {
                 date: adDate.toISOString(),
                 dateBS: nepaliDate.format('YYYY/MM/DD'),
                 bsYear: nepaliDate.getYear(),
                 bsMonth: nepaliDate.getMonth(),
                 employeeName: name,
-                onDuty: times.onDuty || null,
-                offDuty: times.offDuty || null,
-                clockIn: times.clockIn || null,
-                clockOut: times.clockOut || null,
-                statusFromMachine: (times.clockIn && times.clockOut) ? 'Present' : 'Absent',
+                statusFromMachine: (times.punchMode === 'BOTH' && times.clockIn && times.clockOut) ? 'Present' : 'Absent',
                 regularHoursFromMachine: 0, 
                 overtimeHoursFromMachine: 0,
                 remarks: times.remarks || null,
@@ -271,6 +267,14 @@ export const addBulkManualLogs = async (
                 isManual: true,
             };
 
+            // Only include clock times based on mode to allow merging with existing records
+            if (times.punchMode === 'BOTH' || times.punchMode === 'IN_ONLY') {
+                logData.clockIn = times.clockIn || null;
+            }
+            if (times.punchMode === 'BOTH' || times.punchMode === 'OUT_ONLY') {
+                logData.clockOut = times.clockOut || null;
+            }
+
             const docRef = doc(getRawLogsCollection(), compositeKey);
             operations.push({ ref: docRef, data: logData });
         });
@@ -279,7 +283,7 @@ export const addBulkManualLogs = async (
     for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
         const chunk = operations.slice(i, i + CHUNK_SIZE);
         const batch = writeBatch(db);
-        chunk.forEach(o => batch.set(o.ref, o.data));
+        chunk.forEach(o => batch.set(o.ref, o.data, { merge: true }));
         await batch.commit();
     }
 

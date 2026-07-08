@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -97,8 +96,6 @@ export default function RawMachineLogsPage() {
     const [bulkEmployeeNames, setBulkEmployeeNames] = useState<string[]>([]);
     const [bulkTimes, setBulkTimes] = useState({ 
         punchMode: 'BOTH' as 'BOTH' | 'IN_ONLY' | 'OUT_ONLY',
-        onDuty: '09:00', 
-        offDuty: '17:00', 
         clockIn: '09:00', 
         clockOut: '17:00', 
         remarks: 'Manual Entry' 
@@ -286,9 +283,12 @@ export default function RawMachineLogsPage() {
 
         setIsSubmittingBulk(true);
         try {
-            const finalTimes = { ...bulkTimes };
-            if (bulkTimes.punchMode === 'IN_ONLY') (finalTimes as any).clockOut = null;
-            if (bulkTimes.punchMode === 'OUT_ONLY') (finalTimes as any).clockIn = null;
+            const finalTimes = { 
+                clockIn: bulkTimes.clockIn,
+                clockOut: bulkTimes.clockOut,
+                remarks: bulkTimes.remarks,
+                punchMode: bulkTimes.punchMode
+            };
 
             const count = await addBulkManualLogs(
                 { from, to },
