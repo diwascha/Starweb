@@ -34,7 +34,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, startOfDay, isEqual, isWithinInterval } from 'date-fns';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComp, AlertDialogFooter as AlertDialogFooterComp } from '@/components/ui/alert-dialog';
+import { 
+    AlertDialog, 
+    AlertDialogAction, 
+    AlertDialogCancel, 
+    AlertDialogContent, 
+    AlertDialogDescription, 
+    AlertDialogFooter, 
+    AlertDialogHeader, 
+    AlertDialogTitle, 
+    AlertDialogTrigger 
+} from '@/components/ui/alert-dialog';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -242,7 +252,7 @@ export default function RawMachineLogsPage() {
             if (selectedRemark !== 'All') {
                 const remark = getDisplayRemark(l).toLowerCase();
                 
-                if (selectedRemark === 'Missing Punches') {
+                if (selectedRemark === 'Missing Clock In/Out') {
                     const isInMiss = remark.includes('clock in missing') || l.statusFromMachine === 'C/I Miss';
                     const isOutMiss = remark.includes('clock out missing') || l.statusFromMachine === 'C/O Miss';
                     if (!(isInMiss || isOutMiss)) return false;
@@ -351,7 +361,7 @@ export default function RawMachineLogsPage() {
                                 <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Records" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="All">All Records</SelectItem>
-                                    <SelectItem value="Missing Punches">Missing Clock In/Out</SelectItem>
+                                    <SelectItem value="Missing Clock In/Out">Missing Clock In/Out</SelectItem>
                                     <SelectItem value="Absent">Absent Only</SelectItem>
                                     <SelectItem value="Public Holiday">Public Holiday</SelectItem>
                                     <SelectItem value="Leave">On Leave</SelectItem>
