@@ -1,17 +1,12 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
     Upload, 
-    HardDrive, 
     Trash2, 
     Loader2, 
     Search, 
-    FilterX,
-    Clock,
     User,
-    CheckCircle2,
     CalendarIcon,
     AlertCircle,
     X,
@@ -104,18 +99,19 @@ export default function RawMachineLogsPage() {
             for (const sheetSelection of selectedSheets) {
                 const sheet = availableSheets.find(as => as.name === sheetSelection.name);
                 if (sheet) {
-                    for (const period of sheetSelection.periods) {
-                        const monthName = NEPALI_MONTHS.find(m => String(m.value) === period.month)?.name || `Month ${period.month}`;
-                        const { logCount } = await addRawMachineLogs(
-                            sheet.jsonData,
-                            user.username,
-                            parseInt(period.year),
-                            parseInt(period.month),
-                            sheetSelection.name,
-                            (p) => setImportProgress(`Importing ${sheetSelection.name} (${monthName} ${period.year}): ${p} records`)
-                        );
-                        total += logCount;
-                    }
+                    const periods = sheetSelection.periods.map(p => ({ 
+                        year: parseInt(p.year), 
+                        month: parseInt(p.month) 
+                    }));
+                    
+                    const { logCount } = await addRawMachineLogs(
+                        sheet.jsonData,
+                        user.username,
+                        periods,
+                        sheetSelection.name,
+                        (p) => setImportProgress(`Importing ${sheetSelection.name}: ${p} records`)
+                    );
+                    total += logCount;
                 }
             }
             toast({ title: 'Data Dump Complete', description: `${total} machine logs stored.` });
@@ -243,7 +239,7 @@ export default function RawMachineLogsPage() {
                 <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-0">
                     <DialogHeader className="p-6 border-b shrink-0">
                         <DialogTitle className="text-xl font-black text-gray-900">Configure Data Dump</DialogTitle>
-                        <DialogDescription>Map Excel sheets to specific periods before importing into raw storage. You can assign multiple target months per sheet.</DialogDescription>
+                        <DialogDescription>Map Excel sheets to specific periods before importing into raw storage. Record dates must match selected periods.</DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="flex-1 p-6">
                         <div className="space-y-4">

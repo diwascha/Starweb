@@ -1,20 +1,25 @@
-
 import {
   format,
   isValid,
   parse
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
-import type { AttendanceStatus, RawAttendanceRow, Employee } from './types';
-import { addEmployee, getEmployees } from '@/services/employee-service';
+import type { RawAttendanceRow } from './types';
 
 /* =========================
    Types
    ========================= */
 
+export interface ImportPeriod {
+  year: number;
+  month: number;
+}
+
 export type CalcAttendanceRow = RawAttendanceRow & {
   dateADISO: string;
   dateBS: string;
+  bsYear: number;
+  bsMonth: number;
   weekdayAD: number;              // 0=Sun..6=Sat
   status: string; // Keep status as a string from the sheet
   regularHours: number;
@@ -26,14 +31,6 @@ export type CalcAttendanceRow = RawAttendanceRow & {
 /* =========================
    Helpers
    ========================= */
-function toBSString(dateAD: Date): string {
-  try {
-    const nd = new NepaliDate(dateAD);
-    return nd.format('YYYY-MM-DD');
-  } catch {
-    return '';
-  }
-}
 
 function parseTimeToString(timeInput: any): string | null {
     if (!timeInput) return null;
@@ -83,15 +80,13 @@ const parseExcelDate = (dateInput: any): Date | null => {
 
     if (typeof dateInput === 'string') {
         const trimmedDate = dateInput.trim();
-        // A comprehensive list of formats to try, ordered from least ambiguous to most.
-        // This helps resolve cases like DD/MM vs MM/DD.
         const formatsToTry = [
             'yyyy-MM-dd', 
             'yyyy/MM/dd',
             'dd-MMM-yyyy',
             'MMMM d, yyyy',
-            'MM/dd/yyyy', // American format
-            'dd/MM/yyyy', // European/common format
+            'MM/dd/yyyy',
+            'dd/MM/yyyy',
             'dd-MM-yyyy',
             'M/d/yy',
             'dd/MM/yy', 
@@ -103,7 +98,6 @@ const parseExcelDate = (dateInput: any): Date | null => {
                 if (isValid(parsed)) return parsed;
             } catch {}
         }
-        // Fallback to native date parsing as a last resort.
         const nativeParsed = new Date(trimmedDate);
         if (isValid(nativeParsed)) return nativeParsed;
     }
@@ -116,11 +110,10 @@ const parseExcelDate = (dateInput: any): Date | null => {
    ========================= */
 export const processAttendanceImport = (
     jsonData: any[][], 
-    bsYear: number, 
-    bsMonth: number
+    allowedPeriods: ImportPeriod[]
 ): { processedData: CalcAttendanceRow[], skippedCount: number } => {
     
-    const headerRow = jsonData[0].slice(0, 16); // A-P is 16 columns
+    const headerRow = jsonData[0].slice(0, 16); 
     const dataRows = jsonData.slice(1);
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
@@ -179,28 +172,32 @@ export const processAttendanceImport = (
             return null;
         }
         
-        const bsDay = new NepaliDate(adFromSheet).getDate();
-        const correctedNepaliDate = new NepaliDate(bsYear, bsMonth, bsDay);
-        const ad = correctedNepaliDate.toJsDate();
+        const nepaliDate = new NepaliDate(adFromSheet);
+        const year = nepaliDate.getYear();
+        const month = nepaliDate.getMonth();
 
+        const isAllowed = allowedPeriods.some(p => p.year === year && p.month === month);
+        if (!isAllowed) {
+            return null; 
+        }
 
-        const dateBS = correctedNepaliDate.format('YYYY-MM-DD');
-        const status = String(row.status || '').trim();
-        
+        const dateBS = nepaliDate.format('YYYY-MM-DD');
         const regularHours: number = parseFloat(String(row.regularHours)) || 0;
         const overtimeHours: number = parseFloat(String(row.overtimeHours)) || 0;
 
         return {
           ...row,
           employeeName: employeeName,
-          dateADISO: format(ad, 'yyyy-MM-dd'),
+          dateADISO: format(adFromSheet, 'yyyy-MM-dd'),
           dateBS: dateBS,
-          weekdayAD: ad.getDay(),
+          bsYear: year,
+          bsMonth: month,
+          weekdayAD: adFromSheet.getDay(),
           onDuty: parseTimeToString(row.onDuty), 
           offDuty: parseTimeToString(row.offDuty),
           clockIn: parseTimeToString(row.clockIn), 
           clockOut: parseTimeToString(row.clockOut),
-          status: status,
+          status: String(row.status || '').trim(),
           regularHours: regularHours,
           overtimeHours: overtimeHours,
           remarks: String(row.remarks || '').trim(),

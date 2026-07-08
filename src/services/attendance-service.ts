@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Attendance service handling raw machine logs and calculated labor metrics.
  */
@@ -21,10 +20,10 @@ import {
     orderBy,
     setDoc
 } from 'firebase/firestore';
-import type { AttendanceRecord, RawMachineLog, Employee, HrConfig, HrShift } from '@/lib/types';
+import type { AttendanceRecord, RawMachineLog, Employee, HrConfig } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
-import { processAttendanceImport } from '@/lib/attendance';
-import { addEmployee, getEmployees } from './employee-service';
+import { processAttendanceImport, type ImportPeriod } from '@/lib/attendance';
+import { getEmployees } from './employee-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
 import { getSetting } from './settings-service';
@@ -104,8 +103,7 @@ export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () =
 export const addRawMachineLogs = async (
     jsonData: any[][],
     importedBy: string, 
-    bsYear: number,
-    bsMonth: number,
+    allowedPeriods: ImportPeriod[],
     sourceSheetName: string,
     onProgress: (progress: number) => void
 ): Promise<{ logCount: number }> => {
@@ -115,12 +113,12 @@ export const addRawMachineLogs = async (
     const CHUNK_SIZE = 400;
 
     try {
-        const { processedData } = processAttendanceImport(jsonData, bsYear, bsMonth);
+        const { processedData } = processAttendanceImport(jsonData, allowedPeriods);
 
         const logs: Omit<RawMachineLog, 'id'>[] = processedData.map(p => ({
             date: p.dateADISO,
-            bsYear,
-            bsMonth,
+            bsYear: p.bsYear,
+            bsMonth: p.bsMonth,
             employeeName: p.employeeName,
             onDuty: p.onDuty,
             offDuty: p.offDuty,
@@ -196,12 +194,9 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         const employee = employeeMap.get(log.employeeName.toLowerCase());
         
         if (employee) {
-            // Apply Logic: This is where we calculate from onDuty/clockIn
-            // For now, we trust the machine's hours or standard day, but allow for logic expansion
             let reg = log.regularHoursFromMachine;
             let ot = log.overtimeHoursFromMachine;
 
-            // Sample Logic Implementation (Refining machine data)
             if (reg === 0 && (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK')) {
                 reg = config.hours.baseDayHours;
             }
@@ -229,7 +224,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         }
     });
 
-    // 5. Batch Write Processed Records
     const writeChunkSize = 400;
     for (let i = 0; i < results.length; i += writeChunkSize) {
         const chunk = results.slice(i, i + writeChunkSize);
