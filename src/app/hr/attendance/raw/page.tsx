@@ -14,7 +14,8 @@ import {
     History,
     FilterX,
     ArrowUpDown,
-    Edit
+    Edit,
+    Clock
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -80,7 +81,7 @@ export default function RawMachineLogsPage() {
     // Edit Dialog
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingLog, setEditingLog] = useState<any>(null);
-    const [editForm, setEditForm] = useState({ clockIn: '', clockOut: '', remarks: '' });
+    const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', remarks: '' });
 
     useEffect(() => {
         setIsLoading(true);
@@ -259,6 +260,8 @@ export default function RawMachineLogsPage() {
     const handleOpenEditDialog = (log: any) => {
         setEditingLog(log);
         setEditForm({
+            onDuty: log.onDuty || '',
+            offDuty: log.offDuty || '',
             clockIn: log.clockIn || '',
             clockOut: log.clockOut || '',
             remarks: log.remarks || ''
@@ -428,6 +431,7 @@ export default function RawMachineLogsPage() {
                                     </TableHead>
                                     <TableHead className="font-bold">Date (BS)</TableHead>
                                     <TableHead className="font-bold">Employee Name</TableHead>
+                                    <TableHead className="font-bold text-center">Shift Schedule</TableHead>
                                     <TableHead className="font-bold text-center">In/Out Times</TableHead>
                                     <TableHead className="font-bold text-center">Machine Status</TableHead>
                                     <TableHead className="font-bold">System Flags / Remarks</TableHead>
@@ -436,12 +440,18 @@ export default function RawMachineLogsPage() {
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow key="loading-row"><TableCell colSpan={7} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                                    <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                                 ) : filteredLogs.map(l => (
                                     <TableRow key={l.id} className="h-12 border-b-gray-50 group hover:bg-muted/20 transition-colors">
                                         <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
                                         <TableCell className="font-mono font-bold text-blue-900">{toNepaliDate(l.date)}</TableCell>
                                         <TableCell className="font-black text-gray-900">{l.employeeName}</TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-gray-500">{formatTimeForDisplay(l.onDuty)}</span>
+                                                <span className="font-medium text-gray-500">{formatTimeForDisplay(l.offDuty)}</span>
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="text-center">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-blue-600">{formatTimeForDisplay(l.clockIn)}</span>
@@ -470,7 +480,7 @@ export default function RawMachineLogsPage() {
                                 ))}
                                 {!isLoading && filteredLogs.length === 0 && (
                                     <TableRow key="empty-row">
-                                        <TableCell colSpan={7} className="h-60 text-center text-muted-foreground italic">
+                                        <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
                                             <div className="flex flex-col items-center gap-3">
                                                 <AlertCircle className="h-10 w-10 opacity-10"/>
                                                 <p>No raw machine data found matching the current filters.<br/><span className="text-[10px] font-bold uppercase not-italic">Upload an attendance machine Excel file to populate this dump.</span></p>
@@ -494,11 +504,22 @@ export default function RawMachineLogsPage() {
                     <div className="space-y-5 py-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Clock In (HH:mm:ss)</Label>
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">On Duty (In)</Label>
+                                <Input value={editForm.onDuty} onChange={e => setEditForm({...editForm, onDuty: e.target.value})} placeholder="09:00:00" className="h-10 font-mono" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Off Duty (Out)</Label>
+                                <Input value={editForm.offDuty} onChange={e => setEditForm({...editForm, offDuty: e.target.value})} placeholder="17:00:00" className="h-10 font-mono" />
+                            </div>
+                        </div>
+                        <Separator />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Clock In (Actual)</Label>
                                 <Input value={editForm.clockIn} onChange={e => setEditForm({...editForm, clockIn: e.target.value})} placeholder="09:00:00" className="h-10 font-mono" />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Clock Out (HH:mm:ss)</Label>
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Clock Out (Actual)</Label>
                                 <Input value={editForm.clockOut} onChange={e => setEditForm({...editForm, clockOut: e.target.value})} placeholder="17:00:00" className="h-10 font-mono" />
                             </div>
                         </div>
