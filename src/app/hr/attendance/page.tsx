@@ -231,12 +231,13 @@ export default function AttendanceRegistryPage() {
                                 <TableHead className="text-center font-bold">Clock In/Out</TableHead>
                                 <TableHead className="text-right font-bold">Normal Hrs</TableHead>
                                 <TableHead className="text-right font-bold">OT Hrs</TableHead>
+                                <TableHead className="font-bold">Remarks</TableHead>
                                 <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isDataLoading ? (
-                                <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                                <TableRow key="loading-row"><TableCell colSpan={9} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                             ) : filteredAndSortedRecords.map(r => (
                                 <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors">
                                     <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
@@ -251,6 +252,9 @@ export default function AttendanceRegistryPage() {
                                     </TableCell>
                                     <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>
                                     <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>
+                                    <TableCell className="max-w-[150px] truncate text-[10px] text-muted-foreground italic" title={r.remarks || ''}>
+                                        {r.remarks || '—'}
+                                    </TableCell>
                                     <TableCell className="text-right pr-6">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(r)}><Edit className="h-4 w-4 text-primary"/></Button>
                                     </TableCell>
@@ -258,7 +262,7 @@ export default function AttendanceRegistryPage() {
                             ))}
                             {!isDataLoading && filteredAndSortedRecords.length === 0 && (
                                 <TableRow key="no-records-row">
-                                    <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={9} className="h-60 text-center text-muted-foreground italic">
                                         <div className="flex flex-col items-center gap-3">
                                             <AlertCircle className="h-10 w-10 opacity-10"/>
                                             <p>No processed records found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Run the Hourly Calculation Logic to generate records.</span></p>

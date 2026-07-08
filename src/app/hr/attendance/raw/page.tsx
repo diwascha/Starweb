@@ -327,12 +327,13 @@ export default function RawMachineLogsPage() {
                                     <TableHead className="font-bold">Clock In</TableHead>
                                     <TableHead className="font-bold">Clock Out</TableHead>
                                     <TableHead className="font-bold text-center">Status</TableHead>
+                                    <TableHead className="font-bold">Remarks</TableHead>
                                     <TableHead className="text-right pr-6 font-bold">System</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow key="loading-row"><TableCell colSpan={9} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                                    <TableRow key="loading-row"><TableCell colSpan={10} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                                 ) : filteredLogs.map(l => (
                                     <TableRow key={l.id} className="h-12 border-b-gray-50 group hover:bg-muted/20 transition-colors">
                                         <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
@@ -347,6 +348,9 @@ export default function RawMachineLogsPage() {
                                                 {l.statusFromMachine}
                                             </Badge>
                                         </TableCell>
+                                        <TableCell className="max-w-[150px] truncate text-muted-foreground italic font-medium" title={l.remarks || ''}>
+                                            {l.remarks || '—'}
+                                        </TableCell>
                                         <TableCell className="text-right pr-6">
                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deleteRawLog(l.id)} title="Delete log entry">
                                                 <Trash2 className="h-3.5 w-3.5"/>
@@ -356,7 +360,7 @@ export default function RawMachineLogsPage() {
                                 ))}
                                 {!isLoading && filteredLogs.length === 0 && (
                                     <TableRow key="empty-row">
-                                        <TableCell colSpan={9} className="h-60 text-center text-muted-foreground italic">
+                                        <TableCell colSpan={10} className="h-60 text-center text-muted-foreground italic">
                                             <div className="flex flex-col items-center gap-3">
                                                 <AlertCircle className="h-10 w-10 opacity-10"/>
                                                 <p>No raw machine data found matching the current filters.<br/><span className="text-[10px] font-bold uppercase not-italic">Upload an attendance machine Excel file to populate this dump.</span></p>
