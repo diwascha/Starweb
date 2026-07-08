@@ -3,7 +3,7 @@
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, onSnapshot, query, orderBy, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import type { HrShift, PublicHoliday, LeaveRequest } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
@@ -51,6 +51,63 @@ export const deleteShift = async (id: string) => {
     deleteDoc(docRef).catch(err => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' }));
     });
+};
+
+/**
+ * Requirement: Simplified Shift Discovery
+ * Checks raw machine logs and adds missing shift patterns to the registry.
+ */
+export const discoverShiftsFromRawLogs = async (performedBy: string): Promise<number> => {
+    const { db } = getFirebase();
+    const rawLogsSnap = await getDocs(collection(db, 'raw_machine_logs'));
+    const shiftsSnap = await getDocs(getShiftsCollection());
+    
+    const existingShifts = shiftsSnap.docs.map(d => d.data() as HrShift);
+    const uniquePairs = new Set<string>();
+
+    rawLogsSnap.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.onDuty && data.offDuty) {
+            // Normalize to HH:mm for reliable comparison
+            const on = String(data.onDuty).substring(0, 5);
+            const off = String(data.offDuty).substring(0, 5);
+            uniquePairs.add(`${on}|${off}`);
+        }
+    });
+
+    let addedCount = 0;
+    const batch = writeBatch(db);
+    const now = createTimestamp();
+
+    uniquePairs.forEach(pair => {
+        const [on, off] = pair.split('|');
+        // Check if any existing shift matches these times (ignoring seconds)
+        const exists = existingShifts.some(s => 
+            s.onDuty.startsWith(on) && s.offDuty.startsWith(off)
+        );
+
+        if (!exists) {
+            const shiftRef = doc(getShiftsCollection());
+            const newShift: Omit<HrShift, 'id'> = {
+                name: `Log Discovery: ${on}-${off}`,
+                onDuty: `${on}:00`,
+                offDuty: `${off}:00`,
+                breakStart: '12:00:00',
+                breakEnd: '13:00:00',
+                isDefault: false,
+                createdBy: performedBy,
+                createdAt: now
+            };
+            batch.set(shiftRef, newShift);
+            addedCount++;
+        }
+    });
+
+    if (addedCount > 0) {
+        await batch.commit();
+    }
+
+    return addedCount;
 };
 
 // --- Holiday Management ---

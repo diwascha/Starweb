@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -20,7 +19,8 @@ import {
     Terminal,
     PlayCircle,
     ArrowRight,
-    ShieldAlert
+    ShieldAlert,
+    RefreshCcw
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { 
-    onShiftsUpdate, saveShift, deleteShift,
+    onShiftsUpdate, saveShift, deleteShift, discoverShiftsFromRawLogs
 } from '@/services/hr-admin-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { runHourlyCalculation } from '@/services/attendance-service';
@@ -94,6 +94,7 @@ export default function HrOfficePage() {
     const [shifts, setShifts] = useState<HrShift[]>([]);
     const [hrConfig, setHrConfig] = useState<HrConfig>(INITIAL_HR_CONFIG);
     const [isSavingConfig, setIsSavingConfig] = useState(false);
+    const [isRefreshingShifts, setIsRefreshingShifts] = useState(false);
 
     // Calculation States
     const [isCalculating, setIsCalculating] = useState(false);
@@ -153,6 +154,26 @@ export default function HrOfficePage() {
         }
     };
 
+    const handleRefreshShifts = async () => {
+        if (!user) return;
+        setIsRefreshingShifts(true);
+        try {
+            const count = await discoverShiftsFromRawLogs(user.username);
+            if (count > 0) {
+                toast({ 
+                    title: 'Discovery Success', 
+                    description: `Automatically registered ${count} new shift patterns from machine logs.` 
+                });
+            } else {
+                toast({ title: 'Registry Up to Date', description: 'No new unique shift patterns were found in the logs.' });
+            }
+        } catch (error: any) {
+            toast({ title: 'Discovery Failed', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsRefreshingShifts(false);
+        }
+    };
+
     const updateNestedConfig = (section: keyof HrConfig, key: string, value: any) => {
         setHrConfig(prev => ({
             ...prev,
@@ -193,7 +214,7 @@ export default function HrOfficePage() {
             </header>
 
             <div className="max-w-4xl mx-auto w-full space-y-8">
-                {/* Data Processor Section - Merged from calculation page */}
+                {/* Data Processor Section */}
                 <Card className="shadow-lg border-primary/20 overflow-hidden ring-4 ring-primary/5">
                     <CardHeader className="bg-primary/5 border-b py-6 px-8">
                         <CardTitle className="text-lg font-black uppercase text-gray-900 tracking-wider flex items-center gap-2">
@@ -330,9 +351,21 @@ export default function HrOfficePage() {
                         <AccordionContent className="p-0">
                             <div className="p-6 pt-2 border-b flex justify-between items-center bg-muted/5">
                                 <p className="text-[10px] text-muted-foreground uppercase font-black">Registered Shifts</p>
-                                <Button size="sm" onClick={() => { setEditingShift(null); setShiftForm({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', isDefault: false }); setIsShiftDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest">
-                                    <Plus className="mr-1.5 h-3.5 w-3.5" /> Define Shift
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={handleRefreshShifts} 
+                                        disabled={isRefreshingShifts} 
+                                        className="h-8 text-[10px] uppercase font-black tracking-widest border-primary/20 text-primary hover:bg-primary/5"
+                                    >
+                                        {isRefreshingShifts ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />}
+                                        Refresh from Logs
+                                    </Button>
+                                    <Button size="sm" onClick={() => { setEditingShift(null); setShiftForm({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', isDefault: false }); setIsShiftDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest">
+                                        <Plus className="mr-1.5 h-3.5 w-3.5" /> Define Shift
+                                    </Button>
+                                </div>
                             </div>
                             <Table className="text-xs">
                                 <TableHeader><TableRow className="bg-muted/30 hover:bg-muted/30"><TableHead className="pl-6 font-bold">Shift Name</TableHead><TableHead className="font-bold">Hours</TableHead><TableHead className="font-bold text-center">Break Time</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
