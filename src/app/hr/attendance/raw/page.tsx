@@ -61,6 +61,47 @@ export default function RawMachineLogsPage() {
         });
     }, []);
 
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        logs.forEach(l => {
+            if (l.bsYear) years.add(l.bsYear);
+        });
+        const result = Array.from(years).sort((a, b) => b - a);
+        if (result.length === 0) return [new NepaliDate().getYear()];
+        return result;
+    }, [logs]);
+
+    const availableMonths = useMemo(() => {
+        const yearInt = parseInt(selectedYear);
+        const months = new Set<number>();
+        logs.filter(l => l.bsYear === yearInt).forEach(l => {
+            if (l.bsMonth !== undefined) months.add(l.bsMonth);
+        });
+        
+        const result = Array.from(months).sort((a, b) => a - b);
+        
+        // If no logs for this year, show all months so user can still select something
+        // or if data was just cleared. 
+        if (result.length === 0) return NEPALI_MONTHS;
+        
+        return NEPALI_MONTHS.filter(m => result.includes(m.value));
+    }, [logs, selectedYear]);
+
+    // Ensure selection is valid when years/months change
+    useEffect(() => {
+        if (!availableYears.includes(parseInt(selectedYear))) {
+            setSelectedYear(String(availableYears[0]));
+        }
+    }, [availableYears, selectedYear]);
+
+    useEffect(() => {
+        const monthInt = parseInt(selectedMonth);
+        const isValid = availableMonths.some(m => m.value === monthInt);
+        if (!isValid && availableMonths.length > 0) {
+            setSelectedMonth(String(availableMonths[0].value));
+        }
+    }, [availableMonths, selectedMonth]);
+
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -211,7 +252,7 @@ export default function RawMachineLogsPage() {
                             <Select value={selectedYear} onValueChange={setSelectedYear}>
                                 <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {[2080, 2081, 2082].map(y => <SelectItem key={`year-filter-${y}`} value={String(y)}>{y}</SelectItem>)}
+                                    {availableYears.map(y => <SelectItem key={`year-filter-${y}`} value={String(y)}>{y}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -220,7 +261,7 @@ export default function RawMachineLogsPage() {
                             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                                 <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {NEPALI_MONTHS.map(m => <SelectItem key={`month-filter-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}
+                                    {availableMonths.map(m => <SelectItem key={`month-filter-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -239,7 +280,7 @@ export default function RawMachineLogsPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Delete Raw Machine Logs?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This will permanently remove all raw machine data for <b>{NEPALI_MONTHS[parseInt(selectedMonth)].name} {selectedYear}</b>. 
+                                            This will permanently remove all raw machine data for <b>{NEPALI_MONTHS[parseInt(selectedMonth)]?.name} {selectedYear}</b>. 
                                             This action is irreversible.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
