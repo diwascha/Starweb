@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -275,8 +276,11 @@ export default function RawMachineLogsPage() {
     };
 
     const handleBulkSubmit = async () => {
-        if (!user || !bulkDateRange?.from || !bulkDateRange?.to || bulkEmployeeNames.length === 0) {
-            toast({ title: 'Validation Error', description: 'Please select date range and at least one employee.', variant: 'destructive' });
+        const from = bulkDateRange?.from;
+        const to = bulkDateRange?.to || from; // Support single day selection
+        
+        if (!user || !from || bulkEmployeeNames.length === 0) {
+            toast({ title: 'Validation Error', description: 'Please select target period and at least one employee.', variant: 'destructive' });
             return;
         }
 
@@ -287,7 +291,7 @@ export default function RawMachineLogsPage() {
             if (bulkTimes.punchMode === 'OUT_ONLY') (finalTimes as any).clockIn = null;
 
             const count = await addBulkManualLogs(
-                { from: bulkDateRange.from, to: bulkDateRange.to },
+                { from, to },
                 bulkEmployeeNames,
                 finalTimes as any,
                 user.username
@@ -386,8 +390,10 @@ export default function RawMachineLogsPage() {
     const isFiltered = selectedYear !== 'All' || selectedMonth !== 'All' || searchQuery !== '' || selectedRemark !== 'All';
 
     const bulkTotalLogs = useMemo(() => {
-        if (!bulkDateRange?.from || !bulkDateRange?.to || bulkEmployeeNames.length === 0) return 0;
-        const days = differenceInDays(bulkDateRange.to, bulkDateRange.from) + 1;
+        const from = bulkDateRange?.from;
+        const to = bulkDateRange?.to || from; // Support single day selection logic in preview
+        if (!from || bulkEmployeeNames.length === 0) return 0;
+        const days = differenceInDays(to, from) + 1;
         return days * bulkEmployeeNames.length;
     }, [bulkDateRange, bulkEmployeeNames]);
 

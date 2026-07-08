@@ -21,7 +21,7 @@ import {
     orderBy,
     setDoc
 } from 'firebase/firestore';
-import { isEqual, startOfDay, isWithinInterval } from 'date-fns';
+import { isEqual, startOfDay, isWithinInterval, format } from 'date-fns';
 import type { AttendanceRecord, RawMachineLog, Employee, HrConfig } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { processAttendanceImport } from '@/lib/attendance';
@@ -138,8 +138,9 @@ export const addRawMachineLogs = async (
             const snap = await getDocs(q);
             snap.forEach(d => {
                 const log = fromFirestoreLog(d as any);
-                // Composite key: SlugName_DateISO
-                const key = `${log.employeeName.toLowerCase().replace(/\s+/g, '_')}_${log.date}`;
+                // Composite key: SlugName_DateString
+                const dateKey = format(new Date(log.date), 'yyyy-MM-dd');
+                const key = `${log.employeeName.toLowerCase().replace(/\s+/g, '_')}_${dateKey}`;
                 existingMap.set(key, log);
             });
         }
@@ -151,7 +152,8 @@ export const addRawMachineLogs = async (
         const operations: { ref: any, data: any, op: 'set' | 'update' | 'skip' }[] = [];
 
         processedData.forEach(p => {
-            const compositeKey = `${p.employeeName.toLowerCase().replace(/\s+/g, '_')}_${p.dateADISO}`;
+            const dateKey = format(new Date(p.dateADISO), 'yyyy-MM-dd');
+            const compositeKey = `${p.employeeName.toLowerCase().replace(/\s+/g, '_')}_${dateKey}`;
             const existing = existingMap.get(compositeKey);
             
             const logData: Omit<RawMachineLog, 'id'> = {
@@ -182,7 +184,6 @@ export const addRawMachineLogs = async (
                 operations.push({ ref: docRef, data: logData, op: 'set' });
                 createdCount++;
             } else {
-                // Check if it's an exact duplicate
                 const isExact = existing.clockIn === logData.clockIn && 
                                 existing.clockOut === logData.clockOut && 
                                 existing.onDuty === logData.onDuty && 
@@ -195,12 +196,11 @@ export const addRawMachineLogs = async (
                     operations.push({ ref: docRef, data: { ...logData, lastModifiedBy: importedBy, lastModifiedAt: now }, op: 'set' });
                     updatedCount++;
                 } else {
-                    skippedCount++; // Skip partials if overwrite is off
+                    skippedCount++;
                 }
             }
         });
 
-        // 3. Batch commit the identified operations
         for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
             const chunk = operations.slice(i, i + CHUNK_SIZE);
             const batch = writeBatch(db);
@@ -246,7 +246,8 @@ export const addBulkManualLogs = async (
     employeeNames.forEach(name => {
         dates.forEach(adDate => {
             const nepaliDate = new NepaliDate(adDate);
-            const compositeKey = `${name.toLowerCase().replace(/\s+/g, '_')}_${adDate.toISOString()}`;
+            const dateKey = format(adDate, 'yyyy-MM-dd');
+            const compositeKey = `${name.toLowerCase().replace(/\s+/g, '_')}_${dateKey}`;
             
             const logData: Omit<RawMachineLog, 'id'> = {
                 date: adDate.toISOString(),
@@ -411,7 +412,7 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                 calculatedBy: calculatedBy,
                 remarks: finalRemarks,
                 sourceLogId: log.id,
-                rowIndex: log.rowIndex, // Preserve sequencing
+                rowIndex: log.rowIndex,
             });
         }
     });
