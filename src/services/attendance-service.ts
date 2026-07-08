@@ -399,7 +399,7 @@ function calculateHours(start: string, end: string): number {
     const e = parse(end, 'HH:mm:ss', new Date());
     if (!isValid(s) || !isValid(e)) return 0;
     
-    let mins = Math.abs(differenceInMinutes(e, s));
+    let mins = differenceInMinutes(e, s);
     if (mins < 0) mins += 1440; // Handle cross-midnight shifts
     return parseFloat((mins / 60).toFixed(2));
 }
@@ -448,17 +448,10 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                 })
             );
 
-            let reg = Number(log.regularHoursFromMachine) || 0;
-            let ot = Number(log.overtimeHoursFromMachine) || 0;
+            let reg = 0;
+            let ot = 0;
             let finalStatus = log.statusFromMachine;
             let finalRemarks = log.remarks;
-
-            // If machine provided 0 hours but we have punches, calculate manually
-            if (reg === 0 && log.clockIn && log.clockOut) {
-                const workedHours = calculateHours(log.clockIn, log.clockOut);
-                reg = Math.min(workedHours, config.hours.baseDayHours);
-                ot = Math.max(0, workedHours - config.hours.baseDayHours);
-            }
 
             if (holiday) {
                 finalStatus = 'Public Holiday';
@@ -473,13 +466,46 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
             } else if (logDate.getDay() === 6) {
                 finalStatus = 'Saturday';
                 finalRemarks = 'Weekly Off (Saturday)';
-                if (reg === 0 && (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK')) {
+                // If they actually worked on Saturday, calculate hours as normal
+                if (log.clockIn && log.clockOut) {
+                    const worked = calculateHours(log.clockIn, log.clockOut);
+                    reg = Math.min(worked, config.hours.baseDayHours);
+                    ot = Math.max(0, worked - config.hours.baseDayHours);
+                } else if (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK') {
                     reg = config.hours.baseDayHours;
                 }
-            } else {
-                if (reg === 0 && (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK')) {
-                    reg = config.hours.baseDayHours;
+            } else if (log.clockIn && log.clockOut) {
+                // APPLY HR OFFICE RULES: Grace and Rounding
+                const sOn = parse(log.onDuty || '09:00:00', 'HH:mm:ss', new Date());
+                const sOff = parse(log.offDuty || '17:00:00', 'HH:mm:ss', new Date());
+                let aIn = parse(log.clockIn, 'HH:mm:ss', new Date());
+                let aOut = parse(log.clockOut, 'HH:mm:ss', new Date());
+                
+                // 1. Grace Period Arrival
+                const lateMins = differenceInMinutes(aIn, sOn);
+                if (lateMins > 0 && lateMins <= config.hours.graceMin) {
+                    aIn = sOn; 
                 }
+                
+                // 2. Grace Period Departure
+                const earlyMins = differenceInMinutes(sOff, aOut);
+                if (earlyMins > 0 && earlyMins <= config.hours.graceMin) {
+                    aOut = sOff;
+                }
+
+                let workedMins = differenceInMinutes(aOut, aIn);
+                if (workedMins < 0) workedMins += 1440; // Cross midnight
+                
+                // 3. Rounding Step Logic
+                const rawHrs = workedMins / 60;
+                const roundedHrs = Math.floor(rawHrs / config.hours.roundStep) * config.hours.roundStep;
+                
+                reg = Math.min(roundedHrs, config.hours.baseDayHours);
+                ot = Math.max(0, roundedHrs - config.hours.baseDayHours);
+                finalStatus = 'Present';
+            } else if (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK') {
+                reg = config.hours.baseDayHours;
+                finalStatus = 'Present';
             }
 
             results.push({
