@@ -171,14 +171,14 @@ export default function AttendanceRegistryPage() {
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
                 <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
                     <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>{bsYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                    <SelectContent>{bsYears.map(y => <SelectItem key={`year-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                 </Select>
             </div>
             <div className="space-y-1.5 w-[150px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
                 <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
                     <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
                 </Select>
             </div>
             <div className="space-y-1.5 flex-1 min-w-[200px]">
@@ -223,7 +223,7 @@ export default function AttendanceRegistryPage() {
                     </TableHeader>
                     <TableBody>
                         {isDataLoading ? (
-                            <TableRow><TableCell colSpan={7} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                            <TableRow key="loading-row"><TableCell colSpan={7} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                         ) : filteredAndSortedRecords.map(r => (
                             <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors">
                                 <TableCell className="pl-6 font-mono text-gray-500">{toNepaliDate(r.date)}</TableCell>
@@ -243,7 +243,7 @@ export default function AttendanceRegistryPage() {
                             </TableRow>
                         ))}
                         {!isDataLoading && filteredAndSortedRecords.length === 0 && (
-                            <TableRow>
+                            <TableRow key="no-records-row">
                                 <TableCell colSpan={7} className="h-60 text-center text-muted-foreground italic">
                                     <div className="flex flex-col items-center gap-3">
                                         <AlertCircle className="h-10 w-10 opacity-10"/>

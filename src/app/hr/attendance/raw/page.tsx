@@ -157,7 +157,7 @@ export default function RawMachineLogsPage() {
                             <Select value={selectedYear} onValueChange={setSelectedYear}>
                                 <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {[2080, 2081, 2082].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                                    {[2080, 2081, 2082].map(y => <SelectItem key={`year-${y}`} value={String(y)}>{y}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -166,7 +166,7 @@ export default function RawMachineLogsPage() {
                             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                                 <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                                    {NEPALI_MONTHS.map(m => <SelectItem key={`month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -192,7 +192,7 @@ export default function RawMachineLogsPage() {
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                                    <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                                 ) : filteredLogs.map(l => (
                                     <TableRow key={l.id} className="h-12 border-b-gray-50 group hover:bg-muted/20 transition-colors">
                                         <TableCell className="pl-6 font-mono text-gray-500">{toNepaliDate(l.date)}</TableCell>
@@ -208,7 +208,7 @@ export default function RawMachineLogsPage() {
                                     </TableRow>
                                 ))}
                                 {!isLoading && filteredLogs.length === 0 && (
-                                    <TableRow><TableCell colSpan={8} className="h-40 text-center text-muted-foreground italic">No raw machine data found for this period.</TableCell></TableRow>
+                                    <TableRow key="empty-row"><TableCell colSpan={8} className="h-40 text-center text-muted-foreground italic">No raw machine data found for this period.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>
@@ -248,14 +248,14 @@ export default function RawMachineLogsPage() {
                                                     <Label className="text-[9px] font-black uppercase text-muted-foreground">Target BS Year</Label>
                                                     <Select value={selection.year} onValueChange={(v) => setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, year: v } : s))}>
                                                         <SelectTrigger className="h-8 bg-white"><SelectValue /></SelectTrigger>
-                                                        <SelectContent>{[2080, 2081, 2082].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                                                        <SelectContent>{[2080, 2081, 2082].map(y => <SelectItem key={`sel-year-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                                                     </Select>
                                                 </div>
                                                 <div className="space-y-1">
                                                     <Label className="text-[9px] font-black uppercase text-muted-foreground">Target BS Month</Label>
                                                     <Select value={selection.month} onValueChange={(v) => setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, month: v } : s))}>
                                                         <SelectTrigger className="h-8 bg-white"><SelectValue /></SelectTrigger>
-                                                        <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
+                                                        <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`sel-month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
                                                     </Select>
                                                 </div>
                                             </div>
