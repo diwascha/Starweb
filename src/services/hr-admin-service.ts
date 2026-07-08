@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview HR Administration service for shifts and holidays.
  */
@@ -65,6 +64,11 @@ export const onHolidaysUpdate = (callback: (holidays: PublicHoliday[]) => void) 
     });
 };
 
+export const getHolidays = async (): Promise<PublicHoliday[]> => {
+    const snap = await getDocs(getHolidaysCollection());
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as PublicHoliday));
+};
+
 export const saveHoliday = async (holiday: Omit<PublicHoliday, 'id'>, id?: string) => {
     const docRef = id ? doc(getHolidaysCollection(), id) : doc(getHolidaysCollection());
     const finalId = id || docRef.id;
@@ -91,6 +95,11 @@ export const onLeaveRequestsUpdate = (callback: (requests: LeaveRequest[]) => vo
     }, (error) => {
         logServiceError('onLeaveRequestsUpdate', error);
     });
+};
+
+export const getLeaveRequests = async (): Promise<LeaveRequest[]> => {
+    const snap = await getDocs(getLeaveRequestsCollection());
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as LeaveRequest));
 };
 
 export const saveLeaveRequest = async (request: Omit<LeaveRequest, 'id'>, id?: string) => {

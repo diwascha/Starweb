@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { AttendanceRecord, Employee, AttendanceStatus } from '@/lib/types';
+import type { AttendanceRecord, Employee, AttendanceStatus, PublicHoliday, LeaveRequest } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -34,6 +34,7 @@ import {
     onAttendanceUpdate,
     deleteAllAttendance 
 } from '@/services/attendance-service';
+import { onHolidaysUpdate, onLeaveRequestsUpdate } from '@/services/hr-admin-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -42,7 +43,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import NepaliDate from 'nepali-date-converter';
-import { format as formatDate } from 'date-fns';
+import { format as formatDate, startOfDay, isEqual, isWithinInterval } from 'date-fns';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import Link from 'next/link';
 
@@ -52,6 +53,8 @@ type SortDirection = 'asc' | 'desc';
 export default function AttendanceRegistryPage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
   const { toast } = useToast();
@@ -71,10 +74,17 @@ export default function AttendanceRegistryPage() {
 
   useEffect(() => {
     onEmployeesUpdate(setEmployees);
-    return onAttendanceUpdate((data) => {
+    const unsubHolidays = onHolidaysUpdate(setHolidays);
+    const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
+    const unsubAttendance = onAttendanceUpdate((data) => {
         setAttendance(data);
         setIsDataLoading(false);
     });
+    return () => {
+        unsubHolidays();
+        unsubLeaves();
+        unsubAttendance();
+    };
   }, []);
 
   useEffect(() => {
@@ -88,6 +98,30 @@ export default function AttendanceRegistryPage() {
     }
     setSortConfig({ key, direction });
   };
+
+  const getDisplayRemark = useCallback((record: AttendanceRecord) => {
+    const recordDate = startOfDay(new Date(record.date));
+    
+    // 1. Check for Holiday
+    const holiday = holidays.find(h => isEqual(startOfDay(new Date(h.date)), recordDate));
+    if (holiday) return `Public Holiday: ${holiday.name}`;
+
+    // 2. Check for Approved Leave
+    const leave = leaveRequests.find(l => 
+        l.employeeId === record.employeeId && 
+        l.status === 'Approved' &&
+        isWithinInterval(recordDate, { 
+            start: startOfDay(new Date(l.startDate)), 
+            end: startOfDay(new Date(l.endDate)) 
+        })
+    );
+    if (leave) return `${leave.leaveType} Leave: ${leave.reason}`;
+
+    // 3. Saturday
+    if (recordDate.getDay() === 6) return 'Weekly Off (Saturday)';
+
+    return record.remarks || '';
+  }, [holidays, leaveRequests]);
 
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = attendance.filter(r => r.bsYear === parseInt(selectedBsYear) && r.bsMonth === parseInt(selectedBsMonth));
@@ -252,8 +286,8 @@ export default function AttendanceRegistryPage() {
                                     </TableCell>
                                     <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>
                                     <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>
-                                    <TableCell className="max-w-[150px] truncate text-[10px] text-muted-foreground italic" title={r.remarks || ''}>
-                                        {r.remarks || '—'}
+                                    <TableCell className="max-w-[150px] truncate text-[10px] text-muted-foreground italic" title={getDisplayRemark(r)}>
+                                        {getDisplayRemark(r) || '—'}
                                     </TableCell>
                                     <TableCell className="text-right pr-6">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(r)}><Edit className="h-4 w-4 text-primary"/></Button>

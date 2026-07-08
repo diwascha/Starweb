@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
     Upload, 
     Trash2, 
@@ -24,14 +24,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog, deleteRawLogsForMonth, deleteAllRawLogs } from '@/services/attendance-service';
+import { onHolidaysUpdate, onLeaveRequestsUpdate } from '@/services/hr-admin-service';
 import { cn, toNepaliDate, formatTimeForDisplay, getAttendanceBadgeVariant } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
+import type { PublicHoliday, LeaveRequest } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { format } from 'date-fns';
+import { format, startOfDay, isEqual, isWithinInterval } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComp, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
@@ -43,6 +45,8 @@ export default function RawMachineLogsPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [logs, setLogs] = useState<any[]>([]);
+    const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
+    const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [importProgress, setImportProgress] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -61,11 +65,17 @@ export default function RawMachineLogsPage() {
 
     useEffect(() => {
         setIsLoading(true);
-        const unsubscribe = onRawLogsUpdate((data) => {
+        const unsubHolidays = onHolidaysUpdate(setHolidays);
+        const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
+        const unsubLogs = onRawLogsUpdate((data) => {
             setLogs(data);
             setIsLoading(false);
         });
-        return () => unsubscribe();
+        return () => {
+            unsubHolidays();
+            unsubLeaves();
+            unsubLogs();
+        };
     }, []);
 
     const availableYears = useMemo(() => {
@@ -89,6 +99,31 @@ export default function RawMachineLogsPage() {
         if (result.length === 0) return NEPALI_MONTHS;
         return NEPALI_MONTHS.filter(m => result.includes(m.value));
     }, [logs, selectedYear]);
+
+    const getDisplayRemark = useCallback((log: any) => {
+        const logDate = startOfDay(new Date(log.date));
+        
+        // 1. Check for Holiday
+        const holiday = holidays.find(h => isEqual(startOfDay(new Date(h.date)), logDate));
+        if (holiday) return `Public Holiday: ${holiday.name}`;
+
+        // 2. Check for Approved Leave (Requires mapping names to IDs if possible, else match name)
+        // Note: For raw logs, we might only have names. Best to fetch employee list too if needed.
+        const leave = leaveRequests.find(l => 
+            l.employeeName === log.employeeName && 
+            l.status === 'Approved' &&
+            isWithinInterval(logDate, { 
+                start: startOfDay(new Date(l.startDate)), 
+                end: startOfDay(new Date(l.endDate)) 
+            })
+        );
+        if (leave) return `${leave.leaveType} Leave: ${leave.reason}`;
+
+        // 3. Saturday
+        if (logDate.getDay() === 6) return 'Weekly Off (Saturday)';
+
+        return log.remarks || '';
+    }, [holidays, leaveRequests]);
 
     const requestSort = (key: SortKey) => {
         let direction: SortDirection = 'asc';
@@ -311,7 +346,7 @@ export default function RawMachineLogsPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div className="max-h-[600px] overflow-auto">
+                    <ScrollArea className="w-full">
                         <Table className="text-xs">
                             <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
                                 <TableRow className="hover:bg-transparent" key="header-row">
@@ -348,8 +383,8 @@ export default function RawMachineLogsPage() {
                                                 {l.statusFromMachine}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="max-w-[150px] truncate text-muted-foreground italic font-medium" title={l.remarks || ''}>
-                                            {l.remarks || '—'}
+                                        <TableCell className="max-w-[150px] truncate text-muted-foreground italic font-medium" title={getDisplayRemark(l)}>
+                                            {getDisplayRemark(l) || '—'}
                                         </TableCell>
                                         <TableCell className="text-right pr-6">
                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deleteRawLog(l.id)} title="Delete log entry">
@@ -370,7 +405,7 @@ export default function RawMachineLogsPage() {
                                 )}
                             </TableBody>
                         </Table>
-                    </div>
+                    </ScrollArea>
                 </CardContent>
             </Card>
 

@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Attendance service handling raw machine logs and calculated labor metrics.
  */
@@ -21,10 +20,12 @@ import {
     orderBy,
     setDoc
 } from 'firebase/firestore';
+import { isEqual, startOfDay, isWithinInterval } from 'date-fns';
 import type { AttendanceRecord, RawMachineLog, Employee, HrConfig } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { processAttendanceImport } from '@/lib/attendance';
 import { getEmployees } from './employee-service';
+import { getHolidays, getLeaveRequests } from './hr-admin-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
 import { getSetting } from './settings-service';
@@ -204,6 +205,10 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const employees = await getEmployees();
     const employeeMap = new Map(employees.map(e => [e.name.toLowerCase(), e]));
 
+    const holidays = await getHolidays();
+    const leaveRequests = await getLeaveRequests();
+    const approvedLeaves = leaveRequests.filter(l => l.status === 'Approved');
+
     const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const processedSnap = await getDocs(qProcessed);
     if (!processedSnap.empty) {
@@ -220,10 +225,33 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         const employee = employeeMap.get(log.employeeName.toLowerCase());
         
         if (employee) {
+            const logDate = startOfDay(new Date(log.date));
+            const holiday = holidays.find(h => isEqual(startOfDay(new Date(h.date)), logDate));
+            const leave = approvedLeaves.find(l => 
+                l.employeeId === employee.id && 
+                isWithinInterval(logDate, { 
+                    start: startOfDay(new Date(l.startDate)), 
+                    end: startOfDay(new Date(l.endDate)) 
+                })
+            );
+
             let reg = log.regularHoursFromMachine;
             let ot = log.overtimeHoursFromMachine;
+            let finalStatus = log.statusFromMachine;
+            let finalRemarks = log.remarks;
 
-            if (reg === 0 && (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK')) {
+            if (holiday) {
+                finalStatus = 'Public Holiday';
+                finalRemarks = `Public Holiday: ${holiday.name}`;
+                reg = config.hours.baseDayHours;
+            } else if (leave) {
+                finalStatus = 'Leave';
+                finalRemarks = `${leave.leaveType} Leave: ${leave.reason}`;
+            } else if (logDate.getDay() === 6) {
+                finalStatus = 'Saturday';
+                finalRemarks = 'Weekly Off (Saturday)';
+                reg = config.hours.baseDayHours;
+            } else if (reg === 0 && (log.statusFromMachine === 'Present' || log.statusFromMachine === 'EXTRAOK')) {
                 reg = config.hours.baseDayHours;
             }
 
@@ -238,13 +266,13 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                 offDuty: log.offDuty,
                 clockIn: log.clockIn,
                 clockOut: log.clockOut,
-                status: log.statusFromMachine,
+                status: finalStatus,
                 regularHours: reg,
                 overtimeHours: ot,
                 grossHours: reg + ot,
                 calculatedAt: now,
                 calculatedBy: calculatedBy,
-                remarks: log.remarks,
+                remarks: finalRemarks,
                 sourceLogId: log.id
             });
         }
