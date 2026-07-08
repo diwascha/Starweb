@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -48,6 +47,7 @@ import {
     AlertDialogTrigger 
 } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -212,7 +212,7 @@ export default function RawMachineLogsPage() {
             let currentOffset = 0;
 
             for (const sheetName of selectedSheets) {
-                const sheet = availableSheets.find(as => as.name === sheetName);
+                const sheet = availableSheets.find(as => as.name === name);
                 if (sheet) {
                     const result = await addRawMachineLogs(
                         sheet.jsonData,
