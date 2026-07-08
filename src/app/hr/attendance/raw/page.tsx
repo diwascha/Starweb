@@ -64,71 +64,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
 
-// Helper component for multi-select with "All" support
-const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
-    const isAll = values.length === 0;
-
-    const toggleItem = (id: string) => {
-        if (id === 'All') {
-            onSelect([]);
-            return;
-        }
-        const next = values.includes(id)
-            ? values.filter((v: string) => v !== id)
-            : [...values, id];
-        onSelect(next);
-    };
-
-    const displayText = isAll
-        ? `All ${placeholder}s`
-        : values.length === 1
-            ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
-            : `${values.length} ${placeholder}s Selected`;
-
-    return (
-        <div className="space-y-1.5 flex-1 min-w-[160px]">
-            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
-                        <div className="flex items-center gap-2 overflow-hidden text-left">
-                            {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                            <span className="truncate">{displayText}</span>
-                        </div>
-                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0 w-[200px]" align="start">
-                    <Command>
-                        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
-                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                            <input 
-                                placeholder={`Search ${placeholder.toLowerCase()}...`} 
-                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                        </div>
-                        <CommandList>
-                            <CommandEmpty>No results found.</CommandEmpty>
-                            <CommandGroup>
-                                <CommandItem value="All" onSelect={() => toggleItem('All')} className="text-xs">
-                                    <Check className={cn("mr-2 h-3.5 w-3.5", isAll ? "opacity-100" : "opacity-0")} />
-                                    All {placeholder}s
-                                </CommandItem>
-                                {items.map((item: any) => (
-                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
-                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
-                                        {item.name}
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </CommandList>
-                    </Command>
-                </PopoverContent>
-            </Popover>
-        </div>
-    );
-};
-
 export default function RawMachineLogsPage(props: { params: Promise<any>, searchParams: Promise<any> }) {
     // Next.js 15: Unwrap dynamic params and searchParams
     use(props.params);
@@ -305,6 +240,7 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
             let totalCreated = 0;
             let totalUpdated = 0;
             let totalSkipped = 0;
+            let totalNewEmployees = 0;
             let currentOffset = 0;
 
             for (const sheetName of selectedSheets) {
@@ -322,13 +258,14 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
                     totalCreated += result.createdCount;
                     totalUpdated += result.updatedCount;
                     totalSkipped += result.skippedCount;
+                    totalNewEmployees += result.newEmployeesCount;
                     currentOffset += (result.createdCount + result.updatedCount + result.skippedCount);
                 }
             }
             setImportProgress(`${currentOffset} / ${estimatedTotal}`);
             toast({ 
                 title: 'Import Successful', 
-                description: `Created: ${totalCreated}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}` 
+                description: `Created: ${totalCreated}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}. New Employees Onboarded: ${totalNewEmployees}` 
             });
         } catch (err: any) {
             toast({ title: 'Import Failed', description: err.message, variant: 'destructive' });
@@ -343,7 +280,7 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
 
     const handleBulkSubmit = async () => {
         const from = bulkDateRange?.from;
-        const to = bulkDateRange?.to || from; // Support single day selection
+        const to = bulkDateRange?.to || from; 
         
         if (!user || !from || bulkEmployeeNames.length === 0) {
             toast({ title: 'Validation Error', description: 'Please select target period and at least one employee.', variant: 'destructive' });
@@ -419,7 +356,6 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
             
             if (selectedRemark !== 'All') {
                 const remark = getDisplayRemark(l).toLowerCase();
-                
                 if (selectedRemark === 'Missing Clock In/Out') {
                     const isInMiss = remark.includes('clock in missing') || l.statusFromMachine === 'C/I Miss';
                     const isOutMiss = remark.includes('clock out missing') || l.statusFromMachine === 'C/O Miss';
@@ -432,7 +368,6 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
                     if (!remark.includes('leave')) return false;
                 }
             }
-
             return matchesSearch && matchesYear && matchesMonth;
         });
 
@@ -460,7 +395,7 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
 
     const bulkTotalLogs = useMemo(() => {
         const from = bulkDateRange?.from;
-        const to = bulkDateRange?.to || from; // Support single day selection logic in preview
+        const to = bulkDateRange?.to || from; 
         if (!from || bulkEmployeeNames.length === 0) return 0;
         const days = differenceInDays(to, from) + 1;
         return days * bulkEmployeeNames.length;
@@ -485,8 +420,7 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Purge All Machine Data?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    This will permanently delete <b>EVERY</b> raw log in the database across all years and months. 
-                                    This is a critical administrative action. Proceed with caution.
+                                    This will permanently delete <b>EVERY</b> raw log in the database across all years and months. This is a critical administrative action. Proceed with caution.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -639,7 +573,6 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
                 </CardContent>
             </Card>
 
-            {/* Bulk Entry Dialog */}
             <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
                 <DialogContent className="sm:max-w-3xl max-h-[95vh] flex flex-col p-0 shadow-2xl border-none">
                     <DialogHeader className="p-6 border-b bg-indigo-50/30 shrink-0">
@@ -769,7 +702,6 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
                 </DialogContent>
             </Dialog>
 
-            {/* Edit Log Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
@@ -810,7 +742,6 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
                 </DialogContent>
             </Dialog>
 
-            {/* Sheet Selection Dialog */}
             <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader className="p-6 border-b shrink-0">
