@@ -34,7 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, startOfDay, isEqual, isWithinInterval } from 'date-fns';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComp, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -56,6 +56,7 @@ export default function RawMachineLogsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedYear, setSelectedYear] = useState<string>('All');
     const [selectedMonth, setSelectedMonth] = useState<string>('All');
+    const [selectedRemark, setSelectedRemark] = useState<string>('All');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
 
     // Import Dialog
@@ -237,6 +238,19 @@ export default function RawMachineLogsPage() {
             const matchesSearch = (l.employeeName || '').toLowerCase().includes(searchQuery.toLowerCase());
             const matchesYear = selectedYear === 'All' || l.bsYear === parseInt(selectedYear);
             const matchesMonth = selectedMonth === 'All' || l.bsMonth === parseInt(selectedMonth);
+            
+            if (selectedRemark !== 'All') {
+                const remark = getDisplayRemark(l).toLowerCase();
+                const target = selectedRemark.toLowerCase();
+                
+                // Intelligent cross-mapping
+                if (target === 'clock in missing' && !(remark.includes('clock in missing') || l.statusFromMachine === 'C/I Miss')) return false;
+                if (target === 'clock out missing' && !(remark.includes('clock out missing') || l.statusFromMachine === 'C/O Miss')) return false;
+                if (target === 'absent' && !(remark.includes('absent') || l.statusFromMachine === 'Absent')) return false;
+                if (target === 'public holiday' && !remark.includes('public holiday')) return false;
+                if (target === 'leave' && !remark.includes('leave')) return false;
+            }
+
             return matchesSearch && matchesYear && matchesMonth;
         });
 
@@ -249,15 +263,16 @@ export default function RawMachineLogsPage() {
         });
 
         return filtered;
-    }, [logs, searchQuery, selectedYear, selectedMonth, sortConfig]);
+    }, [logs, searchQuery, selectedYear, selectedMonth, selectedRemark, sortConfig, getDisplayRemark]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
         setSelectedYear('All');
         setSelectedMonth('All');
+        setSelectedRemark('All');
     };
 
-    const isFiltered = selectedYear !== 'All' || selectedMonth !== 'All' || searchQuery !== '';
+    const isFiltered = selectedYear !== 'All' || selectedMonth !== 'All' || searchQuery !== '' || selectedRemark !== 'All';
 
     return (
         <div className="flex flex-col gap-8">
@@ -306,7 +321,7 @@ export default function RawMachineLogsPage() {
                                 <Input placeholder="Filter raw logs..." className="pl-8 h-9 text-xs bg-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                             </div>
                         </div>
-                        <div className="space-y-1.5 w-[140px]">
+                        <div className="space-y-1.5 w-[120px]">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">BS Year</Label>
                             <Select value={selectedYear} onValueChange={setSelectedYear}>
                                 <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Years" /></SelectTrigger>
@@ -316,13 +331,27 @@ export default function RawMachineLogsPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-1.5 w-[160px]">
+                        <div className="space-y-1.5 w-[140px]">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">BS Month</Label>
                             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                                 <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Months" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="All">All Months</SelectItem>
                                     {availableMonths.map(m => <SelectItem key={`month-filter-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5 w-[180px]">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Filter Remarks</Label>
+                            <Select value={selectedRemark} onValueChange={setSelectedRemark}>
+                                <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Records" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Records</SelectItem>
+                                    <SelectItem value="Clock In Missing">Clock In Missing</SelectItem>
+                                    <SelectItem value="Clock Out Missing">Clock Out Missing</SelectItem>
+                                    <SelectItem value="Absent">Absent Only</SelectItem>
+                                    <SelectItem value="Public Holiday">Public Holiday</SelectItem>
+                                    <SelectItem value="Leave">On Leave</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
