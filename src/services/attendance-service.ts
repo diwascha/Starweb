@@ -21,7 +21,7 @@ import {
     orderBy,
     setDoc
 } from 'firebase/firestore';
-import { isEqual, startOfDay, isWithinInterval, format } from 'date-fns';
+import { isEqual, startOfDay, isWithinInterval, format, parse } from 'date-fns';
 import type { AttendanceRecord, RawMachineLog, Employee, HrConfig, HrShift } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { processAttendanceImport } from '@/lib/attendance';
@@ -161,11 +161,11 @@ export const addRawMachineLogs = async (
         const allShifts = shiftSnap.docs.map(d => ({ id: d.id, ...d.data() } as HrShift));
         const defaultShift = allShifts.find(s => s.isDefault) || allShifts[0];
 
-        // 3. Determine the scope (which periods are being imported)
+        // 3. Determine the scope
         const periods = new Set<string>();
         processedData.forEach(p => periods.add(`${p.bsYear}-${p.bsMonth}`));
         
-        // 4. Fetch existing logs in those periods to check for duplicates
+        // 4. Fetch existing logs
         const existingMap = new Map<string, RawMachineLog>();
         for (const period of Array.from(periods)) {
             const [y, m] = period.split('-').map(Number);
@@ -174,7 +174,7 @@ export const addRawMachineLogs = async (
             snap.forEach(d => {
                 const log = fromFirestoreLog(d as any);
                 const dateKey = format(new Date(log.date), 'yyyy-MM-dd');
-                const key = `${log.employeeName.toLowerCase().replace(/\s+/g, '_')}_${dateKey}`;
+                const key = `${log.employeeName.toLowerCase().trim()}_${dateKey}`;
                 existingMap.set(key, log);
             });
         }
@@ -187,10 +187,9 @@ export const addRawMachineLogs = async (
 
         processedData.forEach(p => {
             const dateKey = format(new Date(p.dateADISO), 'yyyy-MM-dd');
-            const compositeKey = `${p.employeeName.toLowerCase().replace(/\s+/g, '_')}_${dateKey}`;
+            const compositeKey = `${p.employeeName.toLowerCase().trim()}_${dateKey}`;
             const existing = existingMap.get(compositeKey);
             
-            // Core Reconcilliation: Priority: Sheet -> HR Office Default
             const finalOnDuty = p.onDuty || defaultShift?.onDuty || '09:00:00';
             const finalOffDuty = p.offDuty || defaultShift?.offDuty || '17:00:00';
 
@@ -212,7 +211,7 @@ export const addRawMachineLogs = async (
                 importedAt: now,
                 importedBy,
                 sourceSheet: sourceSheetName,
-                rawPayload: p.rawImportData,
+                rawPayload: p.rawPayload,
                 rowIndex: p.importRowIndex,
             };
 
@@ -222,15 +221,7 @@ export const addRawMachineLogs = async (
                 operations.push({ ref: docRef, data: logData, op: 'set' });
                 createdCount++;
             } else {
-                const isExact = existing.clockIn === logData.clockIn && 
-                                existing.clockOut === logData.clockOut && 
-                                existing.onDuty === logData.onDuty && 
-                                existing.offDuty === logData.offDuty &&
-                                existing.statusFromMachine === logData.statusFromMachine;
-
-                if (isExact) {
-                    skippedCount++;
-                } else if (options.overwrite) {
+                if (options.overwrite) {
                     operations.push({ ref: docRef, data: { ...logData, lastModifiedBy: importedBy, lastModifiedAt: now }, op: 'set' });
                     updatedCount++;
                 } else {
@@ -285,7 +276,7 @@ export const addBulkManualLogs = async (
         dates.forEach(adDate => {
             const nepaliDate = new NepaliDate(adDate);
             const dateKey = format(adDate, 'yyyy-MM-dd');
-            const compositeKey = `${name.toLowerCase().replace(/\s+/g, '_')}_${dateKey}`;
+            const compositeKey = `${name.toLowerCase().trim()}_${dateKey}`;
             
             const logData: Partial<RawMachineLog> = {
                 date: adDate.toISOString(),
@@ -294,14 +285,11 @@ export const addBulkManualLogs = async (
                 bsMonth: nepaliDate.getMonth(),
                 employeeName: name,
                 statusFromMachine: (times.punchMode === 'BOTH' && times.clockIn && times.clockOut) ? 'Present' : 'Absent',
-                regularHoursFromMachine: 0, 
-                overtimeHoursFromMachine: 0,
                 remarks: times.remarks || null,
                 importId,
                 importedAt: now,
                 importedBy: createdBy,
                 sourceSheet: 'Manual Bulk Entry',
-                rawPayload: {},
                 isManual: true,
             };
 
@@ -371,15 +359,26 @@ export const deleteAllRawLogs = async (): Promise<void> => {
 
 // --- Hourly Calculation Logic ---
 
+/**
+ * Calculates duration between two times in decimal hours.
+ */
+function calculateHours(start: string, end: string): number {
+    const s = parse(start, 'HH:mm:ss', new Date());
+    const e = parse(end, 'HH:mm:ss', new Date());
+    if (!isValid(s) || !isValid(e)) return 0;
+    
+    let mins = differenceInMinutes(e, s);
+    if (mins < 0) mins += 1440; // Handle cross-midnight shifts
+    return parseFloat((mins / 60).toFixed(2));
+}
+
 export const runHourlyCalculation = async (year: number, month: number, calculatedBy: string): Promise<{ processed: number }> => {
     const { db } = getFirebase();
     
-    // 1. Get Core Config
     const configSetting = await getSetting('hr_config');
     const config = configSetting?.value as HrConfig;
     if (!config) throw new Error("HR Operational Rules not found. Please configure them in HR Office.");
 
-    // 2. Get Data Dependencies
     const qRaw = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const rawSnap = await getDocs(qRaw);
     if (rawSnap.empty) throw new Error("No raw machine logs found for selected period.");
@@ -391,7 +390,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const leaveRequests = await getLeaveRequests();
     const approvedLeaves = leaveRequests.filter(l => l.status === 'Approved');
     
-    // 3. Clear Existing Processed Records for this month
     const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const processedSnap = await getDocs(qProcessed);
     if (!processedSnap.empty) {
@@ -403,7 +401,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const results: Omit<AttendanceRecord, 'id'>[] = [];
     const now = createTimestamp();
 
-    // 4. Process each raw log into a calculated labor record
     rawSnap.forEach(docSnap => {
         const log = fromFirestoreLog(docSnap as QueryDocumentSnapshot<DocumentData>);
         const employee = employeeMap.get(log.employeeName.toLowerCase().trim());
@@ -419,15 +416,17 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                 })
             );
 
-            // Calculation Logic Priority:
-            // Shift timings from Raw Log (which now defaults to HR Office shift if sheet was empty)
-            let onDutyRef = log.onDuty || '09:00:00';
-            let offDutyRef = log.offDuty || '17:00:00';
-
-            let reg = log.regularHoursFromMachine;
-            let ot = log.overtimeHoursFromMachine;
+            let reg = Number(log.regularHoursFromMachine) || 0;
+            let ot = Number(log.overtimeHoursFromMachine) || 0;
             let finalStatus = log.statusFromMachine;
             let finalRemarks = log.remarks;
+
+            // If machine provided 0 hours but we have punches, calculate manually
+            if (reg === 0 && log.clockIn && log.clockOut) {
+                const workedHours = calculateHours(log.clockIn, log.clockOut);
+                reg = Math.min(workedHours, config.hours.baseDayHours);
+                ot = Math.max(0, workedHours - config.hours.baseDayHours);
+            }
 
             if (holiday) {
                 finalStatus = 'Public Holiday';
@@ -458,14 +457,14 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                 bsMonth: month,
                 employeeName: employee.name,
                 employeeId: employee.id,
-                onDuty: onDutyRef,
-                offDuty: offDutyRef,
+                onDuty: log.onDuty || '09:00:00',
+                offDuty: log.offDuty || '17:00:00',
                 clockIn: log.clockIn,
                 clockOut: log.clockOut,
                 status: finalStatus,
-                regularHours: Number(reg) || 0,
-                overtimeHours: Number(ot) || 0,
-                grossHours: (Number(reg) || 0) + (Number(ot) || 0),
+                regularHours: reg,
+                overtimeHours: ot,
+                grossHours: reg + ot,
                 calculatedAt: now,
                 calculatedBy: calculatedBy,
                 remarks: finalRemarks,

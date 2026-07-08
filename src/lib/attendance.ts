@@ -2,7 +2,8 @@
 import {
   format,
   isValid,
-  parse
+  parse,
+  differenceInMinutes
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { RawAttendanceRow } from './types';
@@ -38,19 +39,16 @@ export type CalcAttendanceRow = RawAttendanceRow & {
  * Robust time parser for attendance machine data.
  * Handles: HH:mm:ss, HH:mm, 12h AM/PM, Excel Decimals, and full Timestamps.
  */
-function parseTimeToString(timeInput: any): string | null {
+export function parseTimeToString(timeInput: any): string | null {
     if (timeInput === null || timeInput === undefined) return null;
     
-    // 1. If it's already a JS Date object (common in modern Excel parsers)
     if (timeInput instanceof Date && isValid(timeInput)) {
         return format(timeInput, 'HH:mm:ss');
     }
 
     const t = String(timeInput).trim();
-    // Common machine placeholders for "no data"
     if (t === '-' || t === '' || t.toLowerCase() === 'null' || t === '0' || t === '0.0' || t === '0:00' || t === '00:00:00') return null;
     
-    // 2. Handle Excel time decimals (e.g., 0.375 for 09:00:00)
     const numericTime = parseFloat(t);
     if (!isNaN(numericTime) && numericTime < 1 && numericTime > 0.00001) {
         const totalSeconds = Math.round(numericTime * 86400);
@@ -60,7 +58,6 @@ function parseTimeToString(timeInput: any): string | null {
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
 
-    // 3. Handle string formats (Standard & Machine-specific)
     const formats = ['h:mm:ss a', 'h:mm a', 'HH:mm:ss', 'HH:mm', 'yyyy-MM-dd HH:mm:ss', 'dd-MM-yyyy HH:mm:ss'];
     for (const f of formats) {
         try {
@@ -71,7 +68,6 @@ function parseTimeToString(timeInput: any): string | null {
         } catch {}
     }
     
-    // 4. Regex fallback for partial time strings
     if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t)) {
         const parts = t.split(':');
         return parts.map(p => p.padStart(2, '0')).join(':') + (parts.length === 2 ? ':00' : '');
@@ -86,7 +82,6 @@ const parseExcelDate = (dateInput: any): Date | null => {
     if (dateInput instanceof Date && isValid(dateInput)) return dateInput;
 
     if (typeof dateInput === 'number') {
-        // Excel serial date to JS date
         if (dateInput > 1) {
             const date = new Date((dateInput - 25569) * 86400 * 1000);
             if (isValid(date)) return date;
@@ -125,7 +120,6 @@ export const processAttendanceImport = (
 ): { processedData: CalcAttendanceRow[], skippedCount: number } => {
     if (!jsonData || jsonData.length < 2) return { processedData: [], skippedCount: 0 };
 
-    // 1. Find Header Row (more robust detection)
     let headerIndex = -1;
     for (let i = 0; i < Math.min(jsonData.length, 25); i++) {
         const row = jsonData[i];
@@ -144,20 +138,18 @@ export const processAttendanceImport = (
 
     const headerRow = jsonData[headerIndex]; 
     const dataRows = jsonData.slice(headerIndex + 1);
-    
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
-    // Expanded aliases for better detection of shift and clock columns
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string[] } = {
         dateAD: ['date (ad dates)', 'date ad', 'date', 'attendance date', 'day', 'ad date', 'work date', 'att date'],
         employeeName: ['employee name', 'name', 'ename', 'full name', 'user name', 'employee', 'staff name'],
         onDuty: [
             'on duty (shift start time)', 'on duty', 'on-duty', 'shift start', 'timetable', 'start time', 
-            'on duty time', 'std in', 'shift in', 'plan in', 'planned in', 'scheduled in'
+            'on duty time', 'std in', 'shift in', 'plan in', 'planned in', 'scheduled in', 'shift start time'
         ],
         offDuty: [
             'off duty (shift end time)', 'off duty', 'off-duty', 'shift end', 'end time', 
-            'off duty time', 'std out', 'shift out', 'plan out', 'planned out', 'scheduled out'
+            'off duty time', 'std out', 'shift out', 'plan out', 'planned out', 'scheduled out', 'shift end time'
         ],
         clockIn: ['clock in (employee came)', 'clock in', 'in time', 'check-in', 'clockin', 'time in', 'actual in', 'punch in'],
         clockOut: ['clock out (employee left)', 'clock out', 'out time', 'check-out', 'clockout', 'time out', 'actual out', 'punch out'],
@@ -209,20 +201,17 @@ export const processAttendanceImport = (
         const year = nepaliDate.getYear();
         const month = nepaliDate.getMonth();
 
-        // Standardize Times using the enhanced parser
         const clockIn = parseTimeToString(row.clockIn);
         const clockOut = parseTimeToString(row.clockOut);
         const onDuty = parseTimeToString(row.onDuty);
         const offDuty = parseTimeToString(row.offDuty);
         
-        // --- REMARK & STATUS LOGIC ---
         let generatedRemark = String(row.remarks || '').trim();
         if (generatedRemark === '-' || generatedRemark === 'null' || generatedRemark === '0') generatedRemark = '';
 
         let statusStr = String(row.status || '').trim();
         const headerName = headerMap['status'] !== undefined ? String(headerRow[headerMap['status']] || '').toLowerCase() : '';
         
-        // Handle Boolean "Absent" column correctly
         if (headerName.includes('absent')) {
             const isTrue = statusStr.toUpperCase() === 'TRUE' || statusStr === '1' || statusStr.toLowerCase() === 'yes';
             const isFalse = statusStr.toUpperCase() === 'FALSE' || statusStr === '0' || statusStr.toLowerCase() === 'no' || statusStr === '' || statusStr === '-';
@@ -231,7 +220,6 @@ export const processAttendanceImport = (
             else if (isFalse) statusStr = 'Present';
         }
 
-        // Logic for missing punches and absolute absence
         if (!clockIn && !clockOut) {
             statusStr = 'Absent';
         } else if (!clockIn) {
