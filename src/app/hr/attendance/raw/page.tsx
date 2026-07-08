@@ -49,7 +49,7 @@ export default function RawMachineLogsPage() {
     // Import Dialog
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
     const [availableSheets, setAvailableSheets] = useState<any[]>([]);
-    const [selectedSheets, setSelectedSheets] = useState<any[]>([]);
+    const [selectedSheets, setSelectedSheets] = useState<{ name: string; year: string; month: string }[]>([]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -98,16 +98,16 @@ export default function RawMachineLogsPage() {
 
         try {
             let total = 0;
-            for (const s of selectedSheets) {
-                const sheet = availableSheets.find(as => as.name === s.name);
+            for (const selection of selectedSheets) {
+                const sheet = availableSheets.find(as => as.name === selection.name);
                 if (sheet) {
                     const { logCount } = await addRawMachineLogs(
                         sheet.jsonData,
                         user.username,
-                        parseInt(s.year),
-                        parseInt(s.month),
-                        sheet.name,
-                        (p) => setImportProgress(`Importing ${sheet.name}: ${p} records`)
+                        parseInt(selection.year),
+                        parseInt(selection.month),
+                        selection.name,
+                        (p) => setImportProgress(`Importing ${selection.name}: ${p} records`)
                     );
                     total += logCount;
                 }
@@ -117,6 +117,7 @@ export default function RawMachineLogsPage() {
             toast({ title: 'Import Failed', description: err.message, variant: 'destructive' });
         } finally {
             setImportProgress(null);
+            setSelectedSheets([]);
         }
     };
 
