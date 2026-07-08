@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense } from 'react';
@@ -23,14 +22,13 @@ import { Separator } from '@/components/ui/separator';
 const hrModules = [
     { name: 'Employees', description: 'Manage employee records and wage information.', href: '/hr/employees', icon: Users },
     { name: 'Machine Logs', description: 'Direct raw data dump from attendance machines.', href: '/hr/attendance/raw', icon: HardDrive },
-    { name: 'Calculation Logic', description: 'Process raw logs into billable hours.', href: '/hr/attendance/calculate', icon: Calculator },
     { name: 'Attendance Registry', description: 'Validated work-hour records and metrics.', href: '/hr/attendance', icon: Calendar },
+    { name: 'Operations & Logic', description: 'Configure rules, shifts, and process labor data.', href: '/hr/office', icon: Settings2 },
     { name: 'Analytics', description: 'Generate attendance analytics for any period.', href: '/hr/analytics', icon: BarChart2 },
     { name: 'Holidays & Leaves', description: 'Manage leave requests and public holidays.', href: '/hr/holiday', icon: CalendarCheck },
     { name: 'Payroll', description: 'View and process payroll reports.', href: '/hr/payroll', icon: FileText },
     { name: 'Bonus', description: 'Calculate and track employee bonuses.', href: '/hr/bonus', icon: Award },
     { name: 'Payslip', description: 'View and print employee payslips.', href: '/hr/payslip', icon: Wallet },
-    { name: 'HR Office', description: 'Configure shifts and operational rules.', href: '/hr/office', icon: Settings2 },
 ];
 
 function DashboardSkeleton() {
@@ -85,3 +83,4 @@ export default function HRPage() {
         </div>
     );
 }
+

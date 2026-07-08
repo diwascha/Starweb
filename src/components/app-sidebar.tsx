@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -341,7 +340,6 @@ export function AppSidebar() {
                                 
                                 <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Attendance</SidebarGroupLabel>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance/raw')}><Link href="/hr/attendance/raw" className="flex items-center gap-2"><HardDrive className="h-3.5 w-3.5" /><span>Machine Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance/calculate')}><Link href="/hr/attendance/calculate" className="flex items-center gap-2"><Calculator className="h-3.5 w-3.5" /><span>Calculation Logic</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance', true)}><Link href="/hr/attendance" className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /><span>Registry</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 
                                 <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Operations</SidebarGroupLabel>

@@ -17,8 +17,11 @@ import {
     Save,
     Loader2,
     Terminal,
+    PlayCircle,
+    ArrowRight,
+    ShieldAlert
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -28,6 +31,7 @@ import {
     onShiftsUpdate, saveShift, deleteShift,
 } from '@/services/hr-admin-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
+import { runHourlyCalculation } from '@/services/attendance-service';
 import type { HrShift, HrConfig } from '@/lib/types';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -42,6 +46,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NEPALI_MONTHS } from '@/lib/constants';
+import NepaliDate from 'nepali-date-converter';
+import { useRouter } from 'next/navigation';
 
 const INITIAL_HR_CONFIG: HrConfig = {
     hours: {
@@ -80,11 +87,17 @@ const INITIAL_HR_CONFIG: HrConfig = {
 export default function HrOfficePage() {
     const { user } = useAuth();
     const { toast } = useToast();
+    const router = useRouter();
     
     // Administration States
     const [shifts, setShifts] = useState<HrShift[]>([]);
     const [hrConfig, setHrConfig] = useState<HrConfig>(INITIAL_HR_CONFIG);
     const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+    // Calculation States
+    const [isCalculating, setIsCalculating] = useState(false);
+    const [selectedYear, setSelectedYear] = useState<string>(String(new NepaliDate().getYear()));
+    const [selectedMonth, setSelectedMonth] = useState<string>(String(new NepaliDate().getMonth()));
 
     // Dialog & Form States
     const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
@@ -118,6 +131,27 @@ export default function HrOfficePage() {
         }
     };
 
+    const handleRunCalculation = async () => {
+        if (!user) return;
+        setIsCalculating(true);
+        try {
+            const { processed } = await runHourlyCalculation(
+                parseInt(selectedYear),
+                parseInt(selectedMonth),
+                user.username
+            );
+            toast({ 
+                title: 'Calculation Successful', 
+                description: `Successfully processed ${processed} attendance records with configured hourly rules.` 
+            });
+            router.push('/hr/attendance');
+        } catch (error: any) {
+            toast({ title: 'Calculation Failed', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsCalculating(false);
+        }
+    };
+
     const updateNestedConfig = (section: keyof HrConfig, key: string, value: any) => {
         setHrConfig(prev => ({
             ...prev,
@@ -145,19 +179,68 @@ export default function HrOfficePage() {
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-xl"><Settings2 className="h-6 w-6 text-primary"/></div>
                     <div>
-                        <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">HR Office</h1>
-                        <p className="text-muted-foreground text-sm font-medium">Core organizational settings and administrative oversight.</p>
+                        <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">HR Operations & Logic</h1>
+                        <p className="text-muted-foreground text-sm font-medium">Core rules, shift management, and labor metric processing.</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button onClick={handleSaveHrConfig} disabled={isSavingConfig} className="h-10 px-6 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">
                         {isSavingConfig ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Commit Changes
+                        Commit Rules
                     </Button>
                 </div>
             </header>
 
-            <div className="max-w-4xl mx-auto w-full">
+            <div className="max-w-4xl mx-auto w-full space-y-8">
+                {/* Data Processor Section - Merged from calculation page */}
+                <Card className="shadow-lg border-primary/20 overflow-hidden ring-4 ring-primary/5">
+                    <CardHeader className="bg-primary/5 border-b py-6 px-8">
+                        <CardTitle className="text-lg font-black uppercase text-gray-900 tracking-wider flex items-center gap-2">
+                            <Calculator className="h-5 w-5 text-primary"/>
+                            Attendance Logic Engine
+                        </CardTitle>
+                        <CardDescription className="text-xs uppercase font-bold text-muted-foreground">Select period to transform raw logs into work hours based on rules below.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-8 space-y-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Target BS Year</Label>
+                                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                                    <SelectTrigger className="h-11 bg-white border-2 font-bold"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {[2080, 2081, 2082, 2083].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Target BS Month</Label>
+                                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                                    <SelectTrigger className="h-11 bg-white border-2 font-bold"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-blue-50 border-2 border-blue-100 flex gap-4">
+                            <ShieldAlert className="h-5 w-5 text-blue-600 shrink-0" />
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-black uppercase text-blue-900">Important Processing Rule</p>
+                                <p className="text-[11px] text-blue-800 leading-relaxed font-medium">
+                                    Running this calculation will **overwrite** any existing processed attendance records for the selected period.
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter className="bg-muted/30 border-t py-6 px-8 flex justify-end">
+                        <Button onClick={handleRunCalculation} disabled={isCalculating} size="lg" className="h-12 px-10 font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-primary/20">
+                            {isCalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlayCircle className="mr-2 h-4 w-4"/>}
+                            {isCalculating ? 'Processing...' : 'Run Logic Engine'}
+                        </Button>
+                    </CardFooter>
+                </Card>
+
                 <Accordion type="multiple" defaultValue={["hourly-rules", "shift-registry"]} className="space-y-4">
                     {/* Hourly Calculation Rules */}
                     <AccordionItem value="hourly-rules" className="border rounded-xl bg-white shadow-sm overflow-hidden">
@@ -232,7 +315,7 @@ export default function HrOfficePage() {
                         </AccordionContent>
                     </AccordionItem>
 
-                    {/* Shift Registry (Merged) */}
+                    {/* Shift Registry */}
                     <AccordionItem value="shift-registry" className="border rounded-xl bg-white shadow-sm overflow-hidden">
                         <AccordionTrigger className="px-6 py-4 hover:bg-muted/30 hover:no-underline">
                             <div className="flex items-center gap-3">
@@ -402,7 +485,7 @@ export default function HrOfficePage() {
                                 </div>
                                 <div className="w-full md:w-96 p-5 rounded-2xl bg-amber-50/50 border border-amber-100 space-y-3">
                                     <div className="flex items-center gap-2 text-amber-700">
-                                        <Info className="h-4 w-4" />
+                                        <span className="p-1 bg-amber-100 rounded-full"><Info className="h-3 w-3" /></span>
                                         <h4 className="text-[10px] font-black uppercase tracking-widest">Logic Breakdown</h4>
                                     </div>
                                     <p className="text-[11px] text-muted-foreground leading-relaxed italic">
@@ -442,3 +525,4 @@ export default function HrOfficePage() {
         </div>
     );
 }
+

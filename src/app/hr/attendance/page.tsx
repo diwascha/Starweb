@@ -220,7 +220,7 @@ export default function AttendanceRegistryPage() {
                     <Link href="/hr/attendance/raw"><HardDrive className="mr-2 h-3.5 w-3.5"/> View Raw Dump</Link>
                 </Button>
                 <Button asChild className="h-10 uppercase text-[10px] font-black tracking-widest shadow-lg shadow-primary/20">
-                    <Link href="/hr/attendance/calculate"><Calculator className="mr-2 h-3.5 w-3.5"/> Run Calculation</Link>
+                    <Link href="/hr/office"><Calculator className="mr-2 h-3.5 w-3.5"/> Run Calculation</Link>
                 </Button>
             </div>
         </header>
