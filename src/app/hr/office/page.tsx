@@ -334,6 +334,37 @@ export default function HrOfficePage() {
                                     </div>
                                 </div>
                             </div>
+
+                            <div className="mt-8 p-5 bg-primary/[0.03] rounded-2xl border-2 border-dashed border-primary/20 animate-in fade-in slide-in-from-top-4">
+                                <div className="flex items-center gap-2 text-primary mb-4">
+                                    <Info className="h-4 w-4" />
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">Logic Guide: Calculation Impact</h4>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-gray-900 uppercase">Core Limits</p>
+                                        <ul className="text-[11px] text-muted-foreground space-y-2 leading-tight">
+                                            <li><b className="text-gray-700">Base Day:</b> Caps "Normal Hours" at this limit (usually 8). Any work beyond this is moved to the OT bucket.</li>
+                                            <li><b className="text-gray-700">Rounding Step:</b> Snaps calculated decimals to clean units (e.g., 0.5) to avoid paying for fractions of minutes.</li>
+                                            <li><b className="text-gray-700">Review Flag:</b> Highlights daily totals that exceed normal bounds for manual audit in the Registry.</li>
+                                        </ul>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-gray-900 uppercase">Tolerance & Snap</p>
+                                        <ul className="text-[11px] text-muted-foreground space-y-2 leading-tight">
+                                            <li><b className="text-gray-700">Grace (Min):</b> Arrival window. If within grace, the punch snaps to Shift Start. Prevents "Late" flags for minor delays.</li>
+                                            <li><b className="text-gray-700">Block (Min):</b> OT barrier. Employees must stay at least this long after shift end to trigger ANY overtime payment.</li>
+                                        </ul>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-gray-900 uppercase">Behavioral Tracking</p>
+                                        <ul className="text-[11px] text-muted-foreground space-y-2 leading-tight">
+                                            <li><b className="text-gray-700">Free Lates:</b> Count of late arrivals allowed per cycle before the employee is flagged in HR analytics.</li>
+                                            <li><b className="text-gray-700">Free Early:</b> Count of early departures allowed per cycle without immediate HR review.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
                         </AccordionContent>
                     </AccordionItem>
 
