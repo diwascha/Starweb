@@ -19,7 +19,9 @@ import {
     PlusCircle,
     CheckCircle2,
     ChevronDown,
-    Check
+    Check,
+    ArrowRight,
+    Terminal
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,8 +40,8 @@ import { NEPALI_MONTHS } from '@/lib/constants';
 import type { PublicHoliday, LeaveRequest, Employee, RawMachineLog } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { format, startOfDay, isEqual, isWithinInterval } from 'date-fns';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { format, startOfDay, isEqual, isWithinInterval, differenceInDays } from 'date-fns';
 import { 
     AlertDialog, 
     AlertDialogAction, 
@@ -92,7 +94,14 @@ export default function RawMachineLogsPage() {
     const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
     const [bulkDateRange, setBulkDateRange] = useState<DateRange | undefined>(undefined);
     const [bulkEmployeeNames, setBulkEmployeeNames] = useState<string[]>([]);
-    const [bulkTimes, setBulkTimes] = useState({ onDuty: '09:00:00', offDuty: '17:00:00', clockIn: '09:00:00', clockOut: '17:00:00', remarks: 'Manual Attendance Entry' });
+    const [bulkTimes, setBulkTimes] = useState({ 
+        punchMode: 'BOTH' as 'BOTH' | 'IN_ONLY' | 'OUT_ONLY',
+        onDuty: '09:00', 
+        offDuty: '17:00', 
+        clockIn: '09:00', 
+        clockOut: '17:00', 
+        remarks: 'Manual Entry' 
+    });
     const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
 
     // Edit Dialog
@@ -273,10 +282,14 @@ export default function RawMachineLogsPage() {
 
         setIsSubmittingBulk(true);
         try {
+            const finalTimes = { ...bulkTimes };
+            if (bulkTimes.punchMode === 'IN_ONLY') (finalTimes as any).clockOut = null;
+            if (bulkTimes.punchMode === 'OUT_ONLY') (finalTimes as any).clockIn = null;
+
             const count = await addBulkManualLogs(
                 { from: bulkDateRange.from, to: bulkDateRange.to },
                 bulkEmployeeNames,
-                bulkTimes,
+                finalTimes as any,
                 user.username
             );
             toast({ title: 'Bulk Entry Success', description: `Successfully recorded ${count} logs for ${bulkEmployeeNames.length} employees.` });
@@ -372,6 +385,12 @@ export default function RawMachineLogsPage() {
 
     const isFiltered = selectedYear !== 'All' || selectedMonth !== 'All' || searchQuery !== '' || selectedRemark !== 'All';
 
+    const bulkTotalLogs = useMemo(() => {
+        if (!bulkDateRange?.from || !bulkDateRange?.to || bulkEmployeeNames.length === 0) return 0;
+        const days = differenceInDays(bulkDateRange.to, bulkDateRange.from) + 1;
+        return days * bulkEmployeeNames.length;
+    }, [bulkDateRange, bulkEmployeeNames]);
+
     return (
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -437,7 +456,6 @@ export default function RawMachineLogsPage() {
                             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                                 <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Months" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="All">All Months</SelectItem>
                                     {availableMonths.map(m => <SelectItem key={`month-filter-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -554,91 +572,124 @@ export default function RawMachineLogsPage() {
                         <DialogDescription className="text-xs font-bold uppercase tracking-widest text-indigo-600">HR Direct Input Module</DialogDescription>
                     </DialogHeader>
                     
-                    <ScrollArea className="flex-1 p-6 bg-gray-50/30">
-                        <div className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-4">
-                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">1. Select Target Period</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10 bg-white shadow-none", !bulkDateRange && "text-muted-foreground")}>
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {bulkDateRange?.from ? (
-                                                    bulkDateRange.to ? (
-                                                        `${toNepaliDate(bulkDateRange.from.toISOString())} - ${toNepaliDate(bulkDateRange.to.toISOString())} BS`
-                                                    ) : toNepaliDate(bulkDateRange.from.toISOString())
-                                                ) : <span>Select period range</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                            <DualDateRangePicker selected={bulkDateRange} onSelect={setBulkDateRange} />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
+                    <div className="flex-1 overflow-hidden flex flex-col bg-gray-50/30">
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8 border-b">
+                            <div className="space-y-4">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">1. Select Target Period</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10 bg-white shadow-none", !bulkDateRange && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {bulkDateRange?.from ? (
+                                                bulkDateRange.to ? (
+                                                    `${toNepaliDate(bulkDateRange.from.toISOString())} - ${toNepaliDate(bulkDateRange.to.toISOString())} BS`
+                                                ) : toNepaliDate(bulkDateRange.from.toISOString())
+                                            ) : <span>Select period range</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <DualDateRangePicker selected={bulkDateRange} onSelect={setBulkDateRange} />
+                                    </PopoverContent>
+                                </Popover>
                                 
-                                <div className="space-y-4">
-                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">2. Configure Schedule & Times</Label>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[9px] font-bold uppercase text-muted-foreground">On Duty (Ref)</Label>
-                                            <Input type="time" value={bulkTimes.onDuty} onChange={e => setBulkTimes({...bulkTimes, onDuty: e.target.value})} className="h-9 bg-white" />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[9px] font-bold uppercase text-muted-foreground">Off Duty (Ref)</Label>
-                                            <Input type="time" value={bulkTimes.offDuty} onChange={e => setBulkTimes({...bulkTimes, offDuty: e.target.value})} className="h-9 bg-white" />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[9px] font-black uppercase text-indigo-600">Clock In (Actual)</Label>
-                                            <Input type="time" value={bulkTimes.clockIn} onChange={e => setBulkTimes({...bulkTimes, clockIn: e.target.value})} className="h-9 border-indigo-200 bg-white focus-visible:ring-indigo-500 font-black" />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[9px] font-black uppercase text-indigo-600">Clock Out (Actual)</Label>
-                                            <Input type="time" value={bulkTimes.clockOut} onChange={e => setBulkTimes({...bulkTimes, clockOut: e.target.value})} className="h-9 border-indigo-200 bg-white focus-visible:ring-indigo-500 font-black" />
-                                        </div>
-                                    </div>
+                                <div className="space-y-1.5 pt-2">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">2. Audit Remark</Label>
+                                    <Input value={bulkTimes.remarks} onChange={e => setBulkTimes({...bulkTimes, remarks: e.target.value})} className="h-9 bg-white" placeholder="Reason for manual entry..." />
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">3. Configure Punch Details</Label>
+                                <div className="space-y-4 p-4 rounded-xl border-2 border-dashed bg-white">
                                     <div className="space-y-1.5">
-                                        <Label className="text-[9px] font-bold uppercase text-muted-foreground">Audit Remark</Label>
-                                        <Input value={bulkTimes.remarks} onChange={e => setBulkTimes({...bulkTimes, remarks: e.target.value})} className="h-9 bg-white" placeholder="Reason for manual entry..." />
+                                        <Label className="text-[9px] font-bold uppercase text-muted-foreground">Action Mode</Label>
+                                        <Select value={bulkTimes.punchMode} onValueChange={(v: any) => setBulkTimes({...bulkTimes, punchMode: v})}>
+                                            <SelectTrigger className="h-8 bg-gray-50 text-[10px] font-black uppercase"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="BOTH">Full Attendance (In & Out)</SelectItem>
+                                                <SelectItem value="IN_ONLY">Clock In Only</SelectItem>
+                                                <SelectItem value="OUT_ONLY">Clock Out Only</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className={cn("text-[9px] font-black uppercase", (bulkTimes.punchMode === 'BOTH' || bulkTimes.punchMode === 'IN_ONLY') ? "text-indigo-600" : "text-muted-foreground opacity-50")}>Clock In</Label>
+                                            <Input 
+                                                type="time" 
+                                                disabled={bulkTimes.punchMode === 'OUT_ONLY'}
+                                                value={bulkTimes.clockIn} 
+                                                onChange={e => setBulkTimes({...bulkTimes, clockIn: e.target.value})} 
+                                                className="h-8 border-indigo-100 bg-white font-black text-xs" 
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className={cn("text-[9px] font-black uppercase", (bulkTimes.punchMode === 'BOTH' || bulkTimes.punchMode === 'OUT_ONLY') ? "text-indigo-600" : "text-muted-foreground opacity-50")}>Clock Out</Label>
+                                            <Input 
+                                                type="time" 
+                                                disabled={bulkTimes.punchMode === 'IN_ONLY'}
+                                                value={bulkTimes.clockOut} 
+                                                onChange={e => setBulkTimes({...bulkTimes, clockOut: e.target.value})} 
+                                                className="h-8 border-indigo-100 bg-white font-black text-xs" 
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between px-1">
-                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">3. Select Employees ({bulkEmployeeNames.length} selected)</Label>
-                                    <div className="flex items-center gap-2">
-                                         <Button variant="ghost" size="sm" onClick={() => setBulkEmployeeNames(employees.map(e => e.name))} className="h-6 text-[9px] font-black uppercase text-indigo-600 hover:bg-indigo-50">Select All</Button>
-                                         <Button variant="ghost" size="sm" onClick={() => setBulkEmployeeNames([])} className="h-6 text-[9px] font-black uppercase text-muted-foreground hover:bg-muted">Clear</Button>
-                                    </div>
+                        <div className="flex-1 flex flex-col min-h-0 bg-white">
+                            <div className="p-4 border-b flex items-center justify-between bg-muted/10">
+                                <Label className="text-[10px] font-black uppercase text-gray-900 tracking-widest">4. Select Targeted Employees ({bulkEmployeeNames.length} selected)</Label>
+                                <div className="flex items-center gap-2">
+                                    <Button variant="ghost" size="sm" onClick={() => setBulkEmployeeNames(employees.map(e => e.name))} className="h-6 text-[9px] font-black uppercase text-indigo-600 hover:bg-indigo-50">Select All</Button>
+                                    <Button variant="ghost" size="sm" onClick={() => setBulkEmployeeNames([])} className="h-6 text-[9px] font-black uppercase text-muted-foreground hover:bg-muted">Clear</Button>
                                 </div>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            </div>
+                            <ScrollArea className="flex-1">
+                                <div className="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                                     {employees.map(e => (
                                         <div key={e.id} className={cn(
-                                            "flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer",
-                                            bulkEmployeeNames.includes(e.name) ? "bg-indigo-600 border-indigo-600 text-white shadow-md" : "bg-white border-gray-100 hover:border-indigo-200 text-gray-700"
+                                            "flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer",
+                                            bulkEmployeeNames.includes(e.name) ? "bg-indigo-600 border-indigo-600 text-white shadow-md ring-2 ring-indigo-600/20" : "bg-gray-50/50 border-gray-100 hover:border-indigo-200 text-gray-700"
                                         )} onClick={() => {
                                             if (bulkEmployeeNames.includes(e.name)) setBulkEmployeeNames(bulkEmployeeNames.filter(n => n !== e.name));
                                             else setBulkEmployeeNames([...bulkEmployeeNames, e.name]);
                                         }}>
                                             <Checkbox checked={bulkEmployeeNames.includes(e.name)} onCheckedChange={() => {}} className={bulkEmployeeNames.includes(e.name) ? "border-white data-[state=checked]:bg-white data-[state=checked]:text-indigo-600" : ""} />
-                                            <span className="text-[11px] font-bold truncate">{e.name}</span>
+                                            <span className="text-[11px] font-black truncate uppercase tracking-tight">{e.name}</span>
                                         </div>
                                     ))}
                                 </div>
-                            </div>
+                                <ScrollBar orientation="vertical" />
+                            </ScrollArea>
                         </div>
-                    </ScrollArea>
+                    </div>
                     
                     <DialogFooter className="p-6 border-t bg-white shrink-0">
-                        <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest h-11 border-gray-300">Cancel</Button>
-                        <Button 
-                            onClick={handleBulkSubmit} 
-                            disabled={isSubmittingBulk || !bulkDateRange?.from || bulkEmployeeNames.length === 0}
-                            className="font-black uppercase text-[10px] tracking-widest h-11 shadow-xl shadow-indigo-500/20 bg-indigo-600 hover:bg-indigo-700 text-white px-10"
-                        >
-                            {isSubmittingBulk ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle2 className="mr-2 h-4 w-4"/>}
-                            Commit Bulk Manual Entries
-                        </Button>
+                        <div className="flex w-full items-center justify-between">
+                            {bulkTotalLogs > 0 ? (
+                                <div className="flex items-center gap-2 animate-in fade-in zoom-in-95">
+                                    <div className="p-2 bg-indigo-50 rounded-lg"><Terminal className="h-4 w-4 text-indigo-600"/></div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] font-black uppercase text-indigo-600 tracking-widest">Transaction Summary</span>
+                                        <span className="text-xs font-black text-gray-900">Ready to record {bulkTotalLogs} manual logs.</span>
+                                    </div>
+                                </div>
+                            ) : <div/>}
+                            
+                            <div className="flex gap-3">
+                                <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest h-11 px-8 border-gray-300">Cancel</Button>
+                                <Button 
+                                    onClick={handleBulkSubmit} 
+                                    disabled={isSubmittingBulk || bulkTotalLogs === 0}
+                                    className="font-black uppercase text-[10px] tracking-widest h-11 shadow-xl shadow-indigo-500/20 bg-indigo-600 hover:bg-indigo-700 text-white px-10"
+                                >
+                                    {isSubmittingBulk ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle2 className="mr-2 h-4 w-4"/>}
+                                    Authorize Commit
+                                </Button>
+                            </div>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
