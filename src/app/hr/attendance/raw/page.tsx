@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -303,7 +304,7 @@ export default function RawMachineLogsPage() {
                                 ) : filteredLogs.map(l => (
                                     <TableRow key={l.id} className="h-12 border-b-gray-50 group hover:bg-muted/20 transition-colors">
                                         <TableCell className="pl-6 font-black text-gray-900">{l.employeeName}</TableCell>
-                                        <TableCell className="font-mono font-bold text-blue-900">{l.bsYear}/{String((l.bsMonth || 0) + 1).padStart(2, '0')}/{l.dateBS?.split('/')?.[2] || '??'}</TableCell>
+                                        <TableCell className="font-mono font-bold text-blue-900">{toNepaliDate(l.date)}</TableCell>
                                         <TableCell className="font-mono text-gray-400 text-[10px]">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
                                         <TableCell className="text-muted-foreground font-medium">{formatTimeForDisplay(l.onDuty)}</TableCell>
                                         <TableCell className="text-muted-foreground font-medium">{formatTimeForDisplay(l.offDuty)}</TableCell>

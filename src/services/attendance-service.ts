@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Attendance service handling raw machine logs and calculated labor metrics.
  */
@@ -70,6 +71,7 @@ const fromFirestoreLog = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMac
     return {
         id: snapshot.id,
         date: data.date,
+        dateBS: data.dateBS || '',
         bsYear: data.bsYear,
         bsMonth: data.bsMonth,
         employeeName: data.employeeName,
@@ -118,6 +120,7 @@ export const addRawMachineLogs = async (
 
         const logs: Omit<RawMachineLog, 'id'>[] = processedData.map(p => ({
             date: p.dateADISO,
+            dateBS: p.dateBS,
             bsYear: p.bsYear,
             bsMonth: p.bsMonth,
             employeeName: p.employeeName,

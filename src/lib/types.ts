@@ -251,6 +251,7 @@ export interface RawAttendanceRow {
 export interface RawMachineLog {
     id: string;
     date: string; // AD Date ISO
+    dateBS: string; // Full BS string YYYY/MM/DD
     bsYear: number;
     bsMonth: number;
     employeeName: string;
