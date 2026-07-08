@@ -40,11 +40,12 @@ function parseTimeToString(timeInput: any): string | null {
     }
 
     const t = String(timeInput).trim();
-    if (t === '-' || t === '' || t.toLowerCase() === 'null') return null;
+    // Common machine placeholders for "no data"
+    if (t === '-' || t === '' || t.toLowerCase() === 'null' || t === '0' || t === '0.0' || t === '0:00' || t === '00:00:00') return null;
     
     // Handle Excel time decimals (e.g., 0.33333 for 08:00:00)
     const numericTime = parseFloat(t);
-    if (!isNaN(numericTime) && numericTime < 1 && numericTime >= 0) {
+    if (!isNaN(numericTime) && numericTime < 1 && numericTime > 0.00001) {
         const totalSeconds = Math.round(numericTime * 86400);
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -79,7 +80,6 @@ const parseExcelDate = (dateInput: any): Date | null => {
 
     if (typeof dateInput === 'number') {
         // Excel serial date to JS date
-        // Note: Excel's origin is Dec 30, 1899
         if (dateInput > 1) {
             const date = new Date((dateInput - 25569) * 86400 * 1000);
             if (isValid(date)) return date;
@@ -118,7 +118,7 @@ export const processAttendanceImport = (
 ): { processedData: CalcAttendanceRow[], skippedCount: number } => {
     if (!jsonData || jsonData.length < 2) return { processedData: [], skippedCount: 0 };
 
-    // 1. Find Header Row (might not be at index 0)
+    // 1. Find Header Row
     let headerIndex = 0;
     for (let i = 0; i < Math.min(jsonData.length, 15); i++) {
         const row = jsonData[i];
@@ -152,16 +152,12 @@ export const processAttendanceImport = (
     const headerMap: { [key: string]: number } = {};
     for (const key in headerMapConfig) {
         const aliases = headerMapConfig[key as keyof RawAttendanceRow];
-        // Exact match
         let index = normalizedHeaders.findIndex(h => aliases.includes(h));
-        
-        // Partial match if no exact match found
         if (index === -1) {
             index = normalizedHeaders.findIndex(h => 
                 aliases.some(alias => h.includes(alias))
             );
         }
-
         if (index !== -1) {
             headerMap[key] = index;
         }
@@ -199,7 +195,10 @@ export const processAttendanceImport = (
         const clockIn = parseTimeToString(row.clockIn);
         const clockOut = parseTimeToString(row.clockOut);
         
-        // Standardize Status
+        // --- REMARK & STATUS LOGIC ---
+        let generatedRemark = String(row.remarks || '').trim();
+        if (generatedRemark === '-' || generatedRemark === 'null' || generatedRemark === '0') generatedRemark = '';
+
         let statusStr = String(row.status || '').trim();
         const headerName = headerMap['status'] !== undefined ? String(headerRow[headerMap['status']] || '').toLowerCase() : '';
         
@@ -212,28 +211,19 @@ export const processAttendanceImport = (
             else if (isFalse) statusStr = 'Present';
         }
 
-        // Final fallback for missing status
-        if (!statusStr || statusStr === '-' || statusStr === 'null' || statusStr === '0') {
-            statusStr = (clockIn || clockOut) ? 'Present' : 'Absent';
-        }
-
-        // --- ENHANCED REMARK & STATUS LOGIC ---
-        let generatedRemark = String(row.remarks || '').trim();
-        if (generatedRemark === '-' || generatedRemark === 'null') generatedRemark = '';
-
+        // Logic for missing punches and absolute absence
         if (!clockIn && !clockOut) {
-            // Both missing = Absent
             statusStr = 'Absent';
         } else if (!clockIn) {
-            // Only Clock In missing
             statusStr = 'C/I Miss';
             const missingNote = 'Clock In Missing';
             generatedRemark = generatedRemark ? `${generatedRemark}; ${missingNote}` : missingNote;
         } else if (!clockOut) {
-            // Only Clock Out missing
             statusStr = 'C/O Miss';
             const missingNote = 'Clock Out Missing';
             generatedRemark = generatedRemark ? `${generatedRemark}; ${missingNote}` : missingNote;
+        } else if (!statusStr || statusStr === '-' || statusStr === 'null' || statusStr === '0') {
+            statusStr = 'Present';
         }
 
         return {
