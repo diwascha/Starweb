@@ -160,6 +160,18 @@ export const addRawMachineLogs = async (
     }
 };
 
+export const updateRawLog = async (id: string, updates: Partial<RawMachineLog>) => {
+    const docRef = doc(getRawLogsCollection(), id);
+    updateDoc(docRef, updates).catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: updates,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+    });
+};
+
 export const deleteRawLog = async (id: string) => {
     await deleteDoc(doc(getRawLogsCollection(), id));
 };

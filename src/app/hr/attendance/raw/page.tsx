@@ -13,7 +13,8 @@ import {
     Plus,
     History,
     FilterX,
-    ArrowUpDown
+    ArrowUpDown,
+    Edit
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog, deleteRawLogsForMonth, deleteAllRawLogs } from '@/services/attendance-service';
+import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog, deleteRawLogsForMonth, deleteAllRawLogs, updateRawLog } from '@/services/attendance-service';
 import { onHolidaysUpdate, onLeaveRequestsUpdate } from '@/services/hr-admin-service';
 import { cn, toNepaliDate, formatTimeForDisplay, getAttendanceBadgeVariant } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -73,6 +74,11 @@ export default function RawMachineLogsPage() {
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
     const [availableSheets, setAvailableSheets] = useState<any[]>([]);
     const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
+
+    // Edit Dialog
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [editingLog, setEditingLog] = useState<any>(null);
+    const [editForm, setEditForm] = useState({ clockIn: '', clockOut: '', remarks: '' });
 
     useEffect(() => {
         setIsLoading(true);
@@ -240,6 +246,27 @@ export default function RawMachineLogsPage() {
             toast({ title: 'Error', description: 'Failed to purge raw logs.', variant: 'destructive' });
         } finally {
             setIsCleaningAll(false);
+        }
+    };
+
+    const handleOpenEditDialog = (log: any) => {
+        setEditingLog(log);
+        setEditForm({
+            clockIn: log.clockIn || '',
+            clockOut: log.clockOut || '',
+            remarks: log.remarks || ''
+        });
+        setIsEditDialogOpen(true);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingLog) return;
+        try {
+            await updateRawLog(editingLog.id, editForm);
+            toast({ title: 'Log Entry Updated' });
+            setIsEditDialogOpen(false);
+        } catch {
+            toast({ title: 'Error', variant: 'destructive' });
         }
     };
 
@@ -417,7 +444,7 @@ export default function RawMachineLogsPage() {
                                     <TableHead className="font-bold">Clock Out</TableHead>
                                     <TableHead className="font-bold text-center">Status</TableHead>
                                     <TableHead className="font-bold">Remarks</TableHead>
-                                    <TableHead className="text-right pr-6 font-bold">System</TableHead>
+                                    <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -439,9 +466,14 @@ export default function RawMachineLogsPage() {
                                             {getDisplayRemark(l)}
                                         </TableCell>
                                         <TableCell className="text-right pr-6">
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deleteRawLog(l.id)} title="Delete log entry">
-                                                <Trash2 className="h-3.5 w-3.5"/>
-                                            </Button>
+                                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => handleOpenEditDialog(l)} title="Edit log entry">
+                                                    <Edit className="h-3.5 w-3.5"/>
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteRawLog(l.id)} title="Delete log entry">
+                                                    <Trash2 className="h-3.5 w-3.5"/>
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -460,6 +492,42 @@ export default function RawMachineLogsPage() {
                     </ScrollArea>
                 </CardContent>
             </Card>
+
+            {/* Edit Log Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Modify Raw Entry</DialogTitle>
+                        <DialogDescription>Adjust machine data for {editingLog?.employeeName}.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-5 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Clock In (HH:mm:ss)</Label>
+                                <Input value={editForm.clockIn} onChange={e => setEditForm({...editForm, clockIn: e.target.value})} placeholder="09:00:00" className="h-10 font-mono" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Clock Out (HH:mm:ss)</Label>
+                                <Input value={editForm.clockOut} onChange={e => setEditForm({...editForm, clockOut: e.target.value})} placeholder="17:00:00" className="h-10 font-mono" />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Manual Remark</Label>
+                            <Input value={editForm.remarks} onChange={e => setEditForm({...editForm, remarks: e.target.value})} placeholder="e.g. Machine error corrected" className="h-10" />
+                        </div>
+                        <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 flex gap-3">
+                            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-amber-800 font-medium leading-relaxed">
+                                Changes made here will affect future calculations for this period. Existing calculated records will not be updated until you re-run the calculation logic.
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="font-bold uppercase text-[10px]">Cancel</Button>
+                        <Button onClick={handleSaveEdit} className="font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 px-8">Save Adjustments</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Sheet Selection Dialog */}
             <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
