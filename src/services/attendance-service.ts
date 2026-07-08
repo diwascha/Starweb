@@ -106,12 +106,16 @@ export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () =
     });
 };
 
+/**
+ * Intelligent raw log importer with duplicate detection and override capabilities.
+ */
 export const addRawMachineLogs = async (
     jsonData: any[][],
     importedBy: string, 
     sourceSheetName: string,
-    onProgress: (progress: number, total: number) => void
-): Promise<{ logCount: number }> => {
+    onProgress: (progress: number, total: number) => void,
+    options: { overwrite: boolean } = { overwrite: false }
+): Promise<{ createdCount: number, updatedCount: number, skippedCount: number }> => {
     const { db } = getFirebase();
     const importId = generateLocalId();
     const now = createTimestamp();
@@ -119,45 +123,94 @@ export const addRawMachineLogs = async (
 
     try {
         const { processedData } = processAttendanceImport(jsonData);
+        if (processedData.length === 0) return { createdCount: 0, updatedCount: 0, skippedCount: 0 };
 
-        if (processedData.length === 0) return { logCount: 0 };
-
-        const logs: Omit<RawMachineLog, 'id'>[] = processedData.map(p => ({
-            date: p.dateADISO,
-            dateBS: p.dateBS,
-            bsYear: p.bsYear,
-            bsMonth: p.bsMonth,
-            employeeName: p.employeeName,
-            onDuty: p.onDuty,
-            offDuty: p.offDuty,
-            clockIn: p.clockIn,
-            clockOut: p.clockOut,
-            statusFromMachine: p.status,
-            regularHoursFromMachine: p.regularHours,
-            overtimeHoursFromMachine: p.overtimeHours,
-            remarks: p.remarks,
-            importId,
-            importedAt: now,
-            importedBy,
-            sourceSheet: sourceSheetName,
-            rawPayload: p.rawImportData,
-            rowIndex: p.importRowIndex,
-        }));
-
-        let processedCount = 0;
-        for (let i = 0; i < logs.length; i += CHUNK_SIZE) {
-            const chunk = logs.slice(i, i + CHUNK_SIZE);
-            const batch = writeBatch(db);
-            chunk.forEach(log => {
-                const docRef = doc(getRawLogsCollection());
-                batch.set(docRef, log);
+        // 1. Determine the scope (which periods are being imported)
+        const periods = new Set<string>();
+        processedData.forEach(p => periods.add(`${p.bsYear}-${p.bsMonth}`));
+        
+        // 2. Fetch existing logs in those periods to check for duplicates
+        const existingMap = new Map<string, RawMachineLog>();
+        for (const period of Array.from(periods)) {
+            const [y, m] = period.split('-').map(Number);
+            const q = query(getRawLogsCollection(), where('bsYear', '==', y), where('bsMonth', '==', m));
+            const snap = await getDocs(q);
+            snap.forEach(d => {
+                const log = fromFirestoreLog(d as any);
+                // Composite key: SlugName_DateISO
+                const key = `${log.employeeName.toLowerCase().replace(/\s+/g, '_')}_${log.date}`;
+                existingMap.set(key, log);
             });
-            await batch.commit();
-            processedCount += chunk.length;
-            onProgress(processedCount, logs.length);
         }
 
-        return { logCount: logs.length };
+        let createdCount = 0;
+        let updatedCount = 0;
+        let skippedCount = 0;
+
+        const operations: { ref: any, data: any, op: 'set' | 'update' | 'skip' }[] = [];
+
+        processedData.forEach(p => {
+            const compositeKey = `${p.employeeName.toLowerCase().replace(/\s+/g, '_')}_${p.dateADISO}`;
+            const existing = existingMap.get(compositeKey);
+            
+            const logData: Omit<RawMachineLog, 'id'> = {
+                date: p.dateADISO,
+                dateBS: p.dateBS,
+                bsYear: p.bsYear,
+                bsMonth: p.bsMonth,
+                employeeName: p.employeeName,
+                onDuty: p.onDuty,
+                offDuty: p.offDuty,
+                clockIn: p.clockIn,
+                clockOut: p.clockOut,
+                statusFromMachine: p.status,
+                regularHoursFromMachine: p.regularHours,
+                overtimeHoursFromMachine: p.overtimeHours,
+                remarks: p.remarks,
+                importId,
+                importedAt: now,
+                importedBy,
+                sourceSheet: sourceSheetName,
+                rawPayload: p.rawImportData,
+                rowIndex: p.importRowIndex,
+            };
+
+            const docRef = doc(getRawLogsCollection(), compositeKey);
+
+            if (!existing) {
+                operations.push({ ref: docRef, data: logData, op: 'set' });
+                createdCount++;
+            } else {
+                // Check if it's an exact duplicate
+                const isExact = existing.clockIn === logData.clockIn && 
+                                existing.clockOut === logData.clockOut && 
+                                existing.onDuty === logData.onDuty && 
+                                existing.offDuty === logData.offDuty &&
+                                existing.statusFromMachine === logData.statusFromMachine;
+
+                if (isExact) {
+                    skippedCount++;
+                } else if (options.overwrite) {
+                    operations.push({ ref: docRef, data: { ...logData, lastModifiedBy: importedBy, lastModifiedAt: now }, op: 'set' });
+                    updatedCount++;
+                } else {
+                    skippedCount++; // Skip partials if overwrite is off
+                }
+            }
+        });
+
+        // 3. Batch commit the identified operations
+        for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
+            const chunk = operations.slice(i, i + CHUNK_SIZE);
+            const batch = writeBatch(db);
+            chunk.forEach(o => {
+                if (o.op === 'set') batch.set(o.ref, o.data);
+            });
+            await batch.commit();
+            onProgress(i + chunk.length, operations.length);
+        }
+
+        return { createdCount, updatedCount, skippedCount };
     } catch (error) {
         logServiceError('addRawMachineLogs', error);
         throw error;

@@ -47,6 +47,7 @@ import {
     AlertDialogTitle, 
     AlertDialogTrigger 
 } from '@/components/ui/alert-dialog';
+import { Switch } from '@/components/ui/switch';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -75,6 +76,7 @@ export default function RawMachineLogsPage() {
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
     const [availableSheets, setAvailableSheets] = useState<any[]>([]);
     const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
+    const [overwriteExisting, setOverwriteExisting] = useState(false);
 
     // Edit Dialog
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -122,11 +124,9 @@ export default function RawMachineLogsPage() {
         const logDate = startOfDay(new Date(log.date));
         const finalRemarks: string[] = [];
         
-        // 1. Check for Holiday
         const holiday = holidays.find(h => isEqual(startOfDay(new Date(h.date)), logDate));
         if (holiday) finalRemarks.push(`Public Holiday: ${holiday.name}`);
 
-        // 2. Check for Approved Leave
         const leave = leaveRequests.find(l => 
             l.employeeName === log.employeeName && 
             l.status === 'Approved' &&
@@ -137,10 +137,8 @@ export default function RawMachineLogsPage() {
         );
         if (leave) finalRemarks.push(`${leave.leaveType} Leave: ${leave.reason}`);
 
-        // 3. Saturday
         if (logDate.getDay() === 6) finalRemarks.push('Weekly Off (Saturday)');
 
-        // 4. Missing Punches (Dynamic detection)
         if (!log.clockIn && !log.clockOut) {
             if (finalRemarks.length === 0) finalRemarks.push('Absent');
         } else if (!log.clockIn) {
@@ -149,7 +147,6 @@ export default function RawMachineLogsPage() {
             finalRemarks.push('Clock Out Missing');
         }
 
-        // 5. Existing Machine Remarks
         if (log.remarks && !finalRemarks.some(fr => log.remarks.includes(fr) || fr.includes(log.remarks))) {
             finalRemarks.push(log.remarks);
         }
@@ -201,7 +198,6 @@ export default function RawMachineLogsPage() {
         if (!user || selectedSheets.length === 0) return;
         setIsImportDialogOpen(false);
         
-        // Calculate estimated total rows for progress tracking
         const estimatedTotal = selectedSheets.reduce((sum, name) => {
             const sheet = availableSheets.find(as => as.name === name);
             return sum + (sheet?.rowCount || 0);
@@ -210,35 +206,41 @@ export default function RawMachineLogsPage() {
         setImportProgress(`0 / ${estimatedTotal}`);
 
         try {
-            let overallTotal = 0;
+            let totalCreated = 0;
+            let totalUpdated = 0;
+            let totalSkipped = 0;
             let currentOffset = 0;
 
             for (const sheetName of selectedSheets) {
                 const sheet = availableSheets.find(as => as.name === sheetName);
                 if (sheet) {
-                    const { logCount } = await addRawMachineLogs(
+                    const result = await addRawMachineLogs(
                         sheet.jsonData,
                         user.username,
                         sheetName,
                         (p) => {
-                            // Update total progress based on previous sheets + current sheet progress
                             setImportProgress(`${currentOffset + p} / ${estimatedTotal}`);
-                        }
+                        },
+                        { overwrite: overwriteExisting }
                     );
-                    overallTotal += logCount;
-                    currentOffset += logCount;
+                    totalCreated += result.createdCount;
+                    totalUpdated += result.updatedCount;
+                    totalSkipped += result.skippedCount;
+                    currentOffset += (result.createdCount + result.updatedCount + result.skippedCount);
                 }
             }
-            // Ensure the final state shows full count
-            setImportProgress(`${overallTotal} / ${overallTotal}`);
-            toast({ title: 'Import Successful', description: `${overallTotal} unique records stored in the data dump.` });
+            setImportProgress(`${currentOffset} / ${estimatedTotal}`);
+            toast({ 
+                title: 'Import Successful', 
+                description: `Created: ${totalCreated}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}` 
+            });
         } catch (err: any) {
             toast({ title: 'Import Failed', description: err.message, variant: 'destructive' });
         } finally {
-            // Keep progress visible for a moment before clearing
             setTimeout(() => {
                 setImportProgress(null);
                 setSelectedSheets([]);
+                setOverwriteExisting(false);
             }, 1000);
         }
     };
@@ -321,7 +323,6 @@ export default function RawMachineLogsPage() {
                 if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
                 return sortConfig.direction === 'asc' ? 1 : -1;
             }
-            // Secondary sort: alphabetical by name for same date/value
             return a.employeeName.localeCompare(b.employeeName);
         });
 
@@ -426,27 +427,6 @@ export default function RawMachineLogsPage() {
                                     <FilterX className="h-4 w-4" />
                                 </Button>
                             )}
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]" disabled={filteredLogs.length === 0 || isDeleting || selectedYear === 'All' || selectedMonth === 'All'}>
-                                        {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5"/> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
-                                        Clear Period
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Raw Machine Logs?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will permanently remove all raw machine data for <b>{NEPALI_MONTHS[parseInt(selectedMonth)]?.name} {selectedYear}</b>. 
-                                            This action is irreversible.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleDeleteMonth} className="bg-destructive text-white">Delete Now</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
                         </div>
                     </div>
                 </CardHeader>
@@ -462,29 +442,32 @@ export default function RawMachineLogsPage() {
                                     </TableHead>
                                     <TableHead className="font-bold">Date (BS)</TableHead>
                                     <TableHead className="font-bold">Employee Name</TableHead>
-                                    <TableHead className="font-bold">Clock In</TableHead>
-                                    <TableHead className="font-bold">Clock Out</TableHead>
-                                    <TableHead className="font-bold text-center">Status</TableHead>
-                                    <TableHead className="font-bold">Remarks</TableHead>
+                                    <TableHead className="font-bold text-center">In/Out Times</TableHead>
+                                    <TableHead className="font-bold text-center">Machine Status</TableHead>
+                                    <TableHead className="font-bold">System Flags / Remarks</TableHead>
                                     <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                                    <TableRow key="loading-row"><TableCell colSpan={7} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                                 ) : filteredLogs.map(l => (
                                     <TableRow key={l.id} className="h-12 border-b-gray-50 group hover:bg-muted/20 transition-colors">
                                         <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
                                         <TableCell className="font-mono font-bold text-blue-900">{toNepaliDate(l.date)}</TableCell>
                                         <TableCell className="font-black text-gray-900">{l.employeeName}</TableCell>
-                                        <TableCell className="font-bold text-blue-600">{formatTimeForDisplay(l.clockIn)}</TableCell>
-                                        <TableCell className="font-bold text-blue-600">{formatTimeForDisplay(l.clockOut)}</TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-blue-600">{formatTimeForDisplay(l.clockIn)}</span>
+                                                <span className="font-bold text-blue-600">{formatTimeForDisplay(l.clockOut)}</span>
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="text-center">
                                             <Badge variant={getAttendanceBadgeVariant(l.statusFromMachine as any)} className="text-[9px] font-black uppercase py-0 h-5">
                                                 {l.statusFromMachine}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="max-w-[200px] truncate text-muted-foreground italic font-medium" title={getDisplayRemark(l)}>
+                                        <TableCell className="max-w-[250px] truncate text-muted-foreground italic font-medium" title={getDisplayRemark(l)}>
                                             {getDisplayRemark(l)}
                                         </TableCell>
                                         <TableCell className="text-right pr-6">
@@ -501,7 +484,7 @@ export default function RawMachineLogsPage() {
                                 ))}
                                 {!isLoading && filteredLogs.length === 0 && (
                                     <TableRow key="empty-row">
-                                        <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
+                                        <TableCell colSpan={7} className="h-60 text-center text-muted-foreground italic">
                                             <div className="flex flex-col items-center gap-3">
                                                 <AlertCircle className="h-10 w-10 opacity-10"/>
                                                 <p>No raw machine data found matching the current filters.<br/><span className="text-[10px] font-bold uppercase not-italic">Upload an attendance machine Excel file to populate this dump.</span></p>
@@ -537,12 +520,6 @@ export default function RawMachineLogsPage() {
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">Manual Remark</Label>
                             <Input value={editForm.remarks} onChange={e => setEditForm({...editForm, remarks: e.target.value})} placeholder="e.g. Machine error corrected" className="h-10" />
                         </div>
-                        <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 flex gap-3">
-                            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                            <p className="text-[10px] text-amber-800 font-medium leading-relaxed">
-                                Changes made here will affect future calculations for this period. Existing calculated records will not be updated until you re-run the calculation logic.
-                            </p>
-                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="font-bold uppercase text-[10px]">Cancel</Button>
@@ -556,9 +533,9 @@ export default function RawMachineLogsPage() {
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader className="p-6 border-b shrink-0">
                         <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Configure Data Dump</DialogTitle>
-                        <DialogDescription>Select the Excel sheets to import. The system will automatically map records to the correct BS periods based on their AD dates.</DialogDescription>
+                        <DialogDescription>Select sheets to import. The system intelligently detects duplicates to keep your records clean.</DialogDescription>
                     </DialogHeader>
-                    <div className="p-6">
+                    <div className="p-6 space-y-6">
                         <div className="space-y-4">
                             {availableSheets.map(sheet => (
                                 <div key={sheet.name} className={cn(
@@ -575,6 +552,16 @@ export default function RawMachineLogsPage() {
                                     <Badge variant="secondary" className="uppercase text-[9px] font-black">{sheet.rowCount} rows detected</Badge>
                                 </div>
                             ))}
+                        </div>
+
+                        <Separator className="border-dashed" />
+                        
+                        <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl border-2 border-amber-100">
+                            <div className="space-y-1">
+                                <Label htmlFor="overwrite-partial" className="font-black text-xs text-amber-900 uppercase tracking-tight">Overwrite Partial Duplicates</Label>
+                                <p className="text-[10px] text-amber-800 leading-tight">Replace existing records if clock times differ in the new file.</p>
+                            </div>
+                            <Switch id="overwrite-partial" checked={overwriteExisting} onCheckedChange={setOverwriteExisting} />
                         </div>
                     </div>
                     <DialogFooter className="p-6 border-t bg-muted/5 shrink-0">
