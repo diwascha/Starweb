@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Attendance service handling raw machine logs and calculated labor metrics.
  */
@@ -63,7 +64,8 @@ const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData>): Att
         remarks: data.remarks || null,
         calculatedAt: data.calculatedAt,
         calculatedBy: data.calculatedBy,
-        sourceLogId: data.sourceLogId
+        sourceLogId: data.sourceLogId,
+        rowIndex: data.rowIndex,
     };
 };
 
@@ -88,7 +90,8 @@ const fromFirestoreLog = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMac
         importedAt: data.importedAt,
         importedBy: data.importedBy,
         sourceSheet: data.sourceSheet,
-        rawPayload: data.rawPayload
+        rawPayload: data.rawPayload,
+        rowIndex: data.rowIndex,
     };
 };
 
@@ -137,7 +140,8 @@ export const addRawMachineLogs = async (
             importedAt: now,
             importedBy,
             sourceSheet: sourceSheetName,
-            rawPayload: p.rawImportData
+            rawPayload: p.rawImportData,
+            rowIndex: p.importRowIndex,
         }));
 
         let processedCount = 0;
@@ -285,7 +289,8 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                 calculatedAt: now,
                 calculatedBy: calculatedBy,
                 remarks: finalRemarks,
-                sourceLogId: log.id
+                sourceLogId: log.id,
+                rowIndex: log.rowIndex, // Preserve sequencing
             });
         }
     });

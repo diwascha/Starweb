@@ -1,3 +1,4 @@
+
 import {
   format,
   isValid,
@@ -24,7 +25,8 @@ export type CalcAttendanceRow = RawAttendanceRow & {
   status: string; 
   regularHours: number;
   overtimeHours: number;
-  rawImportData: Record<string, any>; 
+  rawImportData: Record<string, any>;
+  importRowIndex: number; // Preserves Excel row sequence
 };
 
 
@@ -165,7 +167,7 @@ export const processAttendanceImport = (
 
     let skippedCount = 0;
 
-    const processedData = dataRows.map((rowArray): CalcAttendanceRow | null => {
+    const processedData = dataRows.map((rowArray, rowIndex): CalcAttendanceRow | null => {
         if (!rowArray || rowArray.length === 0) return null;
         
         const rawImportData: Record<string, any> = {};
@@ -243,6 +245,7 @@ export const processAttendanceImport = (
           overtimeHours: parseFloat(String(row.overtimeHours || 0)) || 0,
           remarks: generatedRemark,
           rawImportData: rawImportData,
+          importRowIndex: rowIndex, // Capture position in original Excel
         };
     }).filter((item): item is CalcAttendanceRow => item !== null);
     

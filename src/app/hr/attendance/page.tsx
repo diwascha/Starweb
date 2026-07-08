@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -155,11 +156,14 @@ export default function AttendanceRegistryPage() {
     }
 
     filtered.sort((a, b) => {
-      const aVal = a[sortConfig.key];
-      const bVal = b[sortConfig.key];
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
+        const aVal = a[sortConfig.key];
+        const bVal = b[sortConfig.key];
+        if (aVal !== bVal) {
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        // Use rowIndex for consistent sequencing within identical dates
+        return (a.rowIndex || 0) - (b.rowIndex || 0);
     });
     return filtered;
   }, [attendance, selectedBsYear, selectedBsMonth, sortConfig, searchQuery, filterEmployeeName, filterStatus]);

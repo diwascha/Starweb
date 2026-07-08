@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -298,9 +299,12 @@ export default function RawMachineLogsPage() {
         filtered.sort((a, b) => {
             const aVal = a[sortConfig.key] || '';
             const bVal = b[sortConfig.key] || '';
-            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
+            if (aVal !== bVal) {
+                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+            // Secondary sort: preserve original Excel order
+            return (a.rowIndex || 0) - (b.rowIndex || 0);
         });
 
         return filtered;

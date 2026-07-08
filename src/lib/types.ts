@@ -268,6 +268,7 @@ export interface RawMachineLog {
     importedBy: string;
     sourceSheet: string;
     rawPayload: Record<string, any>;
+    rowIndex?: number; // Preserves Excel row order
 }
 
 export interface AttendanceRecord {
@@ -290,6 +291,7 @@ export interface AttendanceRecord {
     calculatedBy: string;
     remarks: string | null;
     sourceLogId?: string; // Link to the raw machine log
+    rowIndex?: number; // Preserves original import order
 }
 
 export interface HrShift {
