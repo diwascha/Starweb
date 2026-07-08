@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog } from '@/services/attendance-service';
+import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog, deleteRawLogsForMonth } from '@/services/attendance-service';
 import { cn, toNepaliDate, formatTimeForDisplay } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
@@ -29,6 +29,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 export default function RawMachineLogsPage() {
     const { user } = useAuth();
@@ -38,6 +39,7 @@ export default function RawMachineLogsPage() {
     const [logs, setLogs] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [importProgress, setImportProgress] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     
     // Filters
     const [searchQuery, setSearchQuery] = useState('');
@@ -123,9 +125,21 @@ export default function RawMachineLogsPage() {
         }
     };
 
+    const handleDeleteMonth = async () => {
+        setIsDeleting(true);
+        try {
+            await deleteRawLogsForMonth(parseInt(selectedYear), parseInt(selectedMonth));
+            toast({ title: 'Raw Logs Cleared', description: `Deleted all raw logs for ${NEPALI_MONTHS[parseInt(selectedMonth)].name} ${selectedYear}.` });
+        } catch {
+            toast({ title: 'Error', description: 'Failed to clear raw logs.', variant: 'destructive' });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const filteredLogs = useMemo(() => {
         return logs.filter(l => {
-            const matchesSearch = l.employeeName.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesSearch = (l.employeeName || '').toLowerCase().includes(searchQuery.toLowerCase());
             const matchesPeriod = l.bsYear === parseInt(selectedYear) && l.bsMonth === parseInt(selectedMonth);
             return matchesSearch && matchesPeriod;
         });
@@ -148,8 +162,8 @@ export default function RawMachineLogsPage() {
             </header>
 
             <Card className="shadow-sm border-gray-100 bg-white">
-                <CardHeader className="bg-muted/20 border-b py-4 px-6 flex flex-row items-center justify-between">
-                    <div className="flex gap-4 items-end flex-1">
+                <CardHeader className="bg-muted/20 border-b py-4 px-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-wrap gap-4 items-end flex-1">
                         <div className="space-y-1.5 min-w-[200px]">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">Search Records</Label>
                             <div className="relative">
@@ -162,7 +176,7 @@ export default function RawMachineLogsPage() {
                             <Select value={selectedYear} onValueChange={setSelectedYear}>
                                 <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {[2080, 2081, 2082].map(y => <SelectItem key={`year-${y}`} value={String(y)}>{y}</SelectItem>)}
+                                    {[2080, 2081, 2082].map(y => <SelectItem key={`year-filter-${y}`} value={String(y)}>{y}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -171,14 +185,37 @@ export default function RawMachineLogsPage() {
                             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                                 <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {NEPALI_MONTHS.map(m => <SelectItem key={`month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}
+                                    {NEPALI_MONTHS.map(m => <SelectItem key={`month-filter-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div className="flex gap-2">
+                            <Badge variant="outline" className="h-9 font-black uppercase tracking-tighter bg-gray-50 border-gray-200">
+                                {filteredLogs.length} Records
+                            </Badge>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]" disabled={filteredLogs.length === 0 || isDeleting}>
+                                        {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5"/> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+                                        Clear Month
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Raw Machine Logs?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently remove all raw machine data for <b>{NEPALI_MONTHS[parseInt(selectedMonth)].name} {selectedYear}</b>. 
+                                            This action is irreversible.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDeleteMonth} className="bg-destructive text-white">Delete Now</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
                     </div>
-                    <Badge variant="outline" className="h-8 font-black uppercase tracking-tighter bg-gray-50 border-gray-200">
-                        Total Dump: {filteredLogs.length} Records
-                    </Badge>
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="max-h-[600px] overflow-auto">
