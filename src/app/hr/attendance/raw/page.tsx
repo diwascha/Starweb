@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -11,7 +10,9 @@ import {
     FilterX,
     Clock,
     User,
-    CheckCircle2
+    CheckCircle2,
+    CalendarIcon,
+    AlertCircle
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import NepaliDate from 'nepali-date-converter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { format } from 'date-fns';
 
 export default function RawMachineLogsPage() {
     const { user } = useAuth();
@@ -180,13 +182,13 @@ export default function RawMachineLogsPage() {
                         <Table className="text-xs">
                             <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead className="pl-6 font-bold">Log Date (BS)</TableHead>
-                                    <TableHead className="font-bold">Machine Name</TableHead>
-                                    <TableHead className="font-bold">C/I Time</TableHead>
-                                    <TableHead className="font-bold">C/O Time</TableHead>
-                                    <TableHead className="font-bold text-center">Raw Status</TableHead>
-                                    <TableHead className="font-bold text-right">Machine Reg.</TableHead>
-                                    <TableHead className="font-bold text-right">Machine OT</TableHead>
+                                    <TableHead className="pl-6 font-bold">Employee Name</TableHead>
+                                    <TableHead className="font-bold">Date (AD)</TableHead>
+                                    <TableHead className="font-bold">On Duty</TableHead>
+                                    <TableHead className="font-bold">Off Duty</TableHead>
+                                    <TableHead className="font-bold">Clock In</TableHead>
+                                    <TableHead className="font-bold">Clock Out</TableHead>
+                                    <TableHead className="font-bold text-center">Status (Absent)</TableHead>
                                     <TableHead className="text-right pr-6 font-bold">System</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -195,20 +197,33 @@ export default function RawMachineLogsPage() {
                                     <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                                 ) : filteredLogs.map(l => (
                                     <TableRow key={l.id} className="h-12 border-b-gray-50 group hover:bg-muted/20 transition-colors">
-                                        <TableCell className="pl-6 font-mono text-gray-500">{toNepaliDate(l.date)}</TableCell>
-                                        <TableCell className="font-black text-gray-900">{l.employeeName}</TableCell>
-                                        <TableCell className="font-medium text-blue-600">{formatTimeForDisplay(l.clockIn)}</TableCell>
-                                        <TableCell className="font-medium text-blue-600">{formatTimeForDisplay(l.clockOut)}</TableCell>
-                                        <TableCell className="text-center"><Badge variant="outline" className="text-[9px] uppercase font-bold py-0">{l.statusFromMachine}</Badge></TableCell>
-                                        <TableCell className="text-right font-bold text-gray-700">{l.regularHoursFromMachine.toFixed(1)}</TableCell>
-                                        <TableCell className="text-right font-bold text-gray-700">{l.overtimeHoursFromMachine.toFixed(1)}</TableCell>
+                                        <TableCell className="pl-6 font-black text-gray-900">{l.employeeName}</TableCell>
+                                        <TableCell className="font-mono text-gray-500">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
+                                        <TableCell className="text-muted-foreground font-medium">{formatTimeForDisplay(l.onDuty)}</TableCell>
+                                        <TableCell className="text-muted-foreground font-medium">{formatTimeForDisplay(l.offDuty)}</TableCell>
+                                        <TableCell className="font-bold text-blue-600">{formatTimeForDisplay(l.clockIn)}</TableCell>
+                                        <TableCell className="font-bold text-blue-600">{formatTimeForDisplay(l.clockOut)}</TableCell>
+                                        <TableCell className="text-center">
+                                            <Badge variant="outline" className="text-[9px] uppercase font-black py-0">
+                                                {l.statusFromMachine}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell className="text-right pr-6">
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deleteRawLog(l.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deleteRawLog(l.id)} title="Delete log entry">
+                                                <Trash2 className="h-3.5 w-3.5"/>
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                                 {!isLoading && filteredLogs.length === 0 && (
-                                    <TableRow key="empty-row"><TableCell colSpan={8} className="h-40 text-center text-muted-foreground italic">No raw machine data found for this period.</TableCell></TableRow>
+                                    <TableRow key="empty-row">
+                                        <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
+                                            <div className="flex flex-col items-center gap-3">
+                                                <AlertCircle className="h-10 w-10 opacity-10"/>
+                                                <p>No raw machine data found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Upload an attendance machine Excel file to populate this dump.</span></p>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
                             </TableBody>
                         </Table>
