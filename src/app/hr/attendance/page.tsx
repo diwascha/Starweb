@@ -39,7 +39,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import NepaliDate from 'nepali-date-converter';
 import { format as formatDate } from 'date-fns';
@@ -80,6 +80,14 @@ export default function AttendanceRegistryPage() {
   useEffect(() => {
     getAttendanceYears().then(setBsYears);
   }, [attendance]);
+
+  const requestSort = (key: SortKey) => {
+    let direction: SortDirection = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = attendance.filter(r => r.bsYear === parseInt(selectedBsYear) && r.bsMonth === parseInt(selectedBsMonth));
@@ -212,7 +220,11 @@ export default function AttendanceRegistryPage() {
                     <TableHeader className="bg-muted/50">
                         <TableRow className="hover:bg-transparent h-12">
                             <TableHead className="pl-6 font-bold">Date (BS)</TableHead>
-                            <TableHead className="font-bold text-muted-foreground opacity-50">Date (AD)</TableHead>
+                            <TableHead className="font-bold text-muted-foreground opacity-50">
+                                <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">
+                                    Date (AD) <ArrowUpDown className="ml-2 h-3 w-3" />
+                                </Button>
+                            </TableHead>
                             <TableHead className="font-bold">Employee Name</TableHead>
                             <TableHead className="text-center font-bold">Status</TableHead>
                             <TableHead className="text-center font-bold">Clock In/Out</TableHead>

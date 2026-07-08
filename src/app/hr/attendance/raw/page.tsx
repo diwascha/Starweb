@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -13,7 +12,8 @@ import {
     X,
     Plus,
     History,
-    FilterX
+    FilterX,
+    ArrowUpDown
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComp, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
+type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
+type SortDirection = 'asc' | 'desc';
+
 export default function RawMachineLogsPage() {
     const { user } = useAuth();
     const { toast } = useToast();
@@ -45,10 +48,11 @@ export default function RawMachineLogsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isCleaningAll, setIsCleaningAll] = useState(false);
     
-    // Filters
+    // Filters & Sorting
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedYear, setSelectedYear] = useState<string>('All');
     const [selectedMonth, setSelectedMonth] = useState<string>('All');
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
 
     // Import Dialog
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -85,6 +89,14 @@ export default function RawMachineLogsPage() {
         if (result.length === 0) return NEPALI_MONTHS;
         return NEPALI_MONTHS.filter(m => result.includes(m.value));
     }, [logs, selectedYear]);
+
+    const requestSort = (key: SortKey) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -172,13 +184,29 @@ export default function RawMachineLogsPage() {
     };
 
     const filteredLogs = useMemo(() => {
-        return logs.filter(l => {
+        let filtered = logs.filter(l => {
             const matchesSearch = (l.employeeName || '').toLowerCase().includes(searchQuery.toLowerCase());
             const matchesYear = selectedYear === 'All' || l.bsYear === parseInt(selectedYear);
             const matchesMonth = selectedMonth === 'All' || l.bsMonth === parseInt(selectedMonth);
             return matchesSearch && matchesYear && matchesMonth;
         });
-    }, [logs, searchQuery, selectedYear, selectedMonth]);
+
+        filtered.sort((a, b) => {
+            const aVal = a[sortConfig.key] || '';
+            const bVal = b[sortConfig.key] || '';
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return filtered;
+    }, [logs, searchQuery, selectedYear, selectedMonth, sortConfig]);
+
+    const handleClearFilters = () => {
+        setSearchQuery('');
+        setSelectedYear('All');
+        setSelectedMonth('All');
+    };
 
     const isFiltered = selectedYear !== 'All' || selectedMonth !== 'All' || searchQuery !== '';
 
@@ -289,7 +317,11 @@ export default function RawMachineLogsPage() {
                                 <TableRow className="hover:bg-transparent" key="header-row">
                                     <TableHead className="pl-6 font-bold">Employee Name</TableHead>
                                     <TableHead className="font-bold">Date (BS)</TableHead>
-                                    <TableHead className="font-bold text-muted-foreground opacity-50">Date (AD)</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground opacity-50">
+                                        <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">
+                                            Date (AD) <ArrowUpDown className="ml-2 h-3 w-3" />
+                                        </Button>
+                                    </TableHead>
                                     <TableHead className="font-bold">On Duty</TableHead>
                                     <TableHead className="font-bold">Off Duty</TableHead>
                                     <TableHead className="font-bold">Clock In</TableHead>
