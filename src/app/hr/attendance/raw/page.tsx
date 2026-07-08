@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -199,10 +200,19 @@ export default function RawMachineLogsPage() {
     const handleConfirmImport = async () => {
         if (!user || selectedSheets.length === 0) return;
         setIsImportDialogOpen(false);
-        setImportProgress('Initializing Single-Pass Processor...');
+        
+        // Calculate estimated total rows for progress tracking
+        const estimatedTotal = selectedSheets.reduce((sum, name) => {
+            const sheet = availableSheets.find(as => as.name === name);
+            return sum + (sheet?.rowCount || 0);
+        }, 0);
+
+        setImportProgress(`0 / ${estimatedTotal}`);
 
         try {
-            let total = 0;
+            let overallTotal = 0;
+            let currentOffset = 0;
+
             for (const sheetName of selectedSheets) {
                 const sheet = availableSheets.find(as => as.name === sheetName);
                 if (sheet) {
@@ -210,17 +220,26 @@ export default function RawMachineLogsPage() {
                         sheet.jsonData,
                         user.username,
                         sheetName,
-                        (p) => setImportProgress(`Streaming ${sheetName}: ${p} records synced`)
+                        (p) => {
+                            // Update total progress based on previous sheets + current sheet progress
+                            setImportProgress(`${currentOffset + p} / ${estimatedTotal}`);
+                        }
                     );
-                    total += logCount;
+                    overallTotal += logCount;
+                    currentOffset += logCount;
                 }
             }
-            toast({ title: 'Import Successful', description: `${total} unique records stored in the data dump.` });
+            // Ensure the final state shows full count
+            setImportProgress(`${overallTotal} / ${overallTotal}`);
+            toast({ title: 'Import Successful', description: `${overallTotal} unique records stored in the data dump.` });
         } catch (err: any) {
             toast({ title: 'Import Failed', description: err.message, variant: 'destructive' });
         } finally {
-            setImportProgress(null);
-            setSelectedSheets([]);
+            // Keep progress visible for a moment before clearing
+            setTimeout(() => {
+                setImportProgress(null);
+                setSelectedSheets([]);
+            }, 1000);
         }
     };
 
@@ -350,7 +369,7 @@ export default function RawMachineLogsPage() {
                     <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls" />
                     <Button onClick={() => fileInputRef.current?.click()} disabled={!!importProgress} className="h-10 font-bold uppercase text-xs tracking-widest shadow-lg">
                         {importProgress ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
-                        {importProgress ? 'Dumping...' : 'Direct Machine Import'}
+                        {importProgress ? importProgress : 'Direct Machine Import'}
                     </Button>
                 </div>
             </header>

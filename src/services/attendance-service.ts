@@ -110,7 +110,7 @@ export const addRawMachineLogs = async (
     jsonData: any[][],
     importedBy: string, 
     sourceSheetName: string,
-    onProgress: (progress: number) => void
+    onProgress: (progress: number, total: number) => void
 ): Promise<{ logCount: number }> => {
     const { db } = getFirebase();
     const importId = generateLocalId();
@@ -154,7 +154,7 @@ export const addRawMachineLogs = async (
             });
             await batch.commit();
             processedCount += chunk.length;
-            onProgress(processedCount);
+            onProgress(processedCount, logs.length);
         }
 
         return { logCount: logs.length };
