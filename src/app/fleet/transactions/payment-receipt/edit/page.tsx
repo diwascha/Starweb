@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState, use } from 'react';
+import { useRouter } from 'next/navigation';
 import { getVoucherTransactions } from '@/services/transaction-service';
 import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
@@ -12,10 +12,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 
-function EditVoucherComponent() {
+function EditVoucherComponent(props: { params: Promise<any>, searchParams: Promise<any> }) {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const voucherId = searchParams.get('voucherId');
+    // Next.js 15: Unwrap dynamic params and searchParams
+    use(props.params);
+    const searchParams = use(props.searchParams);
+    
+    const voucherId = searchParams.voucherId;
     const { toast } = useToast();
     const { user } = useAuth();
 
@@ -100,7 +103,7 @@ function EditVoucherComponent() {
 }
 
 
-export default function EditVoucherPage() {
+export default function EditVoucherPage(props: { params: Promise<any>, searchParams: Promise<any> }) {
   return (
     <div className="flex flex-col gap-8">
       <header>
@@ -108,7 +111,7 @@ export default function EditVoucherPage() {
         <p className="text-muted-foreground">Modify the details for this payment/receipt voucher.</p>
       </header>
         <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
-            <EditVoucherComponent />
+            <EditVoucherComponent {...props} />
         </Suspense>
     </div>
   );

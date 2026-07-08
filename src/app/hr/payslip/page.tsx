@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, use } from 'react';
 import type { Payroll, Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,11 +24,14 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-function PayslipContent() {
-    const searchParams = useSearchParams();
-    const employeeId = searchParams.get('employeeId');
-    const year = searchParams.get('year');
-    const month = searchParams.get('month');
+function PayslipContent(props: { params: Promise<any>, searchParams: Promise<any> }) {
+    // Next.js 15: Unwrap dynamic params and searchParams
+    use(props.params);
+    const searchParams = use(props.searchParams);
+    
+    const employeeId = searchParams.employeeId;
+    const year = searchParams.year;
+    const month = searchParams.month;
 
     const [employee, setEmployee] = useState<Employee | null>(null);
     const [payrollData, setPayrollData] = useState<Payroll | null>(null);
@@ -210,7 +213,7 @@ function PayslipList() {
     );
 }
 
-export default function PayslipPage() {
+export default function PayslipPage(props: { params: Promise<any>, searchParams: Promise<any> }) {
     return (
         <Suspense fallback={
             <div className="space-y-4">
@@ -218,7 +221,7 @@ export default function PayslipPage() {
                 <Skeleton className="h-[400px] w-full" />
             </div>
         }>
-            <PayslipContent />
+            <PayslipContent {...props} />
         </Suspense>
     );
 }

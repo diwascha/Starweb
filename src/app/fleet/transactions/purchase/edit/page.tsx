@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, use } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getTransaction } from '@/services/transaction-service';
 import { getVehicles } from '@/services/vehicle-service';
@@ -10,9 +10,12 @@ import { getUoms } from '@/services/uom-service';
 import EditPurchaseClientPage from '../_components/EditPurchaseClientPage';
 
 
-function EditPurchaseComponent() {
-  const searchParams = useSearchParams();
-  const id = searchParams.get('id');
+function EditPurchaseComponent(props: { params: Promise<any>, searchParams: Promise<any> }) {
+  // Next.js 15: Unwrap dynamic params and searchParams
+  use(props.params);
+  const searchParams = use(props.searchParams);
+  
+  const id = searchParams.id;
   const [initialValues, setInitialValues] = useState<any>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [parties, setParties] = useState<any[]>([]);
@@ -81,7 +84,7 @@ function EditPurchaseComponent() {
 }
 
 
-export default function EditPurchasePage() {
+export default function EditPurchasePage(props: { params: Promise<any>, searchParams: Promise<any> }) {
   return (
     <div className="flex flex-col gap-8">
       <header>
@@ -89,7 +92,7 @@ export default function EditPurchasePage() {
         <p className="text-muted-foreground">Modify the details for this purchase transaction.</p>
       </header>
        <Suspense fallback={<div>Loading Form...</div>}>
-         <EditPurchaseComponent />
+         <EditPurchaseComponent {...props} />
        </Suspense>
     </div>
   );

@@ -1,15 +1,16 @@
-
 'use client';
 import PurchaseOrderView from '@/app/purchase-orders/[id]/_components/purchase-order-view';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, use } from 'react';
 import type { PurchaseOrder } from '@/lib/types';
-import { useSearchParams } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 
-function PurchaseOversightViewComponent() {
-  const searchParams = useSearchParams();
-  const id = searchParams.get('id');
+function PurchaseOversightViewComponent(props: { params: Promise<any>, searchParams: Promise<any> }) {
+  // Next.js 15: Unwrap dynamic params and searchParams
+  use(props.params);
+  const searchParams = use(props.searchParams);
+  
+  const id = searchParams.id;
   const [initialPurchaseOrder, setInitialPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,8 +40,7 @@ function PurchaseOversightViewComponent() {
   return <PurchaseOrderView initialPurchaseOrder={initialPurchaseOrder} poId={id} />;
 }
 
-// This is a Server Component that fetches initial data
-export default function PurchaseOversightViewPage() {
+export default function PurchaseOversightViewPage(props: { params: Promise<any>, searchParams: Promise<any> }) {
   return (
     <Suspense fallback={
         <div className="space-y-4">
@@ -48,8 +48,7 @@ export default function PurchaseOversightViewPage() {
             <Skeleton className="h-[80vh] w-full" />
         </div>
     }>
-        <PurchaseOversightViewComponent />
+        <PurchaseOversightViewComponent {...props} />
     </Suspense>
   );
 }
-
