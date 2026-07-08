@@ -79,8 +79,11 @@ const parseExcelDate = (dateInput: any): Date | null => {
 
     if (typeof dateInput === 'number') {
         // Excel serial date to JS date
-        const date = new Date((dateInput - 25569) * 86400 * 1000);
-        if (isValid(date)) return date;
+        // Note: Excel's origin is Dec 30, 1899
+        if (dateInput > 1) {
+            const date = new Date((dateInput - 25569) * 86400 * 1000);
+            if (isValid(date)) return date;
+        }
     }
 
     if (typeof dateInput === 'string') {
@@ -134,16 +137,16 @@ export const processAttendanceImport = (
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string[] } = {
-        dateAD: ['date (ad dates)', 'date ad', 'date', 'attendance date'],
-        employeeName: ['employee name', 'name', 'ename', 'full name'],
-        onDuty: ['on duty (shift start time)', 'on duty', 'on-duty', 'shift start', 'timetable'],
-        offDuty: ['off duty (shift end time)', 'off duty', 'off-duty', 'shift end'],
-        clockIn: ['clock in (employee came)', 'clock in', 'in time', 'check-in', 'clockin', 'time in'],
-        clockOut: ['clock out (employee left)', 'clock out', 'out time', 'check-out', 'clockout', 'time out'],
-        status: ['absent', 'status', 'exception', 'attendance status'], 
-        overtimeHours: ['overtime', 'ot hours', 'ot', 'work ot'],
-        regularHours: ['regular hours', 'normal hrs', 'normal hours', 'work hours'],
-        remarks: ['remarks', 'notes', 'memo'],
+        dateAD: ['date (ad dates)', 'date ad', 'date', 'attendance date', 'day', 'ad date'],
+        employeeName: ['employee name', 'name', 'ename', 'full name', 'user name', 'employee'],
+        onDuty: ['on duty (shift start time)', 'on duty', 'on-duty', 'shift start', 'timetable', 'start time', 'on duty time'],
+        offDuty: ['off duty (shift end time)', 'off duty', 'off-duty', 'shift end', 'end time', 'off duty time'],
+        clockIn: ['clock in (employee came)', 'clock in', 'in time', 'check-in', 'clockin', 'time in', 'actual in'],
+        clockOut: ['clock out (employee left)', 'clock out', 'out time', 'check-out', 'clockout', 'time out', 'actual out'],
+        status: ['absent', 'status', 'exception', 'attendance status', 'state', 'remarks status'], 
+        overtimeHours: ['overtime', 'ot hours', 'ot', 'work ot', 'over time'],
+        regularHours: ['regular hours', 'normal hrs', 'normal hours', 'work hours', 'duty hours'],
+        remarks: ['remarks', 'notes', 'memo', 'description'],
     };
 
     const headerMap: { [key: string]: number } = {};
@@ -180,7 +183,7 @@ export const processAttendanceImport = (
         }
 
         const employeeName = String(row.employeeName || '').trim();
-        if (!employeeName) return null;
+        if (!employeeName || employeeName.toLowerCase() === 'null') return null;
         
         const adFromSheet = parseExcelDate(row.dateAD);
         if (!adFromSheet) {
@@ -198,7 +201,7 @@ export const processAttendanceImport = (
         
         // Standardize Status
         let statusStr = String(row.status || '').trim();
-        const headerName = String(headerRow[headerMap['status']] || '').toLowerCase();
+        const headerName = headerMap['status'] !== undefined ? String(headerRow[headerMap['status']] || '').toLowerCase() : '';
         
         // Handle Boolean "Absent" column correctly
         if (headerName.includes('absent')) {
@@ -210,7 +213,7 @@ export const processAttendanceImport = (
         }
 
         // Final fallback for missing status
-        if (!statusStr || statusStr === '-' || statusStr === 'null') {
+        if (!statusStr || statusStr === '-' || statusStr === 'null' || statusStr === '0') {
             statusStr = (clockIn || clockOut) ? 'Present' : 'Absent';
         }
 
