@@ -94,13 +94,14 @@
     },
     "HrShift": {
       "title": "HR Shift",
-      "description": "Definition of standard working hours and grace periods.",
+      "description": "Definition of standard working hours and shift timings.",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
         "onDuty": { "type": "string" },
         "offDuty": { "type": "string" },
-        "graceMinutes": { "type": "number" },
+        "breakStart": { "type": "string" },
+        "breakEnd": { "type": "string" },
         "isDefault": { "type": "boolean" }
       },
       "required": ["name", "onDuty", "offDuty"]

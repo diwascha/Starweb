@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -102,7 +103,7 @@ export default function HrOfficePage() {
     // Dialog & Form States
     const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
     const [editingShift, setEditingShift] = useState<HrShift | null>(null);
-    const [shiftForm, setShiftForm] = useState({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', graceMinutes: 15, isDefault: false });
+    const [shiftForm, setShiftForm] = useState({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', isDefault: false });
 
     useEffect(() => {
         const unsubs = [
@@ -329,12 +330,12 @@ export default function HrOfficePage() {
                         <AccordionContent className="p-0">
                             <div className="p-6 pt-2 border-b flex justify-between items-center bg-muted/5">
                                 <p className="text-[10px] text-muted-foreground uppercase font-black">Registered Shifts</p>
-                                <Button size="sm" onClick={() => { setEditingShift(null); setShiftForm({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', graceMinutes: 15, isDefault: false }); setIsShiftDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest">
+                                <Button size="sm" onClick={() => { setEditingShift(null); setShiftForm({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', isDefault: false }); setIsShiftDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest">
                                     <Plus className="mr-1.5 h-3.5 w-3.5" /> Define Shift
                                 </Button>
                             </div>
                             <Table className="text-xs">
-                                <TableHeader><TableRow className="bg-muted/30 hover:bg-muted/30"><TableHead className="pl-6 font-bold">Shift Name</TableHead><TableHead className="font-bold">Hours</TableHead><TableHead className="font-bold text-center">Break Time</TableHead><TableHead className="font-bold">Grace</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow className="bg-muted/30 hover:bg-muted/30"><TableHead className="pl-6 font-bold">Shift Name</TableHead><TableHead className="font-bold">Hours</TableHead><TableHead className="font-bold text-center">Break Time</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {shifts.map(s => (
                                         <TableRow key={s.id} className="h-12 hover:bg-muted/10">
@@ -343,14 +344,13 @@ export default function HrOfficePage() {
                                             <TableCell className="text-center font-medium text-muted-foreground italic">
                                                 {s.breakStart && s.breakEnd ? `${s.breakStart} — ${s.breakEnd}` : '—'}
                                             </TableCell>
-                                            <TableCell className="text-blue-600 font-bold">{s.graceMinutes} min</TableCell>
                                             <TableCell className="text-right pr-6 space-x-1">
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingShift(s); setShiftForm({ ...s, breakStart: s.breakStart || '12:00', breakEnd: s.breakEnd || '13:00' }); setIsShiftDialogOpen(true); }}><Edit className="h-3.5 w-3.5"/></Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingShift(s); setShiftForm({ name: s.name, onDuty: s.onDuty, offDuty: s.offDuty, breakStart: s.breakStart || '12:00', breakEnd: s.breakEnd || '13:00', isDefault: s.isDefault }); setIsShiftDialogOpen(true); }}><Edit className="h-3.5 w-3.5"/></Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteShift(s.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {shifts.length === 0 && <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground italic">No shifts defined.</TableCell></TableRow>}
+                                    {shifts.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground italic">No shifts defined.</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
                         </AccordionContent>
@@ -516,7 +516,6 @@ export default function HrOfficePage() {
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Break Start</Label><Input type="time" value={shiftForm.breakStart} onChange={e => setShiftForm({...shiftForm, breakStart: e.target.value})} className="h-10" /></div>
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Break End</Label><Input type="time" value={shiftForm.breakEnd} onChange={e => setShiftForm({...shiftForm, breakEnd: e.target.value})} className="h-10" /></div>
                         </div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Grace Period (Minutes)</Label><Input type="number" value={shiftForm.graceMinutes} onChange={e => setShiftForm({...shiftForm, graceMinutes: Number(e.target.value)})} className="h-10 font-bold text-blue-600" /></div>
                         <div className="flex items-center space-x-2 pt-2"><Checkbox id="shift-default" checked={shiftForm.isDefault} onCheckedChange={(v) => setShiftForm({...shiftForm, isDefault: !!v})} /><Label htmlFor="shift-default" className="text-xs font-bold uppercase cursor-pointer">Set as default shift</Label></div>
                     </div>
                     <DialogFooter><Button onClick={handleSaveShift} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">Commit Configuration</Button></DialogFooter>
@@ -525,4 +524,3 @@ export default function HrOfficePage() {
         </div>
     );
 }
-

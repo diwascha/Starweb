@@ -302,7 +302,6 @@ export interface HrShift {
     offDuty: string; // HH:mm
     breakStart: string; // HH:mm
     breakEnd: string; // HH:mm
-    graceMinutes: number;
     isDefault: boolean;
     createdAt: string;
     createdBy: string;
