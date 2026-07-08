@@ -33,7 +33,7 @@ export type CalcAttendanceRow = RawAttendanceRow & {
    ========================= */
 
 function parseTimeToString(timeInput: any): string | null {
-    if (!timeInput) return null;
+    if (timeInput === null || timeInput === undefined) return null;
     
     if (timeInput instanceof Date && isValid(timeInput)) {
         return format(timeInput, 'HH:mm:ss');
@@ -42,8 +42,9 @@ function parseTimeToString(timeInput: any): string | null {
     const t = String(timeInput).trim();
     if (t === '-' || t === '' || t.toLowerCase() === 'null') return null;
     
+    // Handle Excel time decimals (e.g., 0.33333 for 08:00:00)
     const numericTime = parseFloat(t);
-    if (!isNaN(numericTime) && numericTime < 1 && numericTime > 0) {
+    if (!isNaN(numericTime) && numericTime < 1 && numericTime >= 0) {
         const totalSeconds = Math.round(numericTime * 86400);
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -51,6 +52,7 @@ function parseTimeToString(timeInput: any): string | null {
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
 
+    // Standard string parsing
     const formats = ['h:mm:ss a', 'h:mm a', 'HH:mm:ss', 'HH:mm'];
     for (const f of formats) {
         try {
@@ -61,7 +63,13 @@ function parseTimeToString(timeInput: any): string | null {
         } catch {}
     }
     
-    return t; 
+    // Check if it's already HH:mm:ss
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t)) {
+        const parts = t.split(':');
+        return parts.map(p => p.padStart(2, '0')).join(':') + (parts.length === 2 ? ':00' : '');
+    }
+    
+    return null; 
 }
 
 
@@ -70,6 +78,7 @@ const parseExcelDate = (dateInput: any): Date | null => {
     if (dateInput instanceof Date && isValid(dateInput)) return dateInput;
 
     if (typeof dateInput === 'number') {
+        // Excel serial date to JS date
         const date = new Date((dateInput - 25569) * 86400 * 1000);
         if (isValid(date)) return date;
     }
@@ -106,31 +115,44 @@ export const processAttendanceImport = (
 ): { processedData: CalcAttendanceRow[], skippedCount: number } => {
     if (!jsonData || jsonData.length < 2) return { processedData: [], skippedCount: 0 };
 
-    const headerRow = jsonData[0]; 
-    const dataRows = jsonData.slice(1);
+    // 1. Find Header Row (might not be at index 0)
+    let headerIndex = 0;
+    for (let i = 0; i < Math.min(jsonData.length, 15); i++) {
+        const row = jsonData[i];
+        if (row && row.some((cell: any) => {
+            const s = String(cell || '').toLowerCase();
+            return s.includes('name') || s.includes('date');
+        })) {
+            headerIndex = i;
+            break;
+        }
+    }
+
+    const headerRow = jsonData[headerIndex]; 
+    const dataRows = jsonData.slice(headerIndex + 1);
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string[] } = {
-        dateAD: ['date (ad dates)', 'date ad', 'date'],
-        employeeName: ['employee name', 'name'],
-        onDuty: ['on duty (shift start time)', 'on duty', 'on-duty'],
-        offDuty: ['off duty (shift end time)', 'off duty', 'off-duty'],
-        clockIn: ['clock in (employee came)', 'clock in', 'in time', 'check-in'],
-        clockOut: ['clock out (employee left)', 'clock out', 'out time', 'check-out'],
-        status: ['absent', 'status'], 
-        overtimeHours: ['overtime', 'ot hours', 'ot'],
-        regularHours: ['regular hours', 'normal hrs', 'normal hours'],
-        remarks: ['remarks', 'notes'],
+        dateAD: ['date (ad dates)', 'date ad', 'date', 'attendance date'],
+        employeeName: ['employee name', 'name', 'ename', 'full name'],
+        onDuty: ['on duty (shift start time)', 'on duty', 'on-duty', 'shift start', 'timetable'],
+        offDuty: ['off duty (shift end time)', 'off duty', 'off-duty', 'shift end'],
+        clockIn: ['clock in (employee came)', 'clock in', 'in time', 'check-in', 'clockin', 'time in'],
+        clockOut: ['clock out (employee left)', 'clock out', 'out time', 'check-out', 'clockout', 'time out'],
+        status: ['absent', 'status', 'exception', 'attendance status'], 
+        overtimeHours: ['overtime', 'ot hours', 'ot', 'work ot'],
+        regularHours: ['regular hours', 'normal hrs', 'normal hours', 'work hours'],
+        remarks: ['remarks', 'notes', 'memo'],
     };
 
     const headerMap: { [key: string]: number } = {};
     for (const key in headerMapConfig) {
         const aliases = headerMapConfig[key as keyof RawAttendanceRow];
-        // 1. Try Exact match
+        // Exact match
         let index = normalizedHeaders.findIndex(h => aliases.includes(h));
         
-        // 2. Try Partial match if no exact match found
+        // Partial match if no exact match found
         if (index === -1) {
             index = normalizedHeaders.findIndex(h => 
                 aliases.some(alias => h.includes(alias))
@@ -170,6 +192,28 @@ export const processAttendanceImport = (
         const year = nepaliDate.getYear();
         const month = nepaliDate.getMonth();
 
+        // Standardize Times
+        const clockIn = parseTimeToString(row.clockIn);
+        const clockOut = parseTimeToString(row.clockOut);
+        
+        // Standardize Status
+        let statusStr = String(row.status || '').trim();
+        const headerName = String(headerRow[headerMap['status']] || '').toLowerCase();
+        
+        // Handle Boolean "Absent" column correctly
+        if (headerName.includes('absent')) {
+            const isTrue = statusStr.toUpperCase() === 'TRUE' || statusStr === '1' || statusStr.toLowerCase() === 'yes';
+            const isFalse = statusStr.toUpperCase() === 'FALSE' || statusStr === '0' || statusStr.toLowerCase() === 'no' || statusStr === '' || statusStr === '-';
+            
+            if (isTrue) statusStr = 'Absent';
+            else if (isFalse) statusStr = 'Present';
+        }
+
+        // Final fallback for missing status
+        if (!statusStr || statusStr === '-' || statusStr === 'null') {
+            statusStr = (clockIn || clockOut) ? 'Present' : 'Absent';
+        }
+
         return {
           ...row,
           employeeName: employeeName,
@@ -180,9 +224,9 @@ export const processAttendanceImport = (
           weekdayAD: adFromSheet.getDay(),
           onDuty: parseTimeToString(row.onDuty), 
           offDuty: parseTimeToString(row.offDuty),
-          clockIn: parseTimeToString(row.clockIn), 
-          clockOut: parseTimeToString(row.clockOut),
-          status: String(row.status || '').trim(),
+          clockIn: clockIn, 
+          clockOut: clockOut,
+          status: statusStr,
           regularHours: parseFloat(String(row.regularHours || 0)) || 0,
           overtimeHours: parseFloat(String(row.overtimeHours || 0)) || 0,
           remarks: String(row.remarks || '').trim(),

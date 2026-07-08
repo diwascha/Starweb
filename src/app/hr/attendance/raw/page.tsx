@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog, deleteRawLogsForMonth, deleteAllRawLogs } from '@/services/attendance-service';
-import { cn, toNepaliDate, formatTimeForDisplay } from '@/lib/utils';
+import { cn, toNepaliDate, formatTimeForDisplay, getAttendanceBadgeVariant } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
@@ -315,7 +315,7 @@ export default function RawMachineLogsPage() {
                                         <TableCell className="font-bold text-blue-600">{formatTimeForDisplay(l.clockIn)}</TableCell>
                                         <TableCell className="font-bold text-blue-600">{formatTimeForDisplay(l.clockOut)}</TableCell>
                                         <TableCell className="text-center">
-                                            <Badge variant="outline" className="text-[9px] uppercase font-black py-0">
+                                            <Badge variant={getAttendanceBadgeVariant(l.statusFromMachine as any)} className="text-[9px] uppercase font-black py-0">
                                                 {l.statusFromMachine}
                                             </Badge>
                                         </TableCell>
