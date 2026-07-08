@@ -350,7 +350,7 @@ export default function HrOfficePage() {
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {shifts.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground italic">No shifts defined.</TableCell></TableRow>}
+                                    {shifts.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground italic">No shifts registered yet. Import machine logs to auto-discover shifts.</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
                         </AccordionContent>

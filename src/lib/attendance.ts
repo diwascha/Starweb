@@ -155,7 +155,7 @@ export const processAttendanceImport = (
         clockOut: ['clock out (employee left)', 'clock out', 'out time', 'check-out', 'clockout', 'time out', 'actual out', 'punch out'],
         status: ['absent', 'status', 'exception', 'attendance status', 'state', 'remarks status', 'att status'], 
         overtimeHours: ['overtime', 'ot hours', 'ot', 'work ot', 'over time', 'extra hours'],
-        regularHours: ['regular hours', 'normal hrs', 'normal hours', 'work hours', 'duty hours', 'standard hours'],
+        regularHours: ['regular hours', 'normal hrs', 'regular hours', 'work hours', 'duty hours', 'standard hours'],
         remarks: ['remarks', 'notes', 'memo', 'description', 'remark'],
     };
 

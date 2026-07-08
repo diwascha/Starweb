@@ -21,7 +21,7 @@ import {
     orderBy,
     setDoc
 } from 'firebase/firestore';
-import { isEqual, startOfDay, isWithinInterval, format, parse } from 'date-fns';
+import { isValid, startOfDay, isEqual, isWithinInterval, format, parse } from 'date-fns';
 import type { AttendanceRecord, RawMachineLog, Employee, HrConfig, HrShift } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { processAttendanceImport } from '@/lib/attendance';
@@ -109,7 +109,7 @@ export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () =
 
 /**
  * Intelligent raw log importer with duplicate detection, override capabilities,
- * and automatic employee onboarding.
+ * and automatic employee/shift onboarding.
  */
 export const addRawMachineLogs = async (
     jsonData: any[][],
@@ -156,16 +156,49 @@ export const addRawMachineLogs = async (
             await employeeBatch.commit();
         }
 
-        // 2. Fetch System Default Shift for fallback
+        // 2. Handle Automatic Shift Discovery
         const shiftSnap = await getDocs(collection(db, 'hr_shifts'));
-        const allShifts = shiftSnap.docs.map(d => ({ id: d.id, ...d.data() } as HrShift));
-        const defaultShift = allShifts.find(s => s.isDefault) || allShifts[0];
+        const existingShifts = shiftSnap.docs.map(d => d.data() as HrShift);
+        const shiftBatch = writeBatch(db);
+        let discoveredShifts = 0;
 
-        // 3. Determine the scope
+        const uniqueShiftPairs = new Set<string>();
+        processedData.forEach(p => {
+            if (p.onDuty && p.offDuty) {
+                uniqueShiftPairs.add(`${p.onDuty.substring(0,5)}|${p.offDuty.substring(0,5)}`);
+            }
+        });
+
+        uniqueShiftPairs.forEach(pair => {
+            const [on, off] = pair.split('|');
+            const exists = existingShifts.some(s => s.onDuty.startsWith(on) && s.offDuty.startsWith(off));
+            if (!exists) {
+                const shiftRef = doc(collection(db, 'hr_shifts'));
+                const newShift: Omit<HrShift, 'id'> = {
+                    name: `Machine: ${on}-${off}`,
+                    onDuty: `${on}:00`,
+                    offDuty: `${off}:00`,
+                    breakStart: '12:00:00',
+                    breakEnd: '13:00:00',
+                    isDefault: false,
+                    createdBy: importedBy,
+                    createdAt: now
+                };
+                shiftBatch.set(shiftRef, newShift);
+                discoveredShifts++;
+            }
+        });
+
+        if (discoveredShifts > 0) {
+            await shiftBatch.commit();
+        }
+
+        const defaultShift = existingShifts.find(s => s.isDefault) || existingShifts[0];
+
+        // 3. Determine the scope for log duplicates
         const periods = new Set<string>();
         processedData.forEach(p => periods.add(`${p.bsYear}-${p.bsMonth}`));
         
-        // 4. Fetch existing logs
         const existingMap = new Map<string, RawMachineLog>();
         for (const period of Array.from(periods)) {
             const [y, m] = period.split('-').map(Number);
@@ -367,7 +400,7 @@ function calculateHours(start: string, end: string): number {
     const e = parse(end, 'HH:mm:ss', new Date());
     if (!isValid(s) || !isValid(e)) return 0;
     
-    let mins = differenceInMinutes(e, s);
+    let mins = Math.abs(differenceInMinutes(e, s));
     if (mins < 0) mins += 1440; // Handle cross-midnight shifts
     return parseFloat((mins / 60).toFixed(2));
 }
