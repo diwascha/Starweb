@@ -170,6 +170,23 @@ export const deleteRawLogsForMonth = async (year: number, month: number) => {
     await batch.commit();
 };
 
+export const deleteAllRawLogs = async (): Promise<void> => {
+    const { db } = getFirebase();
+    const snap = await getDocs(getRawLogsCollection());
+    
+    if (snap.empty) return;
+
+    const CHUNK_SIZE = 400;
+    const docs = snap.docs;
+
+    for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
+        const chunk = docs.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+    }
+};
+
 // --- Hourly Calculation Logic ---
 
 export const runHourlyCalculation = async (year: number, month: number, calculatedBy: string): Promise<{ processed: number }> => {

@@ -10,7 +10,8 @@ import {
     CalendarIcon,
     AlertCircle,
     X,
-    Plus
+    Plus,
+    History
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog, deleteRawLogsForMonth } from '@/services/attendance-service';
+import { onRawLogsUpdate, addRawMachineLogs, deleteRawLog, deleteRawLogsForMonth, deleteAllRawLogs } from '@/services/attendance-service';
 import { cn, toNepaliDate, formatTimeForDisplay } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
@@ -40,6 +41,7 @@ export default function RawMachineLogsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [importProgress, setImportProgress] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isCleaningAll, setIsCleaningAll] = useState(false);
     
     // Filters
     const [searchQuery, setSearchQuery] = useState('');
@@ -137,6 +139,18 @@ export default function RawMachineLogsPage() {
         }
     };
 
+    const handleClearAll = async () => {
+        setIsCleaningAll(true);
+        try {
+            await deleteAllRawLogs();
+            toast({ title: 'System Purge Complete', description: 'All raw machine logs have been permanently deleted.' });
+        } catch {
+            toast({ title: 'Error', description: 'Failed to purge raw logs.', variant: 'destructive' });
+        } finally {
+            setIsCleaningAll(false);
+        }
+    };
+
     const filteredLogs = useMemo(() => {
         return logs.filter(l => {
             const matchesSearch = (l.employeeName || '').toLowerCase().includes(searchQuery.toLowerCase());
@@ -153,6 +167,27 @@ export default function RawMachineLogsPage() {
                     <p className="text-muted-foreground text-sm font-medium italic">Immutable storage for raw attendance machine logs.</p>
                 </div>
                 <div className="flex gap-2">
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="outline" className="h-10 text-destructive border-destructive/20 hover:bg-red-50 font-bold uppercase text-[10px] tracking-widest" disabled={logs.length === 0 || isCleaningAll}>
+                                {isCleaningAll ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5"/> : <History className="mr-1.5 h-3.5 w-3.5" />}
+                                Clear All History
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Purge All Machine Data?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will permanently delete <b>EVERY</b> raw log in the database across all years and months. 
+                                    This is a critical administrative action. Proceed with caution.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-white hover:bg-destructive/90">Yes, Purge Everything</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                     <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls" />
                     <Button onClick={() => fileInputRef.current?.click()} disabled={!!importProgress} className="h-10 font-bold uppercase text-xs tracking-widest shadow-lg">
                         {importProgress ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
@@ -221,7 +256,7 @@ export default function RawMachineLogsPage() {
                     <div className="max-h-[600px] overflow-auto">
                         <Table className="text-xs">
                             <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
-                                <TableRow className="hover:bg-transparent">
+                                <TableRow className="hover:bg-transparent" key="header-row">
                                     <TableHead className="pl-6 font-bold">Employee Name</TableHead>
                                     <TableHead className="font-bold">Date (AD)</TableHead>
                                     <TableHead className="font-bold">On Duty</TableHead>
