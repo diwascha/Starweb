@@ -34,7 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, startOfDay, isEqual, isWithinInterval } from 'date-fns';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComp, AlertDialogFooter as AlertDialogFooterComp } from '@/components/ui/alert-dialog';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -241,14 +241,18 @@ export default function RawMachineLogsPage() {
             
             if (selectedRemark !== 'All') {
                 const remark = getDisplayRemark(l).toLowerCase();
-                const target = selectedRemark.toLowerCase();
                 
-                // Intelligent cross-mapping
-                if (target === 'clock in missing' && !(remark.includes('clock in missing') || l.statusFromMachine === 'C/I Miss')) return false;
-                if (target === 'clock out missing' && !(remark.includes('clock out missing') || l.statusFromMachine === 'C/O Miss')) return false;
-                if (target === 'absent' && !(remark.includes('absent') || l.statusFromMachine === 'Absent')) return false;
-                if (target === 'public holiday' && !remark.includes('public holiday')) return false;
-                if (target === 'leave' && !remark.includes('leave')) return false;
+                if (selectedRemark === 'Missing Punches') {
+                    const isInMiss = remark.includes('clock in missing') || l.statusFromMachine === 'C/I Miss';
+                    const isOutMiss = remark.includes('clock out missing') || l.statusFromMachine === 'C/O Miss';
+                    if (!(isInMiss || isOutMiss)) return false;
+                } else if (selectedRemark === 'Absent') {
+                    if (!(remark.includes('absent') || l.statusFromMachine === 'Absent')) return false;
+                } else if (selectedRemark === 'Public Holiday') {
+                    if (!remark.includes('public holiday')) return false;
+                } else if (selectedRemark === 'Leave') {
+                    if (!remark.includes('leave')) return false;
+                }
             }
 
             return matchesSearch && matchesYear && matchesMonth;
@@ -347,8 +351,7 @@ export default function RawMachineLogsPage() {
                                 <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Records" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="All">All Records</SelectItem>
-                                    <SelectItem value="Clock In Missing">Clock In Missing</SelectItem>
-                                    <SelectItem value="Clock Out Missing">Clock Out Missing</SelectItem>
+                                    <SelectItem value="Missing Punches">Missing Clock In/Out</SelectItem>
                                     <SelectItem value="Absent">Absent Only</SelectItem>
                                     <SelectItem value="Public Holiday">Public Holiday</SelectItem>
                                     <SelectItem value="Leave">On Leave</SelectItem>
