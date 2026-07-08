@@ -214,59 +214,61 @@ export default function AttendanceRegistryPage() {
             </AlertDialog>
         </div>
 
-        <Card className="shadow-sm border-gray-100 bg-white">
+        <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
             <CardContent className="p-0">
-                <Table>
-                    <TableHeader className="bg-muted/50">
-                        <TableRow className="hover:bg-transparent h-12">
-                            <TableHead className="pl-6 font-bold">Date (BS)</TableHead>
-                            <TableHead className="font-bold text-muted-foreground opacity-50">
-                                <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">
-                                    Date (AD) <ArrowUpDown className="ml-2 h-3 w-3" />
-                                </Button>
-                            </TableHead>
-                            <TableHead className="font-bold">Employee Name</TableHead>
-                            <TableHead className="text-center font-bold">Status</TableHead>
-                            <TableHead className="text-center font-bold">Clock In/Out</TableHead>
-                            <TableHead className="text-right font-bold">Normal Hrs</TableHead>
-                            <TableHead className="text-right font-bold">OT Hrs</TableHead>
-                            <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isDataLoading ? (
-                            <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
-                        ) : filteredAndSortedRecords.map(r => (
-                            <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors">
-                                <TableCell className="pl-6 font-mono font-bold text-blue-900">{toNepaliDate(r.date)}</TableCell>
-                                <TableCell className="font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
-                                <TableCell className="font-black text-gray-900">{r.employeeName}</TableCell>
-                                <TableCell className="text-center"><Badge variant={getAttendanceBadgeVariant(r.status as any)} className="text-[9px] font-black uppercase h-5">{r.status}</Badge></TableCell>
-                                <TableCell className="text-center font-medium text-blue-800">
-                                    <div className="flex flex-col">
-                                        <span>{formatTimeForDisplay(r.clockIn)} — {formatTimeForDisplay(r.clockOut)}</span>
-                                        <span className="text-[8px] uppercase text-muted-foreground">Ref: {formatTimeForDisplay(r.onDuty)} — {formatTimeForDisplay(r.offDuty)}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>
-                                <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>
-                                <TableCell className="text-right pr-6">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(r)}><Edit className="h-4 w-4 text-primary"/></Button>
-                                </TableCell>
+                <ScrollArea className="w-full">
+                    <Table>
+                        <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
+                            <TableRow className="hover:bg-transparent h-12">
+                                <TableHead className="pl-6 font-bold">
+                                    <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs font-bold text-foreground hover:bg-transparent">
+                                        Date (AD) <ArrowUpDown className="ml-2 h-3 w-3" />
+                                    </Button>
+                                </TableHead>
+                                <TableHead className="font-bold">Date (BS)</TableHead>
+                                <TableHead className="font-bold">Employee Name</TableHead>
+                                <TableHead className="text-center font-bold">Status</TableHead>
+                                <TableHead className="text-center font-bold">Clock In/Out</TableHead>
+                                <TableHead className="text-right font-bold">Normal Hrs</TableHead>
+                                <TableHead className="text-right font-bold">OT Hrs</TableHead>
+                                <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
                             </TableRow>
-                        ))}
-                        {!isDataLoading && filteredAndSortedRecords.length === 0 && (
-                            <TableRow key="no-records-row">
-                                <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <AlertCircle className="h-10 w-10 opacity-10"/>
-                                        <p>No processed records found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Run the Hourly Calculation Logic to generate records.</span></p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {isDataLoading ? (
+                                <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                            ) : filteredAndSortedRecords.map(r => (
+                                <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors">
+                                    <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
+                                    <TableCell className="font-mono font-bold text-blue-900">{toNepaliDate(r.date)}</TableCell>
+                                    <TableCell className="font-black text-gray-900">{r.employeeName}</TableCell>
+                                    <TableCell className="text-center"><Badge variant={getAttendanceBadgeVariant(r.status as any)} className="text-[9px] font-black uppercase h-5">{r.status}</Badge></TableCell>
+                                    <TableCell className="text-center font-medium text-blue-800">
+                                        <div className="flex flex-col">
+                                            <span>{formatTimeForDisplay(r.clockIn)} — {formatTimeForDisplay(r.clockOut)}</span>
+                                            <span className="text-[8px] uppercase text-muted-foreground">Ref: {formatTimeForDisplay(r.onDuty)} — {formatTimeForDisplay(r.offDuty)}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>
+                                    <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>
+                                    <TableCell className="text-right pr-6">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(r)}><Edit className="h-4 w-4 text-primary"/></Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {!isDataLoading && filteredAndSortedRecords.length === 0 && (
+                                <TableRow key="no-records-row">
+                                    <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <AlertCircle className="h-10 w-10 opacity-10"/>
+                                            <p>No processed records found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Run the Hourly Calculation Logic to generate records.</span></p>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
             </CardContent>
         </Card>
 

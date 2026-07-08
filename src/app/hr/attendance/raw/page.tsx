@@ -315,13 +315,13 @@ export default function RawMachineLogsPage() {
                         <Table className="text-xs">
                             <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
                                 <TableRow className="hover:bg-transparent" key="header-row">
-                                    <TableHead className="pl-6 font-bold">Employee Name</TableHead>
-                                    <TableHead className="font-bold">Date (BS)</TableHead>
-                                    <TableHead className="font-bold text-muted-foreground opacity-50">
-                                        <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">
+                                    <TableHead className="pl-6 font-bold">
+                                        <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs font-bold text-foreground hover:bg-transparent">
                                             Date (AD) <ArrowUpDown className="ml-2 h-3 w-3" />
                                         </Button>
                                     </TableHead>
+                                    <TableHead className="font-bold">Date (BS)</TableHead>
+                                    <TableHead className="font-bold">Employee Name</TableHead>
                                     <TableHead className="font-bold">On Duty</TableHead>
                                     <TableHead className="font-bold">Off Duty</TableHead>
                                     <TableHead className="font-bold">Clock In</TableHead>
@@ -335,9 +335,9 @@ export default function RawMachineLogsPage() {
                                     <TableRow key="loading-row"><TableCell colSpan={9} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                                 ) : filteredLogs.map(l => (
                                     <TableRow key={l.id} className="h-12 border-b-gray-50 group hover:bg-muted/20 transition-colors">
-                                        <TableCell className="pl-6 font-black text-gray-900">{l.employeeName}</TableCell>
+                                        <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
                                         <TableCell className="font-mono font-bold text-blue-900">{toNepaliDate(l.date)}</TableCell>
-                                        <TableCell className="font-mono text-gray-400 text-[10px]">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
+                                        <TableCell className="font-black text-gray-900">{l.employeeName}</TableCell>
                                         <TableCell className="text-muted-foreground font-medium">{formatTimeForDisplay(l.onDuty)}</TableCell>
                                         <TableCell className="text-muted-foreground font-medium">{formatTimeForDisplay(l.offDuty)}</TableCell>
                                         <TableCell className="font-bold text-blue-600">{formatTimeForDisplay(l.clockIn)}</TableCell>
