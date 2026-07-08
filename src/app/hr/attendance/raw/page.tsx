@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -12,7 +13,9 @@ import {
     User,
     CheckCircle2,
     CalendarIcon,
-    AlertCircle
+    AlertCircle,
+    X,
+    Plus
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,7 +52,7 @@ export default function RawMachineLogsPage() {
     // Import Dialog
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
     const [availableSheets, setAvailableSheets] = useState<any[]>([]);
-    const [selectedSheets, setSelectedSheets] = useState<{ name: string; year: string; month: string }[]>([]);
+    const [selectedSheets, setSelectedSheets] = useState<{ name: string; periods: { year: string; month: string }[] }[]>([]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -98,18 +101,21 @@ export default function RawMachineLogsPage() {
 
         try {
             let total = 0;
-            for (const selection of selectedSheets) {
-                const sheet = availableSheets.find(as => as.name === selection.name);
+            for (const sheetSelection of selectedSheets) {
+                const sheet = availableSheets.find(as => as.name === sheetSelection.name);
                 if (sheet) {
-                    const { logCount } = await addRawMachineLogs(
-                        sheet.jsonData,
-                        user.username,
-                        parseInt(selection.year),
-                        parseInt(selection.month),
-                        selection.name,
-                        (p) => setImportProgress(`Importing ${selection.name}: ${p} records`)
-                    );
-                    total += logCount;
+                    for (const period of sheetSelection.periods) {
+                        const monthName = NEPALI_MONTHS.find(m => String(m.value) === period.month)?.name || `Month ${period.month}`;
+                        const { logCount } = await addRawMachineLogs(
+                            sheet.jsonData,
+                            user.username,
+                            parseInt(period.year),
+                            parseInt(period.month),
+                            sheetSelection.name,
+                            (p) => setImportProgress(`Importing ${sheetSelection.name} (${monthName} ${period.year}): ${p} records`)
+                        );
+                        total += logCount;
+                    }
                 }
             }
             toast({ title: 'Data Dump Complete', description: `${total} machine logs stored.` });
@@ -237,7 +243,7 @@ export default function RawMachineLogsPage() {
                 <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-0">
                     <DialogHeader className="p-6 border-b shrink-0">
                         <DialogTitle className="text-xl font-black text-gray-900">Configure Data Dump</DialogTitle>
-                        <DialogDescription>Map Excel sheets to specific periods before importing into raw storage.</DialogDescription>
+                        <DialogDescription>Map Excel sheets to specific periods before importing into raw storage. You can assign multiple target months per sheet.</DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="flex-1 p-6">
                         <div className="space-y-4">
@@ -251,7 +257,7 @@ export default function RawMachineLogsPage() {
                                         <div className="flex items-center justify-between mb-4">
                                             <div className="flex items-center gap-3">
                                                 <Checkbox id={`check-${sheet.name}`} checked={!!selection} onCheckedChange={(v) => {
-                                                    if (v) setSelectedSheets([...selectedSheets, { name: sheet.name, year: selectedYear, month: selectedMonth }]);
+                                                    if (v) setSelectedSheets([...selectedSheets, { name: sheet.name, periods: [{ year: selectedYear, month: selectedMonth }] }]);
                                                     else setSelectedSheets(selectedSheets.filter(s => s.name !== sheet.name));
                                                 }} />
                                                 <Label htmlFor={`check-${sheet.name}`} className="font-black text-sm">{sheet.name}</Label>
@@ -259,21 +265,52 @@ export default function RawMachineLogsPage() {
                                             <Badge variant="secondary" className="uppercase text-[9px] font-black">{sheet.rowCount} rows</Badge>
                                         </div>
                                         {selection && (
-                                            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1">
-                                                <div className="space-y-1">
-                                                    <Label className="text-[9px] font-black uppercase text-muted-foreground">Target BS Year</Label>
-                                                    <Select value={selection.year} onValueChange={(v) => setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, year: v } : s))}>
-                                                        <SelectTrigger className="h-8 bg-white"><SelectValue /></SelectTrigger>
-                                                        <SelectContent>{[2080, 2081, 2082].map(y => <SelectItem key={`sel-year-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <Label className="text-[9px] font-black uppercase text-muted-foreground">Target BS Month</Label>
-                                                    <Select value={selection.month} onValueChange={(v) => setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, month: v } : s))}>
-                                                        <SelectTrigger className="h-8 bg-white"><SelectValue /></SelectTrigger>
-                                                        <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`sel-month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
-                                                    </Select>
-                                                </div>
+                                            <div className="space-y-4 animate-in fade-in slide-in-from-top-1">
+                                                {selection.periods.map((period, pIdx) => (
+                                                    <div key={pIdx} className="flex gap-4 items-end">
+                                                        <div className="space-y-1 flex-1">
+                                                            <Label className="text-[9px] font-black uppercase text-muted-foreground">Target BS Year</Label>
+                                                            <Select value={period.year} onValueChange={(v) => {
+                                                                const newPeriods = [...selection.periods];
+                                                                newPeriods[pIdx] = { ...newPeriods[pIdx], year: v };
+                                                                setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, periods: newPeriods } : s));
+                                                            }}>
+                                                                <SelectTrigger className="h-8 bg-white"><SelectValue /></SelectTrigger>
+                                                                <SelectContent>{[2080, 2081, 2082].map(y => <SelectItem key={`sel-year-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div className="space-y-1 flex-1">
+                                                            <Label className="text-[9px] font-black uppercase text-muted-foreground">Target BS Month</Label>
+                                                            <Select value={period.month} onValueChange={(v) => {
+                                                                const newPeriods = [...selection.periods];
+                                                                newPeriods[pIdx] = { ...newPeriods[pIdx], month: v };
+                                                                setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, periods: newPeriods } : s));
+                                                            }}>
+                                                                <SelectTrigger className="h-8 bg-white"><SelectValue /></SelectTrigger>
+                                                                <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`sel-month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        {selection.periods.length > 1 && (
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => {
+                                                                const newPeriods = selection.periods.filter((_, i) => i !== pIdx);
+                                                                setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, periods: newPeriods } : s));
+                                                            }}>
+                                                                <X className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="h-7 text-[10px] uppercase font-black text-primary hover:bg-primary/5"
+                                                    onClick={() => {
+                                                        const newPeriods = [...selection.periods, { year: selectedYear, month: selectedMonth }];
+                                                        setSelectedSheets(selectedSheets.map(s => s.name === sheet.name ? { ...s, periods: newPeriods } : s));
+                                                    }}
+                                                >
+                                                    <Plus className="mr-1 h-3 w-3" /> Add Target Period
+                                                </Button>
                                             </div>
                                         )}
                                     </div>
@@ -284,7 +321,7 @@ export default function RawMachineLogsPage() {
                     <DialogFooter className="p-6 border-t bg-muted/5 shrink-0">
                         <Button variant="outline" onClick={() => setIsImportDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest">Cancel</Button>
                         <Button onClick={handleConfirmImport} disabled={selectedSheets.length === 0} className="font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20 px-8">
-                            Confirm Data Dump ({selectedSheets.length} Sheets)
+                            Confirm Data Dump
                         </Button>
                     </DialogFooter>
                 </DialogContent>
