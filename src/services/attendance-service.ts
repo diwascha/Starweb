@@ -152,40 +152,6 @@ export const addRawMachineLogs = async (
 
         const shiftSnap = await getDocs(collection(db, 'hr_shifts'));
         const existingShifts = shiftSnap.docs.map(d => d.data() as HrShift);
-        const shiftBatch = writeBatch(db);
-        let discoveredShifts = 0;
-
-        const uniqueShiftPairs = new Set<string>();
-        processedData.forEach(p => {
-            if (p.onDuty && p.offDuty) {
-                uniqueShiftPairs.add(`${p.onDuty.substring(0,5)}|${p.offDuty.substring(0,5)}`);
-            }
-        });
-
-        uniqueShiftPairs.forEach(pair => {
-            const [on, off] = pair.split('|');
-            const exists = existingShifts.some(s => s.onDuty.startsWith(on) && s.offDuty.startsWith(off));
-            if (!exists) {
-                const shiftRef = doc(collection(db, 'hr_shifts'));
-                const newShift: Omit<HrShift, 'id'> = {
-                    name: `Log Discovery: ${on}-${off}`,
-                    onDuty: `${on}:00`,
-                    offDuty: `${off}:00`,
-                    breakStart: '12:00:00',
-                    breakEnd: '13:00:00',
-                    isDefault: false,
-                    createdBy: importedBy,
-                    createdAt: now
-                };
-                shiftBatch.set(shiftRef, newShift);
-                discoveredShifts++;
-            }
-        });
-
-        if (discoveredShifts > 0) {
-            await shiftBatch.commit();
-        }
-
         const defaultShift = existingShifts.find(s => s.isDefault) || existingShifts[0];
 
         const periods = new Set<string>();
@@ -382,14 +348,15 @@ export const deleteAllRawLogs = async (): Promise<void> => {
 // --- Hourly Calculation Logic ---
 
 /**
- * Robust time utilities for the attendance logic engine
+ * Logic Utilities
  */
 const timeToMinutes = (time: string): number => {
     const [h, m] = time.split(':').map(Number);
-    return h * 60 + m;
+    return (h || 0) * 60 + (m || 0);
 };
 
 const roundToNearest = (value: number, step: number): number => {
+    if (step <= 0) return value;
     return Math.round(value / step) * step;
 };
 
@@ -401,13 +368,14 @@ const getFixedBreakOverlap = (startMins: number, endMins: number): number => {
     return Math.max(0, overlapEnd - overlapStart);
 };
 
-const calculatePaidHoursWithBreak = (startMins: number, endMins: number): number => {
+const applyFixedBreak = (startMins: number, endMins: number): number => {
     const duration = endMins - startMins;
     if (duration <= 0) return 0;
     
     const overlap = getFixedBreakOverlap(startMins, endMins);
     let finalMins = duration;
-    if (overlap > 0 && duration > 240) { // Only deduct if shift > 4 hours
+    // Deduct overlap ONLY if overlap > 0 AND duration > 4h (240 mins)
+    if (overlap > 0 && duration > 240) {
         finalMins -= overlap;
     }
     return finalMins / 60;
@@ -426,7 +394,7 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const { db } = getFirebase();
     
     const configSetting = await getSetting('hr_config');
-    const config = configSetting?.value as HrConfig;
+    const config = (configSetting?.value as HrConfig) || null;
     if (!config) throw new Error("HR Operational Rules not found. Please configure them in HR Office.");
 
     const qRaw = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
@@ -438,7 +406,7 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const holidays = await getHolidays();
     const leaveRequests = await getLeaveRequests();
     
-    // Clear existing processed records
+    // Clear existing processed records for target period
     const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const processedSnap = await getDocs(qProcessed);
     if (!processedSnap.empty) {
@@ -448,8 +416,7 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     }
 
     // Counters for Free Passes
-    const latePasses = new Map<string, number>();
-    const earlyPasses = new Map<string, number>();
+    const passCounters = new Map<string, number>();
 
     const rawLogs = rawSnap.docs.map(d => fromFirestoreLog(d as any)).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const results: Omit<AttendanceRecord, 'id'>[] = [];
@@ -475,33 +442,40 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         let finalStatus = log.statusFromMachine;
         let finalRemarks = '';
 
-        // BRANCH A: Public Holiday
+        // BRANCHING BY DAY TYPE
+        
+        // A) Public Holiday
         if (holiday) {
             finalStatus = 'Public Holiday';
-            finalRemarks = `Public Holiday: ${holiday.name}`;
+            finalRemarks = `Public Holiday - ${holiday.name}`;
             reg = config.hours.baseDayHours;
             if (log.clockIn && log.clockOut) {
-                ot = roundToNearest(calculatePaidHoursWithBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut)), config.hours.roundStep);
+                const worked = applyFixedBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut));
+                ot = roundToNearest(worked, config.hours.roundStep);
             }
         } 
-        // BRANCH B: Absent (Status TRUE)
+        // B) Absent (Machine says TRUE/Absent)
         else if (log.statusFromMachine === 'Absent' || log.statusFromMachine === 'TRUE') {
             finalStatus = 'Absent';
             reg = 0; ot = 0;
+            finalRemarks = '';
         }
-        // BRANCH C: Saturday
+        // C) Saturday (Day Off)
         else if (logDate.getDay() === 6) {
             finalStatus = 'Saturday';
-            finalRemarks = 'Weekly Off (Saturday)';
+            finalRemarks = ''; // Requirements: Else zero out or blank
             if (log.clockIn && log.clockOut) {
-                const worked = calculatePaidHoursWithBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut));
-                ot = roundToNearest(worked, config.hours.roundStep);
+                const worked = applyFixedBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut));
+                if (worked > 0) {
+                    ot = roundToNearest(worked, config.hours.roundStep);
+                    reg = 0;
+                }
             }
         }
-        // BRANCH D: Normal Working Day
+        // D) Normal Working Day
         else {
             if (!log.onDuty || !log.offDuty || !log.clockIn || !log.clockOut) {
-                finalStatus = log.clockIn || log.clockOut ? 'C/I/O Miss' : 'Absent';
+                finalStatus = (log.clockIn || log.clockOut) ? 'C/I/O Miss' : 'Absent';
                 finalRemarks = "Missing IN/OUT";
                 reg = 0; ot = 0;
             } else {
@@ -513,34 +487,51 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                 const lateMin = Math.max(0, aIn - sOn);
                 const earlyMin = Math.max(0, sOff - aOut);
 
-                // Penalty Logic per direction
-                const calculatePenalty = (mins: number, type: 'L' | 'E', period: 'WEEKLY' | 'MONTHLY', countLimit: number, passMap: Map<string, number>) => {
-                    if (mins <= 0) return 0;
-                    if (mins <= config.hours.graceMin) {
-                        const bucket = getPeriodBucket(log.date, period);
-                        const key = `${employee.id}|${type}|${bucket}`;
-                        const used = passMap.get(key) || 0;
-                        if (countLimit > 0 && used < countLimit) {
-                            passMap.set(key, used + 1);
-                            return 0; // Free pass consumed
+                // Penalty Logic for Late Arrival
+                let latePen = 0;
+                if (lateMin > 0) {
+                    if (lateMin <= config.hours.graceMin) {
+                        const bucket = getPeriodBucket(log.date, config.hours.freeLatePeriod);
+                        const key = `${employee.id}|L|${bucket}`;
+                        const used = passCounters.get(key) || 0;
+                        if (config.hours.freeLate > 0 && used < config.hours.freeLate) {
+                            passCounters.set(key, used + 1);
+                            latePen = 0;
+                        } else {
+                            latePen = config.hours.blockMin;
                         }
-                        return config.hours.blockMin; // No passes left
+                    } else {
+                        latePen = Math.ceil((lateMin - config.hours.graceMin) / config.hours.blockMin) * config.hours.blockMin;
                     }
-                    return Math.ceil((mins - config.hours.graceMin) / config.hours.blockMin) * config.hours.blockMin;
-                };
-
-                const latePen = calculatePenalty(lateMin, 'L', config.hours.freeLatePeriod, config.hours.freeLate, latePasses);
-                const earlyPen = calculatePenalty(earlyMin, 'E', config.hours.freeEarlyPeriod, config.hours.freeEarly, earlyPasses);
-
-                const effInMins = sOn + latePen;
-                const effOutMins = sOff - earlyPen;
-
-                let paidHrs = 0;
-                if (effOutMins > effInMins) {
-                    paidHrs = calculatePaidHoursWithBreak(effInMins, effOutMins);
                 }
 
-                // ExtraOK credit
+                // Penalty Logic for Early Departure
+                let earlyPen = 0;
+                if (earlyMin > 0) {
+                    if (earlyMin <= config.hours.graceMin) {
+                        const bucket = getPeriodBucket(log.date, config.hours.freeEarlyPeriod);
+                        const key = `${employee.id}|E|${bucket}`;
+                        const used = passCounters.get(key) || 0;
+                        if (config.hours.freeEarly > 0 && used < config.hours.freeEarly) {
+                            passCounters.set(key, used + 1);
+                            earlyPen = 0;
+                        } else {
+                            earlyPen = config.hours.blockMin;
+                        }
+                    } else {
+                        earlyPen = Math.ceil((earlyMin - config.hours.graceMin) / config.hours.blockMin) * config.hours.blockMin;
+                    }
+                }
+
+                const effIn = sOn + latePen;
+                const effOut = sOff - earlyPen;
+
+                let paid = 0;
+                if (effOut > effIn) {
+                    paid = applyFixedBreak(effIn, effOut);
+                }
+
+                // ExtraOK Credit
                 let extraBefore = 0;
                 let extraAfter = 0;
                 if (log.statusFromMachine.toUpperCase().includes('EXTRAOK')) {
@@ -548,21 +539,28 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                     extraAfter = Math.floor((Math.max(0, aOut - sOff) + 5) / 30) * 0.5;
                 }
 
-                const gross = roundToNearest(paidHrs + extraBefore + extraAfter + 0.000001, config.hours.roundStep);
-                reg = Math.min(gross, config.hours.baseDayHours);
-                ot = Math.max(0, gross - config.hours.baseDayHours);
+                const grossRaw = paid + extraBefore + extraAfter + 0.000001;
+                const gross = roundToNearest(grossRaw, config.hours.roundStep);
+                
+                if (gross > config.hours.baseDayHours) {
+                    reg = config.hours.baseDayHours;
+                    ot = gross - config.hours.baseDayHours;
+                } else {
+                    reg = gross;
+                    ot = 0;
+                }
                 
                 finalStatus = 'Present';
 
-                // Review Flag Check
-                const actualWorked = calculatePaidHoursWithBreak(aIn, aOut);
+                // Review Flag
+                const actualWorked = applyFixedBreak(aIn, aOut);
                 if (actualWorked > config.hours.reviewThresh) {
                     finalRemarks = "Review Hours";
                 }
             }
         }
 
-        // Leave Override (Highest Priority for final status)
+        // Leave Override (Approved Leave)
         if (leave && !holiday) {
             finalStatus = 'Leave';
             finalRemarks = `${leave.leaveType} Leave: ${leave.reason}`;
