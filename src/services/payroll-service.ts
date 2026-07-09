@@ -238,6 +238,7 @@ const isAnalyticsRow = (name: string): boolean => {
 
 /**
  * Intelligent section extractor that handles multi-row headers and horizontal offsets.
+ * Strictly follows instructions to look at rows and columns BELOW the header marker.
  */
 const extractSection = (jsonData: any[][], startMarker: string): any[] => {
     const marker = startMarker.toLowerCase();
@@ -253,9 +254,9 @@ const extractSection = (jsonData: any[][], startMarker: string): any[] => {
     }
     if (markerRowIndex === -1) return [];
 
-    // 2. Identify the Data Block structure
+    // 2. Identify the Data Block structure (Header identification)
     let headerRowIdx = markerRowIndex + 1;
-    // Skip empty lines to find headers
+    // Skip empty lines to find the actual headers of the table
     while (headerRowIdx < jsonData.length && (!jsonData[headerRowIdx] || jsonData[headerRowIdx].every(c => !c))) {
         headerRowIdx++;
     }
@@ -265,41 +266,38 @@ const extractSection = (jsonData: any[][], startMarker: string): any[] => {
     let headers: string[] = [];
 
     if (isMonthToMonth) {
-        // Special Logic for Month-to-Month Behavioral Comparison (Multi-row headers)
-        const rowGroup = jsonData[headerRowIdx]; // Row 59
-        const rowSub = jsonData[headerRowIdx + 1]; // Row 60
-        const rowAnchor = jsonData[headerRowIdx + 2]; // Row 61 (Employee)
+        // Complex Logic for Month-to-Month Behavioral Comparison (Multi-row grouping)
+        const rowGroup = jsonData[headerRowIdx]; 
+        const rowSub = jsonData[headerRowIdx + 1]; 
+        const rowAnchor = jsonData[headerRowIdx + 2]; 
         
         headers = rowAnchor.map((cell, j) => {
-            const group = String(rowGroup[j] || '').trim();
-            const sub = String(rowSub[j] || '').trim();
             const anchor = String(cell || '').trim();
-            
             if (anchor === 'Employee') return 'Employee';
             if (anchor === 'Remarks / Flag') return 'Remarks / Flag';
             
-            // Re-map column groups based on the image structure
-            let finalGroup = group;
-            // Scan backwards for group label if empty (merged cell behavior)
-            if (!finalGroup) {
-                for (let k = j; k >= 0; k--) {
-                    if (rowGroup[k]) { finalGroup = String(rowGroup[k]).trim(); break; }
-                }
+            // Find parent group by scanning backwards (merged cell behavior)
+            let finalGroup = '';
+            for (let k = j; k >= 0; k--) {
+                if (rowGroup[k]) { finalGroup = String(rowGroup[k]).trim(); break; }
             }
             
-            return finalGroup && sub ? `${finalGroup}_${sub}` : (sub || anchor || `Col_${j}`);
+            const sub = String(rowSub[j] || '').trim();
+            return finalGroup && sub ? `${finalGroup}_${sub}` : (sub || anchor || `Column_${j}`);
         });
-        headerRowIdx += 2; // Jump to start of data
+        headerRowIdx += 2; // Move processing start past the multi-row header block
     } else {
         headers = jsonData[headerRowIdx].map(h => String(h || '').trim());
     }
 
     const data: any[] = [];
+    // 3. Extract Rows BELOW the header
     for (let i = headerRowIdx + 1; i < jsonData.length; i++) {
         const row = jsonData[i];
-        if (!row || row.every(c => !c)) break;
+        if (!row || row.every(c => !c)) break; // Stop at first empty line (section break)
         
         const rowLead = String(row[0] || '').toLowerCase();
+        // Stop if we hit another section header or an irrelevant row
         if (isAnalyticsRow(rowLead) && rowLead !== 'employee') break; 
 
         const item: any = {};
@@ -307,7 +305,7 @@ const extractSection = (jsonData: any[][], startMarker: string): any[] => {
             if (h) item[h] = row[j];
         });
         data.push(item);
-        if (data.length > 500) break;
+        if (data.length > 500) break; // Safety limit
     }
     return data;
 };
