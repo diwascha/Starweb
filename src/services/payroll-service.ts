@@ -84,11 +84,9 @@ export const getPayrollYears = async (): Promise<number[]> => {
 export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
     const { db } = getFirebase();
     try {
-        // 1. Delete associated analytics report (Deterministic ID)
         const reportId = `${bsYear}-${bsMonth}`;
         await deleteDoc(doc(getAnalyticsCollection(), reportId));
 
-        // 2. Delete matching individual payroll records
         const q = query(getPayrollCollection(), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
         const snapshot = await getDocs(q);
 
@@ -176,7 +174,6 @@ export const calculateAndSavePayrollForMonth = async (
             const bonus = 0;
             const finalNet = roundedNet + bonus;
 
-            // Deterministic ID to prevent duplicates
             const payrollId = `${bsYear}-${bsMonth}-${employee.id}`;
             const payrollData: Omit<Payroll, 'id'> = {
                 bsYear, bsMonth,
@@ -223,52 +220,82 @@ export const calculateAndSavePayrollForMonth = async (
 const isAnalyticsRow = (name: string): boolean => {
     if (!name) return true;
     const n = name.trim().toLowerCase();
+    // Strictly block keywords from image to prevent "messed up" payroll imports
     return (
         n === 'employee' || 
         n === 'total' ||
-        n.includes('behavioral patterns') ||
-        n.includes('enhanced employee insights') ||
-        n.includes('pattern insights') ||
-        n.includes('day of week patterns') ||
-        n.includes('month-to-month behavioral comparison') ||
-        n.includes('current:') ||
-        n.includes('previous:') ||
-        n.includes('trend:') ||
-        n.includes('insights') ||
-        n.includes('absenteeism') ||
-        n.includes('late arrivals') ||
-        n.includes('hotspots') ||
-        n.includes('punctual') ||
-        n.includes('utilization') ||
-        n.includes('ot total') ||
-        n.includes('shift-start') ||
-        n.includes('comparison') ||
-        n.includes('behavioral')
+        n === 'behavioral patterns (from attendance data)' ||
+        n === 'enhanced employee insights' ||
+        n === 'pattern insights' ||
+        n === 'day of week patterns' ||
+        n === 'month-to-month behavioral comparison' ||
+        n.includes('peak absenteeism') ||
+        n.includes('peak tardiness') ||
+        n.includes('punctual leader') ||
+        n.includes('sat. utilization')
     );
 };
 
+/**
+ * Intelligent section extractor that handles multi-row headers and horizontal offsets.
+ */
 const extractSection = (jsonData: any[][], startMarker: string): any[] => {
     const marker = startMarker.toLowerCase();
-    let startIndex = -1;
+    let markerRowIndex = -1;
+    
+    // 1. Locate Marker
     for (let i = 0; i < jsonData.length; i++) {
         const rowStr = jsonData[i].join(' ').toLowerCase();
-        if (rowStr === marker || rowStr.includes(marker)) {
-            startIndex = i;
+        if (rowStr.includes(marker)) {
+            markerRowIndex = i;
             break;
         }
     }
-    if (startIndex === -1) return [];
+    if (markerRowIndex === -1) return [];
 
-    let headerIdx = startIndex + 1;
-    while (headerIdx < jsonData.length && (!jsonData[headerIdx] || jsonData[headerIdx].every(c => !c))) {
-        headerIdx++;
+    // 2. Identify the Data Block structure
+    let headerRowIdx = markerRowIndex + 1;
+    // Skip empty lines to find headers
+    while (headerRowIdx < jsonData.length && (!jsonData[headerRowIdx] || jsonData[headerRowIdx].every(c => !c))) {
+        headerRowIdx++;
     }
-    if (headerIdx >= jsonData.length) return [];
+    if (headerRowIdx >= jsonData.length) return [];
 
-    const headers = jsonData[headerIdx];
+    const isMonthToMonth = marker.includes('month-to-month');
+    let headers: string[] = [];
+
+    if (isMonthToMonth) {
+        // Special Logic for Month-to-Month Behavioral Comparison (Multi-row headers)
+        const rowGroup = jsonData[headerRowIdx]; // Row 59
+        const rowSub = jsonData[headerRowIdx + 1]; // Row 60
+        const rowAnchor = jsonData[headerRowIdx + 2]; // Row 61 (Employee)
+        
+        headers = rowAnchor.map((cell, j) => {
+            const group = String(rowGroup[j] || '').trim();
+            const sub = String(rowSub[j] || '').trim();
+            const anchor = String(cell || '').trim();
+            
+            if (anchor === 'Employee') return 'Employee';
+            if (anchor === 'Remarks / Flag') return 'Remarks / Flag';
+            
+            // Re-map column groups based on the image structure
+            let finalGroup = group;
+            // Scan backwards for group label if empty (merged cell behavior)
+            if (!finalGroup) {
+                for (let k = j; k >= 0; k--) {
+                    if (rowGroup[k]) { finalGroup = String(rowGroup[k]).trim(); break; }
+                }
+            }
+            
+            return finalGroup && sub ? `${finalGroup}_${sub}` : (sub || anchor || `Col_${j}`);
+        });
+        headerRowIdx += 2; // Jump to start of data
+    } else {
+        headers = jsonData[headerRowIdx].map(h => String(h || '').trim());
+    }
+
     const data: any[] = [];
-    
-    for (let i = headerIdx + 1; i < jsonData.length; i++) {
+    for (let i = headerRowIdx + 1; i < jsonData.length; i++) {
         const row = jsonData[i];
         if (!row || row.every(c => !c)) break;
         
@@ -276,11 +303,11 @@ const extractSection = (jsonData: any[][], startMarker: string): any[] => {
         if (isAnalyticsRow(rowLead) && rowLead !== 'employee') break; 
 
         const item: any = {};
-        headers.forEach((h: any, j: number) => {
-            if (h) item[String(h).trim()] = row[j];
+        headers.forEach((h, j) => {
+            if (h) item[h] = row[j];
         });
         data.push(item);
-        if (data.length > 100) break;
+        if (data.length > 500) break;
     }
     return data;
 };
@@ -304,7 +331,6 @@ const extractPatternInsights = (jsonData: any[][]): string[] => {
 
         const text = String(row[0] || '').trim();
         if (text) insights.push(text);
-        if (insights.length > 20) break;
     }
     return insights;
 };
