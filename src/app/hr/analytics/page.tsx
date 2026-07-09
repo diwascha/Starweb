@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Employee, AttendanceRecord, Payroll } from '@/lib/types';
+import type { Employee, AttendanceRecord } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { BarChart2, Loader2, Download, Table as TableIcon, Activity, Star } from 'lucide-react';
+import { BarChart2, Loader2, Activity, Clock, AlertTriangle, CheckCircle2, Calendar, Zap, Timer } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
-import { onPayrollUpdate } from '@/services/payroll-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { generateAnalyticsForMonth, AnalyticsData } from '@/services/payroll-service';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -19,14 +18,9 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { NEPALI_MONTHS } from '@/lib/constants';
 
-// Specific headers from the user's Excel analytics sections
-const BEHAVIORAL_HEADERS = ['Workdays', 'OnTime Day', 'OnTime %', 'Late Days', 'Early Days', 'Missing', 'Absent Days', 'Sat Worked', 'PH Worked', 'ExtraOK Hours', 'Insight'];
-const ENHANCED_HEADERS = ['Punctuality Tr', 'Absence Pattern', 'OT Impact', 'Shift-End Behavior', 'Performance Insight'];
-
 export default function AnalyticsPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
-    const [payroll, setPayroll] = useState<Payroll[]>([]);
     const [bsYears, setBsYears] = useState<number[]>([]);
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
@@ -38,7 +32,6 @@ export default function AnalyticsPage() {
     useEffect(() => {
         onEmployeesUpdate(setEmployees);
         onAttendanceUpdate(setAttendance);
-        onPayrollUpdate(setPayroll);
     }, []);
     
     useEffect(() => {
@@ -46,46 +39,16 @@ export default function AnalyticsPage() {
         getAttendanceYears().then(years => {
             if (isMounted) {
                 setBsYears(years);
-                if (years.length > 0) {
-                    const currentYear = new NepaliDate().getYear();
-                    const defaultYear = years.includes(currentYear) ? currentYear : years[0];
-                    setSelectedBsYear(String(defaultYear));
-                    setSelectedBsMonth(String(new NepaliDate().getMonth()));
+                const current = new NepaliDate();
+                const year = years.includes(current.getYear()) ? current.getYear() : years[0];
+                if (year) {
+                    setSelectedBsYear(String(year));
+                    setSelectedBsMonth(String(current.getMonth()));
                 }
             }
         });
         return () => { isMounted = false; };
     }, [attendance]);
-
-    const importedAnalytics = useMemo(() => {
-        if (!selectedBsYear || selectedBsMonth === '') return null;
-        const year = parseInt(selectedBsYear);
-        const month = parseInt(selectedBsMonth);
-        
-        const monthlyPayroll = payroll.filter(p => p.bsYear === year && p.bsMonth === month);
-        if (monthlyPayroll.length === 0) return null;
-
-        // Extract behavioral and enhanced data
-        const behavioralData = monthlyPayroll.map(p => {
-            const data: any = { employee: p.employeeName };
-            BEHAVIORAL_HEADERS.forEach(h => {
-                data[h] = p.rawImportData?.[h] || '—';
-            });
-            return data;
-        }).filter(d => Object.values(d).some(v => v !== '—'));
-
-        const enhancedData = monthlyPayroll.map(p => {
-            const data: any = { employee: p.employeeName };
-            ENHANCED_HEADERS.forEach(h => {
-                data[h] = p.rawImportData?.[h] || '—';
-            });
-            return data;
-        }).filter(d => Object.values(d).some(v => v !== '—'));
-
-        if (behavioralData.length === 0 && enhancedData.length === 0) return null;
-
-        return { behavioral: behavioralData, enhanced: enhancedData };
-    }, [payroll, selectedBsYear, selectedBsMonth]);
 
     const handleGenerateAnalytics = () => {
         if (selectedBsYear && selectedBsMonth && employees.length > 0) {
@@ -98,9 +61,9 @@ export default function AnalyticsPage() {
                     attendance
                 );
                 setAnalyticsData(data);
-                toast({ title: "System Analytics Computed" });
+                toast({ title: "Intelligence Engine Complete" });
             } catch (error) {
-                toast({ title: "Calculation Failed", variant: "destructive" });
+                toast({ title: "Computation Failed", variant: "destructive" });
             } finally {
                 setIsProcessing(false);
             }
@@ -113,8 +76,8 @@ export default function AnalyticsPage() {
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-xl"><BarChart2 className="h-6 w-6 text-primary"/></div>
                     <div>
-                        <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Workforce Analytics</h1>
-                        <p className="text-muted-foreground text-sm font-medium italic">Behavioral patterns and performance insights derived from records.</p>
+                        <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Workforce Intelligence</h1>
+                        <p className="text-muted-foreground text-sm font-medium italic">Attendance-based behavioral mapping and operational insights.</p>
                     </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 bg-muted/20 p-2 rounded-xl border border-dashed">
@@ -126,147 +89,135 @@ export default function AnalyticsPage() {
                         <SelectTrigger className="w-[140px] h-9 bg-white"><SelectValue placeholder="Month" /></SelectTrigger>
                         <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
                     </Select>
-                    <Button size="sm" onClick={handleGenerateAnalytics} disabled={isProcessing || !selectedBsYear} className="h-9 font-bold px-6">
-                        {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
-                        Compute Analytics
+                    <Button size="sm" onClick={handleGenerateAnalytics} disabled={isProcessing || !selectedBsYear} className="h-9 font-black uppercase text-[10px] tracking-widest px-6 shadow-lg shadow-primary/20">
+                        {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Activity className="mr-2 h-4 w-4" />}
+                        Run Analytics
                     </Button>
                 </div>
             </header>
 
-            {importedAnalytics ? (
+            {analyticsData ? (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-                    <Card className="shadow-lg border-primary/20 overflow-hidden ring-4 ring-primary/5">
-                        <CardHeader className="bg-primary/5 border-b py-6 px-8 flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle className="text-lg font-black uppercase text-gray-900 tracking-wider flex items-center gap-2">
-                                    <TableIcon className="h-5 w-5 text-primary"/>
-                                    Imported Behavioral Patterns
-                                </CardTitle>
-                                <CardDescription className="text-xs uppercase font-bold text-muted-foreground">Detailed metrics harvested from the monthly Excel ledger.</CardDescription>
-                            </div>
-                            <Badge variant="outline" className="bg-white px-3 font-black text-[10px] uppercase">Source: Spreadsheet After Column Q</Badge>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <ScrollArea className="w-full">
-                                <Table className="text-[11px]">
-                                    <TableHeader className="bg-muted/50">
-                                        <TableRow className="h-10">
-                                            <TableHead className="pl-8 font-black uppercase sticky left-0 bg-background z-10 border-r min-w-[150px]">Employee</TableHead>
-                                            {BEHAVIORAL_HEADERS.map(h => (
-                                                <TableHead key={h} className="font-bold text-center px-4 uppercase tracking-tighter whitespace-nowrap">{h}</TableHead>
-                                            ))}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {importedAnalytics.behavioral.map((row, i) => (
-                                            <TableRow key={i} className="hover:bg-muted/30 h-11 border-b transition-colors group">
-                                                <TableCell className="pl-8 font-black text-gray-900 sticky left-0 bg-background z-10 border-r group-hover:text-primary">{row.employee}</TableCell>
-                                                {BEHAVIORAL_HEADERS.map(h => (
-                                                    <TableCell key={h} className={cn(
-                                                        "text-center font-medium px-4",
-                                                        h.includes('%') && "font-black text-blue-700 bg-blue-50/20",
-                                                        h === 'Insight' && "text-left italic text-muted-foreground min-w-[200px]"
-                                                    )}>
-                                                        {row[h]}
-                                                    </TableCell>
-                                                ))}
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <InsightCard title="Peak Absenteeism" value={analyticsData.highestAbsenteeism.day} sub={`${analyticsData.highestAbsenteeism.count} instances`} icon={AlertTriangle} color="red" />
+                        <InsightCard title="Peak Tardiness" value={analyticsData.highestLateArrivals.day} sub={`${analyticsData.highestLateArrivals.count} late arrivals`} icon={Clock} color="amber" />
+                        <InsightCard title="Punctual Leader" value={analyticsData.mostPunctualWeekday.day} sub={`${analyticsData.mostPunctualWeekday.rate.toFixed(1)}% on-time`} icon={CheckCircle2} color="emerald" />
+                        <InsightCard title="Sat. Utilization" value={`${analyticsData.saturdayUtilization.toFixed(0)}%`} sub="Saturday workload" icon={Calendar} color="blue" />
+                    </div>
 
-                    <Card className="shadow-lg border-amber-200 overflow-hidden ring-4 ring-amber-50">
-                        <CardHeader className="bg-amber-50/30 border-b py-6 px-8">
-                            <CardTitle className="text-lg font-black uppercase text-gray-900 tracking-wider flex items-center gap-2">
-                                <Star className="h-5 w-5 text-amber-500"/>
-                                Enhanced Employee Insights
-                            </CardTitle>
-                            <CardDescription className="text-xs uppercase font-bold text-muted-foreground">Qualitative performance assessment imported from master data.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <ScrollArea className="w-full">
-                                <Table className="text-[11px]">
-                                    <TableHeader className="bg-amber-50/10">
-                                        <TableRow className="h-10 border-b-amber-100">
-                                            <TableHead className="pl-8 font-black uppercase sticky left-0 bg-background z-10 border-r min-w-[150px]">Employee</TableHead>
-                                            {ENHANCED_HEADERS.map(h => (
-                                                <TableHead key={h} className="font-bold px-6 uppercase tracking-tighter whitespace-nowrap">{h}</TableHead>
-                                            ))}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {importedAnalytics.enhanced.map((row, i) => (
-                                            <TableRow key={i} className="hover:bg-amber-50/10 h-11 border-b border-gray-100 transition-colors">
-                                                <TableCell className="pl-8 font-black text-gray-900 sticky left-0 bg-background z-10 border-r">{row.employee}</TableCell>
-                                                {ENHANCED_HEADERS.map(h => (
-                                                    <TableCell key={h} className="px-6 font-medium text-gray-700">
-                                                        <Badge variant="outline" className={cn(
-                                                            "font-bold uppercase text-[9px] h-5 border-none",
-                                                            row[h].toLowerCase().includes('good') || row[h].toLowerCase().includes('v. good') || row[h].toLowerCase().includes('punc') ? "bg-emerald-50 text-emerald-700" :
-                                                            row[h].toLowerCase().includes('improvement') || row[h].toLowerCase().includes('late') ? "bg-amber-50 text-amber-700" : "bg-gray-50 text-gray-600"
-                                                        )}>
-                                                            {row[h]}
-                                                        </Badge>
-                                                    </TableCell>
-                                                ))}
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
-                </div>
-            ) : null}
-
-            {analyticsData && (
-                 <Card className="animate-in fade-in slide-in-from-top-4">
-                    <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/10 py-4 px-6">
-                        <div className="space-y-1">
-                            <CardTitle className="text-base font-black uppercase flex items-center gap-2">
-                                <Activity className="h-4 w-4 text-primary"/>
-                                System-Generated Workforce Report
-                            </CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                        <Accordion type="multiple" defaultValue={['punctuality']} className="space-y-4">
-                            <AccordionItem value="punctuality" className="border rounded-xl px-4">
-                                <AccordionTrigger className="font-bold uppercase text-xs hover:no-underline">Computed Punctuality Scoring</AccordionTrigger>
-                                <AccordionContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <Card className="lg:col-span-2 shadow-lg border-gray-100 bg-white overflow-hidden">
+                            <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle className="text-sm font-black uppercase">Punctuality Scoreboard</CardTitle>
+                                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Comparative performance metrics per employee.</CardDescription>
+                                </div>
+                                <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter">Month: {NEPALI_MONTHS[parseInt(selectedBsMonth)].name}</Badge>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <ScrollArea className="w-full">
                                     <Table className="text-[11px]">
-                                        <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Attend. Rate</TableHead><TableHead>Late</TableHead><TableHead>Early Out</TableHead><TableHead className="text-right">Score</TableHead></TableRow></TableHeader>
+                                        <TableHeader className="bg-muted/30">
+                                            <TableRow className="h-10">
+                                                <TableHead className="pl-6 font-black uppercase text-gray-900 border-r">Employee</TableHead>
+                                                <TableHead className="text-center font-bold uppercase">Present</TableHead>
+                                                <TableHead className="text-center font-bold uppercase">Late</TableHead>
+                                                <TableHead className="text-center font-bold uppercase">Early Exit</TableHead>
+                                                <TableHead className="text-right pr-6 font-black uppercase text-primary">Score</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
                                         <TableBody>
-                                            {analyticsData.punctuality.map(p => (
-                                                <TableRow key={p.employeeId} className="h-10">
-                                                    <TableCell className="font-bold">{p.employeeName}</TableCell>
-                                                    <TableCell>{(p.attendanceRate * 100).toFixed(1)}%</TableCell>
-                                                    <TableCell className="text-amber-600">{p.lateArrivals}</TableCell>
-                                                    <TableCell className="text-amber-600">{p.earlyDepartures}</TableCell>
-                                                    <TableCell className="text-right font-black">{(p.punctualityScore * 100).toFixed(1)}%</TableCell>
+                                            {analyticsData.punctuality.map((p) => (
+                                                <TableRow key={p.employeeId} className="hover:bg-muted/20 h-12 border-b">
+                                                    <TableCell className="pl-6 font-bold text-gray-900 border-r">{p.employeeName}</TableCell>
+                                                    <TableCell className="text-center tabular-nums">{p.presentDays}</TableCell>
+                                                    <TableCell className="text-center tabular-nums text-amber-600 font-bold">{p.lateArrivals}</TableCell>
+                                                    <TableCell className="text-center tabular-nums text-orange-600">{p.earlyDepartures}</TableCell>
+                                                    <TableCell className="text-right pr-6 font-black tabular-nums text-blue-700">{(p.punctualityScore * 100).toFixed(1)}%</TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
                                     </Table>
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
-                    </CardContent>
-                </Card>
-            )}
+                                    <ScrollBar orientation="horizontal" />
+                                </ScrollArea>
+                            </CardContent>
+                        </Card>
 
-            {!importedAnalytics && !analyticsData && (
-                <div className="h-80 border-4 border-dashed rounded-[2rem] flex flex-col items-center justify-center text-center p-12 bg-muted/5">
-                    <Activity className="h-16 w-16 text-muted-foreground/20 mb-4 animate-pulse"/>
-                    <h3 className="text-xl font-black text-gray-400 uppercase tracking-widest">No Intelligence Data Loaded</h3>
-                    <p className="text-sm text-muted-foreground mt-2 max-w-sm">Select a period and click "Compute Analytics" or import a master payroll spreadsheet to unlock organizational insights.</p>
+                        <div className="space-y-6">
+                            <Card className="shadow-lg border-primary/20 bg-primary/[0.02]">
+                                <CardHeader className="py-4 border-b">
+                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                        <Zap className="h-3.5 w-3.5" />
+                                        Behavioral Snapshots
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                    <ScrollArea className="h-[400px] pr-4">
+                                        <div className="space-y-4">
+                                            {analyticsData.behavior.map(b => (
+                                                <div key={b.employeeId} className="p-3 rounded-xl border bg-white space-y-2">
+                                                    <div className="flex justify-between items-center border-b pb-1">
+                                                        <span className="font-black text-[11px] text-gray-900 uppercase">{b.employeeName}</span>
+                                                        <Badge variant="outline" className="text-[8px] font-black h-4 px-1">{b.performanceInsight}</Badge>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2 text-[9px] font-bold text-muted-foreground uppercase">
+                                                        <div className="flex items-center gap-1.5"><Timer className="h-2.5 w-2.5" /> {b.punctualityTrend}</div>
+                                                        <div className="flex items-center gap-1.5"><Activity className="h-2.5 w-2.5" /> {b.otImpact} OT</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="shadow-lg border-amber-200 bg-amber-50/20">
+                                <CardHeader className="py-3 border-b border-amber-100">
+                                    <CardTitle className="text-[10px] font-black uppercase text-amber-700">Hotspot Alerts</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4 space-y-3">
+                                    {analyticsData.lateHotspots.map(h => (
+                                        <div key={h.date} className="flex items-center justify-between text-xs">
+                                            <span className="font-mono text-amber-900">{h.date}</span>
+                                            <Badge className="bg-amber-600 text-white font-black">{h.count} Late</Badge>
+                                        </div>
+                                    ))}
+                                    {analyticsData.lateHotspots.length === 0 && <p className="text-[10px] text-muted-foreground italic">No clusters detected.</p>}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="h-96 border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center text-center p-12 bg-muted/5">
+                    <Activity className="h-20 w-20 text-muted-foreground/10 mb-6 animate-pulse"/>
+                    <h3 className="text-xl font-black text-gray-300 uppercase tracking-[0.2em]">Computation Ready</h3>
+                    <p className="text-sm text-muted-foreground mt-2 max-w-sm">Select a month and click "Run Analytics" to generate machine-log driven intelligence reports.</p>
                 </div>
             )}
         </div>
+    );
+}
+
+function InsightCard({ title, value, sub, icon: Icon, color }: any) {
+    const colors: any = {
+        red: "bg-red-50 border-red-100 text-red-600",
+        amber: "bg-amber-50 border-amber-100 text-amber-600",
+        emerald: "bg-emerald-50 border-emerald-100 text-emerald-600",
+        blue: "bg-blue-50 border-blue-100 text-blue-600"
+    };
+    return (
+        <Card className={cn("shadow-sm border-none ring-1 ring-black/5 overflow-hidden", colors[color])}>
+            <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70">{title}</p>
+                    <p className="text-xl font-black leading-none">{value}</p>
+                    <p className="text-[9px] font-bold uppercase opacity-60">{sub}</p>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/50 shadow-inner">
+                    <Icon className="h-5 w-5 opacity-80" />
+                </div>
+            </CardContent>
+        </Card>
     );
 }

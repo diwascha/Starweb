@@ -1,10 +1,11 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit } from 'firebase/firestore';
-import type { Payroll, Employee, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
+import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, setDoc, deleteDoc } from 'firebase/firestore';
+import type { Payroll, Employee, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from './settings-service';
-import { COLLECTIONS } from '@/lib/constants';
+import { COLLECTIONS, NEPALI_MONTHS } from '@/lib/constants';
 import { createTimestamp, logServiceError, coerceNumber } from '@/lib/service-utils';
+import { format, startOfDay, getDay } from 'date-fns';
 
 const getPayrollCollection = () => {
     const { db } = getFirebase();
@@ -40,7 +41,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         remark: String(data.remark || ''),
         createdBy: data.createdBy,
         createdAt: data.createdAt,
-        rawImportData: data.rawImportData || {},
     };
 };
 
@@ -54,15 +54,12 @@ export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => v
 
 export const getPayrollForEmployee = async (employeeId: string, bsYear: number, bsMonth: number): Promise<Payroll | null> => {
     try {
-        const q = query(getPayrollCollection(), 
-            where("employeeId", "==", employeeId),
-            where("bsYear", "==", bsYear),
-            where("bsMonth", "==", bsMonth),
-            limit(1)
-        );
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) return null;
-        return fromFirestore(snapshot.docs[0]);
+        const payrollId = `${bsYear}-${bsMonth}-${employeeId}`;
+        const docRef = doc(getPayrollCollection(), payrollId);
+        const docSnap = await getDocs(query(getPayrollCollection(), where("employeeId", "==", employeeId), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth), limit(1)));
+        
+        if (docSnap.empty) return null;
+        return fromFirestore(docSnap.docs[0]);
     } catch (error) {
         logServiceError('getPayrollForEmployee', error);
         return null;
@@ -104,13 +101,6 @@ export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Pr
     }
 };
 
-const nepaliMonths = [
-    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
-    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
-    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
-];
-
 export const calculateAndSavePayrollForMonth = async (
     bsYear: number,
     bsMonth: number,
@@ -118,145 +108,103 @@ export const calculateAndSavePayrollForMonth = async (
     allAttendance: AttendanceRecord[],
     calculatedBy: string
 ): Promise<{ employeeCount: number }> => {
+    const { db } = getFirebase();
     try {
         const payrollLockSetting = await getSetting('payrollLocks');
         const payrollLocks = payrollLockSetting?.value || {};
         const lockKey = `${bsYear}-${bsMonth}`;
-        const monthName = nepaliMonths.find(m => m.value === bsMonth)?.name || `Month ${bsMonth + 1}`;
+        const monthName = NEPALI_MONTHS.find(m => m.value === bsMonth)?.name || `Month ${bsMonth + 1}`;
         
         if (payrollLocks[lockKey]) {
             throw new Error(`Payroll for ${monthName} ${bsYear} is locked and cannot be recalculated.`);
         }
         
-        await deletePayrollForMonth(bsYear, bsMonth);
-
         const workingEmployees = allEmployees.filter(e => e.status === 'Working');
-        const monthlyAttendance = allAttendance.filter(r => {
-            try {
-                if (!r.date) return false;
-                const nepaliDate = new NepaliDate(new Date(r.date));
-                return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
-            } catch {
-                return false;
-            }
-        });
+        const monthlyAttendance = allAttendance.filter(r => r.bsYear === bsYear && r.bsMonth === bsMonth);
         
-        const payrollRecords: Omit<Payroll, 'id'>[] = [];
         const now = createTimestamp();
+        const batch = writeBatch(db);
+        let writeCount = 0;
 
         for (const employee of workingEmployees) {
-            const employeeAttendance = monthlyAttendance.filter(r => r.employeeName === employee.name);
+            const employeeAttendance = monthlyAttendance.filter(r => r.employeeId === employee.id);
             const regularHours = employeeAttendance.reduce((sum, r) => sum + (Number(r.regularHours) || 0), 0);
             const otHours = employeeAttendance.reduce((sum, r) => sum + (Number(r.overtimeHours) || 0), 0);
             const absentDays = employeeAttendance.filter(r => r.status === 'Absent').length;
 
             let rate = 0;
-            if (employee.wageBasis === 'Monthly') {
-                const year = bsYear;
-                const month = bsMonth;
-                const date = new NepaliDate(year, month, 1);
-                const nextMonth = month === 11 ? 0 : month + 1;
-                const nextYear = month === 11 ? year + 1 : year;
-                const nextMonthDate = new NepaliDate(nextYear, nextMonth, 1);
-                nextMonthDate.setDate(nextMonthDate.getDate() - 1);
-                const daysInMonth = nextMonthDate.getDate();
+            const year = bsYear;
+            const month = bsMonth;
+            const nextMonth = month === 11 ? 0 : month + 1;
+            const nextYear = month === 11 ? year + 1 : year;
+            const nextMonthDate = new NepaliDate(nextYear, nextMonth, 1);
+            nextMonthDate.setDate(nextMonthDate.getDate() - 1);
+            const daysInMonth = nextMonthDate.getDate();
 
+            let basicPay = 0;
+            let otPay = 0;
+            let deduction = 0;
+
+            if (employee.wageBasis === 'Monthly') {
                 rate = (Number(employee.wageAmount) || 0) / daysInMonth / 8;
-                
                 const baseSalary = Number(employee.wageAmount) || 0;
                 const dayRate = baseSalary / daysInMonth;
-                const basicPay = baseSalary - (absentDays * dayRate);
-                const otPay = otHours * rate; 
-                const allowance = Number(employee.allowance) || 0;
-                const gross = basicPay + otPay + allowance;
-                const tds = gross * 0.01;
-                const grossSalary = gross - tds;
-                const advance = 0;
-                const net = grossSalary - advance;
-                const roundedNet = Math.round(net / 5) * 5;
-                const bonus = 0;
-                const finalNet = roundedNet + bonus;
-
-                payrollRecords.push({
-                    bsYear, bsMonth,
-                    employeeId: employee.id,
-                    employeeName: employee.name,
-                    joiningDate: employee.joiningDate || null,
-                    totalHours: regularHours + otHours,
-                    regularHours, otHours, rate,
-                    regularPay: basicPay,
-                    otPay,
-                    allowance,
-                    totalPay: gross,
-                    absentDays,
-                    deduction: absentDays * dayRate,
-                    tds,
-                    salaryTotal: grossSalary,
-                    advance,
-                    net,
-                    roundedNet,
-                    bonus,
-                    netPayment: finalNet,
-                    remark: '',
-                    createdBy: calculatedBy,
-                    createdAt: now,
-                    rawImportData: {}
-                });
+                deduction = absentDays * dayRate;
+                basicPay = baseSalary - deduction;
+                otPay = otHours * rate; 
             } else { 
                 rate = Number(employee.wageAmount) || 0;
-                const basicPay = regularHours * rate;
-                const otPay = otHours * rate;
-                const allowance = Number(employee.allowance) || 0;
-                const gross = basicPay + otPay + allowance;
-                const tds = gross * 0.01;
-                const grossSalary = gross - tds;
-                const advance = 0;
-                const net = grossSalary - advance;
-                const roundedNet = Math.round(net / 5) * 5;
-                const bonus = 0;
-                const finalNet = roundedNet + bonus;
+                basicPay = regularHours * rate;
+                otPay = otHours * rate;
+            }
 
-                payrollRecords.push({
-                    bsYear, bsMonth,
-                    employeeId: employee.id,
-                    employeeName: employee.name,
-                    joiningDate: employee.joiningDate || null,
-                    totalHours: regularHours + otHours,
-                    regularHours, otHours, rate,
-                    regularPay: basicPay,
-                    otPay,
-                    allowance,
-                    totalPay: gross,
-                    absentDays,
-                    deduction: 0,
-                    tds,
-                    salaryTotal: grossSalary,
-                    advance,
-                    net,
-                    roundedNet,
-                    bonus,
-                    netPayment: finalNet,
-                    remark: '',
-                    createdBy: calculatedBy,
-                    createdAt: now,
-                    rawImportData: {}
-                });
+            const allowance = Number(employee.allowance) || 0;
+            const gross = basicPay + otPay + allowance;
+            const tds = gross * 0.01;
+            const grossSalary = gross - tds;
+            const advance = 0;
+            const net = grossSalary - advance;
+            const roundedNet = Math.round(net / 5) * 5;
+            const bonus = 0;
+            const finalNet = roundedNet + bonus;
+
+            const payrollId = `${bsYear}-${bsMonth}-${employee.id}`;
+            const payrollData: Omit<Payroll, 'id'> = {
+                bsYear, bsMonth,
+                employeeId: employee.id,
+                employeeName: employee.name,
+                joiningDate: employee.joiningDate || null,
+                totalHours: regularHours + otHours,
+                regularHours, otHours, rate,
+                regularPay: basicPay,
+                otPay,
+                allowance,
+                totalPay: gross,
+                absentDays,
+                deduction,
+                tds,
+                salaryTotal: grossSalary,
+                advance,
+                net,
+                roundedNet,
+                bonus,
+                netPayment: finalNet,
+                remark: '',
+                createdBy: calculatedBy,
+                createdAt: now,
+            };
+
+            batch.set(doc(getPayrollCollection(), payrollId), payrollData, { merge: true });
+            writeCount++;
+
+            if (writeCount >= 490) {
+                await batch.commit();
+                writeCount = 0;
             }
         }
 
-        const CHUNK_SIZE = 400;
-        const { db } = getFirebase();
-        for (let i = 0; i < payrollRecords.length; i += CHUNK_SIZE) {
-            const chunk = payrollRecords.slice(i, i + CHUNK_SIZE);
-            const batch = writeBatch(db);
-            chunk.forEach(record => {
-                const docRef = doc(getPayrollCollection());
-                batch.set(docRef, record);
-            });
-            await batch.commit();
-        }
-        
-        return { employeeCount: payrollRecords.length };
+        if (writeCount > 0) await batch.commit();
+        return { employeeCount: workingEmployees.length };
     } catch (error) {
         logServiceError('calculateAndSavePayrollForMonth', error);
         throw error;
@@ -273,7 +221,7 @@ export const importPayrollFromSheet = async (
     const { db } = getFirebase();
     try {
         let headerIndex = -1;
-        for (let i = 0; i < Math.min(jsonData.length, 10); i++) {
+        for (let i = 0; i < Math.min(jsonData.length, 15); i++) {
             const row = jsonData[i];
             if (row && row.some(cell => String(cell || '').toLowerCase().includes('employee') || String(cell || '').toLowerCase().includes('regular hrs'))) {
                 headerIndex = i;
@@ -299,18 +247,11 @@ export const importPayrollFromSheet = async (
         const newlyCreatedEmployees: Employee[] = [];
 
         const employeeMap = new Map(employees.map(e => [e.name.toLowerCase().trim(), e]));
-        
-        // Tracking within this sheet to avoid duplicates if same employee has two rows
         const processedEmployeeIdsInThisSheet = new Set<string>();
-
-        // Fetch existing payroll for this period once to avoid per-row queries
-        const qExisting = query(getPayrollCollection(), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
-        const existingPayrollSnap = await getDocs(qExisting);
-        const existingPayrollMap = new Map(existingPayrollSnap.docs.map(d => [d.data().employeeId, d.ref]));
 
         for (const fullRow of dataRows) {
             const employeeName = String(fullRow[nameIndex] || '').trim();
-            if (!employeeName || employeeName.toUpperCase() === 'TOTAL') continue;
+            if (!employeeName || employeeName.toUpperCase() === 'TOTAL' || employeeName.toLowerCase().includes('behavioral')) continue;
 
             let employee = employeeMap.get(employeeName.toLowerCase());
             
@@ -347,22 +288,19 @@ export const importPayrollFromSheet = async (
             const getValue = (key: string) => {
                 const index = (headerMap as any)[key];
                 if (index === undefined || index === null) return null;
-                const val = fullRow[index];
-                return val !== undefined ? val : null;
+                return fullRow[index] !== undefined ? fullRow[index] : null;
             };
             
             const otHours = coerceNumber(getValue('otHours'));
             const regularHours = coerceNumber(getValue('regularHours'));
             
             const payrollData: Omit<Payroll, 'id'> = {
-                bsYear: bsYear, 
-                bsMonth: bsMonth,
+                bsYear, bsMonth,
                 employeeId: employee.id,
                 employeeName,
                 joiningDate: employee.joiningDate || null,
                 totalHours: regularHours + otHours,
-                otHours: otHours,
-                regularHours: regularHours,
+                otHours, regularHours,
                 rate: coerceNumber(getValue('rate')),
                 regularPay: coerceNumber(getValue('regularPay')),
                 otPay: coerceNumber(getValue('otPay')),
@@ -380,24 +318,15 @@ export const importPayrollFromSheet = async (
                 remark: String(getValue('remark') || ''),
                 createdBy: importedBy,
                 createdAt: createTimestamp(),
-                rawImportData: headerRow.reduce((obj, header, index) => {
-                    obj[String(header || `col_${index}`)] = fullRow[index] !== undefined ? fullRow[index] : null;
-                    return obj;
-                }, {} as Record<string, any>)
             };
             
-            const existingDocRef = existingPayrollMap.get(employee.id);
-
-            if (!existingDocRef) {
-                const docRef = doc(getPayrollCollection());
-                batch.set(docRef, payrollData);
-                createdCount++;
-            } else {
-                batch.update(existingDocRef, payrollData);
-                updatedCount++;
-            }
+            const payrollId = `${bsYear}-${bsMonth}-${employee.id}`;
+            const docRef = doc(getPayrollCollection(), payrollId);
             
+            batch.set(docRef, payrollData, { merge: true });
+            createdCount++;
             writeCount++;
+
             if (writeCount >= batchSize) {
                 await batch.commit();
                 batch = writeBatch(db);
@@ -417,28 +346,25 @@ export const getHeaderMap = (headerRow: any[]) => {
     const map: Record<string, number> = {};
     const payrollHeaders: Record<string, string[]> = {
         name: ['employee', 'staff name', 'name'],
-        date: ['date', 'work date', 'period'],
-        otHours: ['ot hrs', 'ot hour', 'ot hours', 'overtime hrs'],
-        regularHours: ['regular hrs', 'normal hrs', 'regular hours', 'reg hrs'],
-        rate: ['base (salary or', 'rate', 'base rate', 'basic salary', 'base'],
-        regularPay: ['basic pay', 'norman', 'regular pay', 'basic'],
-        otPay: ['ot pay', 'ot amount', 'ot'],
-        totalPay: ['gross', 'gross amount', 'total gross'],
-        absentDays: ['absent days', 'absent', 'abs. days'],
-        deduction: ['absent amt.', 'deduction', 'absent amount', 'abs amt'],
-        allowance: ['allowance', 'extra', 'other allowance', 'allowances'],
-        bonus: ['bonus', 'bonus amount'],
-        salaryTotal: ['gross salary', 'salary total', 'gross sal'],
-        tds: ['tds', 'tds (1%)', 'tds amount'],
-        advance: ['advance', 'salary advance', 'adv'],
-        net: ['net', 'net amount', 'net salary'],
-        roundedNet: ['rounded net', 'round off', 'round'],
-        netPayment: ['final net', 'net payment', 'net payable', 'total net', 'payable'],
-        remark: ['remark', 'remarks', 'narration', 'note']
+        otHours: ['ot hrs', 'ot hour', 'ot hours'],
+        regularHours: ['regular hrs', 'normal hrs', 'regular hours'],
+        rate: ['base (salary or', 'rate', 'base rate', 'basic salary'],
+        regularPay: ['basic pay', 'norman', 'regular pay'],
+        otPay: ['ot pay', 'ot amount'],
+        totalPay: ['gross'],
+        absentDays: ['absent days', 'absent'],
+        deduction: ['absent amt.', 'deduction', 'absent amount'],
+        allowance: ['allowance', 'extra'],
+        bonus: ['bonus'],
+        salaryTotal: ['gross salary', 'salary total'],
+        tds: ['tds', 'tds (1%)'],
+        advance: ['advance', 'salary advance'],
+        net: ['net'],
+        roundedNet: ['rounded net', 'round off'],
+        netPayment: ['final net', 'net payment', 'net payable'],
+        remark: ['remark', 'remarks']
     };
 
-    // Prioritize search from Column Q (index 16) onwards to match user's layout
-    // but fall back to entire row if not found there
     const searchOrder = [
         ...Array.from({ length: headerRow.length - 16 }, (_, i) => i + 16),
         ...Array.from({ length: 16 }, (_, i) => i)
@@ -447,11 +373,10 @@ export const getHeaderMap = (headerRow: any[]) => {
     for (const key in payrollHeaders) {
         for (const index of searchOrder) {
             if (index >= headerRow.length) continue;
-            const headerCell = headerRow[index];
-            const normalizedHeader = String(headerCell || '').trim().toLowerCase();
-            if (payrollHeaders[key].some(alias => normalizedHeader === alias || normalizedHeader.includes(alias))) {
+            const cell = String(headerRow[index] || '').trim().toLowerCase();
+            if (payrollHeaders[key].some(alias => cell === alias || cell.includes(alias))) {
                 map[key] = index;
-                break; // Found for this key
+                break;
             }
         }
     }
@@ -463,6 +388,12 @@ export interface AnalyticsData {
     behavior: BehaviorInsight[];
     workforce: WorkforceAnalytics[];
     patterns: PatternInsight[];
+    highestAbsenteeism: { day: string; count: number };
+    highestLateArrivals: { day: string; count: number };
+    lateHotspots: { date: string; count: number }[];
+    saturdayUtilization: number;
+    mostPunctualWeekday: { day: string; rate: number };
+    worstShiftStart: { time: string; rate: number };
 }
 
 export const generateAnalyticsForMonth = (
@@ -475,58 +406,91 @@ export const generateAnalyticsForMonth = (
     const punctuality: PunctualityInsight[] = [];
     const behavior: BehaviorInsight[] = [];
     const workforce: WorkforceAnalytics[] = [];
-    const patterns: PatternInsight[] = [];
+    
+    const dayStats: Record<string, { total: number, absent: number, late: number }> = {
+        'Sunday': { total: 0, absent: 0, late: 0 }, 'Monday': { total: 0, absent: 0, late: 0 },
+        'Tuesday': { total: 0, absent: 0, late: 0 }, 'Wednesday': { total: 0, absent: 0, late: 0 },
+        'Thursday': { total: 0, absent: 0, late: 0 }, 'Friday': { total: 0, absent: 0, late: 0 },
+        'Saturday': { total: 0, absent: 0, late: 0 }
+    };
+
+    const hotspots: Record<string, number> = {};
+    const shifts: Record<string, { total: number, late: number }> = {};
+    let saturdaysWithWork = 0;
+    let totalSaturdays = 0;
 
     const workingEmployees = allEmployees.filter(e => e.status === 'Working');
 
     for (const employee of workingEmployees) {
-        const employeeAttendance = monthlyAttendance.filter(r => r.employeeId === employee.id);
-        const scheduledDays = 26; 
-        const presentDays = employeeAttendance.filter(r => r.status === 'Present').length;
-        const absentDays = employeeAttendance.filter(r => r.status === 'Absent').length;
-        
-        const lateArrivals = employeeAttendance.filter(r => r.remarks?.toLowerCase().includes('late')).length;
-        const earlyDepartures = employeeAttendance.filter(r => r.remarks?.toLowerCase().includes('early')).length;
-
-        const attendanceRate = presentDays / scheduledDays;
-        const punctualityScore = (presentDays - (lateArrivals * 0.5)) / presentDays || 0;
+        const empAtt = monthlyAttendance.filter(r => r.employeeId === employee.id);
+        const presentDays = empAtt.filter(r => r.status === 'Present' || r.status === 'EXTRAOK').length;
+        const absentDays = empAtt.filter(r => r.status === 'Absent' || r.status.includes('Miss')).length;
+        const lates = empAtt.filter(r => r.remarks?.toLowerCase().includes('late') || r.remarks?.toLowerCase().includes('review')).length;
+        const earlys = empAtt.filter(r => r.remarks?.toLowerCase().includes('early')).length;
 
         punctuality.push({
             employeeId: employee.id,
             employeeName: employee.name,
-            scheduledDays,
+            scheduledDays: 26,
             presentDays,
             absentDays,
-            attendanceRate,
-            lateArrivals,
-            earlyDepartures,
-            onTimeDays: presentDays - lateArrivals,
-            punctualityScore
+            attendanceRate: presentDays / 26,
+            lateArrivals: lates,
+            earlyDepartures: earlys,
+            onTimeDays: presentDays - lates,
+            punctualityScore: presentDays > 0 ? (presentDays - (lates * 0.5)) / presentDays : 0
         });
 
         behavior.push({
             employeeId: employee.id,
             employeeName: employee.name,
-            punctualityTrend: lateArrivals > 3 ? 'Declining' : 'Stable',
+            punctualityTrend: lates > 3 ? 'Declining' : 'Stable',
             absencePattern: absentDays > 2 ? 'Frequent' : 'Normal',
-            otImpact: employeeAttendance.reduce((sum, r) => sum + r.overtimeHours, 0) > 10 ? 'High' : 'Low',
-            shiftEndBehavior: earlyDepartures > 2 ? 'Early Exit Pattern' : 'Standard',
-            performanceInsight: punctualityScore > 0.9 ? 'Exemplary' : 'Average'
+            otImpact: empAtt.reduce((sum, r) => sum + r.overtimeHours, 0) > 10 ? 'High' : 'Low',
+            shiftEndBehavior: earlys > 2 ? 'Early Exit' : 'Standard',
+            performanceInsight: presentDays > 24 && lates < 2 ? 'Exemplary' : 'Average'
         });
 
-        workforce.push({
-            employeeId: employee.id,
-            employeeName: employee.name,
-            overtimeRatio: employeeAttendance.reduce((sum, r) => sum + r.overtimeHours, 0) / (presentDays * 8) || 0,
-            onTimeStreak: 0, 
-            saturdaysWorked: employeeAttendance.filter(r => new Date(r.date).getDay() === 6).length
+        empAtt.forEach(r => {
+            const dayName = format(new Date(r.date), 'EEEE');
+            dayStats[dayName].total++;
+            if (r.status === 'Absent') dayStats[dayName].absent++;
+            if (r.remarks?.toLowerCase().includes('late')) {
+                dayStats[dayName].late++;
+                const dateKey = format(new Date(r.date), 'yyyy-MM-dd');
+                hotspots[dateKey] = (hotspots[dateKey] || 0) + 1;
+            }
+
+            if (dayName === 'Saturday') {
+                if (r.status === 'Present' || r.status === 'EXTRAOK' || r.overtimeHours > 0) saturdaysWithWork++;
+                totalSaturdays++;
+            }
+
+            if (r.onDuty) {
+                const time = r.onDuty.substring(0, 5);
+                if (!shifts[time]) shifts[time] = { total: 0, late: 0 };
+                shifts[time].total++;
+                if (r.remarks?.toLowerCase().includes('late')) shifts[time].late++;
+            }
         });
     }
 
-    patterns.push({
-        finding: 'Attendance Trends',
-        description: `Average attendance rate for this period is ${((punctuality.reduce((s, p) => s + p.attendanceRate, 0) / workingEmployees.length) * 100).toFixed(1)}%`
-    });
+    const sortedAbs = Object.entries(dayStats).sort((a, b) => b[1].absent - a[1].absent);
+    const sortedLate = Object.entries(dayStats).sort((a, b) => b[1].late - a[1].late);
+    const sortedHotspots = Object.entries(hotspots).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const sortedShifts = Object.entries(shifts).sort((a, b) => (b[1].late / b[1].total) - (a[1].late / a[1].total));
+    const sortedPunctual = Object.entries(dayStats).sort((a, b) => (a[1].late / a[1].total) - (b[1].late / b[1].total));
 
-    return { punctuality, behavior, workforce, patterns };
+    return {
+        punctuality,
+        behavior,
+        workforce,
+        patterns: [{ finding: 'Personnel Trend', description: `Average absenteeism is highest on ${sortedAbs[0][0]}.` }],
+        highestAbsenteeism: { day: sortedAbs[0][0], count: sortedAbs[0][1].absent },
+        highestLateArrivals: { day: sortedLate[0][0], count: sortedLate[0][1].late },
+        lateHotspots: sortedHotspots.map(([date, count]) => ({ date, count })),
+        saturdayUtilization: totalSaturdays > 0 ? (saturdaysWithWork / totalSaturdays) * 100 : 0,
+        mostPunctualWeekday: { day: sortedPunctual[0][0], rate: (1 - (sortedPunctual[0][1].late / sortedPunctual[0][1].total)) * 100 },
+        worstShiftStart: sortedShifts.length > 0 ? { time: sortedShifts[0][0], rate: (sortedShifts[0][1].late / sortedShifts[0][1].total) * 100 } : { time: 'N/A', rate: 0 }
+    };
 };
