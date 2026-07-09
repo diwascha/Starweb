@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Upload, Loader2, Calendar, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { importPayrollFromSheet, getPayrollYears } from '@/services/payroll-service';
+import { importPayrollFromSheet } from '@/services/payroll-service';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -56,11 +56,14 @@ export default function ImportPayrollPage() {
 
     useEffect(() => {
         const unsubEmployees = onEmployeesUpdate(setEmployees);
-        getPayrollYears().then(years => {
-            const currentYear = new NepaliDate().getYear();
-            const allYears = Array.from(new Set([...years, currentYear])).sort((a,b) => b-a);
-            setBsYears(allYears);
-        });
+        
+        // As per requirement: allow adding payroll data for any period from BS 2080 up to BS 3000
+        const allYears = [];
+        for (let y = 2080; y <= 3000; y++) {
+            allYears.push(y);
+        }
+        setBsYears(allYears);
+
         return () => unsubEmployees();
     }, []);
 
@@ -111,21 +114,15 @@ export default function ImportPayrollPage() {
     const handleSheetSelectionChange = (sheetName: string, checked: boolean) => {
         const currentNepaliDate = new NepaliDate();
         if (checked) {
-            // Default detected values for clarity, can be overriden manually
-            let detectedMonth = String(currentNepaliDate.getMonth());
-            let detectedYear = String(bsYears[0] || currentNepaliDate.getYear());
+            // Requirement: "clartiy and simplicity" - default to current month/year and allow manual choice
+            // We set defaults but remove the complex auto-scanning for "auto date identification" restrictions
+            const defaultMonth = String(currentNepaliDate.getMonth());
+            const defaultYear = String(currentNepaliDate.getYear());
             
-            const lowerName = sheetName.toLowerCase();
-            const monthMatch = nepaliMonths.find(m => lowerName.includes(m.name.toLowerCase()));
-            if (monthMatch) detectedMonth = String(monthMatch.value);
-            
-            const yearMatch = lowerName.match(/\d{4}/);
-            if (yearMatch) detectedYear = yearMatch[0];
-
             setSelectedSheets(prev => [...prev, {
                 name: sheetName,
-                year: detectedYear,
-                month: detectedMonth
+                year: defaultYear,
+                month: defaultMonth
             }]);
         } else {
             setSelectedSheets(prev => prev.filter(s => s.name !== sheetName));
@@ -188,8 +185,6 @@ export default function ImportPayrollPage() {
         setImportProgress(null);
         setIsProcessing(false);
         setFileName(null);
-        
-        getPayrollYears().then(setBsYears);
     };
 
 
@@ -227,7 +222,7 @@ export default function ImportPayrollPage() {
                                 id="select-all-sheets"
                                 onCheckedChange={(checked) => {
                                     const currentNepaliDate = new NepaliDate();
-                                    const defaultYear = String(bsYears[0] || currentNepaliDate.getYear());
+                                    const defaultYear = String(currentNepaliDate.getYear());
                                     const defaultMonth = String(currentNepaliDate.getMonth());
                                     setSelectedSheets(
                                         checked ? availableSheets.map(s => ({ name: s.name, year: defaultYear, month: defaultMonth })) : []
@@ -237,7 +232,7 @@ export default function ImportPayrollPage() {
                             />
                             <Label htmlFor="select-all-sheets" className="font-black text-xs uppercase tracking-tight text-gray-900">Process All Identified Sheets</Label>
                         </div>
-                        <ScrollArea className="flex-1">
+                        <ScrollArea className="flex-1 h-full min-h-0">
                             <div className="p-3 sm:p-4 space-y-3">
                                 {availableSheets.map(sheet => {
                                     const currentSelection = selectedSheets.find(s => s.name === sheet.name);
@@ -267,7 +262,11 @@ export default function ImportPayrollPage() {
                                                         <Label className="text-[8px] sm:text-[9px] font-black uppercase text-primary tracking-widest px-1">Target BS Year</Label>
                                                         <Select value={currentSelection.year} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'year', value)}>
                                                             <SelectTrigger className="h-8 sm:h-9 bg-white border-primary/20 text-xs"><SelectValue /></SelectTrigger>
-                                                            <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
+                                                            <SelectContent>
+                                                                <ScrollArea className="h-[200px]">
+                                                                    {bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
+                                                                </ScrollArea>
+                                                            </SelectContent>
                                                         </Select>
                                                     </div>
                                                     <div className="space-y-1.5">
@@ -287,9 +286,9 @@ export default function ImportPayrollPage() {
                             <ScrollBar orientation="horizontal" />
                         </ScrollArea>
                     </div>
-                    <DialogFooter className="p-4 sm:p-6 border-t bg-white shrink-0 flex-col sm:flex-row gap-3">
-                        <Button variant="outline" onClick={() => setIsSheetSelectDialogOpen(false)} className="h-10 sm:h-11 px-8 font-bold text-xs uppercase tracking-widest border-gray-300 w-full sm:w-auto">Cancel</Button>
-                        <Button onClick={handleImport} disabled={selectedSheets.length === 0} className="h-10 sm:h-11 px-10 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 w-full sm:w-auto">
+                    <DialogFooter className="p-4 sm:p-6 border-t bg-white shrink-0 flex flex-col sm:flex-row gap-3">
+                        <Button variant="outline" onClick={() => setIsSheetSelectDialogOpen(false)} className="h-10 sm:h-11 px-8 font-bold text-xs uppercase tracking-widest border-gray-300 w-full sm:w-auto order-2 sm:order-1">Cancel</Button>
+                        <Button onClick={handleImport} disabled={selectedSheets.length === 0} className="h-10 sm:h-11 px-10 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 w-full sm:w-auto order-1 sm:order-2">
                             Authorize Import ({selectedSheets.length})
                         </Button>
                     </DialogFooter>
