@@ -252,7 +252,9 @@ export default function PayrollClientPage() {
                                 <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
                                 <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                             </Select>
-                            <Button variant="outline" onClick={() => router.push('/hr/payroll/import')}><Upload className="mr-2 h-4 w-4" /> Import Payroll</Button>
+                            <Button variant="outline" onClick={() => router.push('/hr/payroll/import')} className="h-9 px-4 font-bold text-xs uppercase tracking-widest border-dashed">
+                                <Upload className="mr-2 h-4 w-4" /> Import External Spreadsheet
+                            </Button>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button disabled={isCalculating}>
