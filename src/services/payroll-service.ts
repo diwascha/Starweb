@@ -210,6 +210,32 @@ export const calculateAndSavePayrollForMonth = async (
     }
 };
 
+/**
+ * Filter function to identify rows that represent analytics data instead of employees.
+ */
+const isAnalyticsRow = (name: string): boolean => {
+    if (!name) return true;
+    const n = name.trim().toLowerCase();
+    return (
+        n === 'employee' || // Header repetition
+        n === 'total' ||
+        n.includes('current:') ||
+        n.includes('previous:') ||
+        n.includes('trend:') ||
+        n.includes('insights') ||
+        n.includes('absenteeism') ||
+        n.includes('late arrivals') ||
+        n.includes('hotspots') ||
+        n.includes('punctual') ||
+        n.includes('utilization') ||
+        n.includes('ot total') ||
+        n.includes('shift-start') ||
+        n.includes('comparison') ||
+        n.includes('behavioral') ||
+        (n.includes('employee') && (n.includes('insight') || n.includes('pattern')))
+    );
+};
+
 export const importPayrollFromSheet = async (
     jsonData: any[][],
     employees: Employee[],
@@ -250,8 +276,9 @@ export const importPayrollFromSheet = async (
 
         for (const fullRow of dataRows) {
             const employeeName = String(fullRow[nameIndex] || '').trim();
-            // Skip non-employee rows
-            if (!employeeName || employeeName.toUpperCase() === 'TOTAL' || employeeName.toLowerCase().includes('behavioral')) continue;
+            
+            // SKIP Analytics/Summary Rows
+            if (!employeeName || isAnalyticsRow(employeeName)) continue;
 
             let employee = employeeMap.get(employeeName.toLowerCase());
             
