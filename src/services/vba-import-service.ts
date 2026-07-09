@@ -86,19 +86,19 @@ export const importVbaReport = async (
     };
 
     // --- BLOCK 1: PAYROLL ---
-    // Title is dynamic, anchor is index 16
-    const payrollStartIdx = findBlockStart(grid, "Employee", 16);
+    // Scan for payroll block - usually starts with "Employee" header at column Q
+    const payrollStartIdx = findBlockStart(grid, "Employee", ANCHOR_COL);
     if (payrollStartIdx !== -1) {
         const headerRow = grid[payrollStartIdx];
         const isBonusMode = headerRow.some(c => String(c).toLowerCase().includes("bonus"));
-        const dataRows = readBlock(grid, payrollStartIdx + 1, 16);
+        const dataRows = readBlock(grid, payrollStartIdx + 1, ANCHOR_COL);
 
         for (const row of dataRows) {
             const empName = String(row[0] || '').trim();
-            if (!empName || empName.toLowerCase() === 'total') continue;
+            if (!empName || empName.toLowerCase() === 'total' || empName.toLowerCase() === 'employee') continue;
             
             const employee = await ensureEmployee(empName);
-            const payrollId = `${employee.id}_${bsYear}_${bsMonth}`;
+            const payrollId = `${bsYear}-${bsMonth}-${employee.id}`;
             
             const payrollData: Omit<Payroll, 'id'> = {
                 bsYear, bsMonth,
@@ -131,12 +131,12 @@ export const importVbaReport = async (
     }
 
     // --- BLOCK 2: BEHAVIORAL PATTERNS ---
-    const bhvStartIdx = findBlockStart(grid, "Behavioral Patterns (from attendance data)", 16);
+    const bhvStartIdx = findBlockStart(grid, "Behavioral Patterns (from attendance data)", ANCHOR_COL);
     if (bhvStartIdx !== -1) {
-        const dataRows = readBlock(grid, bhvStartIdx + 2, 16);
+        const dataRows = readBlock(grid, bhvStartIdx + 2, ANCHOR_COL); // Header is at +1
         for (const row of dataRows) {
             const empName = String(row[0] || '').trim();
-            if (!empName || empName.toLowerCase() === 'total') continue;
+            if (!empName || empName.toLowerCase() === 'total' || empName.toLowerCase() === 'employee') continue;
             const employee = await ensureEmployee(empName);
             
             const bhvData: BehavioralPatternRecord = {
@@ -163,12 +163,12 @@ export const importVbaReport = async (
     }
 
     // --- BLOCK 3: ENHANCED INSIGHTS ---
-    const enhStartIdx = findBlockStart(grid, "Enhanced Employee Insights", 16);
+    const enhStartIdx = findBlockStart(grid, "Enhanced Employee Insights", ANCHOR_COL);
     if (enhStartIdx !== -1) {
-        const dataRows = readBlock(grid, enhStartIdx + 2, 16);
+        const dataRows = readBlock(grid, enhStartIdx + 2, ANCHOR_COL);
         for (const row of dataRows) {
             const empName = String(row[0] || '').trim();
-            if (!empName) continue;
+            if (!empName || empName.toLowerCase() === 'employee') continue;
             const employee = await ensureEmployee(empName);
 
             const enhData: EnhancedInsightRecord = {
@@ -189,9 +189,9 @@ export const importVbaReport = async (
     }
 
     // --- BLOCK 4: PATTERN INSIGHTS (Company Level) ---
-    const patStartIdx = findBlockStart(grid, "Pattern Insights", 16);
+    const patStartIdx = findBlockStart(grid, "Pattern Insights", ANCHOR_COL);
     if (patStartIdx !== -1) {
-        const dataRows = readBlock(grid, patStartIdx + 1, 16);
+        const dataRows = readBlock(grid, patStartIdx + 1, ANCHOR_COL);
         const rawLines = dataRows.map(r => String(r[0] || '').trim()).filter(Boolean);
         const parsed: PatternInsightParsed = { rawLines };
 
@@ -226,7 +226,7 @@ export const importVbaReport = async (
     }
 
     // --- BLOCK 5: DAY OF WEEK PATTERNS (Company Level, Offset AE) ---
-    const dowStartIdx = findBlockStart(grid, "Day of Week Patterns:", 30);
+    const dowStartIdx = findBlockStart(grid, "Day of Week Patterns:", 30); // Index 30 is approx AE
     if (dowStartIdx !== -1) {
         const dataRows = readBlock(grid, dowStartIdx + 2, 30);
         const dowPatterns: DowPatternItem[] = dataRows.slice(0, 7).map(row => ({
@@ -243,17 +243,18 @@ export const importVbaReport = async (
         await commitIfNeeded();
     }
 
-    // --- BLOCK 6: MONTH-TO-MONTH COMPARISON ---
-    const compStartIdx = findBlockStart(grid, "Month-to-Month Behavioral Comparison", 16);
+    // --- BLOCK 6: MONTH-TO-MONTH BEHAVIORAL COMPARISON ---
+    const compStartIdx = findBlockStart(grid, "Month-to-Month Behavioral Comparison", ANCHOR_COL);
     if (compStartIdx !== -1) {
-        const subtitle = String(grid[compStartIdx + 1][16] || '');
+        // Parse subtitle for period labels
+        const subtitle = String(grid[compStartIdx + 1][ANCHOR_COL] || '');
         const currentPeriodLabel = subtitle.match(/Current: ([^ ]+)/)?.[1] || '';
         const prevPeriodLabel = subtitle.match(/Previous: ([^ ]+)/)?.[1] || '';
 
-        const dataRows = readBlock(grid, compStartIdx + 4, 16);
+        const dataRows = readBlock(grid, compStartIdx + 4, ANCHOR_COL); // Header occupies 4 rows total
         for (const row of dataRows) {
             const empName = String(row[0] || '').trim();
-            if (!empName) continue;
+            if (!empName || empName.toLowerCase() === 'employee') continue;
             const employee = await ensureEmployee(empName);
 
             const m = (idx: number): ComparisonMetric => ({
@@ -299,6 +300,7 @@ export const importVbaReport = async (
 function findBlockStart(grid: any[][], title: string, anchorCol: number): number {
     const marker = title.toLowerCase();
     for (let i = 0; i < grid.length; i++) {
+        if (!grid[i]) continue;
         const cell = String(grid[i][anchorCol] || '').toLowerCase().trim();
         if (cell.includes(marker)) return i;
     }
@@ -312,8 +314,8 @@ function readBlock(grid: any[][], startRow: number, anchorCol: number): any[][] 
     const data: any[][] = [];
     for (let i = startRow; i < grid.length; i++) {
         const rowSlice = grid[i].slice(anchorCol);
-        // Stop if the anchor cell is empty AND the first few columns are empty
-        if (!grid[i][anchorCol] && rowSlice.slice(0, 5).every(c => !c)) break;
+        // Stop if the anchor cell is empty AND the row is effectively empty
+        if (!grid[i][anchorCol] && rowSlice.every(c => !c || String(c).trim() === '')) break;
         data.push(rowSlice);
     }
     return data;

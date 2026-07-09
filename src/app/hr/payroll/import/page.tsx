@@ -132,11 +132,10 @@ export default function ImportPayrollPage() {
 
         try {
             if (importMode === 'VBA') {
-                // VBA Logic: Single flow for analytics + payroll
                 for (const selected of selectedSheets) {
                     const sheet = availableSheets.find(s => s.name === selected.name);
                     if (sheet) {
-                        setImportProgress(`Extracting VBA blocks: ${sheet.name}...`);
+                        setImportProgress(`Importing VBA Blocks: ${sheet.name}...`);
                         await importVbaReport(
                             sheet.jsonData, 
                             parseInt(selected.year), 
@@ -145,9 +144,8 @@ export default function ImportPayrollPage() {
                         );
                     }
                 }
-                toast({ title: 'VBA Report Sync Complete', description: 'Payroll and behavioral analytics have been mirrored.' });
+                toast({ title: 'VBA Report Import Success', description: 'Financial and behavioral data blocks have been mirrored.' });
             } else {
-                // Standard Logic: Legacy processing
                 let totalCreated = 0;
                 let currentEmployeesList = [...employees];
 
@@ -205,7 +203,7 @@ export default function ImportPayrollPage() {
                     </CardTitle>
                     <CardDescription>
                         {importMode === 'VBA' 
-                            ? "Mirror pre-computed blocks from Column Q onwards. No daily data required." 
+                            ? "Mirror pre-computed blocks (Payroll, Punctuality, Comparison). No daily data required." 
                             : "Standard payroll table with optional analytics harvesting."}
                     </CardDescription>
                 </CardHeader>
