@@ -244,7 +244,7 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
             let currentOffset = 0;
 
             for (const sheetName of selectedSheets) {
-                const sheet = availableSheets.find(as => as.name === sheetName);
+                const sheet = availableSheets.find(as => as.name === name);
                 if (sheet) {
                     const result = await addRawMachineLogs(
                         sheet.jsonData,
@@ -432,7 +432,7 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
                     <Button variant="outline" onClick={() => setIsBulkDialogOpen(true)} className="h-10 font-bold uppercase text-xs tracking-widest border-primary/20 text-primary hover:bg-primary/5">
                         <PlusCircle className="mr-2 h-4 w-4" /> Bulk Entry
                     </Button>
-                    <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls" />
+                    <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xls,.xlsx,.xlsm" />
                     <Button onClick={() => fileInputRef.current?.click()} disabled={!!importProgress} className="h-10 font-bold uppercase text-xs tracking-widest shadow-lg">
                         {importProgress ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
                         {importProgress ? importProgress : 'Direct Machine Import'}

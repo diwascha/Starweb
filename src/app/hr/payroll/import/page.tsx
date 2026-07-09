@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -197,7 +196,7 @@ export default function ImportPayrollPage() {
                     <CardDescription>Select the Excel file containing payroll data. You will be prompted to select which sheets to import.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                     <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx, .xls" className="hidden" />
+                     <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xls,.xlsx,.xlsm" className="hidden" />
                      <Button onClick={() => fileInputRef.current?.click()} disabled={isProcessing}>
                          {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                          {isProcessing ? (importProgress || 'Processing...') : 'Choose Excel File'}
