@@ -329,184 +329,140 @@ export interface LeaveRequest {
     createdBy: string;
 }
 
-export interface Payroll {
-    id: string;
+// --- NEW CONSOLIDATED LEDGER TYPES ---
+
+/**
+ * Section 1: Annual Bonus Summary (A-M)
+ * Cumulative running total across all periods.
+ */
+export interface AnnualBonusSummary {
+    id: string; // employeeId (normalized name)
+    employeeName: string;
+    basis: string;
+    monthsWorked: number;
+    eligibleMonths: number;
+    avgAttendancePct: number;
+    avgMonthlySalary: number;
+    accruedYTD: number;
+    recommendedBonus: number;
+    thisPayout: number;
+    balanceAfter: number;
+    firstPeriod: string;
+    lastPeriod: string;
+    remarks: string;
+}
+
+/**
+ * Section 2: Bonus Ledger (P-Y)
+ * Monthly accruals per employee per period.
+ */
+export interface BonusLedgerEntry {
+    id: string; // employeeId_year_month
+    runTime: string;
+    periodAD: string;
+    periodBS: string;
     bsYear: number;
     bsMonth: number;
     employeeId: string;
     employeeName: string;
-    joiningDate?: string;
-    totalHours?: number;
-    otHours?: number;
-    regularHours?: number;
-    rate?: number;
-    regularPay?: number; // Basic Pay
-    otPay?: number;
-    allowance?: number;
-    totalPay?: number; // Gross (Basic + OT + Allowance)
-    absentDays?: number;
-    deduction?: number; // Absent Amt
-    tds?: number;
-    salaryTotal?: number; // Gross Salary (Gross - TDS)
-    advance?: number;
-    net?: number; // Net (Gross Salary - Advance)
-    roundedNet?: number; // Rounded Net
-    bonus?: number;
-    netPayment?: number; // Final Net (Rounded Net + Bonus)
-    remark?: string;
-    createdBy: string;
-    createdAt: string; // ISO string
-    rawImportData?: Record<string, any>;
+    basis: string;
+    baseAmount: number;
+    attendancePct: number;
+    isEligible: boolean;
+    accrual: number;
+    note: string;
 }
 
-// --- VBA Behavioral Report Interfaces ---
-
-export interface BehavioralPatternRecord {
-  employeeId: string;
-  employeeName: string;
-  workdays: number;
-  onTimeDays: number;
-  onTimePct: number;
-  lateDays: number;
-  earlyDays: number;
-  missingPunchDays: number;
-  absentDays: number;
-  satWorked: number;
-  phWorked: number;
-  extraOkHours: number;
-  insight: string;
-}
-
-export interface EnhancedInsightRecord {
-  employeeId: string;
-  employeeName: string;
-  punctualityTrend: string;
-  absencePattern: string;
-  otImpact: string;
-  shiftEndBehavior: string;
-  performanceInsight: string;
-}
-
-export interface PatternInsightParsed {
-  highestLateWeekday?: string;
-  highestLateCount?: number;
-  highestAbsentWeekday?: string;
-  highestAbsentCount?: number;
-  mostPunctualWeekday?: string;
-  mostPunctualRate?: number;
-  saturdayUtilPct?: number;
-  phOtTotalHours?: number;
-  lateHotspots?: string[];
-  rawLines: string[];
-}
-
-export interface DowPatternItem {
-  day: string;
-  punctualityPct: number;
-  lateArrivalsPct: number;
-  absenteeismPct: number;
-}
-
-export interface ComparisonMetric {
-  thisMonth: number;
-  prevMonth: number;
-  delta: number;
-}
-
-export interface BehaviorComparisonRecord {
-  employeeId: string;
-  employeeName: string;
-  metrics: {
-    lateArrivals: ComparisonMetric;
-    earlyDepartures: ComparisonMetric;
-    absentDays: ComparisonMetric;
-    missingPunches: ComparisonMetric;
-    onTimePct: ComparisonMetric;
-    extraOkHrs: ComparisonMetric;
-    otHours: ComparisonMetric;
-  };
-  remarksFlag: string;
-  currentPeriodLabel: string;
-  prevPeriodLabel: string;
-}
-
-export interface PunctualityInsight {
+/**
+ * Section 3: Behavior Ledger (AB-AS)
+ * Raw attendance behavioral metrics.
+ */
+export interface BehaviorLedgerEntry {
+    id: string; // employeeId_year_month
+    runTime: string;
+    periodBS: string;
+    periodAD: string;
+    bsYear: number;
+    bsMonth: number;
+    bsMonthName: string;
     employeeId: string;
     employeeName: string;
-    scheduledDays: number;
-    presentDays: number;
-    absentDays: number;
-    attendanceRate: number;
-    lateArrivals: number;
-    earlyDepartures: number;
+    workdays: number;
     onTimeDays: number;
-    punctualityScore: number;
+    onTimePct: number;
+    lateDays: number;
+    earlyDays: number;
+    missingPunches: number;
+    absentDays: number;
+    satWorked: number;
+    phWorked: number;
+    extraOkHours: number;
+    otHours: number;
 }
 
-export interface BehaviorInsight {
+/**
+ * Section 4: Payroll Ledger (AV-BJ)
+ * Financial payroll output.
+ */
+export interface Payroll {
+    id: string; // employeeId_year_month
+    bsYear: number;
+    bsMonth: number;
+    runTime?: string;
+    periodAD: string;
+    periodBS: string;
     employeeId: string;
     employeeName: string;
+    base: string; // e.g. "Monthly 2"
+    presentDays: number;
+    extraDays: number;
+    leaveDays: number;
+    regularPay: number; // Mapping "Basic Pay"
+    otPay: number;
+    allowance: number;
+    totalPay: number; // Mapping "Gross"
+    tds: number;
+    advance: number;
+    netPayment: number; // Mapping "Net Pay"
+    createdBy: string;
+    createdAt: string;
+}
+
+/**
+ * Section 5: Behavior Analytics (BL-BW)
+ * Computed insight labels for employees.
+ */
+export interface BehaviorAnalyticsEntry {
+    id: string; // employeeId_year_month
+    runTime: string;
+    periodBS: string;
+    periodAD: string;
+    employeeId: string;
+    employeeName: string;
+    behaviorInsight: string;
     punctualityTrend: string;
     absencePattern: string;
     otImpact: string;
     shiftEndBehavior: string;
     performanceInsight: string;
+    bestDayOfWeek: string;
+    worstDayOfWeek: string;
 }
 
-export interface PatternInsight {
-    finding: string;
-    description: string;
+export interface AnalyticsData {
+    punctuality: any[];
+    behavior: any[];
+    workforce: any[];
+    patterns: any[];
+    highestAbsenteeism: { day: string; count: number };
+    highestLateArrivals: { day: string; count: number };
+    lateHotspots: { date: string; count: number }[];
+    saturdayUtilization: number;
+    mostPunctualWeekday: { day: string; rate: number };
+    worstShiftStart: { time: string; rate: number };
+    importedReport?: AnalyticsReport | null;
 }
 
-export interface WorkforceAnalytics {
-    employeeId: string;
-    employeeName: string;
-    overtimeRatio: number;
-    onTimeStreak: number;
-    saturdaysWorked: number;
-}
-
-export interface HrConfig {
-  hours: {
-    baseDayHours: number;
-    roundStep: number;
-    graceMin: number;
-    blockMin: number;
-    freeLate: number;
-    freeLatePeriod: 'WEEKLY' | 'MONTHLY';
-    freeEarly: number;
-    freeEarlyPeriod: 'WEEKLY' | 'MONTHLY';
-    reviewThresh: number;
-    breakStart?: string;
-    breakEnd?: string;
-  };
-  payroll: {
-    defaultHourly: number;
-    fallbackHourly: number;
-    tdsRate: number;
-    monthDays: number;
-    stdWorkdays: number;
-    attendReqPct: number;
-    punctHighPct: number;
-    punctMidPct: number;
-    lateDaysHigh: number;
-    lateDaysMid: number;
-    otHighHours: number;
-    otMidHours: number;
-    dowLateHighPct: number;
-    dowLateMidPct: number;
-  };
-  bonus: {
-    bonusEligReq: number;
-    bonusAbsFactor: number;
-  };
-  lastModifiedBy?: string;
-  lastModifiedAt?: string;
-}
-
-/**
- * Interface for imported behavioral analytics reports.
- */
 export interface AnalyticsReport {
     id: string; // bsYear-bsMonth
     bsYear: number;
