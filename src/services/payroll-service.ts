@@ -269,7 +269,7 @@ export const importPayrollFromSheet = async (
     importedBy: string,
     bsYear: number,
     bsMonth: number
-): Promise<{ createdCount: number, updatedCount: number, newEmployeesCount: number }> => {
+): Promise<{ createdCount: number, updatedCount: number, newEmployeesCount: number, newEmployees: Employee[] }> => {
     const { db } = getFirebase();
     try {
         let headerIndex = -1;
@@ -296,8 +296,17 @@ export const importPayrollFromSheet = async (
         let createdCount = 0;
         let updatedCount = 0;
         let newEmployeesCount = 0;
+        const newlyCreatedEmployees: Employee[] = [];
 
         const employeeMap = new Map(employees.map(e => [e.name.toLowerCase().trim(), e]));
+        
+        // Tracking within this sheet to avoid duplicates if same employee has two rows
+        const processedEmployeeIdsInThisSheet = new Set<string>();
+
+        // Fetch existing payroll for this period once to avoid per-row queries
+        const qExisting = query(getPayrollCollection(), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
+        const existingPayrollSnap = await getDocs(qExisting);
+        const existingPayrollMap = new Map(existingPayrollSnap.docs.map(d => [d.data().employeeId, d.ref]));
 
         for (const fullRow of dataRows) {
             const employeeName = String(fullRow[nameIndex] || '').trim();
@@ -321,6 +330,7 @@ export const importPayrollFromSheet = async (
                 
                 employee = { id: empRef.id, ...newEmpData } as Employee;
                 employeeMap.set(employeeName.toLowerCase(), employee);
+                newlyCreatedEmployees.push(employee);
                 newEmployeesCount++;
                 writeCount++;
                 
@@ -330,6 +340,9 @@ export const importPayrollFromSheet = async (
                     writeCount = 0;
                 }
             }
+            
+            if (processedEmployeeIdsInThisSheet.has(employee.id)) continue;
+            processedEmployeeIdsInThisSheet.add(employee.id);
 
             const getValue = (key: string) => {
                 const index = (headerMap as any)[key];
@@ -373,21 +386,14 @@ export const importPayrollFromSheet = async (
                 }, {} as Record<string, any>)
             };
             
-            const q = query(getPayrollCollection(),
-                where("employeeId", "==", employee.id),
-                where("bsYear", "==", bsYear),
-                where("bsMonth", "==", bsMonth),
-                limit(1)
-            );
-            const snapshot = await getDocs(q);
+            const existingDocRef = existingPayrollMap.get(employee.id);
 
-            if (snapshot.empty) {
+            if (!existingDocRef) {
                 const docRef = doc(getPayrollCollection());
                 batch.set(docRef, payrollData);
                 createdCount++;
             } else {
-                const docRef = snapshot.docs[0].ref;
-                batch.update(docRef, payrollData);
+                batch.update(existingDocRef, payrollData);
                 updatedCount++;
             }
             
@@ -400,7 +406,7 @@ export const importPayrollFromSheet = async (
         }
 
         if (writeCount > 0) await batch.commit();
-        return { createdCount, updatedCount, newEmployeesCount };
+        return { createdCount, updatedCount, newEmployeesCount, newEmployees: newlyCreatedEmployees };
     } catch (error) {
         logServiceError('importPayrollFromSheet', error);
         throw error;
@@ -431,14 +437,24 @@ export const getHeaderMap = (headerRow: any[]) => {
         remark: ['remark', 'remarks', 'narration', 'note']
     };
 
-    headerRow.forEach((headerCell, index) => {
-        const normalizedHeader = String(headerCell || '').trim().toLowerCase();
-        for (const key in payrollHeaders) {
+    // Prioritize search from Column Q (index 16) onwards to match user's layout
+    // but fall back to entire row if not found there
+    const searchOrder = [
+        ...Array.from({ length: headerRow.length - 16 }, (_, i) => i + 16),
+        ...Array.from({ length: 16 }, (_, i) => i)
+    ];
+
+    for (const key in payrollHeaders) {
+        for (const index of searchOrder) {
+            if (index >= headerRow.length) continue;
+            const headerCell = headerRow[index];
+            const normalizedHeader = String(headerCell || '').trim().toLowerCase();
             if (payrollHeaders[key].some(alias => normalizedHeader === alias || normalizedHeader.includes(alias))) {
                 map[key] = index;
+                break; // Found for this key
             }
         }
-    });
+    }
     return map;
 };
 

@@ -145,6 +145,9 @@ export default function ImportPayrollPage() {
         let totalCreated = 0;
         let totalUpdated = 0;
         let totalNewEmployees = 0;
+        
+        // Use a local copy of employees to track newly created ones between sheets
+        let currentEmployeesList = [...employees];
 
         for (const selected of selectedSheets) {
             const sheetInfo = availableSheets.find(s => s.name === selected.name);
@@ -153,14 +156,22 @@ export default function ImportPayrollPage() {
                  try {
                     const result = await importPayrollFromSheet(
                         sheetInfo.jsonData,
-                        employees,
+                        currentEmployeesList,
                         user.username, 
                         parseInt(selected.year, 10), 
                         parseInt(selected.month, 10)
                     );
+                    
                     totalCreated += result.createdCount;
                     totalUpdated += result.updatedCount;
                     totalNewEmployees += result.newEmployeesCount;
+                    
+                    // Update our local list with newly created employees so the next sheet import
+                    // recognizes them and doesn't create duplicates.
+                    if (result.newEmployees && result.newEmployees.length > 0) {
+                        currentEmployeesList = [...currentEmployeesList, ...result.newEmployees];
+                    }
+
                 } catch (error: any) {
                     toast({
                         title: `Import Error in ${sheetInfo.name}`,
@@ -237,7 +248,7 @@ export default function ImportPayrollPage() {
                             <Label htmlFor="select-all-sheets" className="font-black text-[10px] uppercase tracking-widest text-gray-900 cursor-pointer">Process All Identified Sheets</Label>
                         </div>
 
-                        <ScrollArea className="flex-1 h-full">
+                        <ScrollArea className="flex-1">
                             <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {availableSheets.map(sheet => {
                                     const currentSelection = selectedSheets.find(s => s.name === sheet.name);
