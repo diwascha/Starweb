@@ -28,7 +28,7 @@ import { createTimestamp, coerceNumber } from '@/lib/service-utils';
 import { COLLECTIONS } from '@/lib/constants';
 
 // --- Consolidated Ledger Fixed Offsets (0-based) ---
-const CL_DATA_ROW = 2; // Data starts at Row 3
+const CL_DATA_ROW = 2; // Data starts at Row 3 (Index 2)
 
 const SEC_BONUS_SUMMARY = { start: 0, empIdx: 0 };    // A-M
 const SEC_BONUS_LEDGER = { start: 15, empIdx: 18 };   // P-Y (P=15, S=18)
@@ -45,7 +45,7 @@ const parsePeriodString = (str: string): { year: number, month: number } | null 
     const s = String(str);
     const match = s.match(/(?:BS\s*)?(\d{4})[-/](\d{1,2})/i);
     if (match) {
-        return { year: parseInt(match[1]), month: parseInt(match[2]) - 1 };
+        return { year: parseInt(match[1], 10), month: parseInt(match[2], 10) - 1 };
     }
     return null;
 };
@@ -84,6 +84,7 @@ export const importConsolidatedLedger = async (
         const lowerName = name.toLowerCase().trim();
         if (employeeMap.has(lowerName)) return employeeMap.get(lowerName)!;
 
+        console.log(`[Import] Onboarding new employee: ${name}`);
         const empRef = doc(collection(db, COLLECTIONS.EMPLOYEES));
         const newEmp: Omit<Employee, 'id'> = {
             name,
@@ -102,6 +103,8 @@ export const importConsolidatedLedger = async (
         await commitIfNeeded();
         return employee;
     };
+
+    console.log(`[Import] Starting processing of ${grid.length} rows...`);
 
     for (let r = CL_DATA_ROW; r < grid.length; r++) {
         const row = grid[r];
@@ -136,7 +139,7 @@ export const importConsolidatedLedger = async (
         const s2_name = String(row[SEC_BONUS_LEDGER.empIdx] || '').trim();
         if (s2_name && s2_name.toLowerCase() !== 'employee' && !s2_name.toLowerCase().includes('total')) {
             const employee = await ensureEmployee(s2_name);
-            const periodStr = String(row[17] || '');
+            const periodStr = String(row[17] || ''); // Col R is index 17
             const period = parsePeriodString(periodStr);
             if (period) {
                 const ledgerId = `${employee.id}_${period.year}_${period.month}`;
@@ -166,9 +169,9 @@ export const importConsolidatedLedger = async (
         const s3_name = String(row[SEC_BEHAVIOR_LEDGER.empIdx] || '').trim();
         if (s3_name && s3_name.toLowerCase() !== 'employee' && !s3_name.toLowerCase().includes('total')) {
             const employee = await ensureEmployee(s3_name);
-            const year = coerceNumber(row[30]);
-            const month = coerceNumber(row[31]) - 1;
-            if (year > 0) {
+            const year = coerceNumber(row[30]); // Col AE is index 30
+            const month = coerceNumber(row[31]) - 1; // Col AF is index 31
+            if (year > 1000) { // Valid year check
                 const ledgerId = `${employee.id}_${year}_${month}`;
                 const behaviorData: BehaviorLedgerEntry = {
                     id: ledgerId,
@@ -202,14 +205,13 @@ export const importConsolidatedLedger = async (
         const s4_name = String(row[SEC_PAYROLL_LEDGER.empIdx] || '').trim();
         if (s4_name && s4_name.toLowerCase() !== 'employee' && !s4_name.toLowerCase().includes('total')) {
             const employee = await ensureEmployee(s4_name);
-            const periodStr = String(row[49] || '');
+            const periodStr = String(row[49] || ''); // Col AX is index 49
             const period = parsePeriodString(periodStr);
             if (period) {
                 const payrollId = `${period.year}-${period.month}-${employee.id}`;
                 const payrollData: Omit<Payroll, 'id'> = {
                     bsYear: period.year,
                     bsMonth: period.month,
-                    runTime: String(row[47] || ''),
                     periodAD: String(row[48] || ''),
                     periodBS: periodStr,
                     employeeId: employee.id,
@@ -238,7 +240,7 @@ export const importConsolidatedLedger = async (
         const s5_name = String(row[SEC_BEHAVIOR_ANALYTICS.empIdx] || '').trim();
         if (s5_name && s5_name.toLowerCase() !== 'employee' && !s5_name.toLowerCase().includes('total')) {
             const employee = await ensureEmployee(s5_name);
-            const periodStr = String(row[64] || '');
+            const periodStr = String(row[64] || ''); // Col BM is index 64
             const period = parsePeriodString(periodStr);
             if (period) {
                 const analyticsId = `${employee.id}_${period.year}_${period.month}`;
@@ -247,6 +249,8 @@ export const importConsolidatedLedger = async (
                     runTime: String(row[63] || ''),
                     periodBS: periodStr,
                     periodAD: String(row[65] || ''),
+                    bsYear: period.year,
+                    bsMonth: period.month,
                     employeeId: employee.id,
                     employeeName: employee.name,
                     behaviorInsight: String(row[67] || ''),
@@ -269,5 +273,6 @@ export const importConsolidatedLedger = async (
     }
 
     if (writeCount > 0) await batch.commit();
+    console.log(`[Import] Cycle complete. Imported ${results.payroll} payroll records.`);
     return results;
 };

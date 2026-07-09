@@ -65,6 +65,7 @@ export default function AnalyticsPage() {
         const { db } = getFirebase();
         
         try {
+            console.log(`[Analytics] Querying Ledger for ${year}-${month}`);
             // 1. Fetch Behavior Ledger (Metrics)
             const blQuery = query(collection(db, 'behavior_ledger'), where("bsYear", "==", year), where("bsMonth", "==", month));
             const blSnap = await getDocs(blQuery);
