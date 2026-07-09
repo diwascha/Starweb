@@ -216,7 +216,12 @@ export const importConsolidatedLedger = async (
             if (period) {
                 const employee = await ensureEmployee(s4_name);
                 const payrollId = `${period.year}-${period.month}-${employee.id}`;
+                const gross = coerceNumber(row[58]);
+                const tds = coerceNumber(row[59]);
+                const net = coerceNumber(row[61]);
+
                 const payrollData: Omit<Payroll, 'id'> = {
+                    runTime: String(row[47] || ''),
                     bsYear: period.year,
                     bsMonth: period.month,
                     periodAD: String(row[48] || ''),
@@ -230,10 +235,13 @@ export const importConsolidatedLedger = async (
                     regularPay: coerceNumber(row[55]),
                     otPay: coerceNumber(row[56]),
                     allowance: coerceNumber(row[57]),
-                    totalPay: coerceNumber(row[58]),
-                    tds: coerceNumber(row[59]),
+                    totalPay: gross,
+                    tds: tds,
+                    salaryTotal: gross - tds,
                     advance: coerceNumber(row[60]),
-                    netPayment: coerceNumber(row[61]),
+                    net: net,
+                    roundedNet: net,
+                    netPayment: net,
                     createdBy: importedBy,
                     createdAt: now
                 };
