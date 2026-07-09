@@ -14,19 +14,11 @@ import {
     collection, 
     doc, 
     writeBatch, 
-    getDocs, 
-    query, 
-    where, 
-    limit,
+    setDoc
 } from 'firebase/firestore';
 import type { 
     Employee, 
     Payroll, 
-    BehavioralPatternRecord, 
-    EnhancedInsightRecord, 
-    PatternInsightParsed, 
-    DowPatternItem, 
-    BehaviorComparisonRecord,
     AnnualBonusSummary,
     BonusLedgerEntry,
     BehaviorLedgerEntry,
@@ -46,11 +38,14 @@ const SEC_PAYROLL_LEDGER = { start: 47, empIdx: 50 }; // AV-BJ (AV=47, AY=50)
 const SEC_BEHAVIOR_ANALYTICS = { start: 63, empIdx: 66 }; // BL-BW (BL=63, BO=66)
 
 /**
- * Extracts the BS period from strings like "Jestha 2083 (BS 2083-02)"
+ * Robustly extracts the BS period from strings.
+ * Handles formats like: "Jestha 2083 (BS 2083-02)", "BS 2083-02", "2083-02", "2083/02"
  */
 const parsePeriodString = (str: string): { year: number, month: number } | null => {
     if (!str) return null;
-    const match = str.match(/BS (\d{4})-(\d{2})/);
+    const s = String(str);
+    // Look for YYYY-MM or YYYY/MM with optional BS prefix
+    const match = s.match(/(?:BS\s*)?(\d{4})[-/](\d{1,2})/i);
     if (match) {
         return { year: parseInt(match[1]), month: parseInt(match[2]) - 1 };
     }
@@ -110,14 +105,15 @@ export const importConsolidatedLedger = async (
         return employee;
     };
 
-    // Process row by row starting from Row 3
+    // Process row by row starting from Row 3 (index 2)
     for (let r = CL_DATA_ROW; r < grid.length; r++) {
         const row = grid[r];
-        if (!row || row.every(c => !c)) continue;
+        // Ensure row exists and has at least one non-null/non-empty cell
+        if (!row || !row.some(c => c !== null && c !== undefined && String(c).trim() !== '')) continue;
 
         // --- SECTION 1: ANNUAL BONUS SUMMARY (A-M) ---
         const s1_name = String(row[SEC_BONUS_SUMMARY.empIdx] || '').trim();
-        if (s1_name && s1_name.toLowerCase() !== 'employee') {
+        if (s1_name && s1_name.toLowerCase() !== 'employee' && !s1_name.toLowerCase().includes('total')) {
             const employee = await ensureEmployee(s1_name);
             const summaryData: AnnualBonusSummary = {
                 id: employee.id,
@@ -142,7 +138,7 @@ export const importConsolidatedLedger = async (
 
         // --- SECTION 2: BONUS LEDGER (P-Y) ---
         const s2_name = String(row[SEC_BONUS_LEDGER.empIdx] || '').trim();
-        if (s2_name && s2_name.toLowerCase() !== 'employee') {
+        if (s2_name && s2_name.toLowerCase() !== 'employee' && !s2_name.toLowerCase().includes('total')) {
             const employee = await ensureEmployee(s2_name);
             const periodStr = String(row[17] || '');
             const period = parsePeriodString(periodStr);
@@ -172,7 +168,7 @@ export const importConsolidatedLedger = async (
 
         // --- SECTION 3: BEHAVIOR LEDGER (AB-AS) ---
         const s3_name = String(row[SEC_BEHAVIOR_LEDGER.empIdx] || '').trim();
-        if (s3_name && s3_name.toLowerCase() !== 'employee') {
+        if (s3_name && s3_name.toLowerCase() !== 'employee' && !s3_name.toLowerCase().includes('total')) {
             const employee = await ensureEmployee(s3_name);
             const year = coerceNumber(row[30]);
             const month = coerceNumber(row[31]) - 1; // Correct 0-based month
@@ -208,12 +204,12 @@ export const importConsolidatedLedger = async (
 
         // --- SECTION 4: PAYROLL LEDGER (AV-BJ) ---
         const s4_name = String(row[SEC_PAYROLL_LEDGER.empIdx] || '').trim();
-        if (s4_name && s4_name.toLowerCase() !== 'employee') {
+        if (s4_name && s4_name.toLowerCase() !== 'employee' && !s4_name.toLowerCase().includes('total')) {
             const employee = await ensureEmployee(s4_name);
             const periodStr = String(row[49] || '');
             const period = parsePeriodString(periodStr);
             if (period) {
-                const payrollId = `${employee.id}_${period.year}_${period.month}`;
+                const payrollId = `${period.year}-${period.month}-${employee.id}`;
                 const payrollData: Omit<Payroll, 'id'> = {
                     bsYear: period.year,
                     bsMonth: period.month,
@@ -244,7 +240,7 @@ export const importConsolidatedLedger = async (
 
         // --- SECTION 5: BEHAVIOR ANALYTICS (BL-BW) ---
         const s5_name = String(row[SEC_BEHAVIOR_ANALYTICS.empIdx] || '').trim();
-        if (s5_name && s5_name.toLowerCase() !== 'employee') {
+        if (s5_name && s5_name.toLowerCase() !== 'employee' && !s5_name.toLowerCase().includes('total')) {
             const employee = await ensureEmployee(s5_name);
             const periodStr = String(row[64] || '');
             const period = parsePeriodString(periodStr);

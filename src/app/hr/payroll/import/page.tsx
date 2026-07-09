@@ -11,8 +11,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { importConsolidatedLedger } from '@/services/vba-import-service';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 export default function ImportPayrollPage() {
@@ -39,39 +37,46 @@ export default function ImportPayrollPage() {
         setFileName(file.name);
         setImportProgress("Reading spreadsheet...");
 
-        const XLSX = await import('xlsx');
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const data = new Uint8Array(e.target?.result as ArrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                
-                // We use the first sheet for the Consolidated Ledger
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const grid = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
+        try {
+            const XLSX = await import('xlsx');
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    
+                    // We use the first sheet for the Consolidated Ledger
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const grid = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
 
-                setImportProgress("Mapping data blocks...");
-                const result = await importConsolidatedLedger(grid, user.username, (current, total) => {
-                    setImportProgress(`Processing row ${current} of ${total}`);
-                });
+                    setImportProgress("Mapping data blocks...");
+                    const result = await importConsolidatedLedger(grid, user.username, (current, total) => {
+                        setImportProgress(`Processing row ${current} of ${total}`);
+                    });
 
-                toast({ 
-                    title: 'Import Successful', 
-                    description: `Processed: ${result.payroll} Payroll, ${result.behaviorLedger} Behavior, ${result.bonusLedger} Bonus entries.` 
-                });
-                
-                router.push('/hr/payroll');
-            } catch (error: any) {
-                console.error("File processing error:", error);
-                toast({ title: 'Import Failed', description: error.message || 'Failed to read the Excel file.', variant: 'destructive' });
-                setFileName(null);
-                setImportProgress(null);
-            } finally {
-                setIsProcessing(false);
-            }
-        };
-        reader.readAsArrayBuffer(file);
+                    toast({ 
+                        title: 'Import Successful', 
+                        description: `Finalized: ${result.payroll} Payroll rows, ${result.behaviorLedger} Behavior rows, ${result.bonusLedger} Bonus entries, and ${result.behaviorAnalytics} Analytics records.` 
+                    });
+                    
+                    setTimeout(() => {
+                        router.push('/hr/payroll');
+                    }, 1000);
+                } catch (error: any) {
+                    console.error("File processing error:", error);
+                    toast({ title: 'Import Failed', description: error.message || 'Failed to read the Excel file.', variant: 'destructive' });
+                    setFileName(null);
+                    setImportProgress(null);
+                    setIsProcessing(false);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } catch (err) {
+            setIsProcessing(false);
+            toast({ title: 'System Error', description: 'Failed to load spreadsheet processor.', variant: 'destructive' });
+        }
+        
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
