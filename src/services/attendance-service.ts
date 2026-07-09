@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Attendance service handling raw machine logs and calculated labor metrics.
  */
@@ -638,7 +637,8 @@ export const deleteAllAttendance = async (): Promise<void> => {
     const snaps = await Promise.all([
         getDocs(getAttendanceCollection()),
         getDocs(getRawLogsCollection()),
-        getDocs(collection(db, COLLECTIONS.PAYROLL))
+        getDocs(collection(db, COLLECTIONS.PAYROLL)),
+        getDocs(collection(db, 'analytics_reports'))
     ]);
 
     const batch = writeBatch(db);

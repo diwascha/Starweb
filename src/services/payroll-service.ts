@@ -84,6 +84,11 @@ export const getPayrollYears = async (): Promise<number[]> => {
 export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
     const { db } = getFirebase();
     try {
+        // 1. Delete associated analytics report (Deterministic ID)
+        const reportId = `${bsYear}-${bsMonth}`;
+        await deleteDoc(doc(getAnalyticsCollection(), reportId));
+
+        // 2. Delete matching individual payroll records
         const q = query(getPayrollCollection(), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
         const snapshot = await getDocs(q);
 
@@ -215,9 +220,6 @@ export const calculateAndSavePayrollForMonth = async (
     }
 };
 
-/**
- * Filter function to identify rows that represent analytics data instead of employees.
- */
 const isAnalyticsRow = (name: string): boolean => {
     if (!name) return true;
     const n = name.trim().toLowerCase();
@@ -257,7 +259,6 @@ const extractSection = (jsonData: any[][], startMarker: string): any[] => {
     }
     if (startIndex === -1) return [];
 
-    // Find first non-empty row after marker for headers
     let headerIdx = startIndex + 1;
     while (headerIdx < jsonData.length && (!jsonData[headerIdx] || jsonData[headerIdx].every(c => !c))) {
         headerIdx++;
@@ -267,12 +268,10 @@ const extractSection = (jsonData: any[][], startMarker: string): any[] => {
     const headers = jsonData[headerIdx];
     const data: any[] = [];
     
-    // Extract rows until another major heading or large empty block
     for (let i = headerIdx + 1; i < jsonData.length; i++) {
         const row = jsonData[i];
         if (!row || row.every(c => !c)) break;
         
-        // Stop if we hit another primary section header
         const rowLead = String(row[0] || '').toLowerCase();
         if (isAnalyticsRow(rowLead) && rowLead !== 'employee') break; 
 
@@ -281,7 +280,7 @@ const extractSection = (jsonData: any[][], startMarker: string): any[] => {
             if (h) item[String(h).trim()] = row[j];
         });
         data.push(item);
-        if (data.length > 100) break; // Infinite loop guard
+        if (data.length > 100) break;
     }
     return data;
 };
@@ -348,7 +347,6 @@ export const importPayrollFromSheet = async (
         const employeeMap = new Map(employees.map(e => [e.name.toLowerCase().trim(), e]));
         const processedEmployeeIdsInThisSheet = new Set<string>();
 
-        // 1. Process Financial Data (Payroll)
         for (const fullRow of dataRows) {
             const employeeName = String(fullRow[nameIndex] || '').trim();
             if (!employeeName || isAnalyticsRow(employeeName)) continue;
@@ -421,7 +419,6 @@ export const importPayrollFromSheet = async (
             if (writeCount >= batchSize) { await batch.commit(); batch = writeBatch(db); writeCount = 0; }
         }
 
-        // 2. Process Behavioral Analytics with exact headers
         const analyticsReport: Omit<AnalyticsReport, 'id'> = {
             bsYear,
             bsMonth,
@@ -468,7 +465,6 @@ export const getHeaderMap = (headerRow: any[]) => {
         remark: ['remark', 'remarks']
     };
 
-    // Optimization: Prioritize searching after index 15 (Column Q)
     const searchOrder = [
         ...Array.from({ length: headerRow.length - 16 }, (_, i) => i + 16),
         ...Array.from({ length: 16 }, (_, i) => i)
