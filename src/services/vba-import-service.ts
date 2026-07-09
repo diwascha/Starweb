@@ -109,7 +109,7 @@ export const importConsolidatedLedger = async (
         return employee;
     };
 
-    console.log(`[Import] Starting processing of ${grid.length} rows...`);
+    console.log(`[Import] Starting horizontal scan of ${grid.length} rows...`);
 
     for (let r = CL_DATA_ROW; r < grid.length; r++) {
         const row = grid[r];
@@ -161,15 +161,13 @@ export const importConsolidatedLedger = async (
                     basis: String(row[19] || ''),
                     baseAmount: coerceNumber(row[20]),
                     attendancePct: coerceNumber(row[21]),
-                    isEligible: String(row[22] || '').toLowerCase() === 'yes',
+                    isEligible: String(row[22] || '').toLowerCase() === 'true' || String(row[22] || '').toLowerCase() === 'yes',
                     accrual: coerceNumber(row[23]),
                     note: String(row[24] || '')
                 };
                 batch.set(doc(db, 'bonus_ledger', ledgerId), ledgerData, { merge: true });
                 results.bonusLedger++;
                 writeCount++;
-            } else {
-                console.warn(`[Import] Section 2: Skipping row ${r+1} - Could not parse period from "${periodStr}"`);
             }
         }
 
