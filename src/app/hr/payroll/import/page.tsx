@@ -57,7 +57,7 @@ export default function ImportPayrollPage() {
 
                     toast({ 
                         title: 'Import Successful', 
-                        description: `Finalized: ${result.payroll} Payroll rows, ${result.behaviorLedger} Behavior rows, ${result.bonusLedger} Bonus entries, and ${result.behaviorAnalytics} Analytics records.` 
+                        description: `Finalized: ${result.payroll} Payroll rows, ${result.behaviorLedger} Behavior rows, ${result.bonusSummaries} Bonus summaries, and ${result.behaviorAnalytics} Analytics records.` 
                     });
                     
                     setTimeout(() => {
@@ -117,7 +117,7 @@ export default function ImportPayrollPage() {
                             size="lg" 
                             className="h-12 px-10 font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-primary/20"
                         >
-                            {isProcessing ? 'Processing Master Grid...' : 'Identify Consolidated Ledger'}
+                            {isProcessing ? 'Processing Master Grid...' : 're check the this import function functionality. we are repeatively facing issue for data for payroll and analytics. check in depth whats causing dato not being imported'}
                         </Button>
                         
                         {importProgress && (
