@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Loader2, Calendar, CheckCircle, ChevronDown, Check, X, FileSpreadsheet } from 'lucide-react';
+import { Upload, Loader2, FileSpreadsheet, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { importPayrollFromSheet } from '@/services/payroll-service';
@@ -15,7 +15,6 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NepaliDate from 'nepali-date-converter';
 import { cn } from '@/lib/utils';
@@ -141,7 +140,6 @@ export default function ImportPayrollPage() {
         let totalUpdated = 0;
         let totalNewEmployees = 0;
         
-        // Use a local copy of employees to track newly created ones between sheets
         let currentEmployeesList = [...employees];
 
         for (const selected of selectedSheets) {
@@ -249,7 +247,7 @@ export default function ImportPayrollPage() {
                                     const currentSelection = selectedSheets.find(s => s.name === sheet.name);
                                     const isSelected = !!currentSelection;
                                     return (
-                                        <div key={`sheet-${sheet.name}`} className={cn(
+                                        <div key={`sheet-item-${sheet.name}`} className={cn(
                                             "p-4 rounded-xl border-2 transition-all space-y-4",
                                             isSelected ? "border-primary bg-primary/[0.03] shadow-sm ring-1 ring-primary/5" : "border-gray-100 bg-gray-50/50"
                                         )}>
@@ -273,7 +271,7 @@ export default function ImportPayrollPage() {
                                                         <Select value={currentSelection.year} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'year', value)}>
                                                             <SelectTrigger className="h-8 bg-white border-primary/20 text-[10px]"><SelectValue /></SelectTrigger>
                                                             <SelectContent className="max-h-[250px]">
-                                                                {bsYears.map(year => <SelectItem key={`year-${sheet.name}-${year}`} value={String(year)} className="text-xs">{year}</SelectItem>)}
+                                                                {bsYears.map(year => <SelectItem key={`year-opt-${sheet.name}-${year}`} value={String(year)} className="text-xs">{year}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
@@ -282,7 +280,7 @@ export default function ImportPayrollPage() {
                                                         <Select value={currentSelection.month} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'month', value)}>
                                                             <SelectTrigger className="h-8 bg-white border-primary/20 text-[10px]"><SelectValue /></SelectTrigger>
                                                             <SelectContent>
-                                                                {NEPALI_MONTHS.map(month => <SelectItem key={`month-${sheet.name}-${month.value}`} value={String(month.value)} className="text-xs">{month.name}</SelectItem>)}
+                                                                {NEPALI_MONTHS.map(month => <SelectItem key={`month-opt-${sheet.name}-${month.value}`} value={String(month.value)} className="text-xs">{month.name}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Employee, AttendanceRecord, AnalyticsReport } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { BarChart2, Loader2, Activity, Clock, AlertTriangle, CheckCircle2, Calendar, Zap, Timer, TrendingUp, TrendingDown, Scale } from 'lucide-react';
+import { BarChart2, Loader2, Activity, Clock, AlertTriangle, CheckCircle2, Calendar, Zap, Timer, RefreshCcw } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
@@ -16,7 +16,6 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { NEPALI_MONTHS } from '@/lib/constants';
-import { Separator } from '@/components/ui/separator';
 
 export default function AnalyticsPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -51,7 +50,7 @@ export default function AnalyticsPage() {
         return () => { isMounted = false; };
     }, [attendance]);
 
-    const handleGenerateAnalytics = async () => {
+    const handleGenerateAnalytics = useCallback(async (isManual = false) => {
         if (selectedBsYear && selectedBsMonth && employees.length > 0) {
             setIsProcessing(true);
             try {
@@ -69,14 +68,23 @@ export default function AnalyticsPage() {
                     importedReport
                 );
                 setAnalyticsData(data);
-                toast({ title: importedReport ? "Imported Intelligence Synchronized" : "Logic Engine Complete" });
+                
+                if (isManual) {
+                    toast({ title: importedReport ? "Imported Data Synchronized" : "Behavioral Engine Refreshed" });
+                }
             } catch (error) {
-                toast({ title: "Computation Failed", variant: "destructive" });
+                console.error("Computation Failed", error);
+                if (isManual) toast({ title: "Computation Failed", variant: "destructive" });
             } finally {
                 setIsProcessing(false);
             }
         }
-    };
+    }, [selectedBsYear, selectedBsMonth, employees, attendance, toast]);
+
+    // Automatic trigger when period or data changes
+    useEffect(() => {
+        handleGenerateAnalytics();
+    }, [handleGenerateAnalytics]);
     
     return (
         <div className="flex flex-col gap-8">
@@ -85,21 +93,35 @@ export default function AnalyticsPage() {
                     <div className="p-2 bg-primary/10 rounded-xl"><BarChart2 className="h-6 w-6 text-primary"/></div>
                     <div>
                         <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Workforce Intelligence</h1>
-                        <p className="text-muted-foreground text-sm font-medium italic">Attendance-based behavioral mapping and operational insights.</p>
+                        <p className="text-muted-foreground text-sm font-medium italic">Behavioral mapping derived from machine logs & spreadsheet insights.</p>
                     </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 bg-muted/20 p-2 rounded-xl border border-dashed">
                     <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
                         <SelectTrigger className="w-[100px] h-9 bg-white"><SelectValue placeholder="Year" /></SelectTrigger>
-                        <SelectContent>{bsYears.map(y => <SelectItem key={`year-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                        <SelectContent>
+                            {bsYears.map(y => (
+                                <SelectItem key={`year-select-${y}`} value={String(y)}>{y}</SelectItem>
+                            ))}
+                        </SelectContent>
                     </Select>
                     <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
                         <SelectTrigger className="w-[140px] h-9 bg-white"><SelectValue placeholder="Month" /></SelectTrigger>
-                        <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
+                        <SelectContent>
+                            {NEPALI_MONTHS.map(m => (
+                                <SelectItem key={`month-select-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>
+                            ))}
+                        </SelectContent>
                     </Select>
-                    <Button size="sm" onClick={handleGenerateAnalytics} disabled={isProcessing || !selectedBsYear} className="h-9 font-black uppercase text-[10px] tracking-widest px-6 shadow-lg shadow-primary/20">
-                        {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Activity className="mr-2 h-4 w-4" />}
-                        Run Analytics
+                    <Button 
+                        size="sm" 
+                        variant="ghost"
+                        onClick={() => handleGenerateAnalytics(true)} 
+                        disabled={isProcessing || !selectedBsYear} 
+                        className="h-9 font-black uppercase text-[10px] tracking-widest px-4 text-muted-foreground hover:text-primary"
+                    >
+                        {isProcessing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-2 h-3.5 w-3.5" />}
+                        Refresh Sync
                     </Button>
                 </div>
             </header>
@@ -120,11 +142,11 @@ export default function AnalyticsPage() {
                             <AnalyticsTableCard 
                                 title="Behavioral Patterns (from attendance data)" 
                                 data={analyticsData.importedReport.behavioralPatterns} 
-                                badge="Attendance Sync"
+                                badge="Imported Excel"
                             />
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                {/* 2. Enhanced Insights Table */}
+                                {/* 2. Enhanced Employee Insights */}
                                 <AnalyticsTableCard 
                                     title="Enhanced Employee Insights" 
                                     data={analyticsData.importedReport.enhancedInsights} 
@@ -134,16 +156,18 @@ export default function AnalyticsPage() {
                                 <div className="space-y-8">
                                     {/* 3. Pattern Insights */}
                                     <Card className="shadow-lg border-primary/20 bg-primary/[0.02]">
-                                        <CardHeader className="py-3 border-b"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary">Pattern Insights Summary</CardTitle></CardHeader>
+                                        <CardHeader className="py-3 border-b">
+                                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary">Qualitative Pattern Insights</CardTitle>
+                                        </CardHeader>
                                         <CardContent className="p-5">
                                             <ul className="space-y-3">
                                                 {analyticsData.importedReport.patternInsights.map((ins, i) => (
-                                                    <li key={`ins-${i}`} className="flex gap-2 text-xs font-medium text-gray-700">
+                                                    <li key={`ins-text-${i}`} className="flex gap-2 text-xs font-medium text-gray-700">
                                                         <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                                                         {ins}
                                                     </li>
                                                 ))}
-                                                {analyticsData.importedReport.patternInsights.length === 0 && <li className="text-xs italic text-muted-foreground">No qualitative insights detected in this period.</li>}
+                                                {analyticsData.importedReport.patternInsights.length === 0 && <li className="text-xs italic text-muted-foreground text-center py-4">No qualitative insights detected in this period.</li>}
                                             </ul>
                                         </CardContent>
                                     </Card>
@@ -161,7 +185,7 @@ export default function AnalyticsPage() {
                             <AnalyticsTableCard 
                                 title="Month-to-Month Behavioral Comparison" 
                                 data={analyticsData.importedReport.monthToMonthComparison || []} 
-                                badge="Trend Analysis"
+                                badge="Trend History"
                             />
                         </div>
                     ) : (
@@ -170,10 +194,10 @@ export default function AnalyticsPage() {
                             <Card className="lg:col-span-2 shadow-lg border-gray-100 bg-white overflow-hidden">
                                 <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
                                     <div>
-                                        <CardTitle className="text-sm font-black uppercase">Calculated behavioral scoreboard</CardTitle>
-                                        <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Derived from machine logs.</CardDescription>
+                                        <CardTitle className="text-sm font-black uppercase">Real-Time Behavioral Scoreboard</CardTitle>
+                                        <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Calculated dynamically from validated machine logs.</CardDescription>
                                     </div>
-                                    <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-amber-600 border-amber-200">Live Calculation</Badge>
+                                    <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">System Derived</Badge>
                                 </CardHeader>
                                 <CardContent className="p-0">
                                     <ScrollArea className="w-full">
@@ -189,7 +213,7 @@ export default function AnalyticsPage() {
                                             </TableHeader>
                                             <TableBody>
                                                 {analyticsData.punctuality.map((p) => (
-                                                    <TableRow key={`punct-${p.employeeId}`} className="hover:bg-muted/20 h-12 border-b">
+                                                    <TableRow key={`punct-row-${p.employeeId}`} className="hover:bg-muted/20 h-12 border-b">
                                                         <TableCell className="pl-6 font-bold text-gray-900 border-r">{p.employeeName}</TableCell>
                                                         <TableCell className="text-center tabular-nums">{p.presentDays}</TableCell>
                                                         <TableCell className="text-center tabular-nums text-amber-600 font-bold">{p.lateArrivals}</TableCell>
@@ -209,14 +233,14 @@ export default function AnalyticsPage() {
                                     <CardHeader className="py-4 border-b">
                                         <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                                             <Zap className="h-3.5 w-3.5" />
-                                            System Insights
+                                            System Intelligence
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-4">
                                         <ScrollArea className="h-[400px] pr-4">
                                             <div className="space-y-4">
                                                 {analyticsData.behavior.map(b => (
-                                                    <div key={`beh-${b.employeeId}`} className="p-3 rounded-xl border bg-white space-y-2">
+                                                    <div key={`beh-card-${b.employeeId}`} className="p-3 rounded-xl border bg-white space-y-2">
                                                         <div className="flex justify-between items-center border-b pb-1">
                                                             <span className="font-black text-[11px] text-gray-900 uppercase">{b.employeeName}</span>
                                                             <Badge variant="outline" className="text-[8px] font-black h-4 px-1">{b.performanceInsight}</Badge>
@@ -237,9 +261,18 @@ export default function AnalyticsPage() {
                 </div>
             ) : (
                 <div className="h-96 border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center text-center p-12 bg-muted/5">
-                    <Activity className="h-20 w-20 text-muted-foreground/10 mb-6 animate-pulse"/>
-                    <h3 className="text-xl font-black text-gray-300 uppercase tracking-[0.2em]">Computation Ready</h3>
-                    <p className="text-sm text-muted-foreground mt-2 max-w-sm">Select a month and click "Run Analytics" to synchronize imported spreadsheet intelligence.</p>
+                    {isProcessing ? (
+                        <div className="flex flex-col items-center gap-4">
+                             <Loader2 className="h-12 w-12 text-primary animate-spin"/>
+                             <h3 className="text-lg font-black text-gray-400 uppercase tracking-widest">Processing Intelligence</h3>
+                        </div>
+                    ) : (
+                        <>
+                            <Activity className="h-20 w-20 text-muted-foreground/10 mb-6 animate-pulse"/>
+                            <h3 className="text-xl font-black text-gray-300 uppercase tracking-[0.2em]">Computation Ready</h3>
+                            <p className="text-sm text-muted-foreground mt-2 max-w-sm">Insight data will display automatically when a month is selected.</p>
+                        </>
+                    )}
                 </div>
             )}
         </div>
