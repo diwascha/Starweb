@@ -13,8 +13,7 @@ import { getFirebase } from '@/lib/firebase';
 import { 
     collection, 
     doc, 
-    writeBatch, 
-    setDoc
+    writeBatch
 } from 'firebase/firestore';
 import type { 
     Employee, 
@@ -44,7 +43,6 @@ const SEC_BEHAVIOR_ANALYTICS = { start: 63, empIdx: 66 }; // BL-BW (BL=63, BO=66
 const parsePeriodString = (str: string): { year: number, month: number } | null => {
     if (!str) return null;
     const s = String(str);
-    // Look for YYYY-MM or YYYY/MM with optional BS prefix
     const match = s.match(/(?:BS\s*)?(\d{4})[-/](\d{1,2})/i);
     if (match) {
         return { year: parseInt(match[1]), month: parseInt(match[2]) - 1 };
@@ -105,10 +103,8 @@ export const importConsolidatedLedger = async (
         return employee;
     };
 
-    // Process row by row starting from Row 3 (index 2)
     for (let r = CL_DATA_ROW; r < grid.length; r++) {
         const row = grid[r];
-        // Ensure row exists and has at least one non-null/non-empty cell
         if (!row || !row.some(c => c !== null && c !== undefined && String(c).trim() !== '')) continue;
 
         // --- SECTION 1: ANNUAL BONUS SUMMARY (A-M) ---
@@ -171,7 +167,7 @@ export const importConsolidatedLedger = async (
         if (s3_name && s3_name.toLowerCase() !== 'employee' && !s3_name.toLowerCase().includes('total')) {
             const employee = await ensureEmployee(s3_name);
             const year = coerceNumber(row[30]);
-            const month = coerceNumber(row[31]) - 1; // Correct 0-based month
+            const month = coerceNumber(row[31]) - 1;
             if (year > 0) {
                 const ledgerId = `${employee.id}_${year}_${month}`;
                 const behaviorData: BehaviorLedgerEntry = {

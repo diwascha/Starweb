@@ -4,29 +4,25 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { 
     Employee, 
     AttendanceRecord, 
-    AnalyticsReport,
-    BehavioralPatternRecord,
-    EnhancedInsightRecord,
-    PatternInsightParsed,
-    DowPatternItem,
-    BehaviorComparisonRecord
+    BehaviorLedgerEntry,
+    BehaviorAnalyticsEntry
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { BarChart2, Loader2, Activity, Clock, AlertTriangle, CheckCircle2, Calendar, Zap, Timer, RefreshCcw, TrendingUp, TrendingDown, Info, ShieldCheck, PieChart as PieChartIcon } from 'lucide-react';
+import { BarChart2, Loader2, Activity, Clock, AlertTriangle, CheckCircle2, Calendar, Zap, RefreshCcw, ShieldCheck } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { generateAnalyticsForMonth, AnalyticsData, getAnalyticsReport } from '@/services/payroll-service';
+import { generateAnalyticsForMonth, AnalyticsData } from '@/services/payroll-service';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { getFirebase } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function AnalyticsPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -36,13 +32,10 @@ export default function AnalyticsPage() {
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
     
-    // Core data states
+    // Core data states from Consolidated Ledger
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-    const [behavioralPatterns, setBehavioralPatterns] = useState<BehavioralPatternRecord[]>([]);
-    const [enhancedInsights, setEnhancedInsights] = useState<EnhancedInsightRecord[]>([]);
-    const [patternInsights, setPatternInsights] = useState<PatternInsightParsed | null>(null);
-    const [dowPatterns, setDowPatterns] = useState<DowPatternItem[]>([]);
-    const [comparisons, setComparisons] = useState<BehaviorComparisonRecord[]>([]);
+    const [behavioralPatterns, setBehavioralPatterns] = useState<BehaviorLedgerEntry[]>([]);
+    const [behavioralInsights, setBehavioralAnalytics] = useState<BehaviorAnalyticsEntry[]>([]);
 
     const { toast } = useToast();
 
@@ -68,30 +61,23 @@ export default function AnalyticsPage() {
         return () => { isMounted = false; };
     }, [attendance]);
 
-    const fetchImportedBlocks = useCallback(async (year: number, month: number) => {
+    const fetchImportedLedgerData = useCallback(async (year: number, month: number) => {
         const { db } = getFirebase();
-        const periodKey = `${year}_${month}`;
         
         try {
-            // 1. Company Level Blocks
-            const piSnap = await getDoc(doc(db, 'pattern_insights', periodKey));
-            setPatternInsights(piSnap.exists() ? piSnap.data() as PatternInsightParsed : null);
+            // 1. Fetch Behavior Ledger (Metrics)
+            const blQuery = query(collection(db, 'behavior_ledger'), where("bsYear", "==", year), where("bsMonth", "==", month));
+            const blSnap = await getDocs(blQuery);
+            setBehavioralPatterns(blSnap.docs.map(d => ({ id: d.id, ...d.data() } as BehaviorLedgerEntry)));
 
-            const dowSnap = await getDoc(doc(db, 'dow_patterns', periodKey));
-            setDowPatterns(dowSnap.exists() ? (dowSnap.data() as any).patterns : []);
-
-            // 2. Per-Employee Blocks
-            const bpSnap = await getDocs(query(collection(db, 'behavior_patterns'), where("__name__", ">=", ""), where("__name__", "<=", "\uf8ff")));
-            setBehavioralPatterns(bpSnap.docs.filter(d => d.id.endsWith(`_${periodKey}`)).map(d => d.data() as BehavioralPatternRecord));
-
-            const eiSnap = await getDocs(query(collection(db, 'enhanced_insights'), where("__name__", ">=", ""), where("__name__", "<=", "\uf8ff")));
-            setEnhancedInsights(eiSnap.docs.filter(d => d.id.endsWith(`_${periodKey}`)).map(d => d.data() as EnhancedInsightRecord));
-
-            const bcSnap = await getDocs(query(collection(db, 'behavior_comparison'), where("__name__", ">=", ""), where("__name__", "<=", "\uf8ff")));
-            setComparisons(bcSnap.docs.filter(d => d.id.endsWith(`_${periodKey}`)).map(d => d.data() as BehaviorComparisonRecord));
+            // 2. Fetch Behavior Analytics (Qualitative)
+            const baQuery = query(collection(db, 'behavior_analytics'), where("bsYear", "==", year), where("bsMonth", "==", month));
+            const baSnap = await getDocs(baQuery);
+            const insights = baSnap.docs.map(d => ({ id: d.id, ...d.data() } as BehaviorAnalyticsEntry));
+            setBehavioralAnalytics(insights);
 
         } catch (e) {
-            console.error("Failed to fetch imported blocks", e);
+            console.error("Failed to fetch ledger data", e);
         }
     }, []);
 
@@ -102,15 +88,15 @@ export default function AnalyticsPage() {
                 const year = parseInt(selectedBsYear, 10);
                 const month = parseInt(selectedBsMonth, 10);
                 
-                // Fetch pre-computed VBA blocks first
-                await fetchImportedBlocks(year, month);
+                // Fetch ledger blocks first
+                await fetchImportedLedgerData(year, month);
 
-                // Fallback / Hybrid calculation
+                // Fallback calculation for summary cards
                 const data = generateAnalyticsForMonth(year, month, employees, attendance, null);
                 setAnalyticsData(data);
                 
                 if (isManual) {
-                    toast({ title: "Behavioral Engine Refreshed" });
+                    toast({ title: "Intelligence Engine Refreshed" });
                 }
             } catch (error) {
                 console.error("Computation Failed", error);
@@ -119,7 +105,7 @@ export default function AnalyticsPage() {
                 setIsProcessing(false);
             }
         }
-    }, [selectedBsYear, selectedBsMonth, employees, attendance, toast, fetchImportedBlocks]);
+    }, [selectedBsYear, selectedBsMonth, employees, attendance, toast, fetchImportedLedgerData]);
 
     useEffect(() => {
         handleGenerateAnalytics();
@@ -132,7 +118,7 @@ export default function AnalyticsPage() {
                     <div className="p-2 bg-primary/10 rounded-xl"><BarChart2 className="h-6 w-6 text-primary"/></div>
                     <div>
                         <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Workforce Intelligence</h1>
-                        <p className="text-muted-foreground text-sm font-medium italic">Behavioral mapping from validated machine logs & VBA system reports.</p>
+                        <p className="text-muted-foreground text-sm font-medium italic">High-density behavioral mapping derived from the Consolidated Ledger.</p>
                     </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 bg-muted/20 p-2 rounded-xl border border-dashed">
@@ -140,7 +126,7 @@ export default function AnalyticsPage() {
                         <SelectTrigger className="w-[100px] h-9 bg-white"><SelectValue placeholder="Year" /></SelectTrigger>
                         <SelectContent>
                             {bsYears.map(y => (
-                                <SelectItem key={`year-select-${y}`} value={String(y)}>{y}</SelectItem>
+                                <SelectItem key={`year-${y}`} value={String(y)}>{y}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -148,7 +134,7 @@ export default function AnalyticsPage() {
                         <SelectTrigger className="w-[140px] h-9 bg-white"><SelectValue placeholder="Month" /></SelectTrigger>
                         <SelectContent>
                             {NEPALI_MONTHS.map(m => (
-                                <SelectItem key={`month-select-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>
+                                <SelectItem key={`month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -167,43 +153,23 @@ export default function AnalyticsPage() {
 
             {analyticsData ? (
                 <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4">
-                    {/* 1. Peak Metric Summary (VBA Derived if available) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <InsightCard 
-                            title="Peak Absenteeism" 
-                            value={patternInsights?.highestAbsentWeekday || analyticsData.highestAbsenteeism.day} 
-                            sub={`${patternInsights?.highestAbsentCount || analyticsData.highestAbsenteeism.count} instances`} 
-                            icon={AlertTriangle} color="red" 
-                        />
-                        <InsightCard 
-                            title="Peak Tardiness" 
-                            value={patternInsights?.highestLateWeekday || analyticsData.highestLateArrivals.day} 
-                            sub={`${patternInsights?.highestLateCount || analyticsData.highestLateArrivals.count} instances`} 
-                            icon={Clock} color="amber" 
-                        />
-                        <InsightCard 
-                            title="Punctuality Leader" 
-                            value={patternInsights?.mostPunctualWeekday || analyticsData.mostPunctualWeekday.day} 
-                            sub={`${(patternInsights?.mostPunctualRate || analyticsData.mostPunctualWeekday.rate).toFixed(1)}%`} 
-                            icon={CheckCircle2} color="emerald" 
-                        />
-                        <InsightCard 
-                            title="Sat. Utilization" 
-                            value={`${(patternInsights?.saturdayUtilPct || analyticsData.saturdayUtilization).toFixed(0)}%`} 
-                            sub="Weekend workload" icon={Calendar} color="blue" 
-                        />
+                        <InsightCard title="Peak Absenteeism" value={analyticsData.highestAbsenteeism.day} sub={`${analyticsData.highestAbsenteeism.count} instances`} icon={AlertTriangle} color="red" />
+                        <InsightCard title="Peak Tardiness" value={analyticsData.highestLateArrivals.day} sub={`${analyticsData.highestLateArrivals.count} instances`} icon={Clock} color="amber" />
+                        <InsightCard title="Punctuality Leader" value={analyticsData.mostPunctualWeekday.day} sub={`${analyticsData.mostPunctualWeekday.rate.toFixed(1)}%`} icon={CheckCircle2} color="emerald" />
+                        <InsightCard title="Sat. Utilization" value={`${analyticsData.saturdayUtilization.toFixed(0)}%`} sub="Weekend workload" icon={Calendar} color="blue" />
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* 2. Main Behavioral Table (VBA Sync) */}
+                        {/* 2. Behavioral Table (Metric Source: behavior_ledger) */}
                         <Card className="lg:col-span-2 shadow-lg border-gray-100 bg-white overflow-hidden">
                             <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
                                 <div>
                                     <CardTitle className="text-sm font-black uppercase">Behavioral Scoreboard</CardTitle>
-                                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Pre-computed patterns from VBA system report.</CardDescription>
+                                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Pre-computed metrics from Consolidated Ledger Section 3.</CardDescription>
                                 </div>
                                 <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">
-                                    <ShieldCheck className="mr-1 h-3 w-3"/> VBA Synchronized
+                                    <ShieldCheck className="mr-1 h-3 w-3"/> Verified Ledger Data
                                 </Badge>
                             </CardHeader>
                             <CardContent className="p-0">
@@ -221,16 +187,16 @@ export default function AnalyticsPage() {
                                         </TableHeader>
                                         <TableBody>
                                             {behavioralPatterns.length > 0 ? behavioralPatterns.map((p) => (
-                                                <TableRow key={`bp-row-${p.employeeId}`} className="hover:bg-muted/20 h-12 border-b">
+                                                <TableRow key={`ledger-row-${p.id}`} className="hover:bg-muted/20 h-12 border-b">
                                                     <TableCell className="pl-6 font-bold text-gray-900 border-r">{p.employeeName}</TableCell>
                                                     <TableCell className="text-center tabular-nums">{p.workdays}</TableCell>
                                                     <TableCell className="text-center tabular-nums font-bold">{p.lateDays}</TableCell>
                                                     <TableCell className="text-center tabular-nums font-bold">{p.absentDays}</TableCell>
                                                     <TableCell className="text-center tabular-nums">{p.satWorked}/{p.phWorked}</TableCell>
-                                                    <TableCell className="text-right pr-6 font-black tabular-nums text-blue-700">{p.onTimePct.toFixed(1)}%</TableCell>
+                                                    <TableCell className="text-right pr-6 font-black tabular-nums text-blue-700">{p.onTimePct?.toFixed(1)}%</TableCell>
                                                 </TableRow>
                                             )) : (
-                                                <TableRow><TableCell colSpan={6} className="text-center py-20 text-muted-foreground italic">No imported behavioral patterns found for this period.</TableCell></TableRow>
+                                                <TableRow><TableCell colSpan={6} className="text-center py-20 text-muted-foreground italic">No imported behavioral patterns found.</TableCell></TableRow>
                                             )}
                                         </TableBody>
                                     </Table>
@@ -239,143 +205,44 @@ export default function AnalyticsPage() {
                             </CardContent>
                         </Card>
 
-                        <div className="space-y-6">
-                            {/* 3. Qualitative Insights */}
-                            <Card className="shadow-lg border-indigo-200 bg-indigo-50/10 h-fit">
-                                <CardHeader className="py-4 border-b border-indigo-100">
-                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-indigo-700 flex items-center gap-2">
-                                        <Zap className="h-3.5 w-3.5" />
-                                        Pattern Insights
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-4">
-                                    <div className="space-y-3">
-                                        {patternInsights?.rawLines.map((line, i) => (
-                                            <div key={`pl-line-${i}`} className="flex gap-3 text-[11px] leading-relaxed text-gray-700 p-2 bg-white rounded-lg border border-indigo-100/50 shadow-sm">
-                                                <div className="h-1.5 w-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0" />
-                                                {line}
+                        {/* 3. Qualitative Insights (Source: behavior_analytics) */}
+                        <Card className="shadow-lg border-indigo-200 bg-indigo-50/10 h-fit">
+                            <CardHeader className="py-4 border-b border-indigo-100">
+                                <CardTitle className="text-xs font-black uppercase tracking-widest text-indigo-700 flex items-center gap-2">
+                                    <Zap className="h-3.5 w-3.5" />
+                                    Employee Analytics
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <ScrollArea className="h-[400px]">
+                                    <div className="divide-y divide-indigo-100">
+                                        {behavioralInsights.map(bi => (
+                                            <div key={`insight-${bi.id}`} className="p-4 space-y-2 hover:bg-white transition-colors">
+                                                <div className="flex justify-between items-start">
+                                                    <span className="font-black text-[11px] text-gray-900 uppercase">{bi.employeeName}</span>
+                                                    <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-1">{bi.performanceInsight}</Badge>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 text-[9px] font-bold text-muted-foreground">
+                                                    <div className="flex flex-col">
+                                                        <span className="uppercase text-[8px] opacity-50">Trend</span>
+                                                        <span className="text-indigo-600">{bi.punctualityTrend}</span>
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="uppercase text-[8px] opacity-50">Absence</span>
+                                                        <span className="text-indigo-600">{bi.absencePattern}</span>
+                                                    </div>
+                                                </div>
+                                                <p className="text-[10px] text-gray-700 italic border-l-2 border-indigo-200 pl-2 mt-2">{bi.behaviorInsight}</p>
                                             </div>
                                         ))}
-                                        {(!patternInsights || patternInsights.rawLines.length === 0) && (
-                                            <div className="text-center py-8 opacity-40 italic text-xs">No qualitative insights detected.</div>
+                                        {behavioralInsights.length === 0 && (
+                                            <div className="text-center py-20 opacity-40 italic text-xs uppercase font-black">No insights available.</div>
                                         )}
                                     </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* 4. DOW Heatmap */}
-                            <Card className="shadow-lg border-gray-100 bg-white overflow-hidden">
-                                <CardHeader className="bg-muted/10 border-b py-3 px-4">
-                                    <CardTitle className="text-[10px] font-black uppercase text-gray-900 tracking-[0.2em] flex items-center gap-2">
-                                        <PieChartIcon className="h-3 w-3" /> Day of Week Patterns
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <Table className="text-[9px]">
-                                        <TableHeader className="bg-muted/30">
-                                            <TableRow className="h-8">
-                                                <TableHead className="pl-4 font-black">DAY</TableHead>
-                                                <TableHead className="text-center">ON-TIME</TableHead>
-                                                <TableHead className="text-center">LATE</TableHead>
-                                                <TableHead className="text-right pr-4">ABSENT</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {dowPatterns.map(d => (
-                                                <TableRow key={`dow-${d.day}`} className="h-8 border-b-gray-50">
-                                                    <TableCell className="pl-4 font-bold uppercase">{d.day}</TableCell>
-                                                    <TableCell className="text-center font-bold text-emerald-600">{d.punctualityPct.toFixed(1)}%</TableCell>
-                                                    <TableCell className="text-center text-amber-600">{d.lateArrivalsPct.toFixed(1)}%</TableCell>
-                                                    <TableCell className="text-right pr-4 text-red-600">{d.absenteeismPct.toFixed(1)}%</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                </ScrollArea>
+                            </CardContent>
+                        </Card>
                     </div>
-
-                    {/* 5. Month-to-Month High Density Table */}
-                    <Card className="shadow-lg border-gray-100 bg-white overflow-hidden">
-                        <CardHeader className="bg-muted/10 border-b py-4 px-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <CardTitle className="text-sm font-black uppercase tracking-widest">Behavioral Delta Comparison</CardTitle>
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">
-                                        {comparisons[0]?.currentPeriodLabel || 'Current'} vs {comparisons[0]?.prevPeriodLabel || 'Previous'}
-                                    </p>
-                                </div>
-                                <div className="p-2 bg-blue-50 rounded-lg"><Activity className="h-4 w-4 text-blue-600"/></div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <ScrollArea className="w-full">
-                                <Table className="text-[10px]">
-                                    <TableHeader className="bg-muted/30">
-                                        <TableRow className="h-10 hover:bg-transparent">
-                                            <TableHead rowSpan={2} className="pl-6 font-black uppercase text-gray-900 border-r min-w-[150px]">Employee</TableHead>
-                                            <TableHead colSpan={3} className="text-center font-black uppercase text-amber-700 bg-amber-50/30 border-r">Late Arrivals</TableHead>
-                                            <TableHead colSpan={3} className="text-center font-black uppercase text-red-700 bg-red-50/30 border-r">Absent Days</TableHead>
-                                            <TableHead colSpan={3} className="text-center font-black uppercase text-emerald-700 bg-emerald-50/30 border-r">On-Time %</TableHead>
-                                            <TableHead colSpan={3} className="text-center font-black uppercase text-blue-700 bg-blue-50/30 border-r">ExtraOK Hrs</TableHead>
-                                            <TableHead rowSpan={2} className="text-center font-black uppercase pr-6 min-w-[100px]">Flag</TableHead>
-                                        </TableRow>
-                                        <TableRow className="h-8 hover:bg-transparent text-[9px] font-bold uppercase text-muted-foreground">
-                                            {/* Subheaders for Deltas */}
-                                            {[1,2,3,4].map(i => (
-                                                <React.Fragment key={`subh-${i}`}>
-                                                    <TableHead className="text-center">This</TableHead>
-                                                    <TableHead className="text-center">Prev</TableHead>
-                                                    <TableHead className="text-center border-r">+/-</TableHead>
-                                                </React.Fragment>
-                                            ))}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {comparisons.map(c => (
-                                            <TableRow key={`comp-row-${c.employeeId}`} className="h-11 border-b hover:bg-muted/10 transition-colors">
-                                                <TableCell className="pl-6 font-bold text-gray-900 border-r bg-muted/5">{c.employeeName}</TableCell>
-                                                
-                                                {/* Late Arrivals Delta */}
-                                                <TableCell className="text-center tabular-nums">{c.metrics.lateArrivals.thisMonth}</TableCell>
-                                                <TableCell className="text-center tabular-nums opacity-60">{c.metrics.lateArrivals.prevMonth}</TableCell>
-                                                <TableCell className={cn("text-center font-black border-r tabular-nums", c.metrics.lateArrivals.delta > 0 ? "text-red-600" : "text-emerald-600")}>
-                                                    {c.metrics.lateArrivals.delta > 0 ? `+${c.metrics.lateArrivals.delta}` : c.metrics.lateArrivals.delta}
-                                                </TableCell>
-
-                                                {/* Absent Days Delta */}
-                                                <TableCell className="text-center tabular-nums">{c.metrics.absentDays.thisMonth}</TableCell>
-                                                <TableCell className="text-center tabular-nums opacity-60">{c.metrics.absentDays.prevMonth}</TableCell>
-                                                <TableCell className={cn("text-center font-black border-r tabular-nums", c.metrics.absentDays.delta > 0 ? "text-red-600" : "text-emerald-600")}>
-                                                    {c.metrics.absentDays.delta > 0 ? `+${c.metrics.absentDays.delta}` : c.metrics.absentDays.delta}
-                                                </TableCell>
-
-                                                {/* On-Time % Delta */}
-                                                <TableCell className="text-center tabular-nums">{c.metrics.onTimePct.thisMonth}%</TableCell>
-                                                <TableCell className="text-center tabular-nums opacity-60">{c.metrics.onTimePct.prevMonth}%</TableCell>
-                                                <TableCell className={cn("text-center font-black border-r tabular-nums", c.metrics.onTimePct.delta >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                                    {c.metrics.onTimePct.delta > 0 ? `+${c.metrics.onTimePct.delta}` : c.metrics.onTimePct.delta}%
-                                                </TableCell>
-
-                                                {/* ExtraOK Hrs Delta */}
-                                                <TableCell className="text-center tabular-nums">{c.metrics.extraOkHrs.thisMonth}</TableCell>
-                                                <TableCell className="text-center tabular-nums opacity-60">{c.metrics.extraOkHrs.prevMonth}</TableCell>
-                                                <TableCell className={cn("text-center font-black border-r tabular-nums", c.metrics.extraOkHrs.delta >= 0 ? "text-blue-600" : "text-amber-600")}>
-                                                    {c.metrics.extraOkHrs.delta > 0 ? `+${c.metrics.extraOkHrs.delta}` : c.metrics.extraOkHrs.delta}
-                                                </TableCell>
-
-                                                <TableCell className="text-center pr-6">
-                                                    {c.remarksFlag && <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-1 border-amber-200 text-amber-700 bg-amber-50">{c.remarksFlag}</Badge>}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
                 </div>
             ) : (
                 <div className="h-96 border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center text-center p-12 bg-muted/5">
@@ -388,7 +255,7 @@ export default function AnalyticsPage() {
                         <>
                             <Activity className="h-20 w-20 text-muted-foreground/10 mb-6 animate-pulse"/>
                             <h3 className="text-xl font-black text-gray-300 uppercase tracking-[0.2em]">Computation Ready</h3>
-                            <p className="text-sm text-muted-foreground mt-2 max-w-sm">Behavioral insights from VBA reports and machine logs will display here.</p>
+                            <p className="text-sm text-muted-foreground mt-2 max-w-sm">Select a period to load pre-computed ledger analytics.</p>
                         </>
                     )}
                 </div>
