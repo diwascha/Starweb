@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for common service layer operations.
  */
@@ -7,11 +6,22 @@ export const createTimestamp = () => new Date().toISOString();
 
 /**
  * Ensures numeric fields are actually numbers, even if stored as strings in DB.
+ * Robustly extracts the first sequence of digits/decimals from a string.
  */
 export const coerceNumber = (val: any, fallback: number = 0): number => {
   if (val === null || val === undefined) return fallback;
-  const num = typeof val === 'number' ? val : parseFloat(String(val).replace(/,/g, ''));
-  return isNaN(num) ? fallback : num;
+  if (typeof val === 'number') return val;
+  
+  // Strip commas and handle negative numbers
+  const s = String(val).replace(/,/g, '');
+  
+  // Extract the first number found in the string (handles "Monthly 21500", "83.50/h")
+  const match = s.match(/-?\d+(\.\d+)?/);
+  if (match) {
+    return parseFloat(match[0]);
+  }
+  
+  return fallback;
 };
 
 // Throttled logging to prevent performance degradation during errors

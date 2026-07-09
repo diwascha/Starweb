@@ -354,7 +354,6 @@ export default function PayrollClientPage() {
                                         <TableHead className="text-right">Regular Hrs</TableHead>
                                         <TableHead className="text-right">OT Hrs</TableHead>
                                         <TableHead className="text-right">Absent Days</TableHead>
-                                        <TableHead className="text-right text-red-600">Abs. Amt</TableHead>
                                         <TableHead className="text-right">Base</TableHead>
                                         <TableHead className="text-right">Basic Pay</TableHead>
                                         <TableHead className="text-right">OT Pay</TableHead>
@@ -375,15 +374,14 @@ export default function PayrollClientPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {isLoading && <TableRow><TableCell colSpan={18 + extraHeaders.length} className="text-center py-20"><Loader2 className="mr-2 h-8 w-8 animate-spin inline-block opacity-20" /></TableCell></TableRow>}
-                                    {!isLoading && monthlyPayroll.length === 0 && <TableRow><TableCell colSpan={18 + extraHeaders.length} className="text-center py-20 text-muted-foreground italic">No payroll records found.</TableCell></TableRow>}
+                                    {isLoading && <TableRow><TableCell colSpan={17 + extraHeaders.length} className="text-center py-20"><Loader2 className="mr-2 h-8 w-8 animate-spin inline-block opacity-20" /></TableCell></TableRow>}
+                                    {!isLoading && monthlyPayroll.length === 0 && <TableRow><TableCell colSpan={17 + extraHeaders.length} className="text-center py-20 text-muted-foreground italic">No payroll records found.</TableCell></TableRow>}
                                     {!isLoading && monthlyPayroll.map(p => (
                                         <TableRow key={p.id} className="hover:bg-muted/30 h-12">
                                             <TableCell className="font-black sticky left-0 bg-background z-10 border-r">{p.employeeName}</TableCell>
                                             <TableCell className="text-right tabular-nums">{p.regularHours?.toFixed(1) || '0.0'}</TableCell>
                                             <TableCell className="text-right tabular-nums">{p.otHours?.toFixed(1) || '0.0'}</TableCell>
                                             <TableCell className="text-right tabular-nums">{p.absentDays || 0}</TableCell>
-                                            <TableCell className="text-right tabular-nums text-red-600">{(p.deduction || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell className="text-right tabular-nums text-muted-foreground">{(p.rate || 0).toLocaleString()}</TableCell>
                                             <TableCell className="text-right tabular-nums">{(p.regularPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell className="text-right tabular-nums">{(p.otPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -417,7 +415,6 @@ export default function PayrollClientPage() {
                                         <TableCell className="text-right tabular-nums">{totals.regularHours.toFixed(1)}</TableCell>
                                         <TableCell className="text-right tabular-nums">{totals.otHours.toFixed(1)}</TableCell>
                                         <TableCell className="text-right tabular-nums">{totals.absentDays}</TableCell>
-                                        <TableCell className="text-right tabular-nums">{totals.deduction.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right"></TableCell>
                                         <TableCell className="text-right tabular-nums">{totals.regularPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right tabular-nums">{totals.otPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>

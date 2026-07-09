@@ -333,7 +333,9 @@ export const importPayrollFromSheet = async (
 
             const getValue = (key: string) => {
                 const index = (headerMap as any)[key];
-                return index !== undefined ? fullRow[index] : null;
+                if (index === undefined || index === null) return null;
+                const val = fullRow[index];
+                return val !== undefined ? val : null;
             };
             
             const otHours = coerceNumber(getValue('otHours'));
@@ -366,7 +368,7 @@ export const importPayrollFromSheet = async (
                 createdBy: importedBy,
                 createdAt: createTimestamp(),
                 rawImportData: headerRow.reduce((obj, header, index) => {
-                    obj[String(header || `col_${index}`)] = fullRow[index];
+                    obj[String(header || `col_${index}`)] = fullRow[index] !== undefined ? fullRow[index] : null;
                     return obj;
                 }, {} as Record<string, any>)
             };
