@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,6 +41,7 @@ const nepaliMonths = [
 
 
 export default function ImportPayrollPage() {
+    const router = useRouter();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
@@ -194,6 +196,9 @@ export default function ImportPayrollPage() {
         setImportProgress(null);
         setIsProcessing(false);
         setFileName(null);
+        
+        // Redirect to the payroll registry after successful import
+        router.push('/hr/payroll');
     };
 
 
