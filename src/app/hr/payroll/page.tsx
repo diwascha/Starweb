@@ -10,6 +10,7 @@ import BonusView from './_components/bonus-view';
 import AnalyticsView from './_components/analytics-view';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
 import { getAttendanceYears, onAttendanceUpdate } from '@/services/attendance-service';

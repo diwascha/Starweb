@@ -29,7 +29,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 const CL_DATA_START = 2; // Row 3
 
 /**
- * Extracts BS Year and Month by scanning multiple potential source columns.
+ * Robustly extracts BS Year and Month by scanning multiple potential source columns.
  * AE (30) / AF (31) are numeric, AX (49) and others are strings.
  */
 const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | null => {
@@ -120,19 +120,21 @@ export const importConsolidatedLedger = async (
 
     for (let r = CL_DATA_START; r < grid.length; r++) {
         const row = grid[r];
-        if (!row || row.length < 5) continue;
+        // Ensure row has at least some content to avoid processing fully blank end-of-file rows
+        if (!row || row.every(cell => cell === null || cell === undefined || cell === '')) continue;
 
-        // Determine identity from ANY valid employee column in the row
-        // Anchors: A(0), S(18), AH(33), AY(50), BO(66)
+        // Identity resolution: Check all 5 horizontal section anchors (Cols A, S, AH, AY, BO)
         const possibleNames = [row[0], row[18], row[33], row[50], row[66]]
             .map(v => String(v || '').trim())
             .filter(v => v !== '' && v.toLowerCase() !== 'employee' && !v.toLowerCase().includes('total'));
 
         if (possibleNames.length === 0) continue;
+        
+        // Take the first valid name found as the row owner
         const employeeName = possibleNames[0];
         const emp = ensureEmployee(employeeName);
 
-        // Resolve period once per row
+        // Resolve period: Check numeric columns in Sec 3, fallback to strings in 2, 4, 5
         const period = resolvePeriodFromRow(row);
 
         // Section 1: Annual Bonus Summary (A-M) - Does not require a period
@@ -158,7 +160,7 @@ export const importConsolidatedLedger = async (
             writeCount++;
         }
 
-        // The remaining 4 sections are period-dependent
+        // Period-dependent sections (2, 3, 4, 5)
         if (period) {
             const periodId = `${period.year}_${period.month}`;
 
