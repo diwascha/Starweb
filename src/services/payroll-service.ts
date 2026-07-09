@@ -1,6 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit } from 'firebase/firestore';
-import type { Payroll, Employee, AttendanceRecord, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
+import type { Payroll, Employee, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from './settings-service';
 import { COLLECTIONS } from '@/lib/constants';
@@ -143,7 +143,6 @@ export const calculateAndSavePayrollForMonth = async (
         
         const payrollRecords: Omit<Payroll, 'id'>[] = [];
         const now = createTimestamp();
-        const { db } = getFirebase();
 
         for (const employee of workingEmployees) {
             const employeeAttendance = monthlyAttendance.filter(r => r.employeeName === employee.name);
@@ -242,6 +241,7 @@ export const calculateAndSavePayrollForMonth = async (
         }
 
         const CHUNK_SIZE = 400;
+        const { db } = getFirebase();
         for (let i = 0; i < payrollRecords.length; i += CHUNK_SIZE) {
             const chunk = payrollRecords.slice(i, i + CHUNK_SIZE);
             const batch = writeBatch(db);
@@ -265,7 +265,7 @@ export const importPayrollFromSheet = async (
     importedBy: string,
     bsYear: number,
     bsMonth: number
-): Promise<{ createdCount: number, updatedCount: number }> => {
+): Promise<{ createdCount: number, updatedCount: number, newEmployeesCount: number }> => {
     const { db } = getFirebase();
     try {
         let headerIndex = -1;
@@ -291,42 +291,55 @@ export const importPayrollFromSheet = async (
         let writeCount = 0;
         let createdCount = 0;
         let updatedCount = 0;
+        let newEmployeesCount = 0;
 
-        const employeeMap = new Map(employees.map(e => [e.name.toLowerCase(), e]));
+        const employeeMap = new Map(employees.map(e => [e.name.toLowerCase().trim(), e]));
 
         for (const fullRow of dataRows) {
             const employeeName = String(fullRow[nameIndex] || '').trim();
             if (!employeeName || employeeName.toUpperCase() === 'TOTAL') continue;
 
-            const employee = employeeMap.get(employeeName.toLowerCase());
-            if (!employee) continue;
+            let employee = employeeMap.get(employeeName.toLowerCase());
+            
+            if (!employee) {
+                // REQUIREMENT: Automatic process for adding new employees
+                const empRef = doc(collection(db, COLLECTIONS.EMPLOYEES));
+                const now = createTimestamp();
+                const newEmpData: Omit<Employee, 'id'> = {
+                    name: employeeName,
+                    status: 'Working',
+                    wageBasis: 'Monthly',
+                    wageAmount: 0,
+                    mobileNumber: 'Not Provided',
+                    createdBy: importedBy,
+                    createdAt: now,
+                };
+                batch.set(empRef, newEmpData);
+                
+                // Add to map for subsequent rows in same sheet
+                employee = { id: empRef.id, ...newEmpData } as Employee;
+                employeeMap.set(employeeName.toLowerCase(), employee);
+                newEmployeesCount++;
+                writeCount++;
+                
+                if (writeCount >= batchSize) {
+                    await batch.commit();
+                    batch = writeBatch(db);
+                    writeCount = 0;
+                }
+            }
 
             const getValue = (key: string) => {
                 const index = (headerMap as any)[key];
                 return index !== undefined ? fullRow[index] : null;
             };
             
-            // Automatic Period Detection from row-level date info if available
-            let rowBsYear = bsYear;
-            let rowBsMonth = bsMonth;
-            const rowDateVal = getValue('date');
-            if (rowDateVal) {
-                try {
-                    const parsedDate = new Date(rowDateVal);
-                    if (!isNaN(parsedDate.getTime())) {
-                        const nd = new NepaliDate(parsedDate);
-                        rowBsYear = nd.getYear();
-                        rowBsMonth = nd.getMonth();
-                    }
-                } catch {}
-            }
-            
             const otHours = coerceNumber(getValue('otHours'));
             const regularHours = coerceNumber(getValue('regularHours'));
             
             const payrollData: Omit<Payroll, 'id'> = {
-                bsYear: rowBsYear, 
-                bsMonth: rowBsMonth,
+                bsYear: bsYear, 
+                bsMonth: bsMonth,
                 employeeId: employee.id,
                 employeeName,
                 joiningDate: employee.joiningDate || null,
@@ -358,8 +371,8 @@ export const importPayrollFromSheet = async (
             
             const q = query(getPayrollCollection(),
                 where("employeeId", "==", employee.id),
-                where("bsYear", "==", rowBsYear),
-                where("bsMonth", "==", rowBsMonth),
+                where("bsYear", "==", bsYear),
+                where("bsMonth", "==", bsMonth),
                 limit(1)
             );
             const snapshot = await getDocs(q);
@@ -383,7 +396,7 @@ export const importPayrollFromSheet = async (
         }
 
         if (writeCount > 0) await batch.commit();
-        return { createdCount, updatedCount };
+        return { createdCount, updatedCount, newEmployeesCount };
     } catch (error) {
         logServiceError('importPayrollFromSheet', error);
         throw error;

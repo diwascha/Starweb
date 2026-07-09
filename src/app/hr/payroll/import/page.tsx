@@ -5,7 +5,7 @@ import type { Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Loader2, Calendar } from 'lucide-react';
+import { Upload, Loader2, Calendar, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { importPayrollFromSheet, getPayrollYears } from '@/services/payroll-service';
@@ -17,6 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NepaliDate from 'nepali-date-converter';
+import { cn } from '@/lib/utils';
 
 interface SheetInfo {
   name: string;
@@ -110,7 +111,7 @@ export default function ImportPayrollPage() {
     const handleSheetSelectionChange = (sheetName: string, checked: boolean) => {
         const currentNepaliDate = new NepaliDate();
         if (checked) {
-            // Auto-detection logic from sheet name
+            // Default detected values for clarity, can be overriden manually
             let detectedMonth = String(currentNepaliDate.getMonth());
             let detectedYear = String(bsYears[0] || currentNepaliDate.getYear());
             
@@ -148,6 +149,7 @@ export default function ImportPayrollPage() {
 
         let totalCreated = 0;
         let totalUpdated = 0;
+        let totalNewEmployees = 0;
 
         for (const selected of selectedSheets) {
             const sheetInfo = availableSheets.find(s => s.name === selected.name);
@@ -163,6 +165,7 @@ export default function ImportPayrollPage() {
                     );
                     totalCreated += result.createdCount;
                     totalUpdated += result.updatedCount;
+                    totalNewEmployees += result.newEmployeesCount;
                 } catch (error: any) {
                     toast({
                         title: `Import Error in ${sheetInfo.name}`,
@@ -177,7 +180,10 @@ export default function ImportPayrollPage() {
             }
         }
         
-        toast({ title: 'Import Complete', description: `${totalCreated} records created, ${totalUpdated} records updated.` });
+        toast({ 
+            title: 'Import Complete', 
+            description: `${totalCreated} records created, ${totalUpdated} records updated. ${totalNewEmployees} new employees detected and onboarded.` 
+        });
         
         setImportProgress(null);
         setIsProcessing(false);
@@ -191,13 +197,13 @@ export default function ImportPayrollPage() {
         <div className="flex flex-col gap-8">
             <header>
                 <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Payroll Bulk Importer</h1>
-                <p className="text-muted-foreground text-sm font-medium">Map external spreadsheet data to the core organizational ledger.</p>
+                <p className="text-muted-foreground text-sm font-medium">Manually map spreadsheet sheets to organizational periods.</p>
             </header>
             
             <Card className="border-dashed shadow-none bg-muted/5">
                 <CardHeader>
                     <CardTitle className="text-sm font-black uppercase text-gray-900">Upload Source</CardTitle>
-                    <CardDescription>Supported formats: .xls, .xlsx, .xlsm. Maximum file size 10MB.</CardDescription>
+                    <CardDescription>Supported formats: .xls, .xlsx, .xlsm. Unrecognized names will be automatically onboarded.</CardDescription>
                 </CardHeader>
                 <CardContent>
                      <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xls,.xlsx,.xlsm" className="hidden" />
@@ -213,7 +219,7 @@ export default function ImportPayrollPage() {
                 <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0">
                     <DialogHeader className="p-6 border-b bg-muted/10 shrink-0">
                         <DialogTitle className="text-xl font-black text-gray-900 uppercase">Period Alignment</DialogTitle>
-                        <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Map sheets to specific Nepali Months. The system has auto-detected periods based on sheet names.</DialogDescription>
+                        <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Select the target Nepali Month for each identified sheet.</DialogDescription>
                     </DialogHeader>
                     <div className="flex-1 overflow-hidden flex flex-col">
                         <div className="p-4 border-b flex items-center space-x-2 bg-white sticky top-0 z-10">
