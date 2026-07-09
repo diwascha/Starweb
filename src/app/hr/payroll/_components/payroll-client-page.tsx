@@ -39,6 +39,18 @@ const customEmployeeOrder = [
     "Sunita Gurung"
 ];
 
+// Helper to determine extra spreadsheet columns
+const standardMappedFields = [
+    'employee', 'staff name', 'name', 'date', 'work date', 'period',
+    'ot hrs', 'ot hour', 'ot hours', 'overtime hrs', 'regular hrs', 'normal hrs', 'regular hours', 'reg hrs',
+    'base (salary or', 'rate', 'base rate', 'basic salary', 'base', 'basic pay', 'norman', 'regular pay', 'basic',
+    'ot pay', 'ot amount', 'ot', 'gross', 'gross amount', 'total gross', 'absent days', 'absent', 'abs. days',
+    'absent amt.', 'deduction', 'absent amount', 'abs amt', 'allowance', 'extra', 'other allowance', 'allowances', 'bonus', 'bonus amount',
+    'gross salary', 'salary total', 'gross sal', 'tds', 'tds (1%)', 'tds amount', 'advance', 'salary advance', 'adv',
+    'net', 'net amount', 'net salary', 'rounded net', 'round off', 'round', 'final net', 'net payment', 'net payable', 'total net', 'payable',
+    'remark', 'remarks', 'narration', 'note'
+];
+
 export default function PayrollClientPage() {
     const [allPayroll, setAllPayroll] = useState<Payroll[]>([]);
     const [allAttendance, setAllAttendance] = useState<any[]>([]);
@@ -172,6 +184,23 @@ export default function PayrollClientPage() {
         return filtered;
     }, [allPayroll, selectedBsYear, selectedBsMonth, isLoading]);
 
+    const extraHeaders = useMemo(() => {
+        if (!monthlyPayroll || monthlyPayroll.length === 0) return [];
+        
+        const headersSet = new Set<string>();
+        monthlyPayroll.forEach(p => {
+            if (p.rawImportData) {
+                Object.keys(p.rawImportData).forEach(k => {
+                    const kl = k.toLowerCase().trim();
+                    if (!standardMappedFields.includes(kl)) {
+                        headersSet.add(k);
+                    }
+                });
+            }
+        });
+        return Array.from(headersSet).sort();
+    }, [monthlyPayroll]);
+
 
     const totals = useMemo(() => {
         if (!monthlyPayroll) return null;
@@ -190,9 +219,11 @@ export default function PayrollClientPage() {
             roundedNet: acc.roundedNet + (curr.roundedNet || 0),
             bonus: acc.bonus + (curr.bonus || 0),
             netPayment: acc.netPayment + (curr.netPayment || 0),
+            deduction: acc.deduction + (curr.deduction || 0),
         }), { 
             regularHours: 0, otHours: 0, absentDays: 0, regularPay: 0, otPay: 0, allowance: 0, 
-            totalPay: 0, tds: 0, salaryTotal: 0, advance: 0, net: 0, roundedNet: 0, bonus: 0, netPayment: 0
+            totalPay: 0, tds: 0, salaryTotal: 0, advance: 0, net: 0, roundedNet: 0, bonus: 0, netPayment: 0,
+            deduction: 0,
         });
     }, [monthlyPayroll]);
 
@@ -220,7 +251,8 @@ export default function PayrollClientPage() {
             'Rounded Net': p.roundedNet,
             'Bonus': p.bonus,
             'Final Net': p.netPayment,
-            'Remarks': p.remark
+            'Remarks': p.remark,
+            ...p.rawImportData
         }));
         
         const worksheet = XLSX.utils.json_to_sheet(payrollExport || []);
@@ -322,6 +354,7 @@ export default function PayrollClientPage() {
                                         <TableHead className="text-right">Regular Hrs</TableHead>
                                         <TableHead className="text-right">OT Hrs</TableHead>
                                         <TableHead className="text-right">Absent Days</TableHead>
+                                        <TableHead className="text-right text-red-600">Abs. Amt</TableHead>
                                         <TableHead className="text-right">Base</TableHead>
                                         <TableHead className="text-right">Basic Pay</TableHead>
                                         <TableHead className="text-right">OT Pay</TableHead>
@@ -335,18 +368,22 @@ export default function PayrollClientPage() {
                                         <TableHead className="text-right text-emerald-600">Bonus</TableHead>
                                         <TableHead className="text-right font-black text-emerald-700 bg-emerald-50/30">Final Net</TableHead>
                                         <TableHead className="min-w-[150px]">Remarks</TableHead>
+                                        {extraHeaders.map(h => (
+                                            <TableHead key={h} className="min-w-[100px] border-l bg-gray-50/50">{h}</TableHead>
+                                        ))}
                                         <TableHead className="print:hidden sticky right-0 bg-background z-10 border-l"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {isLoading && <TableRow><TableCell colSpan={18} className="text-center py-20"><Loader2 className="mr-2 h-8 w-8 animate-spin inline-block opacity-20" /></TableCell></TableRow>}
-                                    {!isLoading && monthlyPayroll.length === 0 && <TableRow><TableCell colSpan={18} className="text-center py-20 text-muted-foreground italic">No payroll records found.</TableCell></TableRow>}
+                                    {isLoading && <TableRow><TableCell colSpan={18 + extraHeaders.length} className="text-center py-20"><Loader2 className="mr-2 h-8 w-8 animate-spin inline-block opacity-20" /></TableCell></TableRow>}
+                                    {!isLoading && monthlyPayroll.length === 0 && <TableRow><TableCell colSpan={18 + extraHeaders.length} className="text-center py-20 text-muted-foreground italic">No payroll records found.</TableCell></TableRow>}
                                     {!isLoading && monthlyPayroll.map(p => (
                                         <TableRow key={p.id} className="hover:bg-muted/30 h-12">
                                             <TableCell className="font-black sticky left-0 bg-background z-10 border-r">{p.employeeName}</TableCell>
                                             <TableCell className="text-right tabular-nums">{p.regularHours?.toFixed(1) || '0.0'}</TableCell>
                                             <TableCell className="text-right tabular-nums">{p.otHours?.toFixed(1) || '0.0'}</TableCell>
                                             <TableCell className="text-right tabular-nums">{p.absentDays || 0}</TableCell>
+                                            <TableCell className="text-right tabular-nums text-red-600">{(p.deduction || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell className="text-right tabular-nums text-muted-foreground">{(p.rate || 0).toLocaleString()}</TableCell>
                                             <TableCell className="text-right tabular-nums">{(p.regularPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell className="text-right tabular-nums">{(p.otPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -360,6 +397,11 @@ export default function PayrollClientPage() {
                                             <TableCell className="text-right tabular-nums text-emerald-600 font-bold">{(p.bonus || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell className="text-right tabular-nums font-black text-emerald-700 bg-emerald-50/20">{(p.netPayment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell className="text-[10px] text-muted-foreground italic truncate max-w-[150px]">{p.remark}</TableCell>
+                                            {extraHeaders.map(h => (
+                                                <TableCell key={h} className="text-right border-l text-[10px] text-gray-600 tabular-nums">
+                                                    {p.rawImportData?.[h] !== undefined ? String(p.rawImportData[h]) : '—'}
+                                                </TableCell>
+                                            ))}
                                             <TableCell className="print:hidden sticky right-0 bg-background z-10 border-l">
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => router.push(`/hr/payslip?employeeId=${p.employeeId}&year=${selectedBsYear}&month=${selectedBsMonth}`)}>
                                                     <View className="h-3.5 w-3.5" />
@@ -375,6 +417,7 @@ export default function PayrollClientPage() {
                                         <TableCell className="text-right tabular-nums">{totals.regularHours.toFixed(1)}</TableCell>
                                         <TableCell className="text-right tabular-nums">{totals.otHours.toFixed(1)}</TableCell>
                                         <TableCell className="text-right tabular-nums">{totals.absentDays}</TableCell>
+                                        <TableCell className="text-right tabular-nums">{totals.deduction.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right"></TableCell>
                                         <TableCell className="text-right tabular-nums">{totals.regularPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right tabular-nums">{totals.otPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -387,7 +430,7 @@ export default function PayrollClientPage() {
                                         <TableCell className="text-right tabular-nums">{totals.roundedNet.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right tabular-nums">{totals.bonus.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right tabular-nums">{totals.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell colSpan={2} className="print:hidden"></TableCell>
+                                        <TableCell colSpan={1 + extraHeaders.length} className="print:hidden"></TableCell>
                                     </TableRow>
                                 </TableFooter>
                                 )}

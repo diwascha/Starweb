@@ -40,7 +40,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         remark: String(data.remark || ''),
         createdBy: data.createdBy,
         createdAt: data.createdAt,
-        rawImportData: data.rawImportData,
+        rawImportData: data.rawImportData || {},
     };
 };
 
@@ -189,6 +189,7 @@ export const calculateAndSavePayrollForMonth = async (
                     allowance,
                     totalPay: gross,
                     absentDays,
+                    deduction: absentDays * dayRate,
                     tds,
                     salaryTotal: grossSalary,
                     advance,
@@ -198,7 +199,8 @@ export const calculateAndSavePayrollForMonth = async (
                     netPayment: finalNet,
                     remark: '',
                     createdBy: calculatedBy,
-                    createdAt: now
+                    createdAt: now,
+                    rawImportData: {}
                 });
             } else { 
                 rate = Number(employee.wageAmount) || 0;
@@ -226,6 +228,7 @@ export const calculateAndSavePayrollForMonth = async (
                     allowance,
                     totalPay: gross,
                     absentDays,
+                    deduction: 0,
                     tds,
                     salaryTotal: grossSalary,
                     advance,
@@ -235,7 +238,8 @@ export const calculateAndSavePayrollForMonth = async (
                     netPayment: finalNet,
                     remark: '',
                     createdBy: calculatedBy,
-                    createdAt: now
+                    createdAt: now,
+                    rawImportData: {}
                 });
             }
         }
@@ -302,7 +306,6 @@ export const importPayrollFromSheet = async (
             let employee = employeeMap.get(employeeName.toLowerCase());
             
             if (!employee) {
-                // REQUIREMENT: Automatic onboarding of new employees
                 const empRef = doc(collection(db, COLLECTIONS.EMPLOYEES));
                 const now = createTimestamp();
                 const newEmpData: Omit<Employee, 'id'> = {
@@ -402,34 +405,34 @@ export const importPayrollFromSheet = async (
     }
 };
 
-const getHeaderMap = (headerRow: any[]) => {
+export const getHeaderMap = (headerRow: any[]) => {
     const map: Record<string, number> = {};
     const payrollHeaders: Record<string, string[]> = {
         name: ['employee', 'staff name', 'name'],
         date: ['date', 'work date', 'period'],
-        otHours: ['ot hrs', 'ot hour', 'ot hours'],
-        regularHours: ['regular hrs', 'normal hrs', 'regular hours'],
-        rate: ['base (salary or', 'rate'],
-        regularPay: ['basic pay', 'norman', 'regular pay'],
-        otPay: ['ot pay', 'ot'],
-        totalPay: ['gross'],
+        otHours: ['ot hrs', 'ot hour', 'ot hours', 'overtime hrs'],
+        regularHours: ['regular hrs', 'normal hrs', 'regular hours', 'reg hrs'],
+        rate: ['base (salary or', 'rate', 'base rate', 'basic salary', 'base'],
+        regularPay: ['basic pay', 'norman', 'regular pay', 'basic'],
+        otPay: ['ot pay', 'ot amount', 'ot'],
+        totalPay: ['gross', 'gross amount', 'total gross'],
         absentDays: ['absent days', 'absent', 'abs. days'],
-        deduction: ['absent amt.', 'deduction'],
-        allowance: ['allowance', 'extra'],
-        bonus: ['bonus'],
-        salaryTotal: ['gross salary', 'salary total'],
-        tds: ['tds', 'tds (1%)'],
-        advance: ['advance'],
-        net: ['net'],
-        roundedNet: ['rounded net'],
-        netPayment: ['final net', 'net payment'],
-        remark: ['remark', 'remarks']
+        deduction: ['absent amt.', 'deduction', 'absent amount', 'abs amt'],
+        allowance: ['allowance', 'extra', 'other allowance', 'allowances'],
+        bonus: ['bonus', 'bonus amount'],
+        salaryTotal: ['gross salary', 'salary total', 'gross sal'],
+        tds: ['tds', 'tds (1%)', 'tds amount'],
+        advance: ['advance', 'salary advance', 'adv'],
+        net: ['net', 'net amount', 'net salary'],
+        roundedNet: ['rounded net', 'round off', 'round'],
+        netPayment: ['final net', 'net payment', 'net payable', 'total net', 'payable'],
+        remark: ['remark', 'remarks', 'narration', 'note']
     };
 
     headerRow.forEach((headerCell, index) => {
         const normalizedHeader = String(headerCell || '').trim().toLowerCase();
         for (const key in payrollHeaders) {
-            if (payrollHeaders[key].some(alias => normalizedHeader.includes(alias))) {
+            if (payrollHeaders[key].some(alias => normalizedHeader === alias || normalizedHeader.includes(alias))) {
                 map[key] = index;
             }
         }
