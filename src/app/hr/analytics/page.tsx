@@ -65,16 +65,28 @@ export default function AnalyticsPage() {
         const { db } = getFirebase();
         
         try {
-            console.log(`[Analytics] Querying Ledger for ${year}-${month}`);
+            console.log(`[Analytics] Querying Ledger for Year: ${year} Month: ${month}`);
+            
             // 1. Fetch Behavior Ledger (Metrics)
-            const blQuery = query(collection(db, 'behavior_ledger'), where("bsYear", "==", year), where("bsMonth", "==", month));
+            const blQuery = query(
+                collection(db, 'behavior_ledger'), 
+                where("bsYear", "==", year), 
+                where("bsMonth", "==", month)
+            );
             const blSnap = await getDocs(blQuery);
-            setBehavioralPatterns(blSnap.docs.map(d => ({ id: d.id, ...d.data() } as BehaviorLedgerEntry)));
+            const metrics = blSnap.docs.map(d => ({ id: d.id, ...d.data() } as BehaviorLedgerEntry));
+            console.log(`[Analytics] Found ${metrics.length} metrics records.`);
+            setBehavioralPatterns(metrics);
 
             // 2. Fetch Behavior Analytics (Qualitative)
-            const baQuery = query(collection(db, 'behavior_analytics'), where("bsYear", "==", year), where("bsMonth", "==", month));
+            const baQuery = query(
+                collection(db, 'behavior_analytics'), 
+                where("bsYear", "==", year), 
+                where("bsMonth", "==", month)
+            );
             const baSnap = await getDocs(baQuery);
             const insights = baSnap.docs.map(d => ({ id: d.id, ...d.data() } as BehaviorAnalyticsEntry));
+            console.log(`[Analytics] Found ${insights.length} insight records.`);
             setBehavioralAnalytics(insights);
 
         } catch (e) {
@@ -92,7 +104,7 @@ export default function AnalyticsPage() {
                 // Fetch ledger blocks first
                 await fetchImportedLedgerData(year, month);
 
-                // Fallback calculation for summary cards
+                // Summary calculation
                 const data = generateAnalyticsForMonth(year, month, employees, attendance, null);
                 setAnalyticsData(data);
                 

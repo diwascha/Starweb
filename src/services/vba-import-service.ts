@@ -1,8 +1,8 @@
 /**
  * @fileOverview Consolidated Ledger Import Service.
  *
- * This service implements high-density horizontal parsing for the 5 key sections of the workforce ledger.
- * It uses Anchor-Based discovery to handle shifted columns or variable layouts.
+ * Implements high-density horizontal parsing for the 5 key sections of the workforce ledger.
+ * Strictly follows the column offsets: A=0, P=15, AB=27, AV=47, BL=63.
  */
 
 import { getFirebase } from '@/lib/firebase';
@@ -25,36 +25,37 @@ import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-// --- Consolidated Ledger Structural Definition ---
-const CL_HEADER_ROW = 1; // Row 2 (Labels)
-const CL_DATA_START = 2; // Row 3 (First Data Row)
+// --- Consolidated Ledger Fixed Anchors (0-indexed) ---
+const CL_DATA_START = 2; // Row 3
+
+const SEC1_START = 0;   // A
+const SEC2_START = 15;  // P
+const SEC3_START = 27;  // AB
+const SEC4_START = 47;  // AV
+const SEC5_START = 63;  // BL
 
 /**
- * Robustly extracts the BS period from strings or numeric columns.
+ * Extracts BS Year and Month from Section 3 (most reliable source).
  */
-const resolvePeriod = (row: any[], sectionIdx: number): { year: number, month: number } | null => {
-    // 1. Try Section 3 Logic (Numeric Year/Month columns at offset 3 and 4)
-    // Section 3 (Behavior) has explicit columns for Year and Month
-    const numericYear = coerceNumber(row[sectionIdx + 3], 0);
-    const numericMonth = coerceNumber(row[sectionIdx + 4], 0);
-    if (numericYear > 2000 && numericMonth >= 1 && numericMonth <= 12) {
-        return { year: numericYear, month: numericMonth - 1 };
+const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | null => {
+    // AE (30) is BS Year, AF (31) is BS Month # (1-12)
+    const year = coerceNumber(row[30], 0);
+    const month = coerceNumber(row[31], 0);
+    
+    if (year > 2000 && month >= 1 && month <= 12) {
+        return { year, month: month - 1 }; // Store 0-indexed month
     }
 
-    // 2. Try Regex parsing from common period columns (Offset 1 or 2)
-    const candidates = [row[sectionIdx + 1], row[sectionIdx + 2]];
-    for (const raw of candidates) {
-        if (!raw) continue;
-        const s = String(raw);
-        // Matches YYYY-MM, YYYY/MM, or BS YYYY-MM
-        const match = s.match(/(\d{4})[-/](\d{1,2})/);
-        if (match) {
-            return { 
-                year: parseInt(match[1], 10), 
-                month: parseInt(match[2], 10) - 1 
-            };
-        }
+    // Fallback: Try parsing string from Section 4 Period BS (AX - 49)
+    const periodStr = String(row[49] || row[17] || row[64] || '');
+    const match = periodStr.match(/(\d{4})[-/](\d{1,2})/);
+    if (match) {
+        return { 
+            year: parseInt(match[1], 10), 
+            month: parseInt(match[2], 10) - 1 
+        };
     }
+    
     return null;
 };
 
@@ -67,27 +68,6 @@ export const importConsolidatedLedger = async (
     const employees = await getEmployees();
     const employeeMap = new Map(employees.map(e => [e.name.toLowerCase().trim(), e]));
     
-    // 1. Radar Scan for Section Anchors
-    // We look for the "Employee" column in the header row to establish base indices.
-    const headerRow = grid[CL_HEADER_ROW] || [];
-    const findAnchor = (startSearch: number) => {
-        for (let i = startSearch; i < headerRow.length; i++) {
-            const val = String(headerRow[i] || '').toLowerCase();
-            if (val === 'employee') return i;
-        }
-        return -1;
-    };
-
-    const anchors = {
-        sec1: findAnchor(0),     // Bonus Summary
-        sec2: findAnchor(13),    // Bonus Ledger
-        sec3: findAnchor(25),    // Behavior Ledger
-        sec4: findAnchor(45),    // Payroll Ledger
-        sec5: findAnchor(61)     // Behavior Analytics
-    };
-
-    console.log("[VBA Import] Anchor Discovery Results:", anchors);
-
     const results = {
         bonusSummaries: 0,
         bonusLedger: 0,
@@ -135,173 +115,174 @@ export const importConsolidatedLedger = async (
         return employee;
     };
 
-    // 2. Main High-Density Scan
+    console.log(`[VBA Import] Starting scan of ${grid.length} rows...`);
+
     for (let r = CL_DATA_START; r < grid.length; r++) {
         const row = grid[r];
-        if (!row || row.every(c => c === null || c === '')) continue;
+        if (!row || row.length < 10) continue;
 
-        // SECTION 1: ANNUAL BONUS SUMMARY (Col A anchor)
-        if (anchors.sec1 !== -1) {
-            const name = String(row[anchors.sec1] || '').trim();
-            if (name && name.toLowerCase() !== 'employee' && !name.toLowerCase().includes('total')) {
-                const employee = ensureEmployee(name);
-                const data: AnnualBonusSummary = {
-                    id: employee.id,
-                    employeeName: employee.name,
-                    basis: String(row[anchors.sec1 + 1] || ''),
-                    monthsWorked: coerceNumber(row[anchors.sec1 + 2]),
-                    eligibleMonths: coerceNumber(row[anchors.sec1 + 3]),
-                    avgAttendancePct: coerceNumber(row[anchors.sec1 + 4]),
-                    avgMonthlySalary: coerceNumber(row[anchors.sec1 + 5]),
-                    accruedYTD: coerceNumber(row[anchors.sec1 + 6]),
-                    recommendedBonus: coerceNumber(row[anchors.sec1 + 7]),
-                    thisPayout: coerceNumber(row[anchors.sec1 + 8]),
-                    balanceAfter: coerceNumber(row[anchors.sec1 + 9]),
-                    firstPeriod: String(row[anchors.sec1 + 10] || ''),
-                    lastPeriod: String(row[anchors.sec1 + 11] || ''),
-                    remarks: String(row[anchors.sec1 + 12] || '')
-                };
-                batch.set(doc(db, 'bonus_summaries', employee.id), data, { merge: true });
-                results.bonusSummaries++;
-                writeCount++;
-            }
+        // Skip "TOTAL" rows
+        const leadVal = String(row[0] || '').trim().toLowerCase();
+        if (!leadVal || leadVal === 'employee' || leadVal.includes('total')) continue;
+
+        // Identify basic context
+        const period = resolvePeriodFromRow(row);
+        if (!period) {
+            console.warn(`[VBA Import] Row ${r+1}: Missing or invalid period. Skipping.`);
+            continue;
         }
 
-        // SECTION 2: BONUS LEDGER (Col S anchor, Section starts at P)
-        if (anchors.sec2 !== -1) {
-            const name = String(row[anchors.sec2] || '').trim();
-            const period = resolvePeriod(row, anchors.sec2 - 3); // Section starts 3 cols before Employee
-            if (name && period && name.toLowerCase() !== 'employee' && !name.toLowerCase().includes('total')) {
-                const employee = ensureEmployee(name);
-                const ledgerId = `${employee.id}_${period.year}_${period.month}`;
-                const data: BonusLedgerEntry = {
-                    id: ledgerId,
-                    runTime: String(row[anchors.sec2 - 3] || ''),
-                    periodAD: String(row[anchors.sec2 - 2] || ''),
-                    periodBS: String(row[anchors.sec2 - 1] || ''),
-                    bsYear: period.year,
-                    bsMonth: period.month,
-                    employeeId: employee.id,
-                    employeeName: employee.name,
-                    basis: String(row[anchors.sec2 + 1] || ''),
-                    baseAmount: coerceNumber(row[anchors.sec2 + 2]),
-                    attendancePct: coerceNumber(row[anchors.sec2 + 3]),
-                    isEligible: String(row[anchors.sec2 + 4] || '').toLowerCase() === 'yes',
-                    accrual: coerceNumber(row[anchors.sec2 + 5]),
-                    note: String(row[anchors.sec2 + 6] || '')
-                };
-                batch.set(doc(db, 'bonus_ledger', ledgerId), data, { merge: true });
-                results.bonusLedger++;
-                writeCount++;
-            }
+        // Section 1: Annual Bonus Summary (A-M)
+        const s1Name = String(row[0] || '').trim();
+        if (s1Name) {
+            const emp = ensureEmployee(s1Name);
+            const data: AnnualBonusSummary = {
+                id: emp.id,
+                employeeName: emp.name,
+                basis: String(row[1] || ''),
+                monthsWorked: coerceNumber(row[2]),
+                eligibleMonths: coerceNumber(row[3]),
+                avgAttendancePct: coerceNumber(row[4]),
+                avgMonthlySalary: coerceNumber(row[5]),
+                accruedYTD: coerceNumber(row[6]),
+                recommendedBonus: coerceNumber(row[7]),
+                thisPayout: coerceNumber(row[8]),
+                balanceAfter: coerceNumber(row[9]),
+                firstPeriod: String(row[10] || ''),
+                lastPeriod: String(row[11] || ''),
+                remarks: String(row[12] || '')
+            };
+            batch.set(doc(db, 'bonus_summaries', emp.id), data, { merge: true });
+            results.bonusSummaries++;
+            writeCount++;
         }
 
-        // SECTION 3: BEHAVIOR LEDGER (Col AH anchor, Section starts at AB)
-        if (anchors.sec3 !== -1) {
-            const name = String(row[anchors.sec3] || '').trim();
-            const period = resolvePeriod(row, anchors.sec3 - 6); // Section starts 6 cols before Employee
-            if (name && period && name.toLowerCase() !== 'employee' && !name.toLowerCase().includes('total')) {
-                const employee = ensureEmployee(name);
-                const ledgerId = `${employee.id}_${period.year}_${period.month}`;
-                const data: BehaviorLedgerEntry = {
-                    id: ledgerId,
-                    runTime: String(row[anchors.sec3 - 6] || ''),
-                    periodBS: String(row[anchors.sec3 - 5] || ''),
-                    periodAD: String(row[anchors.sec3 - 4] || ''),
-                    bsYear: period.year,
-                    bsMonth: period.month,
-                    bsMonthName: String(row[anchors.sec3 - 1] || ''),
-                    employeeId: employee.id,
-                    employeeName: employee.name,
-                    workdays: coerceNumber(row[anchors.sec3 + 1]),
-                    onTimeDays: coerceNumber(row[anchors.sec3 + 2]),
-                    onTimePct: coerceNumber(row[anchors.sec3 + 3]),
-                    lateDays: coerceNumber(row[anchors.sec3 + 4]),
-                    earlyDays: coerceNumber(row[anchors.sec3 + 5]),
-                    missingPunches: coerceNumber(row[anchors.sec3 + 6]),
-                    absentDays: coerceNumber(row[anchors.sec3 + 7]),
-                    satWorked: coerceNumber(row[anchors.sec3 + 8]),
-                    phWorked: coerceNumber(row[anchors.sec3 + 9]),
-                    extraOkHours: coerceNumber(row[anchors.sec3 + 10]),
-                    otHours: coerceNumber(row[anchors.sec3 + 11])
-                };
-                batch.set(doc(db, 'behavior_ledger', ledgerId), data, { merge: true });
-                results.behaviorLedger++;
-                writeCount++;
-            }
+        // Section 2: Bonus Ledger (P-Y)
+        const s2Name = String(row[18] || '').trim();
+        if (s2Name) {
+            const emp = ensureEmployee(s2Name);
+            const id = `${emp.id}_${period.year}_${period.month}`;
+            const data: BonusLedgerEntry = {
+                id,
+                runTime: String(row[15] || ''),
+                periodAD: String(row[16] || ''),
+                periodBS: String(row[17] || ''),
+                bsYear: period.year,
+                bsMonth: period.month,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                basis: String(row[19] || ''),
+                baseAmount: coerceNumber(row[20]),
+                attendancePct: coerceNumber(row[21]),
+                isEligible: String(row[22] || '').toLowerCase() === 'true' || String(row[22] || '').toLowerCase() === 'yes',
+                accrual: coerceNumber(row[23]),
+                note: String(row[24] || '')
+            };
+            batch.set(doc(db, 'bonus_ledger', id), data, { merge: true });
+            results.bonusLedger++;
+            writeCount++;
         }
 
-        // SECTION 4: PAYROLL LEDGER (Col AY anchor, Section starts at AV)
-        if (anchors.sec4 !== -1) {
-            const name = String(row[anchors.sec4] || '').trim();
-            const period = resolvePeriod(row, anchors.sec4 - 3); // Section starts 3 cols before Employee
-            if (name && period && name.toLowerCase() !== 'employee' && !name.toLowerCase().includes('total')) {
-                const employee = ensureEmployee(name);
-                const payrollId = `${period.year}-${period.month}-${employee.id}`;
-                const data: Omit<Payroll, 'id'> = {
-                    runTime: String(row[anchors.sec4 - 3] || ''),
-                    periodAD: String(row[anchors.sec4 - 2] || ''),
-                    periodBS: String(row[anchors.sec4 - 1] || ''),
-                    bsYear: period.year,
-                    bsMonth: period.month,
-                    employeeId: employee.id,
-                    employeeName: employee.name,
-                    base: String(row[anchors.sec4 + 1] || ''),
-                    presentDays: coerceNumber(row[anchors.sec4 + 2]),
-                    extraDays: coerceNumber(row[anchors.sec4 + 3]),
-                    leaveDays: coerceNumber(row[anchors.sec4 + 4]),
-                    regularPay: coerceNumber(row[anchors.sec4 + 5]),
-                    otPay: coerceNumber(row[anchors.sec4 + 6]),
-                    allowance: coerceNumber(row[anchors.sec4 + 7]),
-                    totalPay: coerceNumber(row[anchors.sec4 + 8]),
-                    tds: coerceNumber(row[anchors.sec4 + 9]),
-                    salaryTotal: coerceNumber(row[anchors.sec4 + 8]) - coerceNumber(row[anchors.sec4 + 9]),
-                    advance: coerceNumber(row[anchors.sec4 + 10]),
-                    netPayment: coerceNumber(row[anchors.sec4 + 11]),
-                    createdBy: importedBy,
-                    createdAt: now
-                };
-                batch.set(doc(db, COLLECTIONS.PAYROLL, payrollId), data, { merge: true });
-                results.payroll++;
-                writeCount++;
-            }
+        // Section 3: Behavior Ledger (AB-AS)
+        const s3Name = String(row[33] || '').trim();
+        if (s3Name) {
+            const emp = ensureEmployee(s3Name);
+            const id = `${emp.id}_${period.year}_${period.month}`;
+            const data: BehaviorLedgerEntry = {
+                id,
+                runTime: String(row[27] || ''),
+                periodBS: String(row[28] || ''),
+                periodAD: String(row[29] || ''),
+                bsYear: period.year,
+                bsMonth: period.month,
+                bsMonthName: String(row[32] || ''),
+                employeeId: emp.id,
+                employeeName: emp.name,
+                workdays: coerceNumber(row[34]),
+                onTimeDays: coerceNumber(row[35]),
+                onTimePct: coerceNumber(row[36]),
+                lateDays: coerceNumber(row[37]),
+                earlyDays: coerceNumber(row[38]),
+                missingPunches: coerceNumber(row[39]),
+                absentDays: coerceNumber(row[40]),
+                satWorked: coerceNumber(row[41]),
+                phWorked: coerceNumber(row[42]),
+                extraOkHours: coerceNumber(row[43]),
+                otHours: coerceNumber(row[44])
+            };
+            batch.set(doc(db, 'behavior_ledger', id), data, { merge: true });
+            results.behaviorLedger++;
+            writeCount++;
         }
 
-        // SECTION 5: BEHAVIOR ANALYTICS (Col BO anchor, Section starts at BL)
-        if (anchors.sec5 !== -1) {
-            const name = String(row[anchors.sec5] || '').trim();
-            const period = resolvePeriod(row, anchors.sec5 - 3); // Section starts 3 cols before Employee
-            if (name && period && name.toLowerCase() !== 'employee' && !name.toLowerCase().includes('total')) {
-                const employee = ensureEmployee(name);
-                const analyticsId = `${employee.id}_${period.year}_${period.month}`;
-                const data: BehaviorAnalyticsEntry = {
-                    id: analyticsId,
-                    runTime: String(row[anchors.sec5 - 3] || ''),
-                    periodBS: String(row[anchors.sec5 - 2] || ''),
-                    periodAD: String(row[anchors.sec5 - 1] || ''),
-                    bsYear: period.year,
-                    bsMonth: period.month,
-                    employeeId: employee.id,
-                    employeeName: employee.name,
-                    behaviorInsight: String(row[anchors.sec5 + 1] || ''),
-                    punctualityTrend: String(row[anchors.sec5 + 2] || ''),
-                    absencePattern: String(row[anchors.sec5 + 3] || ''),
-                    otImpact: String(row[anchors.sec5 + 4] || ''),
-                    shiftEndBehavior: String(row[anchors.sec5 + 5] || ''),
-                    performanceInsight: String(row[anchors.sec5 + 6] || ''),
-                    bestDayOfWeek: String(row[anchors.sec5 + 7] || ''),
-                    worstDayOfWeek: String(row[anchors.sec5 + 8] || '')
-                };
-                batch.set(doc(db, 'behavior_analytics', analyticsId), data, { merge: true });
-                results.behaviorAnalytics++;
-                writeCount++;
-            }
+        // Section 4: Payroll Ledger (AV-BJ)
+        const s4Name = String(row[50] || '').trim();
+        if (s4Name) {
+            const emp = ensureEmployee(s4Name);
+            const id = `${period.year}-${period.month}-${emp.id}`;
+            const data: Omit<Payroll, 'id'> = {
+                bsYear: period.year,
+                bsMonth: period.month,
+                runTime: String(row[47] || ''),
+                periodAD: String(row[48] || ''),
+                periodBS: String(row[49] || ''),
+                employeeId: emp.id,
+                employeeName: emp.name,
+                base: String(row[51] || ''),
+                presentDays: coerceNumber(row[52]),
+                extraDays: coerceNumber(row[53]),
+                leaveDays: coerceNumber(row[54]),
+                regularPay: coerceNumber(row[55]),
+                otPay: coerceNumber(row[56]),
+                allowance: coerceNumber(row[57]),
+                totalPay: coerceNumber(row[58]),
+                tds: coerceNumber(row[59]),
+                salaryTotal: coerceNumber(row[58]) - coerceNumber(row[59]),
+                advance: coerceNumber(row[60]),
+                netPayment: coerceNumber(row[61]),
+                createdBy: importedBy,
+                createdAt: now
+            };
+            batch.set(doc(db, COLLECTIONS.PAYROLL, id), data, { merge: true });
+            results.payroll++;
+            writeCount++;
         }
 
-        if (writeCount >= 450) await commitBatch();
+        // Section 5: Behavior Analytics (BL-BW)
+        const s5Name = String(row[66] || '').trim();
+        if (s5Name) {
+            const emp = ensureEmployee(s5Name);
+            const id = `${emp.id}_${period.year}_${period.month}`;
+            const data: BehaviorAnalyticsEntry = {
+                id,
+                runTime: String(row[63] || ''),
+                periodBS: String(row[64] || ''),
+                periodAD: String(row[65] || ''),
+                bsYear: period.year,
+                bsMonth: period.month,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                behaviorInsight: String(row[67] || ''),
+                punctualityTrend: String(row[68] || ''),
+                absencePattern: String(row[69] || ''),
+                otImpact: String(row[70] || ''),
+                shiftEndBehavior: String(row[71] || ''),
+                performanceInsight: String(row[72] || ''),
+                bestDayOfWeek: String(row[73] || ''),
+                worstDayOfWeek: String(row[74] || '')
+            };
+            batch.set(doc(db, 'behavior_analytics', id), data, { merge: true });
+            results.behaviorAnalytics++;
+            writeCount++;
+        }
+
+        if (writeCount >= 400) {
+            await commitBatch();
+        }
         onProgress(r - CL_DATA_START + 1, grid.length - CL_DATA_START);
     }
 
     if (writeCount > 0) await commitBatch();
+    console.log("[VBA Import] Final Results:", results);
     return results;
 };
