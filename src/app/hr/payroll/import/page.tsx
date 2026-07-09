@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NepaliDate from 'nepali-date-converter';
 import { cn } from '@/lib/utils';
+import { NEPALI_MONTHS } from '@/lib/constants';
 
 interface SheetInfo {
   name: string;
@@ -31,14 +32,6 @@ interface SelectedSheet {
     year: string;
     month: string;
 }
-
-const nepaliMonths = [
-    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
-    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
-    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
-];
-
 
 export default function ImportPayrollPage() {
     const router = useRouter();
@@ -59,7 +52,7 @@ export default function ImportPayrollPage() {
     useEffect(() => {
         const unsubEmployees = onEmployeesUpdate(setEmployees);
         
-        // As per requirement: allow adding payroll data for any period from BS 2080 up to BS 3000
+        // Allow adding payroll data for any period from BS 2080 up to BS 3000
         const allYears = [];
         for (let y = 2080; y <= 3000; y++) {
             allYears.push(y);
@@ -168,8 +161,6 @@ export default function ImportPayrollPage() {
                     totalUpdated += result.updatedCount;
                     totalNewEmployees += result.newEmployeesCount;
                     
-                    // Update our local list with newly created employees so the next sheet import
-                    // recognizes them and doesn't create duplicates.
                     if (result.newEmployees && result.newEmployees.length > 0) {
                         currentEmployeesList = [...currentEmployeesList, ...result.newEmployees];
                     }
@@ -197,7 +188,6 @@ export default function ImportPayrollPage() {
         setIsProcessing(false);
         setFileName(null);
         
-        // Redirect to the payroll registry after successful import
         router.push('/hr/payroll');
     };
 
@@ -253,13 +243,13 @@ export default function ImportPayrollPage() {
                             <Label htmlFor="select-all-sheets" className="font-black text-[10px] uppercase tracking-widest text-gray-900 cursor-pointer">Process All Identified Sheets</Label>
                         </div>
 
-                        <ScrollArea className="flex-1">
+                        <ScrollArea className="flex-1 h-full">
                             <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {availableSheets.map(sheet => {
                                     const currentSelection = selectedSheets.find(s => s.name === sheet.name);
                                     const isSelected = !!currentSelection;
                                     return (
-                                        <div key={sheet.name} className={cn(
+                                        <div key={`sheet-${sheet.name}`} className={cn(
                                             "p-4 rounded-xl border-2 transition-all space-y-4",
                                             isSelected ? "border-primary bg-primary/[0.03] shadow-sm ring-1 ring-primary/5" : "border-gray-100 bg-gray-50/50"
                                         )}>
@@ -283,7 +273,7 @@ export default function ImportPayrollPage() {
                                                         <Select value={currentSelection.year} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'year', value)}>
                                                             <SelectTrigger className="h-8 bg-white border-primary/20 text-[10px]"><SelectValue /></SelectTrigger>
                                                             <SelectContent className="max-h-[250px]">
-                                                                {bsYears.map(year => <SelectItem key={year} value={String(year)} className="text-xs">{year}</SelectItem>)}
+                                                                {bsYears.map(year => <SelectItem key={`year-${sheet.name}-${year}`} value={String(year)} className="text-xs">{year}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
@@ -292,7 +282,7 @@ export default function ImportPayrollPage() {
                                                         <Select value={currentSelection.month} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'month', value)}>
                                                             <SelectTrigger className="h-8 bg-white border-primary/20 text-[10px]"><SelectValue /></SelectTrigger>
                                                             <SelectContent>
-                                                                {nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)} className="text-xs">{month.name}</SelectItem>)}
+                                                                {NEPALI_MONTHS.map(month => <SelectItem key={`month-${sheet.name}-${month.value}`} value={String(month.value)} className="text-xs">{month.name}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>

@@ -38,9 +38,11 @@ export default function AnalyticsPage() {
         let isMounted = true;
         getAttendanceYears().then(years => {
             if (isMounted) {
-                setBsYears(years);
+                // Filter out any potential non-number values to ensure key uniqueness
+                const validYears = Array.from(new Set(years.filter(y => typeof y === 'number'))).sort((a, b) => b - a);
+                setBsYears(validYears);
                 const current = new NepaliDate();
-                const year = years.includes(current.getYear()) ? current.getYear() : years[0];
+                const year = validYears.includes(current.getYear()) ? current.getYear() : validYears[0];
                 if (year) {
                     setSelectedBsYear(String(year));
                     setSelectedBsMonth(String(current.getMonth()));
@@ -83,11 +85,11 @@ export default function AnalyticsPage() {
                 <div className="flex flex-col sm:flex-row gap-2 bg-muted/20 p-2 rounded-xl border border-dashed">
                     <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
                         <SelectTrigger className="w-[100px] h-9 bg-white"><SelectValue placeholder="Year" /></SelectTrigger>
-                        <SelectContent>{bsYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                        <SelectContent>{bsYears.map(y => <SelectItem key={`year-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                     </Select>
                     <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
                         <SelectTrigger className="w-[140px] h-9 bg-white"><SelectValue placeholder="Month" /></SelectTrigger>
-                        <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
+                        <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
                     </Select>
                     <Button size="sm" onClick={handleGenerateAnalytics} disabled={isProcessing || !selectedBsYear} className="h-9 font-black uppercase text-[10px] tracking-widest px-6 shadow-lg shadow-primary/20">
                         {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Activity className="mr-2 h-4 w-4" />}
@@ -111,10 +113,10 @@ export default function AnalyticsPage() {
                         <Card className="lg:col-span-2 shadow-lg border-gray-100 bg-white overflow-hidden">
                             <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
                                 <div>
-                                    <CardTitle className="text-sm font-black uppercase">Behavioral PatternsScoreboard</CardTitle>
+                                    <CardTitle className="text-sm font-black uppercase">Behavioral Patterns Scoreboard</CardTitle>
                                     <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Comparative punctuality metrics from machine data.</CardDescription>
                                 </div>
-                                <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter">Month: {NEPALI_MONTHS[parseInt(selectedBsMonth)].name}</Badge>
+                                <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter">Month: {NEPALI_MONTHS.find(m => String(m.value) === selectedBsMonth)?.name || 'N/A'}</Badge>
                             </CardHeader>
                             <CardContent className="p-0">
                                 <ScrollArea className="w-full">
@@ -130,7 +132,7 @@ export default function AnalyticsPage() {
                                         </TableHeader>
                                         <TableBody>
                                             {analyticsData.punctuality.map((p) => (
-                                                <TableRow key={p.employeeId} className="hover:bg-muted/20 h-12 border-b">
+                                                <TableRow key={`punct-${p.employeeId}`} className="hover:bg-muted/20 h-12 border-b">
                                                     <TableCell className="pl-6 font-bold text-gray-900 border-r">{p.employeeName}</TableCell>
                                                     <TableCell className="text-center tabular-nums">{p.presentDays}</TableCell>
                                                     <TableCell className="text-center tabular-nums text-amber-600 font-bold">{p.lateArrivals}</TableCell>
@@ -158,7 +160,7 @@ export default function AnalyticsPage() {
                                     <ScrollArea className="h-[400px] pr-4">
                                         <div className="space-y-4">
                                             {analyticsData.behavior.map(b => (
-                                                <div key={b.employeeId} className="p-3 rounded-xl border bg-white space-y-2">
+                                                <div key={`beh-${b.employeeId}`} className="p-3 rounded-xl border bg-white space-y-2">
                                                     <div className="flex justify-between items-center border-b pb-1">
                                                         <span className="font-black text-[11px] text-gray-900 uppercase">{b.employeeName}</span>
                                                         <Badge variant="outline" className="text-[8px] font-black h-4 px-1">{b.performanceInsight}</Badge>
@@ -181,7 +183,7 @@ export default function AnalyticsPage() {
                                 </CardHeader>
                                 <CardContent className="p-4 space-y-3">
                                     {analyticsData.lateHotspots.map(h => (
-                                        <div key={h.date} className="flex items-center justify-between text-xs">
+                                        <div key={`hotspot-${h.date}`} className="flex items-center justify-between text-xs">
                                             <span className="font-mono text-amber-900">{h.date}</span>
                                             <Badge className="bg-amber-600 text-white font-black">{h.count} Late</Badge>
                                         </div>
