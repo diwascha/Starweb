@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NepaliDate from 'nepali-date-converter';
@@ -216,13 +216,13 @@ export default function ImportPayrollPage() {
             </Card>
 
             <Dialog open={isSheetSelectDialogOpen} onOpenChange={setIsSheetSelectDialogOpen}>
-                <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0">
+                <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
                     <DialogHeader className="p-6 border-b bg-muted/10 shrink-0">
                         <DialogTitle className="text-xl font-black text-gray-900 uppercase">Period Alignment</DialogTitle>
                         <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Select the target Nepali Month for each identified sheet.</DialogDescription>
                     </DialogHeader>
-                    <div className="flex-1 overflow-hidden flex flex-col">
-                        <div className="p-4 border-b flex items-center space-x-2 bg-white sticky top-0 z-10">
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-gray-50/30">
+                        <div className="p-4 border-b flex items-center space-x-2 bg-white sticky top-0 z-10 shrink-0">
                             <Checkbox
                                 id="select-all-sheets"
                                 onCheckedChange={(checked) => {
@@ -283,9 +283,10 @@ export default function ImportPayrollPage() {
                                     );
                                 })}
                             </div>
+                            <ScrollBar orientation="vertical" />
                         </ScrollArea>
                     </div>
-                    <DialogFooter className="p-6 border-t bg-muted/5 shrink-0">
+                    <DialogFooter className="p-6 border-t bg-white shrink-0">
                         <Button variant="outline" onClick={() => setIsSheetSelectDialogOpen(false)} className="h-11 px-8 font-bold text-xs uppercase tracking-widest border-gray-300">Cancel</Button>
                         <Button onClick={handleImport} disabled={selectedSheets.length === 0} className="h-11 px-10 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
                             Authorize Batch Import ({selectedSheets.length})
