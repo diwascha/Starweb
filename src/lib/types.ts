@@ -433,6 +433,22 @@ export interface HrConfig {
   lastModifiedAt?: string;
 }
 
+/**
+ * Interface for imported behavioral analytics reports.
+ */
+export interface AnalyticsReport {
+    id: string; // bsYear-bsMonth
+    bsYear: number;
+    bsMonth: number;
+    behavioralPatterns: any[];
+    enhancedInsights: any[];
+    patternInsights: string[];
+    dayOfWeekPatterns: any[];
+    comparison: any[];
+    importedAt: string;
+    importedBy: string;
+}
+
 
 // --- Fleet Management Types ---
 export type VehicleStatus = 'Active' | 'In Maintenance' | 'Decommissioned';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Employee, AttendanceRecord } from '@/lib/types';
+import type { Employee, AttendanceRecord, AnalyticsReport } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,7 +11,7 @@ import NepaliDate from 'nepali-date-converter';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { generateAnalyticsForMonth, AnalyticsData } from '@/services/payroll-service';
+import { generateAnalyticsForMonth, AnalyticsData, getAnalyticsReport } from '@/services/payroll-service';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -38,7 +38,6 @@ export default function AnalyticsPage() {
         let isMounted = true;
         getAttendanceYears().then(years => {
             if (isMounted) {
-                // Filter out any potential non-number values to ensure key uniqueness
                 const validYears = Array.from(new Set(years.filter(y => typeof y === 'number'))).sort((a, b) => b - a);
                 setBsYears(validYears);
                 const current = new NepaliDate();
@@ -52,18 +51,25 @@ export default function AnalyticsPage() {
         return () => { isMounted = false; };
     }, [attendance]);
 
-    const handleGenerateAnalytics = () => {
+    const handleGenerateAnalytics = async () => {
         if (selectedBsYear && selectedBsMonth && employees.length > 0) {
             setIsProcessing(true);
             try {
+                const year = parseInt(selectedBsYear, 10);
+                const month = parseInt(selectedBsMonth, 10);
+                
+                // Try to get imported report first
+                const importedReport = await getAnalyticsReport(year, month);
+                
                 const data = generateAnalyticsForMonth(
-                    parseInt(selectedBsYear, 10),
-                    parseInt(selectedBsMonth, 10),
+                    year,
+                    month,
                     employees,
-                    attendance
+                    attendance,
+                    importedReport
                 );
                 setAnalyticsData(data);
-                toast({ title: "Intelligence Engine Complete" });
+                toast({ title: importedReport ? "Imported Intelligence Synchronized" : "Logic Engine Complete" });
             } catch (error) {
                 toast({ title: "Computation Failed", variant: "destructive" });
             } finally {
@@ -100,7 +106,7 @@ export default function AnalyticsPage() {
 
             {analyticsData ? (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-                    {/* 1. Patterns & Comparison Summary */}
+                    {/* 1. Peak Metric Summary */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <InsightCard title="Peak Absenteeism" value={analyticsData.highestAbsenteeism.day} sub={`${analyticsData.highestAbsenteeism.count} instances`} icon={AlertTriangle} color="red" />
                         <InsightCard title="Peak Tardiness" value={analyticsData.highestLateArrivals.day} sub={`${analyticsData.highestLateArrivals.count} late arrivals`} icon={Clock} color="amber" />
@@ -108,97 +114,190 @@ export default function AnalyticsPage() {
                         <InsightCard title="Sat. Utilization" value={`${analyticsData.saturdayUtilization.toFixed(0)}%`} sub="Saturday workload" icon={Calendar} color="blue" />
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* 2. Behavioral Patterns Scoring */}
-                        <Card className="lg:col-span-2 shadow-lg border-gray-100 bg-white overflow-hidden">
-                            <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle className="text-sm font-black uppercase">Behavioral Patterns Scoreboard</CardTitle>
-                                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Comparative punctuality metrics from machine data.</CardDescription>
-                                </div>
-                                <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter">Month: {NEPALI_MONTHS.find(m => String(m.value) === selectedBsMonth)?.name || 'N/A'}</Badge>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                <ScrollArea className="w-full">
-                                    <Table className="text-[11px]">
-                                        <TableHeader className="bg-muted/30">
-                                            <TableRow className="h-10">
-                                                <TableHead className="pl-6 font-black uppercase text-gray-900 border-r">Employee</TableHead>
-                                                <TableHead className="text-center font-bold uppercase">Present</TableHead>
-                                                <TableHead className="text-center font-bold uppercase">Late</TableHead>
-                                                <TableHead className="text-center font-bold uppercase">Early Exit</TableHead>
-                                                <TableHead className="text-right pr-6 font-black uppercase text-primary">Score</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {analyticsData.punctuality.map((p) => (
-                                                <TableRow key={`punct-${p.employeeId}`} className="hover:bg-muted/20 h-12 border-b">
-                                                    <TableCell className="pl-6 font-bold text-gray-900 border-r">{p.employeeName}</TableCell>
-                                                    <TableCell className="text-center tabular-nums">{p.presentDays}</TableCell>
-                                                    <TableCell className="text-center tabular-nums text-amber-600 font-bold">{p.lateArrivals}</TableCell>
-                                                    <TableCell className="text-center tabular-nums text-orange-600">{p.earlyDepartures}</TableCell>
-                                                    <TableCell className="text-right pr-6 font-black tabular-nums text-blue-700">{(p.punctualityScore * 100).toFixed(1)}%</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
-                            </CardContent>
-                        </Card>
-
-                        {/* 3. Enhanced Employee Insights */}
-                        <div className="space-y-6">
-                            <Card className="shadow-lg border-primary/20 bg-primary/[0.02]">
-                                <CardHeader className="py-4 border-b">
-                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                        <Zap className="h-3.5 w-3.5" />
-                                        Performance Snapshots
-                                    </CardTitle>
+                    {analyticsData.importedReport ? (
+                        <div className="grid grid-cols-1 gap-8 animate-in zoom-in-95">
+                            {/* Behavioral Patterns Table from Spreadsheet */}
+                            <Card className="shadow-lg border-gray-100 bg-white overflow-hidden">
+                                <CardHeader className="bg-primary/5 border-b py-4 px-6 flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-sm font-black uppercase tracking-tighter">Behavioral Patterns (Imported)</CardTitle>
+                                        <p className="text-[9px] uppercase font-bold text-muted-foreground">Original spreadsheet mapping for {NEPALI_MONTHS.find(m => String(m.value) === selectedBsMonth)?.name}</p>
+                                    </div>
+                                    <Badge variant="outline" className="bg-white px-2 py-0.5 text-[8px] font-black border-primary/20 uppercase tracking-widest">Master Audit</Badge>
                                 </CardHeader>
-                                <CardContent className="p-4">
-                                    <ScrollArea className="h-[400px] pr-4">
-                                        <div className="space-y-4">
-                                            {analyticsData.behavior.map(b => (
-                                                <div key={`beh-${b.employeeId}`} className="p-3 rounded-xl border bg-white space-y-2">
-                                                    <div className="flex justify-between items-center border-b pb-1">
-                                                        <span className="font-black text-[11px] text-gray-900 uppercase">{b.employeeName}</span>
-                                                        <Badge variant="outline" className="text-[8px] font-black h-4 px-1">{b.performanceInsight}</Badge>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-2 text-[9px] font-bold text-muted-foreground uppercase">
-                                                        <div className="flex items-center gap-1.5"><Timer className="h-2.5 w-2.5" /> {b.punctualityTrend}</div>
-                                                        <div className="flex items-center gap-1.5"><Activity className="h-2.5 w-2.5" /> {b.otImpact} OT</div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                <CardContent className="p-0">
+                                    <ScrollArea className="w-full">
+                                        <Table className="text-[10px]">
+                                            <TableHeader className="bg-muted/30">
+                                                <TableRow className="h-9">
+                                                    {Object.keys(analyticsData.importedReport.behavioralPatterns[0] || {}).map((header, i) => (
+                                                        <TableHead key={`h-${i}`} className={cn("uppercase font-black text-gray-900 border-r last:border-r-0", i === 0 && "pl-6")}>{header}</TableHead>
+                                                    ))}
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {analyticsData.importedReport.behavioralPatterns.map((row, ri) => (
+                                                    <TableRow key={`row-${ri}`} className="h-10 border-b hover:bg-muted/10">
+                                                        {Object.values(row).map((val, ci) => (
+                                                            <TableCell key={`cell-${ri}-${ci}`} className={cn("border-r last:border-r-0", ci === 0 && "pl-6 font-bold text-gray-900")}>
+                                                                {String(val || '—')}
+                                                            </TableCell>
+                                                        ))}
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                        <ScrollBar orientation="horizontal" />
                                     </ScrollArea>
                                 </CardContent>
                             </Card>
 
-                            {/* 4. Pattern Insights (Hotspots) */}
-                            <Card className="shadow-lg border-amber-200 bg-amber-50/20">
-                                <CardHeader className="py-3 border-b border-amber-100">
-                                    <CardTitle className="text-[10px] font-black uppercase text-amber-700">Operational Hotspots</CardTitle>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                {/* Enhanced Insights Table */}
+                                <Card className="shadow-lg border-gray-100 bg-white overflow-hidden">
+                                    <CardHeader className="bg-muted/10 border-b py-3 px-6"><CardTitle className="text-[10px] font-black uppercase tracking-widest">Enhanced Employee Insights</CardTitle></CardHeader>
+                                    <CardContent className="p-0">
+                                        <Table className="text-[10px]">
+                                            <TableHeader className="bg-muted/20">
+                                                <TableRow>
+                                                    {Object.keys(analyticsData.importedReport.enhancedInsights[0] || {}).map((h, i) => (
+                                                        <TableHead key={`eh-${i}`} className={cn("uppercase font-black text-gray-900", i === 0 && "pl-6")}>{h}</TableHead>
+                                                    ))}
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {analyticsData.importedReport.enhancedInsights.map((row, ri) => (
+                                                    <TableRow key={`erow-${ri}`} className="border-b">
+                                                        {Object.values(row).map((val, ci) => (
+                                                            <TableCell key={`ecell-${ri}-${ci}`} className={cn(ci === 0 && "pl-6 font-bold", ci === Object.values(row).length - 1 && "bg-muted/5 font-black uppercase")}>
+                                                                {String(val || '—')}
+                                                            </TableCell>
+                                                        ))}
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Pattern Insights & DOW Patterns */}
+                                <div className="space-y-8">
+                                    <Card className="shadow-lg border-primary/20 bg-primary/[0.02]">
+                                        <CardHeader className="py-3 border-b"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary">Key Organizational Findings</CardTitle></CardHeader>
+                                        <CardContent className="p-5">
+                                            <ul className="space-y-3">
+                                                {analyticsData.importedReport.patternInsights.map((ins, i) => (
+                                                    <li key={`ins-${i}`} className="flex gap-2 text-xs font-medium text-gray-700">
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                                                        {ins}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card className="shadow-lg border-gray-100 bg-white overflow-hidden">
+                                        <CardHeader className="py-3 bg-muted/10 border-b"><CardTitle className="text-[10px] font-black uppercase tracking-widest">Day of Week Patterns</CardTitle></CardHeader>
+                                        <CardContent className="p-0">
+                                            <Table className="text-[10px]">
+                                                <TableHeader className="bg-muted/20">
+                                                    <TableRow>
+                                                        {Object.keys(analyticsData.importedReport.dayOfWeekPatterns[0] || {}).map((h, i) => (
+                                                            <TableHead key={`dh-${i}`} className={cn("font-black uppercase text-gray-900", i === 0 && "pl-6")}>{h}</TableHead>
+                                                        ))}
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {analyticsData.importedReport.dayOfWeekPatterns.map((row, ri) => (
+                                                        <TableRow key={`drow-${ri}`} className="border-b">
+                                                            {Object.values(row).map((val, ci) => (
+                                                                <TableCell key={`dcell-${ri}-${ci}`} className={cn(ci === 0 && "pl-6 font-bold")}>{String(val || '—')}</TableCell>
+                                                            ))}
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            {/* Behavioral Patterns Scoring (Calculated) */}
+                            <Card className="lg:col-span-2 shadow-lg border-gray-100 bg-white overflow-hidden">
+                                <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-sm font-black uppercase">Calculated behavioral scoreboard</CardTitle>
+                                        <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Comparative punctuality metrics from machine logs.</CardDescription>
+                                    </div>
+                                    <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-amber-600 border-amber-200">Derived from Logs</Badge>
                                 </CardHeader>
-                                <CardContent className="p-4 space-y-3">
-                                    {analyticsData.lateHotspots.map(h => (
-                                        <div key={`hotspot-${h.date}`} className="flex items-center justify-between text-xs">
-                                            <span className="font-mono text-amber-900">{h.date}</span>
-                                            <Badge className="bg-amber-600 text-white font-black">{h.count} Late</Badge>
-                                        </div>
-                                    ))}
-                                    {analyticsData.lateHotspots.length === 0 && <p className="text-[10px] text-muted-foreground italic">No clusters detected.</p>}
+                                <CardContent className="p-0">
+                                    <ScrollArea className="w-full">
+                                        <Table className="text-[11px]">
+                                            <TableHeader className="bg-muted/30">
+                                                <TableRow className="h-10">
+                                                    <TableHead className="pl-6 font-black uppercase text-gray-900 border-r">Employee</TableHead>
+                                                    <TableHead className="text-center font-bold uppercase">Present</TableHead>
+                                                    <TableHead className="text-center font-bold uppercase">Late</TableHead>
+                                                    <TableHead className="text-center font-bold uppercase">Early Exit</TableHead>
+                                                    <TableHead className="text-right pr-6 font-black uppercase text-primary">Score</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {analyticsData.punctuality.map((p) => (
+                                                    <TableRow key={`punct-${p.employeeId}`} className="hover:bg-muted/20 h-12 border-b">
+                                                        <TableCell className="pl-6 font-bold text-gray-900 border-r">{p.employeeName}</TableCell>
+                                                        <TableCell className="text-center tabular-nums">{p.presentDays}</TableCell>
+                                                        <TableCell className="text-center tabular-nums text-amber-600 font-bold">{p.lateArrivals}</TableCell>
+                                                        <TableCell className="text-center tabular-nums text-orange-600">{p.earlyDepartures}</TableCell>
+                                                        <TableCell className="text-right pr-6 font-black tabular-nums text-blue-700">{(p.punctualityScore * 100).toFixed(1)}%</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                        <ScrollBar orientation="horizontal" />
+                                    </ScrollArea>
                                 </CardContent>
                             </Card>
+
+                            <div className="space-y-6">
+                                <Card className="shadow-lg border-primary/20 bg-primary/[0.02]">
+                                    <CardHeader className="py-4 border-b">
+                                        <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                            <Zap className="h-3.5 w-3.5" />
+                                            System Insights
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-4">
+                                        <ScrollArea className="h-[400px] pr-4">
+                                            <div className="space-y-4">
+                                                {analyticsData.behavior.map(b => (
+                                                    <div key={`beh-${b.employeeId}`} className="p-3 rounded-xl border bg-white space-y-2">
+                                                        <div className="flex justify-between items-center border-b pb-1">
+                                                            <span className="font-black text-[11px] text-gray-900 uppercase">{b.employeeName}</span>
+                                                            <Badge variant="outline" className="text-[8px] font-black h-4 px-1">{b.performanceInsight}</Badge>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2 text-[9px] font-bold text-muted-foreground uppercase">
+                                                            <div className="flex items-center gap-1.5"><Timer className="h-2.5 w-2.5" /> {b.punctualityTrend}</div>
+                                                            <div className="flex items-center gap-1.5"><Activity className="h-2.5 w-2.5" /> {b.otImpact} OT</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </ScrollArea>
+                                    </CardContent>
+                                </Card>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             ) : (
                 <div className="h-96 border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center text-center p-12 bg-muted/5">
                     <Activity className="h-20 w-20 text-muted-foreground/10 mb-6 animate-pulse"/>
                     <h3 className="text-xl font-black text-gray-300 uppercase tracking-[0.2em]">Computation Ready</h3>
-                    <p className="text-sm text-muted-foreground mt-2 max-w-sm">Select a month and click "Run Analytics" to generate machine-log driven intelligence reports.</p>
+                    <p className="text-sm text-muted-foreground mt-2 max-w-sm">Select a month and click "Run Analytics" to generate machine-log driven intelligence or view imported spreadsheet insights.</p>
                 </div>
             )}
         </div>

@@ -1,6 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, setDoc, deleteDoc } from 'firebase/firestore';
-import type { Payroll, Employee, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord } from '@/lib/types';
+import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import type { Payroll, Employee, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord, AnalyticsReport } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from './settings-service';
 import { COLLECTIONS, NEPALI_MONTHS } from '@/lib/constants';
@@ -10,6 +10,11 @@ import { format, startOfDay, getDay } from 'date-fns';
 const getPayrollCollection = () => {
     const { db } = getFirebase();
     return collection(db, COLLECTIONS.PAYROLL);
+}
+
+const getAnalyticsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'analytics_reports');
 }
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Payroll => {
@@ -236,6 +241,64 @@ const isAnalyticsRow = (name: string): boolean => {
     );
 };
 
+const extractSection = (jsonData: any[][], startMarker: string): any[] => {
+    const marker = startMarker.toLowerCase();
+    let startIndex = -1;
+    for (let i = 0; i < jsonData.length; i++) {
+        if (jsonData[i].join(' ').toLowerCase().includes(marker)) {
+            startIndex = i;
+            break;
+        }
+    }
+    if (startIndex === -1) return [];
+
+    // Extract headers (next non-empty row)
+    let headerIdx = startIndex + 1;
+    while (headerIdx < jsonData.length && (!jsonData[headerIdx] || jsonData[headerIdx].every(c => !c))) {
+        headerIdx++;
+    }
+    if (headerIdx >= jsonData.length) return [];
+
+    const headers = jsonData[headerIdx];
+    const data: any[] = [];
+    
+    // Extract rows until another section or empty block
+    for (let i = headerIdx + 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!row || row.every(c => !c)) break;
+        if (isAnalyticsRow(String(row[0]))) break; // Stop at major headings
+
+        const item: any = {};
+        headers.forEach((h: any, j: number) => {
+            if (h) item[String(h).trim()] = row[j];
+        });
+        data.push(item);
+    }
+    return data;
+};
+
+const extractPatternInsights = (jsonData: any[][]): string[] => {
+    const marker = "pattern insights";
+    let startIdx = -1;
+    for (let i = 0; i < jsonData.length; i++) {
+        if (jsonData[i].join(' ').toLowerCase().includes(marker)) {
+            startIdx = i;
+            break;
+        }
+    }
+    if (startIdx === -1) return [];
+
+    const insights: string[] = [];
+    for (let i = startIdx + 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!row || row.every(c => !c)) break;
+        const text = String(row[0] || '').trim();
+        if (text) insights.push(text);
+        if (insights.length > 20) break; // Guard
+    }
+    return insights;
+};
+
 export const importPayrollFromSheet = async (
     jsonData: any[][],
     employees: Employee[],
@@ -274,10 +337,9 @@ export const importPayrollFromSheet = async (
         const employeeMap = new Map(employees.map(e => [e.name.toLowerCase().trim(), e]));
         const processedEmployeeIdsInThisSheet = new Set<string>();
 
+        // 1. Process Financial Data (Payroll)
         for (const fullRow of dataRows) {
             const employeeName = String(fullRow[nameIndex] || '').trim();
-            
-            // SKIP Analytics/Summary Rows
             if (!employeeName || isAnalyticsRow(employeeName)) continue;
 
             let employee = employeeMap.get(employeeName.toLowerCase());
@@ -295,18 +357,11 @@ export const importPayrollFromSheet = async (
                     createdAt: now,
                 };
                 batch.set(empRef, newEmpData);
-                
                 employee = { id: empRef.id, ...newEmpData } as Employee;
                 employeeMap.set(employeeName.toLowerCase(), employee);
                 newlyCreatedEmployees.push(employee);
                 newEmployeesCount++;
                 writeCount++;
-                
-                if (writeCount >= batchSize) {
-                    await batch.commit();
-                    batch = writeBatch(db);
-                    writeCount = 0;
-                }
             }
             
             if (processedEmployeeIdsInThisSheet.has(employee.id)) continue;
@@ -315,7 +370,6 @@ export const importPayrollFromSheet = async (
             const getValue = (key: string) => {
                 const index = (headerMap as any)[key];
                 if (index === undefined || index === null) return null;
-                // Specifically allow reading only financial data part (Columns Q-AG)
                 if (index < 16 || index > 32) return null;
                 return fullRow[index] !== undefined ? fullRow[index] : null;
             };
@@ -350,19 +404,29 @@ export const importPayrollFromSheet = async (
             };
             
             const payrollId = `${bsYear}-${bsMonth}-${employee.id}`;
-            const docRef = doc(getPayrollCollection(), payrollId);
-            
-            batch.set(docRef, payrollData, { merge: true });
+            batch.set(doc(getPayrollCollection(), payrollId), payrollData, { merge: true });
             createdCount++;
             writeCount++;
 
-            if (writeCount >= batchSize) {
-                await batch.commit();
-                batch = writeBatch(db);
-                writeCount = 0;
-            }
+            if (writeCount >= batchSize) { await batch.commit(); batch = writeBatch(db); writeCount = 0; }
         }
 
+        // 2. Process Behavioral Analytics
+        const analyticsReport: Omit<AnalyticsReport, 'id'> = {
+            bsYear,
+            bsMonth,
+            behavioralPatterns: extractSection(jsonData, "behavioral patterns"),
+            enhancedInsights: extractSection(jsonData, "enhanced employee insights"),
+            patternInsights: extractPatternInsights(jsonData),
+            dayOfWeekPatterns: extractSection(jsonData, "day of week patterns"),
+            comparison: extractSection(jsonData, "month-to-month behavioral comparison"),
+            importedAt: createTimestamp(),
+            importedBy: importedBy
+        };
+
+        const reportId = `${bsYear}-${bsMonth}`;
+        batch.set(doc(getAnalyticsCollection(), reportId), analyticsReport, { merge: true });
+        
         if (writeCount > 0) await batch.commit();
         return { createdCount, updatedCount, newEmployeesCount, newEmployees: newlyCreatedEmployees };
     } catch (error) {
@@ -394,7 +458,6 @@ export const getHeaderMap = (headerRow: any[]) => {
         remark: ['remark', 'remarks']
     };
 
-    // Prioritize searching from index 16 onwards (Column Q) for financial data
     const searchOrder = [
         ...Array.from({ length: headerRow.length - 16 }, (_, i) => i + 16),
         ...Array.from({ length: 16 }, (_, i) => i)
@@ -424,13 +487,15 @@ export interface AnalyticsData {
     saturdayUtilization: number;
     mostPunctualWeekday: { day: string; rate: number };
     worstShiftStart: { time: string; rate: number };
+    importedReport?: AnalyticsReport | null;
 }
 
 export const generateAnalyticsForMonth = (
     bsYear: number,
     bsMonth: number,
     allEmployees: Employee[],
-    allAttendance: AttendanceRecord[]
+    allAttendance: AttendanceRecord[],
+    importedReport?: AnalyticsReport | null
 ): AnalyticsData => {
     const monthlyAttendance = allAttendance.filter(r => r.bsYear === bsYear && r.bsMonth === bsMonth);
     const punctuality: PunctualityInsight[] = [];
@@ -521,6 +586,14 @@ export const generateAnalyticsForMonth = (
         lateHotspots: sortedHotspots.map(([date, count]) => ({ date, count })),
         saturdayUtilization: totalSaturdays > 0 ? (saturdaysWithWork / totalSaturdays) * 100 : 0,
         mostPunctualWeekday: { day: sortedPunctual[0][0], rate: (1 - (sortedPunctual[0][1].late / sortedPunctual[0][1].total)) * 100 },
-        worstShiftStart: sortedShifts.length > 0 ? { time: sortedShifts[0][0], rate: (sortedShifts[0][1].late / sortedShifts[0][1].total) * 100 } : { time: 'N/A', rate: 0 }
+        worstShiftStart: sortedShifts.length > 0 ? { time: sortedShifts[0][0], rate: (sortedShifts[0][1].late / sortedShifts[0][1].total) * 100 } : { time: 'N/A', rate: 0 },
+        importedReport
     };
+};
+
+export const getAnalyticsReport = async (bsYear: number, bsMonth: number): Promise<AnalyticsReport | null> => {
+    const id = `${bsYear}-${bsMonth}`;
+    const docRef = doc(getAnalyticsCollection(), id);
+    const snap = await getDoc(docRef);
+    return snap.exists() ? { id: snap.id, ...snap.data() } as AnalyticsReport : null;
 };
