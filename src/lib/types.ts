@@ -341,18 +341,19 @@ export interface Payroll {
     otHours?: number;
     regularHours?: number;
     rate?: number;
-    regularPay?: number;
+    regularPay?: number; // Basic Pay
     otPay?: number;
-    totalPay?: number;
-    absentDays?: number;
-    deduction?: number;
     allowance?: number;
-    bonus?: number;
-    salaryTotal?: number;
+    totalPay?: number; // Gross (Basic + OT + Allowance)
+    absentDays?: number;
+    deduction?: number; // Absent Amt
     tds?: number;
-    gross?: number;
+    salaryTotal?: number; // Gross Salary (Gross - TDS)
     advance?: number;
-    netPayment?: number;
+    net?: number; // Net (Gross Salary - Advance)
+    roundedNet?: number; // Rounded Net
+    bonus?: number;
+    netPayment?: number; // Final Net (Rounded Net + Bonus)
     remark?: string;
     createdBy: string;
     createdAt: string; // ISO string
@@ -406,6 +407,8 @@ export interface HrConfig {
     freeEarly: number;
     freeEarlyPeriod: 'WEEKLY' | 'MONTHLY';
     reviewThresh: number;
+    breakStart?: string;
+    breakEnd?: string;
   };
   payroll: {
     defaultHourly: number;

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -61,7 +62,9 @@ const INITIAL_HR_CONFIG: HrConfig = {
         freeLatePeriod: 'WEEKLY',
         freeEarly: 1,
         freeEarlyPeriod: 'WEEKLY',
-        reviewThresh: 8.5
+        reviewThresh: 8.5,
+        breakStart: '12:00',
+        breakEnd: '13:00'
     },
     payroll: {
         defaultHourly: 83.5,
@@ -326,8 +329,18 @@ export default function HrOfficePage() {
                                     </div>
                                 </div>
                                 <div className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-primary border-b pb-1">Oversight Thresholds</h4>
-                                    <div className="space-y-1.5">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-primary border-b pb-1">Break & Oversight</h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[9px] font-bold uppercase text-muted-foreground">Fixed Break Start</Label>
+                                            <Input type="time" value={hrConfig.hours.breakStart || '12:00'} onChange={e => updateNestedConfig('hours', 'breakStart', e.target.value)} className="h-8 font-mono text-xs" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[9px] font-bold uppercase text-muted-foreground">Fixed Break End</Label>
+                                            <Input type="time" value={hrConfig.hours.breakEnd || '13:00'} onChange={e => updateNestedConfig('hours', 'breakEnd', e.target.value)} className="h-8 font-mono text-xs" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5 pt-2">
                                         <Label className="text-[9px] font-bold uppercase text-muted-foreground">Review Flag (Working Hrs/Day)</Label>
                                         <Input type="number" step="0.1" value={hrConfig.hours.reviewThresh} onChange={e => updateNestedConfig('hours', 'reviewThresh', Number(e.target.value))} className="h-9 font-black text-amber-600" />
                                         <p className="text-[9px] text-muted-foreground italic">Alert admin when an employee exceeds these daily hours.</p>
@@ -350,10 +363,10 @@ export default function HrOfficePage() {
                                         </ul>
                                     </div>
                                     <div className="space-y-2">
-                                        <p className="text-[10px] font-black text-gray-900 uppercase">Tolerance & Snap</p>
+                                        <p className="text-[10px] font-black text-gray-900 uppercase">Tolerance & Break</p>
                                         <ul className="text-[11px] text-muted-foreground space-y-2 leading-tight">
                                             <li><b className="text-gray-700">Grace (Min):</b> Arrival window. If within grace, the punch snaps to Shift Start. Prevents "Late" flags for minor delays.</li>
-                                            <li><b className="text-gray-700">Block (Min):</b> OT barrier. Employees must stay at least this long after shift end to trigger ANY overtime payment.</li>
+                                            <li><b className="text-gray-700">Fixed Break:</b> The system auto-deducts this window from work time only if total shift exceeds 4 hours.</li>
                                         </ul>
                                     </div>
                                     <div className="space-y-2">

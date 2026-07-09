@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Attendance service handling raw machine logs and calculated labor metrics.
  */
@@ -350,9 +351,11 @@ export const deleteAllRawLogs = async (): Promise<void> => {
 /**
  * Logic Utilities
  */
+
 const timeToMinutes = (time: string): number => {
-    const [h, m] = time.split(':').map(Number);
-    return (h || 0) * 60 + (m || 0);
+    const [h, m, s] = time.split(':').map(Number);
+    // Fixed #4: match VBA Round(TimeValue * 1440) by including seconds
+    return Math.round(((h || 0) * 3600 + (m || 0) * 60 + (s || 0)) / 60);
 };
 
 const roundToNearest = (value: number, step: number): number => {
@@ -360,19 +363,17 @@ const roundToNearest = (value: number, step: number): number => {
     return Math.round(value / step) * step;
 };
 
-const getFixedBreakOverlap = (startMins: number, endMins: number): number => {
-    const breakStart = 12 * 60; // 12:00
-    const breakEnd = 13 * 60;   // 13:00
-    const overlapStart = Math.max(startMins, breakStart);
-    const overlapEnd = Math.min(endMins, breakEnd);
+const getFixedBreakOverlap = (startMins: number, endMins: number, breakStartMins: number, breakEndMins: number): number => {
+    const overlapStart = Math.max(startMins, breakStartMins);
+    const overlapEnd = Math.min(endMins, breakEndMins);
     return Math.max(0, overlapEnd - overlapStart);
 };
 
-const applyFixedBreak = (startMins: number, endMins: number): number => {
+const applyFixedBreak = (startMins: number, endMins: number, breakStartMins: number, breakEndMins: number): number => {
     const duration = endMins - startMins;
     if (duration <= 0) return 0;
     
-    const overlap = getFixedBreakOverlap(startMins, endMins);
+    const overlap = getFixedBreakOverlap(startMins, endMins, breakStartMins, breakEndMins);
     let finalMins = duration;
     // Deduct overlap ONLY if overlap > 0 AND duration > 4h (240 mins)
     if (overlap > 0 && duration > 240) {
@@ -397,6 +398,10 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const config = (configSetting?.value as HrConfig) || null;
     if (!config) throw new Error("HR Operational Rules not found. Please configure them in HR Office.");
 
+    // Fixed #1: resolve break window from config
+    const breakStartMins = config.hours.breakStart ? timeToMinutes(config.hours.breakStart) : 12 * 60;
+    const breakEndMins = config.hours.breakEnd ? timeToMinutes(config.hours.breakEnd) : 13 * 60;
+
     const qRaw = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const rawSnap = await getDocs(qRaw);
     if (rawSnap.empty) throw new Error("No raw machine logs found for selected period.");
@@ -415,9 +420,7 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         await deleteBatch.commit();
     }
 
-    // Counters for Free Passes
     const passCounters = new Map<string, number>();
-
     const rawLogs = rawSnap.docs.map(d => fromFirestoreLog(d as any)).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const results: Omit<AttendanceRecord, 'id'>[] = [];
     const now = createTimestamp();
@@ -442,41 +445,52 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         let finalStatus = log.statusFromMachine;
         let finalRemarks = '';
 
-        // BRANCHING BY DAY TYPE
-        
-        // A) Public Holiday
+        // Fixed #2: Precedence chain: Holiday > Leave > Absent > Saturday > Normal
         if (holiday) {
             finalStatus = 'Public Holiday';
             finalRemarks = `Public Holiday - ${holiday.name}`;
             reg = config.hours.baseDayHours;
             if (log.clockIn && log.clockOut) {
-                const worked = applyFixedBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut));
+                const worked = applyFixedBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut), breakStartMins, breakEndMins);
                 ot = roundToNearest(worked, config.hours.roundStep);
             }
-        } 
-        // B) Absent (Machine says TRUE/Absent)
+        }
+        else if (leave) {
+            finalStatus = 'Leave';
+            finalRemarks = `${leave.leaveType} Leave: ${leave.reason}`;
+            reg = leave.leaveType === 'Paid' ? config.hours.baseDayHours : 0;
+            ot = 0;
+        }
         else if (log.statusFromMachine === 'Absent' || log.statusFromMachine === 'TRUE') {
             finalStatus = 'Absent';
             reg = 0; ot = 0;
             finalRemarks = '';
         }
-        // C) Saturday (Day Off)
         else if (logDate.getDay() === 6) {
             finalStatus = 'Saturday';
-            finalRemarks = ''; // Requirements: Else zero out or blank
+            finalRemarks = '';
             if (log.clockIn && log.clockOut) {
-                const worked = applyFixedBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut));
+                const worked = applyFixedBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut), breakStartMins, breakEndMins);
                 if (worked > 0) {
                     ot = roundToNearest(worked, config.hours.roundStep);
                     reg = 0;
                 }
             }
         }
-        // D) Normal Working Day
         else {
+            // Normal workday branch
             if (!log.onDuty || !log.offDuty || !log.clockIn || !log.clockOut) {
+                // Fixed #3: Explicit missing-punch remarks
+                const missIn = !log.clockIn;
+                const missOut = !log.clockOut;
+                if (missIn && missOut) {
+                    finalRemarks = "Missing IN & OUT";
+                } else if (missIn) {
+                    finalRemarks = "Missing IN";
+                } else {
+                    finalRemarks = "Missing OUT";
+                }
                 finalStatus = (log.clockIn || log.clockOut) ? 'C/I/O Miss' : 'Absent';
-                finalRemarks = "Missing IN/OUT";
                 reg = 0; ot = 0;
             } else {
                 const sOn = timeToMinutes(log.onDuty);
@@ -487,7 +501,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                 const lateMin = Math.max(0, aIn - sOn);
                 const earlyMin = Math.max(0, sOff - aOut);
 
-                // Penalty Logic for Late Arrival
                 let latePen = 0;
                 if (lateMin > 0) {
                     if (lateMin <= config.hours.graceMin) {
@@ -505,7 +518,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                     }
                 }
 
-                // Penalty Logic for Early Departure
                 let earlyPen = 0;
                 if (earlyMin > 0) {
                     if (earlyMin <= config.hours.graceMin) {
@@ -528,10 +540,9 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
 
                 let paid = 0;
                 if (effOut > effIn) {
-                    paid = applyFixedBreak(effIn, effOut);
+                    paid = applyFixedBreak(effIn, effOut, breakStartMins, breakEndMins);
                 }
 
-                // ExtraOK Credit
                 let extraBefore = 0;
                 let extraAfter = 0;
                 if (log.statusFromMachine.toUpperCase().includes('EXTRAOK')) {
@@ -552,20 +563,11 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
                 
                 finalStatus = 'Present';
 
-                // Review Flag
-                const actualWorked = applyFixedBreak(aIn, aOut);
+                const actualWorked = applyFixedBreak(aIn, aOut, breakStartMins, breakEndMins);
                 if (actualWorked > config.hours.reviewThresh) {
                     finalRemarks = "Review Hours";
                 }
             }
-        }
-
-        // Leave Override (Approved Leave)
-        if (leave && !holiday) {
-            finalStatus = 'Leave';
-            finalRemarks = `${leave.leaveType} Leave: ${leave.reason}`;
-            reg = leave.leaveType === 'Paid' ? config.hours.baseDayHours : 0;
-            ot = 0;
         }
 
         results.push({
