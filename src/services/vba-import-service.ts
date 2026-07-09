@@ -39,13 +39,18 @@ const SEC_BEHAVIOR_ANALYTICS = { start: 63, empIdx: 66 }; // BL-BW (BL=63, BO=66
 /**
  * Robustly extracts the BS period from strings.
  * Handles formats like: "Jestha 2083 (BS 2083-02)", "BS 2083-02", "2083-02", "2083/02"
+ * and range formats: "2082-11-01 (FALGUN) to 2082-11-30 (FALGUN)"
  */
 const parsePeriodString = (str: string): { year: number, month: number } | null => {
     if (!str) return null;
     const s = String(str);
-    const match = s.match(/(?:BS\s*)?(\d{4})[-/](\d{1,2})/i);
+    // Find the first occurrence of YYYY-MM or YYYY/MM
+    const match = s.match(/(\d{4})[-/](\d{1,2})/i);
     if (match) {
-        return { year: parseInt(match[1], 10), month: parseInt(match[2], 10) - 1 };
+        return { 
+            year: parseInt(match[1], 10), 
+            month: parseInt(match[2], 10) - 1 // System uses 0-indexed months
+        };
     }
     return null;
 };
@@ -138,10 +143,11 @@ export const importConsolidatedLedger = async (
         // --- SECTION 2: BONUS LEDGER (P-Y) ---
         const s2_name = String(row[SEC_BONUS_LEDGER.empIdx] || '').trim();
         if (s2_name && s2_name.toLowerCase() !== 'employee' && !s2_name.toLowerCase().includes('total')) {
-            const employee = await ensureEmployee(s2_name);
             const periodStr = String(row[17] || ''); // Col R is index 17
             const period = parsePeriodString(periodStr);
+            
             if (period) {
+                const employee = await ensureEmployee(s2_name);
                 const ledgerId = `${employee.id}_${period.year}_${period.month}`;
                 const ledgerData: BonusLedgerEntry = {
                     id: ledgerId,
@@ -155,23 +161,26 @@ export const importConsolidatedLedger = async (
                     basis: String(row[19] || ''),
                     baseAmount: coerceNumber(row[20]),
                     attendancePct: coerceNumber(row[21]),
-                    isEligible: !!row[22],
+                    isEligible: String(row[22] || '').toLowerCase() === 'yes',
                     accrual: coerceNumber(row[23]),
                     note: String(row[24] || '')
                 };
                 batch.set(doc(db, 'bonus_ledger', ledgerId), ledgerData, { merge: true });
                 results.bonusLedger++;
                 writeCount++;
+            } else {
+                console.warn(`[Import] Section 2: Skipping row ${r+1} - Could not parse period from "${periodStr}"`);
             }
         }
 
         // --- SECTION 3: BEHAVIOR LEDGER (AB-AS) ---
         const s3_name = String(row[SEC_BEHAVIOR_LEDGER.empIdx] || '').trim();
         if (s3_name && s3_name.toLowerCase() !== 'employee' && !s3_name.toLowerCase().includes('total')) {
-            const employee = await ensureEmployee(s3_name);
             const year = coerceNumber(row[30]); // Col AE is index 30
             const month = coerceNumber(row[31]) - 1; // Col AF is index 31
+            
             if (year > 1000) { // Valid year check
+                const employee = await ensureEmployee(s3_name);
                 const ledgerId = `${employee.id}_${year}_${month}`;
                 const behaviorData: BehaviorLedgerEntry = {
                     id: ledgerId,
@@ -204,10 +213,10 @@ export const importConsolidatedLedger = async (
         // --- SECTION 4: PAYROLL LEDGER (AV-BJ) ---
         const s4_name = String(row[SEC_PAYROLL_LEDGER.empIdx] || '').trim();
         if (s4_name && s4_name.toLowerCase() !== 'employee' && !s4_name.toLowerCase().includes('total')) {
-            const employee = await ensureEmployee(s4_name);
             const periodStr = String(row[49] || ''); // Col AX is index 49
             const period = parsePeriodString(periodStr);
             if (period) {
+                const employee = await ensureEmployee(s4_name);
                 const payrollId = `${period.year}-${period.month}-${employee.id}`;
                 const payrollData: Omit<Payroll, 'id'> = {
                     bsYear: period.year,
@@ -239,10 +248,10 @@ export const importConsolidatedLedger = async (
         // --- SECTION 5: BEHAVIOR ANALYTICS (BL-BW) ---
         const s5_name = String(row[SEC_BEHAVIOR_ANALYTICS.empIdx] || '').trim();
         if (s5_name && s5_name.toLowerCase() !== 'employee' && !s5_name.toLowerCase().includes('total')) {
-            const employee = await ensureEmployee(s5_name);
             const periodStr = String(row[64] || ''); // Col BM is index 64
             const period = parsePeriodString(periodStr);
             if (period) {
+                const employee = await ensureEmployee(s5_name);
                 const analyticsId = `${employee.id}_${period.year}_${period.month}`;
                 const analyticsData: BehaviorAnalyticsEntry = {
                     id: analyticsId,
@@ -273,6 +282,6 @@ export const importConsolidatedLedger = async (
     }
 
     if (writeCount > 0) await batch.commit();
-    console.log(`[Import] Cycle complete. Imported ${results.payroll} payroll records.`);
+    console.log(`[Import] Cycle complete. Results:`, results);
     return results;
 };
