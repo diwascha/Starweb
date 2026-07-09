@@ -20,7 +20,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         bsMonth: data.bsMonth,
         employeeId: data.employeeId,
         employeeName: String(data.employeeName || ''),
-        joiningDate: data.joiningDate,
+        joiningDate: data.joiningDate || null,
         totalHours: coerceNumber(data.totalHours),
         otHours: coerceNumber(data.otHours),
         regularHours: coerceNumber(data.regularHours),
@@ -314,7 +314,7 @@ export const importPayrollFromSheet = async (
                 bsYear, bsMonth,
                 employeeId: employee.id,
                 employeeName,
-                joiningDate: employee.joiningDate || undefined,
+                joiningDate: employee.joiningDate || null,
                 totalHours: regularHours + otHours,
                 otHours: otHours,
                 regularHours: regularHours,
@@ -324,6 +324,7 @@ export const importPayrollFromSheet = async (
                 allowance: coerceNumber(getValue('allowance')),
                 totalPay: coerceNumber(getValue('totalPay')),
                 absentDays: coerceNumber(getValue('absentDays')),
+                deduction: coerceNumber(getValue('deduction')),
                 tds: coerceNumber(getValue('tds')),
                 salaryTotal: coerceNumber(getValue('salaryTotal')),
                 advance: coerceNumber(getValue('advance')),
@@ -406,4 +407,77 @@ const getHeaderMap = (headerRow: any[]) => {
         }
     });
     return map;
+};
+
+export interface AnalyticsData {
+    punctuality: PunctualityInsight[];
+    behavior: BehaviorInsight[];
+    workforce: WorkforceAnalytics[];
+    patterns: PatternInsight[];
+}
+
+export const generateAnalyticsForMonth = (
+    bsYear: number,
+    bsMonth: number,
+    allEmployees: Employee[],
+    allAttendance: AttendanceRecord[]
+): AnalyticsData => {
+    const monthlyAttendance = allAttendance.filter(r => r.bsYear === bsYear && r.bsMonth === bsMonth);
+    const punctuality: PunctualityInsight[] = [];
+    const behavior: BehaviorInsight[] = [];
+    const workforce: WorkforceAnalytics[] = [];
+    const patterns: PatternInsight[] = [];
+
+    const workingEmployees = allEmployees.filter(e => e.status === 'Working');
+
+    for (const employee of workingEmployees) {
+        const employeeAttendance = monthlyAttendance.filter(r => r.employeeId === employee.id);
+        const scheduledDays = 26; // Simplified
+        const presentDays = employeeAttendance.filter(r => r.status === 'Present').length;
+        const absentDays = employeeAttendance.filter(r => r.status === 'Absent').length;
+        
+        const lateArrivals = employeeAttendance.filter(r => r.remarks?.toLowerCase().includes('late')).length;
+        const earlyDepartures = employeeAttendance.filter(r => r.remarks?.toLowerCase().includes('early')).length;
+
+        const attendanceRate = presentDays / scheduledDays;
+        const punctualityScore = (presentDays - (lateArrivals * 0.5)) / presentDays || 0;
+
+        punctuality.push({
+            employeeId: employee.id,
+            employeeName: employee.name,
+            scheduledDays,
+            presentDays,
+            absentDays,
+            attendanceRate,
+            lateArrivals,
+            earlyDepartures,
+            onTimeDays: presentDays - lateArrivals,
+            punctualityScore
+        });
+
+        behavior.push({
+            employeeId: employee.id,
+            employeeName: employee.name,
+            punctualityTrend: lateArrivals > 3 ? 'Declining' : 'Stable',
+            absencePattern: absentDays > 2 ? 'Frequent' : 'Normal',
+            otImpact: employeeAttendance.reduce((sum, r) => sum + r.overtimeHours, 0) > 10 ? 'High' : 'Low',
+            shiftEndBehavior: earlyDepartures > 2 ? 'Early Exit Pattern' : 'Standard',
+            performanceInsight: punctualityScore > 0.9 ? 'Exemplary' : 'Average'
+        });
+
+        workforce.push({
+            employeeId: employee.id,
+            employeeName: employee.name,
+            overtimeRatio: employeeAttendance.reduce((sum, r) => sum + r.overtimeHours, 0) / (presentDays * 8) || 0,
+            onTimeStreak: 0, // Simplified
+            saturdaysWorked: employeeAttendance.filter(r => new Date(r.date).getDay() === 6).length
+        });
+    }
+
+    patterns.push({
+        finding: 'Attendance Trends',
+        description: `Average attendance rate for this period is ${((punctuality.reduce((s, p) => s + p.attendanceRate, 0) / workingEmployees.length) * 100).toFixed(1)}%`
+    });
+
+    return { punctuality, behavior, workforce, patterns };
 };
