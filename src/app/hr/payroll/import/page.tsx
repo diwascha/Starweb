@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Loader2, Calendar, CheckCircle } from 'lucide-react';
+import { Upload, Loader2, Calendar, CheckCircle, ChevronDown, Check, X, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { importPayrollFromSheet } from '@/services/payroll-service';
@@ -114,8 +114,6 @@ export default function ImportPayrollPage() {
     const handleSheetSelectionChange = (sheetName: string, checked: boolean) => {
         const currentNepaliDate = new NepaliDate();
         if (checked) {
-            // Requirement: "clartiy and simplicity" - default to current month/year and allow manual choice
-            // We set defaults but remove the complex auto-scanning for "auto date identification" restrictions
             const defaultMonth = String(currentNepaliDate.getMonth());
             const defaultYear = String(currentNepaliDate.getYear());
             
@@ -151,7 +149,7 @@ export default function ImportPayrollPage() {
         for (const selected of selectedSheets) {
             const sheetInfo = availableSheets.find(s => s.name === selected.name);
             if (sheetInfo) {
-                setImportProgress(`Processing sheet: ${sheetInfo.name}...`);
+                setImportProgress(`Processing ${sheetInfo.name}...`);
                  try {
                     const result = await importPayrollFromSheet(
                         sheetInfo.jsonData,
@@ -179,7 +177,7 @@ export default function ImportPayrollPage() {
         
         toast({ 
             title: 'Import Complete', 
-            description: `${totalCreated} records created, ${totalUpdated} records updated. ${totalNewEmployees} new employees detected and onboarded.` 
+            description: `${totalCreated} records created, ${totalUpdated} records updated. ${totalNewEmployees} new employees onboarded.` 
         });
         
         setImportProgress(null);
@@ -192,7 +190,7 @@ export default function ImportPayrollPage() {
         <div className="flex flex-col gap-8">
             <header>
                 <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Payroll Bulk Importer</h1>
-                <p className="text-muted-foreground text-sm font-medium">Manually map spreadsheet sheets to organizational periods.</p>
+                <p className="text-muted-foreground text-sm font-medium italic">Manually map spreadsheet sheets to organizational periods.</p>
             </header>
             
             <Card className="border-dashed shadow-none bg-muted/5">
@@ -211,11 +209,17 @@ export default function ImportPayrollPage() {
             </Card>
 
             <Dialog open={isSheetSelectDialogOpen} onOpenChange={setIsSheetSelectDialogOpen}>
-                <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
-                    <DialogHeader className="p-4 sm:p-6 border-b bg-muted/10 shrink-0 text-left">
-                        <DialogTitle className="text-lg sm:text-xl font-black text-gray-900 uppercase">Period Alignment</DialogTitle>
-                        <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Select the target Nepali Month for each identified sheet.</DialogDescription>
+                <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+                    <DialogHeader className="p-6 border-b bg-muted/5 shrink-0 text-left">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/10 rounded-lg"><FileSpreadsheet className="h-5 w-5 text-primary"/></div>
+                            <div>
+                                <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Period Alignment</DialogTitle>
+                                <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Select the target Nepali Month for each identified sheet.</DialogDescription>
+                            </div>
+                        </div>
                     </DialogHeader>
+
                     <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-gray-50/30">
                         <div className="p-4 border-b flex items-center space-x-2 bg-white sticky top-0 z-10 shrink-0">
                             <Checkbox
@@ -230,17 +234,18 @@ export default function ImportPayrollPage() {
                                 }}
                                 checked={selectedSheets.length === availableSheets.length && availableSheets.length > 0}
                             />
-                            <Label htmlFor="select-all-sheets" className="font-black text-xs uppercase tracking-tight text-gray-900">Process All Identified Sheets</Label>
+                            <Label htmlFor="select-all-sheets" className="font-black text-[10px] uppercase tracking-widest text-gray-900 cursor-pointer">Process All Identified Sheets</Label>
                         </div>
-                        <ScrollArea className="flex-1 h-full min-h-0">
-                            <div className="p-3 sm:p-4 space-y-3">
+
+                        <ScrollArea className="flex-1 h-full">
+                            <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {availableSheets.map(sheet => {
                                     const currentSelection = selectedSheets.find(s => s.name === sheet.name);
                                     const isSelected = !!currentSelection;
                                     return (
                                         <div key={sheet.name} className={cn(
-                                            "p-3 sm:p-4 rounded-xl border-2 transition-all space-y-4",
-                                            isSelected ? "border-primary bg-primary/[0.03] shadow-sm" : "border-gray-100 bg-gray-50/50"
+                                            "p-4 rounded-xl border-2 transition-all space-y-4",
+                                            isSelected ? "border-primary bg-primary/[0.03] shadow-sm ring-1 ring-primary/5" : "border-gray-100 bg-gray-50/50"
                                         )}>
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center space-x-3 overflow-hidden">
@@ -250,30 +255,29 @@ export default function ImportPayrollPage() {
                                                         checked={isSelected}
                                                     />
                                                     <div className="flex flex-col overflow-hidden">
-                                                        <Label htmlFor={`sheet-${sheet.name}`} className="font-black text-xs sm:text-sm text-gray-900 uppercase tracking-tight truncate">{sheet.name}</Label>
-                                                        <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase">{sheet.rowCount} data lines found</span>
+                                                        <Label htmlFor={`sheet-${sheet.name}`} className="font-black text-xs text-gray-900 uppercase tracking-tight truncate cursor-pointer">{sheet.name}</Label>
+                                                        <span className="text-[9px] font-bold text-muted-foreground uppercase">{sheet.rowCount} data lines</span>
                                                     </div>
                                                 </div>
-                                                {isSelected && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 h-6 uppercase text-[8px] sm:text-[9px] font-black shrink-0">Targeted</Badge>}
                                             </div>
                                             {isSelected && (
-                                                <div className="pl-7 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 animate-in fade-in slide-in-from-left-2">
-                                                    <div className="space-y-1.5">
-                                                        <Label className="text-[8px] sm:text-[9px] font-black uppercase text-primary tracking-widest px-1">Target BS Year</Label>
+                                                <div className="pl-7 grid grid-cols-1 gap-3 animate-in fade-in slide-in-from-left-2">
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[9px] font-black uppercase text-primary tracking-widest px-1">Target BS Year</Label>
                                                         <Select value={currentSelection.year} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'year', value)}>
-                                                            <SelectTrigger className="h-8 sm:h-9 bg-white border-primary/20 text-xs"><SelectValue /></SelectTrigger>
-                                                            <SelectContent>
-                                                                <ScrollArea className="h-[200px]">
-                                                                    {bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
-                                                                </ScrollArea>
+                                                            <SelectTrigger className="h-8 bg-white border-primary/20 text-[10px]"><SelectValue /></SelectTrigger>
+                                                            <SelectContent className="max-h-[250px]">
+                                                                {bsYears.map(year => <SelectItem key={year} value={String(year)} className="text-xs">{year}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
-                                                    <div className="space-y-1.5">
-                                                        <Label className="text-[8px] sm:text-[9px] font-black uppercase text-primary tracking-widest px-1">Target BS Month</Label>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[9px] font-black uppercase text-primary tracking-widest px-1">Target BS Month</Label>
                                                         <Select value={currentSelection.month} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'month', value)}>
-                                                            <SelectTrigger className="h-8 sm:h-9 bg-white border-primary/20 text-xs"><SelectValue /></SelectTrigger>
-                                                            <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
+                                                            <SelectTrigger className="h-8 bg-white border-primary/20 text-[10px]"><SelectValue /></SelectTrigger>
+                                                            <SelectContent>
+                                                                {nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)} className="text-xs">{month.name}</SelectItem>)}
+                                                            </SelectContent>
                                                         </Select>
                                                     </div>
                                                 </div>
@@ -283,13 +287,13 @@ export default function ImportPayrollPage() {
                                 })}
                             </div>
                             <ScrollBar orientation="vertical" />
-                            <ScrollBar orientation="horizontal" />
                         </ScrollArea>
                     </div>
-                    <DialogFooter className="p-4 sm:p-6 border-t bg-white shrink-0 flex flex-col sm:flex-row gap-3">
-                        <Button variant="outline" onClick={() => setIsSheetSelectDialogOpen(false)} className="h-10 sm:h-11 px-8 font-bold text-xs uppercase tracking-widest border-gray-300 w-full sm:w-auto order-2 sm:order-1">Cancel</Button>
-                        <Button onClick={handleImport} disabled={selectedSheets.length === 0} className="h-10 sm:h-11 px-10 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 w-full sm:w-auto order-1 sm:order-2">
-                            Authorize Import ({selectedSheets.length})
+
+                    <DialogFooter className="p-6 border-t bg-white shrink-0 flex flex-col sm:flex-row gap-3">
+                        <Button variant="outline" onClick={() => setIsSheetSelectDialogOpen(false)} className="h-11 px-8 font-bold text-xs uppercase tracking-widest border-gray-300 w-full sm:w-auto">Cancel</Button>
+                        <Button onClick={handleImport} disabled={selectedSheets.length === 0} className="h-11 px-10 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 w-full sm:w-auto">
+                            Authorize Batch Import ({selectedSheets.length})
                         </Button>
                     </DialogFooter>
                 </DialogContent>
