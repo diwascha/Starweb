@@ -302,7 +302,7 @@ export const importPayrollFromSheet = async (
             let employee = employeeMap.get(employeeName.toLowerCase());
             
             if (!employee) {
-                // REQUIREMENT: Automatic process for adding new employees
+                // REQUIREMENT: Automatic onboarding of new employees
                 const empRef = doc(collection(db, COLLECTIONS.EMPLOYEES));
                 const now = createTimestamp();
                 const newEmpData: Omit<Employee, 'id'> = {
@@ -316,7 +316,6 @@ export const importPayrollFromSheet = async (
                 };
                 batch.set(empRef, newEmpData);
                 
-                // Add to map for subsequent rows in same sheet
                 employee = { id: empRef.id, ...newEmpData } as Employee;
                 employeeMap.set(employeeName.toLowerCase(), employee);
                 newEmployeesCount++;
