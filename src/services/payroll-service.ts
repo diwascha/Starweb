@@ -1,4 +1,3 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit } from 'firebase/firestore';
 import type { Payroll, Employee, AttendanceRecord, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
@@ -168,7 +167,7 @@ export const calculateAndSavePayrollForMonth = async (
                 const baseSalary = Number(employee.wageAmount) || 0;
                 const dayRate = baseSalary / daysInMonth;
                 const basicPay = baseSalary - (absentDays * dayRate);
-                const otPay = otHours * rate; // 1.0x as per image analysis
+                const otPay = otHours * rate; 
                 const allowance = Number(employee.allowance) || 0;
                 const gross = basicPay + otPay + allowance;
                 const tds = gross * 0.01;
@@ -183,7 +182,7 @@ export const calculateAndSavePayrollForMonth = async (
                     bsYear, bsMonth,
                     employeeId: employee.id,
                     employeeName: employee.name,
-                    joiningDate: employee.joiningDate || undefined,
+                    joiningDate: employee.joiningDate || null,
                     totalHours: regularHours + otHours,
                     regularHours, otHours, rate,
                     regularPay: basicPay,
@@ -220,7 +219,7 @@ export const calculateAndSavePayrollForMonth = async (
                     bsYear, bsMonth,
                     employeeId: employee.id,
                     employeeName: employee.name,
-                    joiningDate: employee.joiningDate || undefined,
+                    joiningDate: employee.joiningDate || null,
                     totalHours: regularHours + otHours,
                     regularHours, otHours, rate,
                     regularPay: basicPay,
@@ -307,11 +306,27 @@ export const importPayrollFromSheet = async (
                 return index !== undefined ? fullRow[index] : null;
             };
             
+            // Automatic Period Detection from row-level date info if available
+            let rowBsYear = bsYear;
+            let rowBsMonth = bsMonth;
+            const rowDateVal = getValue('date');
+            if (rowDateVal) {
+                try {
+                    const parsedDate = new Date(rowDateVal);
+                    if (!isNaN(parsedDate.getTime())) {
+                        const nd = new NepaliDate(parsedDate);
+                        rowBsYear = nd.getYear();
+                        rowBsMonth = nd.getMonth();
+                    }
+                } catch {}
+            }
+            
             const otHours = coerceNumber(getValue('otHours'));
             const regularHours = coerceNumber(getValue('regularHours'));
             
             const payrollData: Omit<Payroll, 'id'> = {
-                bsYear, bsMonth,
+                bsYear: rowBsYear, 
+                bsMonth: rowBsMonth,
                 employeeId: employee.id,
                 employeeName,
                 joiningDate: employee.joiningDate || null,
@@ -343,8 +358,8 @@ export const importPayrollFromSheet = async (
             
             const q = query(getPayrollCollection(),
                 where("employeeId", "==", employee.id),
-                where("bsYear", "==", bsYear),
-                where("bsMonth", "==", bsMonth),
+                where("bsYear", "==", rowBsYear),
+                where("bsMonth", "==", rowBsMonth),
                 limit(1)
             );
             const snapshot = await getDocs(q);
@@ -379,6 +394,7 @@ const getHeaderMap = (headerRow: any[]) => {
     const map: Record<string, number> = {};
     const payrollHeaders: Record<string, string[]> = {
         name: ['employee', 'staff name', 'name'],
+        date: ['date', 'work date', 'period'],
         otHours: ['ot hrs', 'ot hour', 'ot hours'],
         regularHours: ['regular hrs', 'normal hrs', 'regular hours'],
         rate: ['base (salary or', 'rate'],
@@ -432,7 +448,7 @@ export const generateAnalyticsForMonth = (
 
     for (const employee of workingEmployees) {
         const employeeAttendance = monthlyAttendance.filter(r => r.employeeId === employee.id);
-        const scheduledDays = 26; // Simplified
+        const scheduledDays = 26; 
         const presentDays = employeeAttendance.filter(r => r.status === 'Present').length;
         const absentDays = employeeAttendance.filter(r => r.status === 'Absent').length;
         
@@ -469,7 +485,7 @@ export const generateAnalyticsForMonth = (
             employeeId: employee.id,
             employeeName: employee.name,
             overtimeRatio: employeeAttendance.reduce((sum, r) => sum + r.overtimeHours, 0) / (presentDays * 8) || 0,
-            onTimeStreak: 0, // Simplified
+            onTimeStreak: 0, 
             saturdaysWorked: employeeAttendance.filter(r => new Date(r.date).getDay() === 6).length
         });
     }
