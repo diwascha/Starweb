@@ -6,16 +6,18 @@ import type { Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Loader2, FileSpreadsheet, CheckCircle } from 'lucide-react';
+import { Upload, Loader2, FileSpreadsheet, CheckCircle, Terminal } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { importPayrollFromSheet } from '@/services/payroll-service';
+import { importVbaReport } from '@/services/vba-import-service';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import NepaliDate from 'nepali-date-converter';
 import { cn } from '@/lib/utils';
 import { NEPALI_MONTHS } from '@/lib/constants';
@@ -39,6 +41,7 @@ export default function ImportPayrollPage() {
     const { toast } = useToast();
     const { user } = useAuth();
     
+    const [importMode, setImportMode] = useState<'STANDARD' | 'VBA'>('STANDARD');
     const [isProcessing, setIsProcessing] = useState(false);
     const [fileName, setFileName] = useState<string | null>(null);
     const [bsYears, setBsYears] = useState<number[]>([]);
@@ -50,14 +53,9 @@ export default function ImportPayrollPage() {
 
     useEffect(() => {
         const unsubEmployees = onEmployeesUpdate(setEmployees);
-        
-        // Allow adding payroll data for any period from BS 2080 up to BS 3000
         const allYears = [];
-        for (let y = 2080; y <= 3000; y++) {
-            allYears.push(y);
-        }
+        for (let y = 2080; y <= 2100; y++) allYears.push(y);
         setBsYears(allYears);
-
         return () => unsubEmployees();
     }, []);
 
@@ -125,86 +123,103 @@ export default function ImportPayrollPage() {
         setSelectedSheets(prev => prev.map(s => s.name === sheetName ? { ...s, [type]: value } : s));
     };
 
-
     const handleImport = async () => {
-        if (selectedSheets.length === 0 || !user) {
-            toast({title: 'Error', description: 'Please select at least one sheet to import.', variant: 'destructive'});
-            return;
-        }
+        if (selectedSheets.length === 0 || !user) return;
         
         setIsSheetSelectDialogOpen(false);
         setIsProcessing(true);
         setImportProgress(`Starting...`);
 
-        let totalCreated = 0;
-        let totalUpdated = 0;
-        let totalNewEmployees = 0;
-        
-        let currentEmployeesList = [...employees];
-
-        for (const selected of selectedSheets) {
-            const sheetInfo = availableSheets.find(s => s.name === selected.name);
-            if (sheetInfo) {
-                setImportProgress(`Processing ${sheetInfo.name}...`);
-                 try {
-                    const result = await importPayrollFromSheet(
-                        sheetInfo.jsonData,
-                        currentEmployeesList,
-                        user.username, 
-                        parseInt(selected.year, 10), 
-                        parseInt(selected.month, 10)
-                    );
-                    
-                    totalCreated += result.createdCount;
-                    totalUpdated += result.updatedCount;
-                    totalNewEmployees += result.newEmployeesCount;
-                    
-                    if (result.newEmployees && result.newEmployees.length > 0) {
-                        currentEmployeesList = [...currentEmployeesList, ...result.newEmployees];
+        try {
+            if (importMode === 'VBA') {
+                // VBA Logic: Single flow for analytics + payroll
+                for (const selected of selectedSheets) {
+                    const sheet = availableSheets.find(s => s.name === selected.name);
+                    if (sheet) {
+                        setImportProgress(`Extracting VBA blocks: ${sheet.name}...`);
+                        await importVbaReport(
+                            sheet.jsonData, 
+                            parseInt(selected.year), 
+                            parseInt(selected.month), 
+                            user.username
+                        );
                     }
-
-                } catch (error: any) {
-                    toast({
-                        title: `Import Error in ${sheetInfo.name}`,
-                        description: error.message || 'An unexpected error occurred during import.',
-                        variant: 'destructive',
-                        duration: 8000
-                    });
-                    setImportProgress(null);
-                    setIsProcessing(false);
-                    return;
                 }
-            }
-        }
-        
-        toast({ 
-            title: 'Import Complete', 
-            description: `${totalCreated} records created, ${totalUpdated} records updated. ${totalNewEmployees} new employees onboarded.` 
-        });
-        
-        setImportProgress(null);
-        setIsProcessing(false);
-        setFileName(null);
-        
-        router.push('/hr/payroll');
-    };
+                toast({ title: 'VBA Report Sync Complete', description: 'Payroll and behavioral analytics have been mirrored.' });
+            } else {
+                // Standard Logic: Legacy processing
+                let totalCreated = 0;
+                let currentEmployeesList = [...employees];
 
+                for (const selected of selectedSheets) {
+                    const sheet = availableSheets.find(s => s.name === selected.name);
+                    if (sheet) {
+                        setImportProgress(`Processing ${sheet.name}...`);
+                        const result = await importPayrollFromSheet(
+                            sheet.jsonData,
+                            currentEmployeesList,
+                            user.username, 
+                            parseInt(selected.year), 
+                            parseInt(selected.month)
+                        );
+                        totalCreated += result.createdCount;
+                        if (result.newEmployees) currentEmployeesList = [...currentEmployeesList, ...result.newEmployees];
+                    }
+                }
+                toast({ title: 'Import Complete', description: `${totalCreated} payroll records processed.` });
+            }
+            
+            router.push('/hr/payroll');
+        } catch (error: any) {
+            toast({ title: `Import Error`, description: error.message, variant: 'destructive' });
+        } finally {
+            setImportProgress(null);
+            setIsProcessing(false);
+            setFileName(null);
+        }
+    };
 
     return (
         <div className="flex flex-col gap-8">
-            <header>
-                <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Payroll Bulk Importer</h1>
-                <p className="text-muted-foreground text-sm font-medium italic">Manually map spreadsheet sheets to organizational periods.</p>
+            <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Payroll Bulk Importer</h1>
+                    <p className="text-muted-foreground text-sm font-medium italic">Manually map spreadsheet sheets to organizational periods.</p>
+                </div>
+                <Tabs value={importMode} onValueChange={(v: any) => setImportMode(v)} className="bg-muted/30 p-1 rounded-lg">
+                    <TabsList className="h-8">
+                        <TabsTrigger value="STANDARD" className="text-[10px] uppercase font-bold px-4">Standard Sheet</TabsTrigger>
+                        <TabsTrigger value="VBA" className="text-[10px] uppercase font-bold px-4 gap-1.5"><Terminal className="h-3 w-3"/> VBA System Report</TabsTrigger>
+                    </TabsList>
+                </Tabs>
             </header>
             
-            <Card className="border-dashed shadow-none bg-muted/5">
+            <Card className={cn(
+                "border-dashed shadow-none transition-colors",
+                importMode === 'VBA' ? "bg-indigo-50/20 border-indigo-200" : "bg-muted/5"
+            )}>
                 <CardHeader>
-                    <CardTitle className="text-sm font-black uppercase text-gray-900">Upload Source</CardTitle>
-                    <CardDescription>Supported formats: .xls, .xlsx, .xlsm. Unrecognized names will be automatically onboarded.</CardDescription>
+                    <CardTitle className="text-sm font-black uppercase text-gray-900 flex items-center gap-2">
+                        {importMode === 'VBA' && <Terminal className="h-4 w-4 text-indigo-600"/>}
+                        Upload Source
+                    </CardTitle>
+                    <CardDescription>
+                        {importMode === 'VBA' 
+                            ? "Mirror pre-computed blocks from Column Q onwards. No daily data required." 
+                            : "Standard payroll table with optional analytics harvesting."}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                      <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xls,.xlsx,.xlsm" className="hidden" />
-                     <Button onClick={() => fileInputRef.current?.click()} disabled={isProcessing} size="lg" className="h-12 px-8 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/10">
+                     <Button 
+                        onClick={() => fileInputRef.current?.click()} 
+                        disabled={isProcessing} 
+                        size="lg" 
+                        className={cn(
+                            "h-12 px-8 font-black text-xs uppercase tracking-widest shadow-xl",
+                            importMode === 'VBA' ? "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/10" : "shadow-primary/10"
+                        )}
+                    >
                          {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                          {isProcessing ? (importProgress || 'Mapping Data...') : 'Identify Local Excel File'}
                      </Button>
@@ -213,13 +228,13 @@ export default function ImportPayrollPage() {
             </Card>
 
             <Dialog open={isSheetSelectDialogOpen} onOpenChange={setIsSheetSelectDialogOpen}>
-                <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+                <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
                     <DialogHeader className="p-6 border-b bg-muted/5 shrink-0 text-left">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-primary/10 rounded-lg"><FileSpreadsheet className="h-5 w-5 text-primary"/></div>
                             <div>
                                 <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Period Alignment</DialogTitle>
-                                <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Select the target Nepali Month for each identified sheet.</DialogDescription>
+                                <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Select the target month for each identified report sheet.</DialogDescription>
                             </div>
                         </div>
                     </DialogHeader>
@@ -229,12 +244,10 @@ export default function ImportPayrollPage() {
                             <Checkbox
                                 id="select-all-sheets"
                                 onCheckedChange={(checked) => {
-                                    const currentNepaliDate = new NepaliDate();
-                                    const defaultYear = String(currentNepaliDate.getYear());
-                                    const defaultMonth = String(currentNepaliDate.getMonth());
-                                    setSelectedSheets(
-                                        checked ? availableSheets.map(s => ({ name: s.name, year: defaultYear, month: defaultMonth })) : []
-                                    );
+                                    const curr = new NepaliDate();
+                                    const y = String(curr.getYear());
+                                    const m = String(curr.getMonth());
+                                    setSelectedSheets(checked ? availableSheets.map(s => ({ name: s.name, year: y, month: m })) : []);
                                 }}
                                 checked={selectedSheets.length === availableSheets.length && availableSheets.length > 0}
                             />
@@ -244,43 +257,40 @@ export default function ImportPayrollPage() {
                         <ScrollArea className="flex-1 h-full">
                             <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {availableSheets.map(sheet => {
-                                    const currentSelection = selectedSheets.find(s => s.name === sheet.name);
-                                    const isSelected = !!currentSelection;
+                                    const sel = selectedSheets.find(s => s.name === sheet.name);
                                     return (
                                         <div key={`sheet-item-${sheet.name}`} className={cn(
                                             "p-4 rounded-xl border-2 transition-all space-y-4",
-                                            isSelected ? "border-primary bg-primary/[0.03] shadow-sm ring-1 ring-primary/5" : "border-gray-100 bg-gray-50/50"
+                                            !!sel ? "border-primary bg-primary/[0.03] shadow-sm ring-1 ring-primary/5" : "border-gray-100 bg-gray-50/50"
                                         )}>
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center space-x-3 overflow-hidden">
-                                                    <Checkbox
-                                                        id={`sheet-${sheet.name}`}
-                                                        onCheckedChange={(checked) => handleSheetSelectionChange(sheet.name, !!checked)}
-                                                        checked={isSelected}
-                                                    />
-                                                    <div className="flex flex-col overflow-hidden">
-                                                        <Label htmlFor={`sheet-${sheet.name}`} className="font-black text-xs text-gray-900 uppercase tracking-tight truncate cursor-pointer">{sheet.name}</Label>
-                                                        <span className="text-[9px] font-bold text-muted-foreground uppercase">{sheet.rowCount} data lines</span>
-                                                    </div>
+                                            <div className="flex items-center space-x-3 overflow-hidden">
+                                                <Checkbox
+                                                    id={`sheet-${sheet.name}`}
+                                                    onCheckedChange={(checked) => handleSheetSelectionChange(sheet.name, !!checked)}
+                                                    checked={!!sel}
+                                                />
+                                                <div className="flex flex-col overflow-hidden">
+                                                    <Label htmlFor={`sheet-${sheet.name}`} className="font-black text-xs text-gray-900 uppercase tracking-tight truncate cursor-pointer">{sheet.name}</Label>
+                                                    <span className="text-[9px] font-bold text-muted-foreground uppercase">{sheet.rowCount} data lines</span>
                                                 </div>
                                             </div>
-                                            {isSelected && (
+                                            {!!sel && (
                                                 <div className="pl-7 grid grid-cols-1 gap-3 animate-in fade-in slide-in-from-left-2">
                                                     <div className="space-y-1">
-                                                        <Label className="text-[9px] font-black uppercase text-primary tracking-widest px-1">Target BS Year</Label>
-                                                        <Select value={currentSelection.year} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'year', value)}>
+                                                        <Label className="text-[9px] font-black uppercase text-primary tracking-widest px-1">BS Year</Label>
+                                                        <Select value={sel.year} onValueChange={(v) => handleSheetPeriodChange(sheet.name, 'year', v)}>
                                                             <SelectTrigger className="h-8 bg-white border-primary/20 text-[10px]"><SelectValue /></SelectTrigger>
-                                                            <SelectContent className="max-h-[250px]">
-                                                                {bsYears.map(year => <SelectItem key={`year-opt-${sheet.name}-${year}`} value={String(year)} className="text-xs">{year}</SelectItem>)}
+                                                            <SelectContent className="max-h-[200px]">
+                                                                {bsYears.map(y => <SelectItem key={`yr-${sheet.name}-${y}`} value={String(y)} className="text-xs">{y}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <Label className="text-[9px] font-black uppercase text-primary tracking-widest px-1">Target BS Month</Label>
-                                                        <Select value={currentSelection.month} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'month', value)}>
+                                                        <Label className="text-[9px] font-black uppercase text-primary tracking-widest px-1">BS Month</Label>
+                                                        <Select value={sel.month} onValueChange={(v) => handleSheetPeriodChange(sheet.name, 'month', v)}>
                                                             <SelectTrigger className="h-8 bg-white border-primary/20 text-[10px]"><SelectValue /></SelectTrigger>
                                                             <SelectContent>
-                                                                {NEPALI_MONTHS.map(month => <SelectItem key={`month-opt-${sheet.name}-${month.value}`} value={String(month.value)} className="text-xs">{month.name}</SelectItem>)}
+                                                                {NEPALI_MONTHS.map(m => <SelectItem key={`mo-${sheet.name}-${m.value}`} value={String(m.value)} className="text-xs">{m.name}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>

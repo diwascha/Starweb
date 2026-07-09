@@ -359,6 +359,77 @@ export interface Payroll {
     rawImportData?: Record<string, any>;
 }
 
+// --- VBA Behavioral Report Interfaces ---
+
+export interface BehavioralPatternRecord {
+  employeeId: string;
+  employeeName: string;
+  workdays: number;
+  onTimeDays: number;
+  onTimePct: number;
+  lateDays: number;
+  earlyDays: number;
+  missingPunchDays: number;
+  absentDays: number;
+  satWorked: number;
+  phWorked: number;
+  extraOkHours: number;
+  insight: string;
+}
+
+export interface EnhancedInsightRecord {
+  employeeId: string;
+  employeeName: string;
+  punctualityTrend: string;
+  absencePattern: string;
+  otImpact: string;
+  shiftEndBehavior: string;
+  performanceInsight: string;
+}
+
+export interface PatternInsightParsed {
+  highestLateWeekday?: string;
+  highestLateCount?: number;
+  highestAbsentWeekday?: string;
+  highestAbsentCount?: number;
+  mostPunctualWeekday?: string;
+  mostPunctualRate?: number;
+  saturdayUtilPct?: number;
+  phOtTotalHours?: number;
+  lateHotspots?: string[];
+  rawLines: string[];
+}
+
+export interface DowPatternItem {
+  day: string;
+  punctualityPct: number;
+  lateArrivalsPct: number;
+  absenteeismPct: number;
+}
+
+export interface ComparisonMetric {
+  thisMonth: number;
+  prevMonth: number;
+  delta: number;
+}
+
+export interface BehaviorComparisonRecord {
+  employeeId: string;
+  employeeName: string;
+  metrics: {
+    lateArrivals: ComparisonMetric;
+    earlyDepartures: ComparisonMetric;
+    absentDays: ComparisonMetric;
+    missingPunches: ComparisonMetric;
+    onTimePct: ComparisonMetric;
+    extraOkHrs: ComparisonMetric;
+    otHours: ComparisonMetric;
+  };
+  remarksFlag: string;
+  currentPeriodLabel: string;
+  prevPeriodLabel: string;
+}
+
 export interface PunctualityInsight {
     employeeId: string;
     employeeName: string;
