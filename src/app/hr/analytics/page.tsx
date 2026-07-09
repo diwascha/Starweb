@@ -6,17 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { BarChart2, Loader2, Activity, Clock, AlertTriangle, CheckCircle2, Calendar, Zap, Timer } from 'lucide-react';
+import { BarChart2, Loader2, Activity, Clock, AlertTriangle, CheckCircle2, Calendar, Zap, Timer, TrendingUp, TrendingDown, Scale } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { generateAnalyticsForMonth, AnalyticsData } from '@/services/payroll-service';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { NEPALI_MONTHS } from '@/lib/constants';
+import { Separator } from '@/components/ui/separator';
 
 export default function AnalyticsPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -98,6 +98,7 @@ export default function AnalyticsPage() {
 
             {analyticsData ? (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                    {/* 1. Patterns & Comparison Summary */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <InsightCard title="Peak Absenteeism" value={analyticsData.highestAbsenteeism.day} sub={`${analyticsData.highestAbsenteeism.count} instances`} icon={AlertTriangle} color="red" />
                         <InsightCard title="Peak Tardiness" value={analyticsData.highestLateArrivals.day} sub={`${analyticsData.highestLateArrivals.count} late arrivals`} icon={Clock} color="amber" />
@@ -106,11 +107,12 @@ export default function AnalyticsPage() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* 2. Behavioral Patterns Scoring */}
                         <Card className="lg:col-span-2 shadow-lg border-gray-100 bg-white overflow-hidden">
                             <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
                                 <div>
-                                    <CardTitle className="text-sm font-black uppercase">Punctuality Scoreboard</CardTitle>
-                                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Comparative performance metrics per employee.</CardDescription>
+                                    <CardTitle className="text-sm font-black uppercase">Behavioral PatternsScoreboard</CardTitle>
+                                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Comparative punctuality metrics from machine data.</CardDescription>
                                 </div>
                                 <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter">Month: {NEPALI_MONTHS[parseInt(selectedBsMonth)].name}</Badge>
                             </CardHeader>
@@ -143,12 +145,13 @@ export default function AnalyticsPage() {
                             </CardContent>
                         </Card>
 
+                        {/* 3. Enhanced Employee Insights */}
                         <div className="space-y-6">
                             <Card className="shadow-lg border-primary/20 bg-primary/[0.02]">
                                 <CardHeader className="py-4 border-b">
                                     <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                                         <Zap className="h-3.5 w-3.5" />
-                                        Behavioral Snapshots
+                                        Performance Snapshots
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-4">
@@ -171,9 +174,10 @@ export default function AnalyticsPage() {
                                 </CardContent>
                             </Card>
 
+                            {/* 4. Pattern Insights (Hotspots) */}
                             <Card className="shadow-lg border-amber-200 bg-amber-50/20">
                                 <CardHeader className="py-3 border-b border-amber-100">
-                                    <CardTitle className="text-[10px] font-black uppercase text-amber-700">Hotspot Alerts</CardTitle>
+                                    <CardTitle className="text-[10px] font-black uppercase text-amber-700">Operational Hotspots</CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-4 space-y-3">
                                     {analyticsData.lateHotspots.map(h => (

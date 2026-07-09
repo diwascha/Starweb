@@ -54,8 +54,6 @@ export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => v
 
 export const getPayrollForEmployee = async (employeeId: string, bsYear: number, bsMonth: number): Promise<Payroll | null> => {
     try {
-        const payrollId = `${bsYear}-${bsMonth}-${employeeId}`;
-        const docRef = doc(getPayrollCollection(), payrollId);
         const docSnap = await getDocs(query(getPayrollCollection(), where("employeeId", "==", employeeId), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth), limit(1)));
         
         if (docSnap.empty) return null;
@@ -168,6 +166,7 @@ export const calculateAndSavePayrollForMonth = async (
             const bonus = 0;
             const finalNet = roundedNet + bonus;
 
+            // Deterministic ID to prevent duplicates
             const payrollId = `${bsYear}-${bsMonth}-${employee.id}`;
             const payrollData: Omit<Payroll, 'id'> = {
                 bsYear, bsMonth,
@@ -251,6 +250,7 @@ export const importPayrollFromSheet = async (
 
         for (const fullRow of dataRows) {
             const employeeName = String(fullRow[nameIndex] || '').trim();
+            // Skip non-employee rows
             if (!employeeName || employeeName.toUpperCase() === 'TOTAL' || employeeName.toLowerCase().includes('behavioral')) continue;
 
             let employee = employeeMap.get(employeeName.toLowerCase());
@@ -288,6 +288,8 @@ export const importPayrollFromSheet = async (
             const getValue = (key: string) => {
                 const index = (headerMap as any)[key];
                 if (index === undefined || index === null) return null;
+                // Specifically allow reading only financial data part (Columns Q-AG)
+                if (index < 16 || index > 32) return null;
                 return fullRow[index] !== undefined ? fullRow[index] : null;
             };
             
@@ -365,6 +367,7 @@ export const getHeaderMap = (headerRow: any[]) => {
         remark: ['remark', 'remarks']
     };
 
+    // Prioritize searching from index 16 onwards (Column Q) for financial data
     const searchOrder = [
         ...Array.from({ length: headerRow.length - 16 }, (_, i) => i + 16),
         ...Array.from({ length: 16 }, (_, i) => i)

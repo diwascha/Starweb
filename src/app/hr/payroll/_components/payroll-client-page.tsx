@@ -12,7 +12,6 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { onPayrollUpdate, calculateAndSavePayrollForMonth, deletePayrollForMonth } from '@/services/payroll-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate } from '@/services/attendance-service';
-import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import NepaliDate from 'nepali-date-converter';
