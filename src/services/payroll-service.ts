@@ -222,8 +222,13 @@ const isAnalyticsRow = (name: string): boolean => {
     if (!name) return true;
     const n = name.trim().toLowerCase();
     return (
-        n === 'employee' || // Header repetition
+        n === 'employee' || 
         n === 'total' ||
+        n.includes('behavioral patterns') ||
+        n.includes('enhanced employee insights') ||
+        n.includes('pattern insights') ||
+        n.includes('day of week patterns') ||
+        n.includes('month-to-month behavioral comparison') ||
         n.includes('current:') ||
         n.includes('previous:') ||
         n.includes('trend:') ||
@@ -236,8 +241,7 @@ const isAnalyticsRow = (name: string): boolean => {
         n.includes('ot total') ||
         n.includes('shift-start') ||
         n.includes('comparison') ||
-        n.includes('behavioral') ||
-        (n.includes('employee') && (n.includes('insight') || n.includes('pattern')))
+        n.includes('behavioral')
     );
 };
 
@@ -245,14 +249,15 @@ const extractSection = (jsonData: any[][], startMarker: string): any[] => {
     const marker = startMarker.toLowerCase();
     let startIndex = -1;
     for (let i = 0; i < jsonData.length; i++) {
-        if (jsonData[i].join(' ').toLowerCase().includes(marker)) {
+        const rowStr = jsonData[i].join(' ').toLowerCase();
+        if (rowStr === marker || rowStr.includes(marker)) {
             startIndex = i;
             break;
         }
     }
     if (startIndex === -1) return [];
 
-    // Extract headers (next non-empty row)
+    // Find first non-empty row after marker for headers
     let headerIdx = startIndex + 1;
     while (headerIdx < jsonData.length && (!jsonData[headerIdx] || jsonData[headerIdx].every(c => !c))) {
         headerIdx++;
@@ -262,17 +267,21 @@ const extractSection = (jsonData: any[][], startMarker: string): any[] => {
     const headers = jsonData[headerIdx];
     const data: any[] = [];
     
-    // Extract rows until another section or empty block
+    // Extract rows until another major heading or large empty block
     for (let i = headerIdx + 1; i < jsonData.length; i++) {
         const row = jsonData[i];
         if (!row || row.every(c => !c)) break;
-        if (isAnalyticsRow(String(row[0]))) break; // Stop at major headings
+        
+        // Stop if we hit another primary section header
+        const rowLead = String(row[0] || '').toLowerCase();
+        if (isAnalyticsRow(rowLead) && rowLead !== 'employee') break; 
 
         const item: any = {};
         headers.forEach((h: any, j: number) => {
             if (h) item[String(h).trim()] = row[j];
         });
         data.push(item);
+        if (data.length > 100) break; // Infinite loop guard
     }
     return data;
 };
@@ -292,9 +301,11 @@ const extractPatternInsights = (jsonData: any[][]): string[] => {
     for (let i = startIdx + 1; i < jsonData.length; i++) {
         const row = jsonData[i];
         if (!row || row.every(c => !c)) break;
+        if (isAnalyticsRow(String(row[0]))) break;
+
         const text = String(row[0] || '').trim();
         if (text) insights.push(text);
-        if (insights.length > 20) break; // Guard
+        if (insights.length > 20) break;
     }
     return insights;
 };
@@ -370,7 +381,6 @@ export const importPayrollFromSheet = async (
             const getValue = (key: string) => {
                 const index = (headerMap as any)[key];
                 if (index === undefined || index === null) return null;
-                if (index < 16 || index > 32) return null;
                 return fullRow[index] !== undefined ? fullRow[index] : null;
             };
             
@@ -411,15 +421,15 @@ export const importPayrollFromSheet = async (
             if (writeCount >= batchSize) { await batch.commit(); batch = writeBatch(db); writeCount = 0; }
         }
 
-        // 2. Process Behavioral Analytics
+        // 2. Process Behavioral Analytics with exact headers
         const analyticsReport: Omit<AnalyticsReport, 'id'> = {
             bsYear,
             bsMonth,
-            behavioralPatterns: extractSection(jsonData, "behavioral patterns"),
-            enhancedInsights: extractSection(jsonData, "enhanced employee insights"),
+            behavioralPatterns: extractSection(jsonData, "Behavioral Patterns (from attendance data)"),
+            enhancedInsights: extractSection(jsonData, "Enhanced Employee Insights"),
             patternInsights: extractPatternInsights(jsonData),
-            dayOfWeekPatterns: extractSection(jsonData, "day of week patterns"),
-            comparison: extractSection(jsonData, "month-to-month behavioral comparison"),
+            dayOfWeekPatterns: extractSection(jsonData, "Day of Week Patterns"),
+            monthToMonthComparison: extractSection(jsonData, "Month-to-Month Behavioral Comparison"),
             importedAt: createTimestamp(),
             importedBy: importedBy
         };
@@ -458,6 +468,7 @@ export const getHeaderMap = (headerRow: any[]) => {
         remark: ['remark', 'remarks']
     };
 
+    // Optimization: Prioritize searching after index 15 (Column Q)
     const searchOrder = [
         ...Array.from({ length: headerRow.length - 16 }, (_, i) => i + 16),
         ...Array.from({ length: 16 }, (_, i) => i)

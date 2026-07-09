@@ -444,7 +444,7 @@ export interface AnalyticsReport {
     enhancedInsights: any[];
     patternInsights: string[];
     dayOfWeekPatterns: any[];
-    comparison: any[];
+    monthToMonthComparison: any[];
     importedAt: string;
     importedBy: string;
 }
