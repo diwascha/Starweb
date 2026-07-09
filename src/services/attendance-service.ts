@@ -353,7 +353,6 @@ export const deleteAllRawLogs = async (): Promise<void> => {
 
 const timeToMinutes = (time: string): number => {
     const [h, m, s] = time.split(':').map(Number);
-    // Fixed #4: match VBA Round(TimeValue * 1440) by including seconds
     return Math.round(((h || 0) * 3600 + (m || 0) * 60 + (s || 0)) / 60);
 };
 
@@ -374,7 +373,6 @@ const applyFixedBreak = (startMins: number, endMins: number, breakStartMins: num
     
     const overlap = getFixedBreakOverlap(startMins, endMins, breakStartMins, breakEndMins);
     let finalMins = duration;
-    // Deduct overlap ONLY if overlap > 0 AND duration > 4h (240 mins)
     if (overlap > 0 && duration > 240) {
         finalMins -= overlap;
     }
@@ -397,7 +395,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const config = (configSetting?.value as HrConfig) || null;
     if (!config) throw new Error("HR Operational Rules not found. Please configure them in HR Office.");
 
-    // Fixed #1: resolve break window from config
     const breakStartMins = config.hours.breakStart ? timeToMinutes(config.hours.breakStart) : 12 * 60;
     const breakEndMins = config.hours.breakEnd ? timeToMinutes(config.hours.breakEnd) : 13 * 60;
 
@@ -444,7 +441,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         let finalStatus = log.statusFromMachine;
         let finalRemarks = '';
 
-        // Fixed #2: Precedence chain: Holiday > Leave > Absent > Saturday > Normal
         if (holiday) {
             finalStatus = 'Public Holiday';
             finalRemarks = `Public Holiday - ${holiday.name}`;
@@ -477,9 +473,7 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
             }
         }
         else {
-            // Normal workday branch
             if (!log.onDuty || !log.offDuty || !log.clockIn || !log.clockOut) {
-                // Fixed #3: Explicit missing-punch remarks
                 const missIn = !log.clockIn;
                 const missOut = !log.clockOut;
                 if (missIn && missOut) {
@@ -626,9 +620,26 @@ export const deleteAttendanceRecord = async (id: string) => {
     await deleteDoc(doc(getAttendanceCollection(), id));
 };
 
+/**
+ * Enhanced period discovery.
+ * Checks both calculated attendance AND imported behavior ledger to find years with data.
+ */
 export const getAttendanceYears = async (): Promise<number[]> => {
-    const snapshot = await getDocs(getAttendanceCollection());
-    const years = new Set(snapshot.docs.map(d => d.data().bsYear as number));
+    const { db } = getFirebase();
+    const years = new Set<number>();
+    
+    try {
+        const [attSnap, blSnap] = await Promise.all([
+            getDocs(getAttendanceCollection()),
+            getDocs(collection(db, 'behavior_ledger'))
+        ]);
+        
+        attSnap.docs.forEach(d => years.add(d.data().bsYear as number));
+        blSnap.docs.forEach(d => years.add(d.data().bsYear as number));
+    } catch (e) {
+        console.error("Failed to discover years", e);
+    }
+    
     return Array.from(years).sort((a, b) => b - a);
 };
 

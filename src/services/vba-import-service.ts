@@ -26,6 +26,8 @@ import type {
 import { getEmployees } from './employee-service';
 import { createTimestamp, coerceNumber } from '@/lib/service-utils';
 import { COLLECTIONS } from '@/lib/constants';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 // --- Consolidated Ledger Fixed Offsets (0-based) ---
 const CL_DATA_ROW = 2; // Data starts at Row 3 (Index 2)
@@ -38,13 +40,10 @@ const SEC_BEHAVIOR_ANALYTICS = { start: 63, empIdx: 66 }; // BL-BW (BL=63, BO=66
 
 /**
  * Robustly extracts the BS period from strings.
- * Handles formats like: "Jestha 2083 (BS 2083-02)", "BS 2083-02", "2083-02", "2083/02"
- * and range formats: "2082-11-01 (FALGUN) to 2082-11-30 (FALGUN)"
  */
 const parsePeriodString = (str: string): { year: number, month: number } | null => {
     if (!str) return null;
     const s = String(str);
-    // Find the first occurrence of YYYY-MM or YYYY/MM
     const match = s.match(/(\d{4})[-/](\d{1,2})/i);
     if (match) {
         return { 
@@ -77,11 +76,15 @@ export const importConsolidatedLedger = async (
     let writeCount = 0;
     const now = createTimestamp();
 
-    const commitIfNeeded = async () => {
-        if (writeCount >= 450) {
+    const commitBatch = async () => {
+        try {
             await batch.commit();
             batch = writeBatch(db);
             writeCount = 0;
+        } catch (err: any) {
+            console.error("[VBA Import] Batch Commit Failed:", err);
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'consolidated_ledger', operation: 'write' }));
+            throw err;
         }
     };
 
@@ -89,7 +92,6 @@ export const importConsolidatedLedger = async (
         const lowerName = name.toLowerCase().trim();
         if (employeeMap.has(lowerName)) return employeeMap.get(lowerName)!;
 
-        console.log(`[Import] Onboarding new employee: ${name}`);
         const empRef = doc(collection(db, COLLECTIONS.EMPLOYEES));
         const newEmp: Omit<Employee, 'id'> = {
             name,
@@ -105,11 +107,11 @@ export const importConsolidatedLedger = async (
         employeeMap.set(lowerName, employee);
         results.newEmployees++;
         writeCount++;
-        await commitIfNeeded();
+        if (writeCount >= 450) await commitBatch();
         return employee;
     };
 
-    console.log(`[Import] Starting horizontal scan of ${grid.length} rows...`);
+    console.log(`[VBA Import] Processing ${grid.length} grid rows...`);
 
     for (let r = CL_DATA_ROW; r < grid.length; r++) {
         const row = grid[r];
@@ -143,9 +145,8 @@ export const importConsolidatedLedger = async (
         // --- SECTION 2: BONUS LEDGER (P-Y) ---
         const s2_name = String(row[SEC_BONUS_LEDGER.empIdx] || '').trim();
         if (s2_name && s2_name.toLowerCase() !== 'employee' && !s2_name.toLowerCase().includes('total')) {
-            const periodStr = String(row[17] || ''); // Col R is index 17
+            const periodStr = String(row[17] || ''); 
             const period = parsePeriodString(periodStr);
-            
             if (period) {
                 const employee = await ensureEmployee(s2_name);
                 const ledgerId = `${employee.id}_${period.year}_${period.month}`;
@@ -161,7 +162,7 @@ export const importConsolidatedLedger = async (
                     basis: String(row[19] || ''),
                     baseAmount: coerceNumber(row[20]),
                     attendancePct: coerceNumber(row[21]),
-                    isEligible: String(row[22] || '').toLowerCase() === 'true' || String(row[22] || '').toLowerCase() === 'yes',
+                    isEligible: String(row[22] || '').toLowerCase() === 'yes' || String(row[22] || '').toLowerCase() === 'true',
                     accrual: coerceNumber(row[23]),
                     note: String(row[24] || '')
                 };
@@ -174,10 +175,10 @@ export const importConsolidatedLedger = async (
         // --- SECTION 3: BEHAVIOR LEDGER (AB-AS) ---
         const s3_name = String(row[SEC_BEHAVIOR_LEDGER.empIdx] || '').trim();
         if (s3_name && s3_name.toLowerCase() !== 'employee' && !s3_name.toLowerCase().includes('total')) {
-            const year = coerceNumber(row[30]); // Col AE is index 30
-            const month = coerceNumber(row[31]) - 1; // Col AF is index 31
+            const year = coerceNumber(row[30]);
+            const month = coerceNumber(row[31]) - 1;
             
-            if (year > 1000) { // Valid year check
+            if (year > 1000) {
                 const employee = await ensureEmployee(s3_name);
                 const ledgerId = `${employee.id}_${year}_${month}`;
                 const behaviorData: BehaviorLedgerEntry = {
@@ -211,7 +212,7 @@ export const importConsolidatedLedger = async (
         // --- SECTION 4: PAYROLL LEDGER (AV-BJ) ---
         const s4_name = String(row[SEC_PAYROLL_LEDGER.empIdx] || '').trim();
         if (s4_name && s4_name.toLowerCase() !== 'employee' && !s4_name.toLowerCase().includes('total')) {
-            const periodStr = String(row[49] || ''); // Col AX is index 49
+            const periodStr = String(row[49] || '');
             const period = parsePeriodString(periodStr);
             if (period) {
                 const employee = await ensureEmployee(s4_name);
@@ -254,7 +255,7 @@ export const importConsolidatedLedger = async (
         // --- SECTION 5: BEHAVIOR ANALYTICS (BL-BW) ---
         const s5_name = String(row[SEC_BEHAVIOR_ANALYTICS.empIdx] || '').trim();
         if (s5_name && s5_name.toLowerCase() !== 'employee' && !s5_name.toLowerCase().includes('total')) {
-            const periodStr = String(row[64] || ''); // Col BM is index 64
+            const periodStr = String(row[64] || '');
             const period = parsePeriodString(periodStr);
             if (period) {
                 const employee = await ensureEmployee(s5_name);
@@ -283,11 +284,10 @@ export const importConsolidatedLedger = async (
             }
         }
 
-        await commitIfNeeded();
+        if (writeCount >= 450) await commitBatch();
         onProgress(r - CL_DATA_ROW + 1, grid.length - CL_DATA_ROW);
     }
 
-    if (writeCount > 0) await batch.commit();
-    console.log(`[Import] Cycle complete. Results:`, results);
+    if (writeCount > 0) await commitBatch();
     return results;
 };
