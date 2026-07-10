@@ -5,9 +5,9 @@
  * Strictly follows the column offsets: A=0, P=15, AB=27, AV=47, BL=63.
  * 
  * Optimized for:
- * 1. Horizontal Awareness (Identifies row from any of the 5 section anchors)
- * 2. Data Type Integrity (Year/Month stored as Numbers for UI filtering)
- * 3. Resilient Period Extraction (Cross-references multiple date sources)
+ * 1. Horizontal Identity Scan (Finds employee name in any of the 5 section anchors)
+ * 2. Multi-Section Period Extraction (Cross-references all date sources for accurate BS filing)
+ * 3. Strict Numeric Typing (Ensures Year/Month/Financials are stored as Numbers for UI filtering)
  */
 
 import { getFirebase } from '@/lib/firebase';
@@ -33,12 +33,11 @@ import { FirestorePermissionError } from '@/firebase/errors';
 const CL_DATA_START = 2; // Row 3
 
 /**
- * Extracts BS Year and Month by scanning multiple potential source columns.
- * AE (30) / AF (31) are numeric, AX (49), R (17), BM (64) are strings.
- * Returns integers for year and 0-indexed month.
+ * Extracts BS Year and Month by scanning multiple potential source columns across the horizontal row.
+ * AE (30) / AF (31) are preferred direct numeric columns.
  */
 const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | null => {
-    // 1. Numeric Check (Section 3: AE & AF)
+    // 1. Direct Numeric Logic (Section 3: AE & AF)
     const yearNum = coerceNumber(row[30], 0);
     const monthNum = coerceNumber(row[31], 0);
     
@@ -46,8 +45,8 @@ const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | nul
         return { year: yearNum, month: monthNum - 1 };
     }
 
-    // 2. String Check (Sections 2, 4, 5)
-    // Period columns: R (17), AX (49), BM (64)
+    // 2. Complex String Logic (Fallback for other sections)
+    // Columns: R (17), AX (49), BM (64)
     const periodStrings = [row[49], row[17], row[64]].map(v => String(v || '').trim());
     const dateRegex = /(\d{4})[-/](\d{1,2})/;
 
@@ -107,7 +106,7 @@ export const importConsolidatedLedger = async (
             batch = writeBatch(db);
             writeCount = 0;
         } catch (err: any) {
-            console.error("[VBA Import] Commit Error:", err);
+            console.error("[VBA Import] Batch Fault:", err);
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'consolidated_ledger', operation: 'write' }));
             throw err;
         }
@@ -135,21 +134,21 @@ export const importConsolidatedLedger = async (
         return employee;
     };
 
-    console.log(`[VBA Import] Starting Horizontal Matrix Scan (${grid.length} rows)...`);
+    console.log(`[VBA Import] Matrix Scan Initiated (${grid.length} rows)...`);
 
     for (let r = CL_DATA_START; r < grid.length; r++) {
         const row = grid[r];
         if (!row || row.length < 5) continue;
 
-        // Horizontal Identity Resolution: Identify employee from ANY of the 5 section name anchors
-        // A=0, S=18, AH=33, AY=50, BO=66
-        const possibleNames = [row[0], row[18], row[33], row[50], row[66]]
+        // Horizontal Identity Check: Scan all 5 section anchors for employee name
+        // Anchors: A=0, S=18, AH=33, AY=50, BO=66
+        const identityAnchors = [row[0], row[18], row[33], row[50], row[66]]
             .map(v => String(v || '').trim())
             .filter(v => v !== '' && !isHeaderRow(v));
 
-        if (possibleNames.length === 0) continue;
+        if (identityAnchors.length === 0) continue;
         
-        const employeeName = possibleNames[0];
+        const employeeName = identityAnchors[0];
         const emp = ensureEmployee(employeeName);
         const period = resolvePeriodFromRow(row);
 
@@ -176,7 +175,7 @@ export const importConsolidatedLedger = async (
             writeCount++;
         }
 
-        // Period-dependent sections (Requires valid Year/Month)
+        // Period-Dependent Sections (Requires Year & Month match)
         if (period) {
             const periodId = `${period.year}_${period.month}`;
 
@@ -299,6 +298,6 @@ export const importConsolidatedLedger = async (
     }
 
     if (writeCount > 0) await commitBatch();
-    console.log("[VBA Import] Matrix scan complete.", results);
+    console.log("[VBA Import] Success Summary:", results);
     return results;
 };

@@ -22,7 +22,9 @@ import {
     Briefcase,
     Check,
     ChevronDown,
-    Search
+    Search,
+    Layers,
+    ListTree
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,7 +98,7 @@ export default function HrOfficePage() {
     const { toast } = useToast();
     const router = useRouter();
     
-    const [activeTab, setActiveTab] = useState("rules");
+    const [activeTab, setActiveTab] = useState("operations");
     const [shifts, setShifts] = useState<HrShift[]>([]);
     const [hrConfig, setHrConfig] = useState<HrConfig>(INITIAL_HR_CONFIG);
     const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -260,13 +262,12 @@ export default function HrOfficePage() {
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="bg-muted/50 p-1 h-11 mb-6">
-                    <TabsTrigger value="rules" className="gap-2 px-6 font-bold text-[10px] uppercase tracking-widest">Rules & Engine</TabsTrigger>
-                    <TabsTrigger value="shifts" className="gap-2 px-6 font-bold text-[10px] uppercase tracking-widest">Shift Patterns</TabsTrigger>
+                    <TabsTrigger value="operations" className="gap-2 px-6 font-bold text-[10px] uppercase tracking-widest">Operations & Registry</TabsTrigger>
                     <TabsTrigger value="holidays" className="gap-2 px-6 font-bold text-[10px] uppercase tracking-widest">Holiday Registry</TabsTrigger>
                     <TabsTrigger value="leaves" className="gap-2 px-6 font-bold text-[10px] uppercase tracking-widest">Leave Admin</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="rules" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                <TabsContent value="operations" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-6">
                             <Card className="shadow-lg border-primary/20 overflow-hidden ring-4 ring-primary/5">
@@ -304,73 +305,79 @@ export default function HrOfficePage() {
                                 </CardContent>
                             </Card>
 
-                            <Card className="shadow-sm border-gray-100">
-                                <CardHeader className="py-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black text-muted-foreground">Precision Controls</CardTitle></CardHeader>
-                                <CardContent className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-                                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Base Day (Hrs)</Label><Input type="number" value={hrConfig.hours.baseDayHours} onChange={e => updateNestedConfig('hours', 'baseDayHours', Number(e.target.value))} className="h-9 font-bold" /></div>
-                                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Rounding Step</Label><Input type="number" step="0.25" value={hrConfig.hours.roundStep} onChange={e => updateNestedConfig('hours', 'roundStep', Number(e.target.value))} className="h-9 font-bold" /></div>
-                                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Grace (Min)</Label><Input type="number" value={hrConfig.hours.graceMin} onChange={e => updateNestedConfig('hours', 'graceMin', Number(e.target.value))} className="h-9" /></div>
-                                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Block (Min)</Label><Input type="number" value={hrConfig.hours.blockMin} onChange={e => updateNestedConfig('hours', 'blockMin', Number(e.target.value))} className="h-9" /></div>
+                            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                                <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-sm font-black uppercase text-gray-900">Shift Pattern Registry</CardTitle>
+                                        <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Pre-defined schedules for the attendance processor.</CardDescription>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" size="sm" onClick={handleRefreshShifts} disabled={isRefreshingShifts} className="h-8 text-[10px] uppercase font-black tracking-widest border-primary/20 text-primary hover:bg-primary/5">
+                                            {isRefreshingShifts ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />}
+                                            Auto-Discovery
+                                        </Button>
+                                        <Button size="sm" onClick={() => { setEditingShift(null); setShiftForm({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', isDefault: false }); setIsShiftDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest shadow-sm">
+                                            <Plus className="mr-1.5 h-3.5 w-3.5" /> Define Shift
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <Table className="text-xs">
+                                        <TableHeader className="bg-muted/30"><TableRow className="hover:bg-transparent"><TableHead className="pl-6 font-bold">Pattern Name</TableHead><TableHead className="font-bold text-center">Schedule (Duty Hours)</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {shifts.map(s => (
+                                                <TableRow key={s.id} className="h-12 hover:bg-muted/10">
+                                                    <TableCell className="pl-6 font-black text-gray-900 uppercase tracking-tighter">{s.name} {s.isDefault && <Badge variant="secondary" className="ml-2 text-[8px] uppercase">Master Default</Badge>}</TableCell>
+                                                    <TableCell className="font-mono text-gray-600 text-center">{s.onDuty} — {s.offDuty}</TableCell>
+                                                    <TableCell className="text-right pr-6 space-x-1">
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => { setEditingShift(s); setShiftForm({ name: s.name, onDuty: s.onDuty, offDuty: s.offDuty, breakStart: s.breakStart || '12:00', breakEnd: s.breakEnd || '13:00', isDefault: s.isDefault }); setIsShiftDialogOpen(true); }}><Edit className="h-3.5 w-3.5"/></Button>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteShift(s.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            {shifts.length === 0 && <TableRow><TableCell colSpan={3} className="h-32 text-center text-muted-foreground italic">No shift patterns registered.</TableCell></TableRow>}
+                                        </TableBody>
+                                    </Table>
                                 </CardContent>
                             </Card>
                         </div>
-                        <Card className="lg:col-span-1 shadow-sm border-gray-100 h-fit">
-                            <CardHeader className="py-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black text-muted-foreground">Break & Oversight</CardTitle></CardHeader>
-                            <CardContent className="p-6 space-y-6">
-                                <div className="space-y-4">
-                                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Fixed Break Start</Label><Input type="time" value={hrConfig.hours.breakStart || '12:00'} onChange={e => updateNestedConfig('hours', 'breakStart', e.target.value)} className="h-9 font-mono" /></div>
-                                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Fixed Break End</Label><Input type="time" value={hrConfig.hours.breakEnd || '13:00'} onChange={e => updateNestedConfig('hours', 'breakEnd', e.target.value)} className="h-9 font-mono" /></div>
-                                </div>
-                                <Separator />
-                                <div className="space-y-4">
-                                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Free Lates (Count)</Label><Input type="number" value={hrConfig.hours.freeLate} onChange={e => updateNestedConfig('hours', 'freeLate', Number(e.target.value))} className="h-9" /></div>
-                                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Tolerance Cycle</Label>
-                                        <Select value={hrConfig.hours.freeLatePeriod} onValueChange={v => updateNestedConfig('hours', 'freeLatePeriod', v)}>
-                                            <SelectTrigger className="h-9"><SelectValue/></SelectTrigger>
-                                            <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
-                                        </Select>
+                        
+                        <div className="lg:col-span-1 space-y-6">
+                            <Card className="shadow-sm border-gray-100">
+                                <CardHeader className="py-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black text-muted-foreground">Precision Controls</CardTitle></CardHeader>
+                                <CardContent className="p-6 space-y-6">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Base Day (Hrs)</Label><Input type="number" value={hrConfig.hours.baseDayHours} onChange={e => updateNestedConfig('hours', 'baseDayHours', Number(e.target.value))} className="h-9 font-bold" /></div>
+                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Rounding Step</Label><Input type="number" step="0.25" value={hrConfig.hours.roundStep} onChange={e => updateNestedConfig('hours', 'roundStep', Number(e.target.value))} className="h-9 font-bold" /></div>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Grace (Min)</Label><Input type="number" value={hrConfig.hours.graceMin} onChange={e => updateNestedConfig('hours', 'graceMin', Number(e.target.value))} className="h-9" /></div>
+                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Block (Min)</Label><Input type="number" value={hrConfig.hours.blockMin} onChange={e => updateNestedConfig('hours', 'blockMin', Number(e.target.value))} className="h-9" /></div>
+                                    </div>
+                                </CardContent>
+                            </Card>
 
-                <TabsContent value="shifts" className="animate-in fade-in slide-in-from-bottom-2">
-                    <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
-                        <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle className="text-sm font-black uppercase text-gray-900">Shift Pattern Registry</CardTitle>
-                                <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Pre-defined schedules for the attendance processor.</CardDescription>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={handleRefreshShifts} disabled={isRefreshingShifts} className="h-8 text-[10px] uppercase font-black tracking-widest border-primary/20 text-primary hover:bg-primary/5">
-                                    {isRefreshingShifts ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />}
-                                    Auto-Discovery
-                                </Button>
-                                <Button size="sm" onClick={() => { setEditingShift(null); setShiftForm({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', isDefault: false }); setIsShiftDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest shadow-sm">
-                                    <Plus className="mr-1.5 h-3.5 w-3.5" /> Define Shift
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <Table className="text-xs">
-                                <TableHeader className="bg-muted/30"><TableRow className="hover:bg-transparent"><TableHead className="pl-6 font-bold">Pattern Name</TableHead><TableHead className="font-bold">Schedule (Duty Hours)</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {shifts.map(s => (
-                                        <TableRow key={s.id} className="h-12 hover:bg-muted/10">
-                                            <TableCell className="pl-6 font-black text-gray-900">{s.name} {s.isDefault && <Badge variant="secondary" className="ml-2 text-[8px] uppercase">Master Default</Badge>}</TableCell>
-                                            <TableCell className="font-mono text-gray-600">{s.onDuty} — {s.offDuty}</TableCell>
-                                            <TableCell className="text-right pr-6 space-x-1">
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => { setEditingShift(s); setShiftForm({ name: s.name, onDuty: s.onDuty, offDuty: s.offDuty, breakStart: s.breakStart || '12:00', breakEnd: s.breakEnd || '13:00', isDefault: s.isDefault }); setIsShiftDialogOpen(true); }}><Edit className="h-3.5 w-3.5"/></Button>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteShift(s.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
+                            <Card className="shadow-sm border-gray-100 h-fit">
+                                <CardHeader className="py-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black text-muted-foreground">Break & Oversight</CardTitle></CardHeader>
+                                <CardContent className="p-6 space-y-6">
+                                    <div className="space-y-4">
+                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Fixed Break Start</Label><Input type="time" value={hrConfig.hours.breakStart || '12:00'} onChange={e => updateNestedConfig('hours', 'breakStart', e.target.value)} className="h-9 font-mono" /></div>
+                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Fixed Break End</Label><Input type="time" value={hrConfig.hours.breakEnd || '13:00'} onChange={e => updateNestedConfig('hours', 'breakEnd', e.target.value)} className="h-9 font-mono" /></div>
+                                    </div>
+                                    <Separator />
+                                    <div className="space-y-4">
+                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Free Lates (Count)</Label><Input type="number" value={hrConfig.hours.freeLate} onChange={e => updateNestedConfig('hours', 'freeLate', Number(e.target.value))} className="h-9" /></div>
+                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Tolerance Cycle</Label>
+                                            <Select value={hrConfig.hours.freeLatePeriod} onValueChange={v => updateNestedConfig('hours', 'freeLatePeriod', v)}>
+                                                <SelectTrigger className="h-9"><SelectValue/></SelectTrigger>
+                                                <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
                 </TabsContent>
 
                 <TabsContent value="holidays" className="animate-in fade-in slide-in-from-bottom-2">
@@ -463,7 +470,7 @@ export default function HrOfficePage() {
                 </TabsContent>
             </Tabs>
 
-            {/* Dialogs remain global to the page */}
+            {/* Shift Definition Dialog */}
             <Dialog open={isShiftDialogOpen} onOpenChange={setIsShiftDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">Define Shift Pattern</DialogTitle></DialogHeader>
@@ -479,6 +486,7 @@ export default function HrOfficePage() {
                 </DialogContent>
             </Dialog>
 
+            {/* Holiday Registry Dialog */}
             <Dialog open={isHolidayDialogOpen} onOpenChange={setIsHolidayDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">Log Calendar Holiday</DialogTitle></DialogHeader>
@@ -494,6 +502,7 @@ export default function HrOfficePage() {
                 </DialogContent>
             </Dialog>
 
+            {/* Leave Request Dialog */}
             <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">Record Authorized Leave</DialogTitle></DialogHeader>
@@ -528,6 +537,53 @@ export default function HrOfficePage() {
                         </div>
                     </div>
                     <DialogFooter><Button onClick={handleSaveLeaveRequest} className="w-full h-11 font-black text-xs uppercase shadow-lg shadow-blue-500/20">Commit Request</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
+            {/* Detention Selector Dialog (Used within tabs) */}
+            <Dialog open={isDetentionDialogOpen} onOpenChange={setIsDetentionDialogOpen}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Select Period</DialogTitle></DialogHeader>
+                    <div className="py-4 flex justify-center">
+                        <DualDateRangePicker selected={detentionDateRange} onSelect={setDetentionDateRange} />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDetentionDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleConfirmDetention}>Confirm</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}
+
+// Internal reusable components
+function DetentionSelector({ label, range, onConfirm, onClear }: any) {
+    const [open, setOpen] = useState(false);
+    const [localRange, setLocalRange] = useState(range);
+    
+    return (
+        <div className="space-y-2">
+            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <div className="flex items-center gap-2">
+                <Button variant="outline" className="w-full justify-start font-normal h-10" onClick={() => setOpen(true)}>
+                    <CalendarIcon className="mr-2 h-4 w-4"/>
+                    {range?.from ? `${toNepaliDate(range.from.toISOString())} - ${range.to ? toNepaliDate(range.to.toISOString()) : ''}` : 'Select Range'}
+                </Button>
+                {range?.from && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onClear}><X className="h-4 w-4"/></Button>
+                )}
+            </div>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Select Period Range</DialogTitle></DialogHeader>
+                    <div className="py-4 flex justify-center">
+                        <DualDateRangePicker selected={localRange} onSelect={setLocalRange} />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                        <Button onClick={() => { onConfirm(localRange); setOpen(false); }}>Confirm</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
