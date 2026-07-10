@@ -340,12 +340,11 @@ export function AppSidebar() {
                                 
                                 <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Attendance</SidebarGroupLabel>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance/raw')}><Link href="/hr/attendance/raw" className="flex items-center gap-2"><HardDrive className="h-3.5 w-3.5" /><span>Machine Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/office')}><Link href="/hr/office" className="flex items-center gap-2"><Settings2 className="h-4 w-4" /><span>HR Office</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/office')}><Link href="/hr/office" className="flex items-center gap-2"><Settings2 className="h-4 w-4" /><span>HR Office Hub</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance', true)}><Link href="/hr/attendance" className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /><span>Registry</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 
-                                <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Ledgers & Payouts</SidebarGroupLabel>
+                                <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Financials</SidebarGroupLabel>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Workforce Ledger</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/holiday')}><Link href="/hr/holiday" className="flex items-center gap-2"><CalendarCheck className="h-4 w-4" /><span>Holidays & Leaves</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Payslip Viewer</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>

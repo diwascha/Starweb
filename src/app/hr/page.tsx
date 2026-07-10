@@ -23,12 +23,9 @@ const hrModules = [
     { name: 'Employees', description: 'Manage employee records and wage information.', href: '/hr/employees', icon: Users },
     { name: 'Machine Logs', description: 'Direct raw data dump from attendance machines.', href: '/hr/attendance/raw', icon: HardDrive },
     { name: 'Attendance Registry', description: 'Validated work-hour records and metrics.', href: '/hr/attendance', icon: Calendar },
-    { name: 'Operations & Logic', description: 'Configure rules, shifts, and process labor data.', href: '/hr/office', icon: Settings2 },
-    { name: 'Analytics', description: 'Generate attendance analytics for any period.', href: '/hr/analytics', icon: BarChart2 },
-    { name: 'Holidays & Leaves', description: 'Manage leave requests and public holidays.', href: '/hr/holiday', icon: CalendarCheck },
-    { name: 'Payroll', description: 'View and process payroll reports.', href: '/hr/payroll', icon: FileText },
-    { name: 'Bonus', description: 'Calculate and track employee bonuses.', href: '/hr/bonus', icon: Award },
-    { name: 'Payslip', description: 'View and print employee payslips.', href: '/hr/payslip', icon: Wallet },
+    { name: 'Operations & Logic', description: 'Configure rules, shifts, holidays, and leaves.', href: '/hr/office', icon: Settings2 },
+    { name: 'Workforce Ledger', description: 'Consolidated Payroll, Bonus, and Analytics.', href: '/hr/payroll', icon: FileText },
+    { name: 'Payslip Viewer', description: 'View and print employee payslips.', href: '/hr/payslip', icon: Wallet },
 ];
 
 function DashboardSkeleton() {
@@ -63,7 +60,7 @@ export default function HRPage() {
 
                 <div>
                     <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 px-1">Operational Modules</h2>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {hrModules.map((module) => (
                             <Link href={module.href} key={module.name}>
                                 <Card className="h-full transition-all hover:shadow-lg border-none ring-1 ring-black/5 bg-white group">
@@ -83,4 +80,3 @@ export default function HRPage() {
         </div>
     );
 }
-
