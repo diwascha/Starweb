@@ -3,6 +3,11 @@
  *
  * Implements high-density horizontal parsing for the 5 key sections of the workforce ledger.
  * Strictly follows the column offsets: A=0, P=15, AB=27, AV=47, BL=63.
+ * 
+ * Optimized for:
+ * 1. Horizontal Awareness (Identifies row from any of the 5 section anchors)
+ * 2. Data Type Integrity (Year/Month stored as Numbers for UI filtering)
+ * 3. Resilient Period Extraction (Cross-references multiple date sources)
  */
 
 import { getFirebase } from '@/lib/firebase';
@@ -25,15 +30,15 @@ import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-// --- Consolidated Ledger Fixed Anchors (0-indexed) ---
 const CL_DATA_START = 2; // Row 3
 
 /**
- * Robustly extracts BS Year and Month by scanning multiple potential source columns.
- * AE (30) / AF (31) are numeric, AX (49) and others are strings.
+ * Extracts BS Year and Month by scanning multiple potential source columns.
+ * AE (30) / AF (31) are numeric, AX (49), R (17), BM (64) are strings.
+ * Returns integers for year and 0-indexed month.
  */
 const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | null => {
-    // 1. Direct Numeric Check (Section 3: AE & AF)
+    // 1. Numeric Check (Section 3: AE & AF)
     const yearNum = coerceNumber(row[30], 0);
     const monthNum = coerceNumber(row[31], 0);
     
@@ -41,7 +46,7 @@ const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | nul
         return { year: yearNum, month: monthNum - 1 };
     }
 
-    // 2. String Regex Check (Sections 2, 4, 5)
+    // 2. String Check (Sections 2, 4, 5)
     // Period columns: R (17), AX (49), BM (64)
     const periodStrings = [row[49], row[17], row[64]].map(v => String(v || '').trim());
     const dateRegex = /(\d{4})[-/](\d{1,2})/;
@@ -88,7 +93,7 @@ export const importConsolidatedLedger = async (
             batch = writeBatch(db);
             writeCount = 0;
         } catch (err: any) {
-            console.error("[VBA Import] Critical Commit Failure:", err);
+            console.error("[VBA Import] Commit Error:", err);
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'consolidated_ledger', operation: 'write' }));
             throw err;
         }
@@ -116,13 +121,14 @@ export const importConsolidatedLedger = async (
         return employee;
     };
 
-    console.log(`[VBA Import] Scanning Consolidated Ledger Matrix (${grid.length} rows)...`);
+    console.log(`[VBA Import] Analyzing Spreadsheet Matrix (${grid.length} rows)...`);
 
     for (let r = CL_DATA_START; r < grid.length; r++) {
         const row = grid[r];
         if (!row || row.length < 5) continue;
 
-        // Identity resolution: Check all 5 horizontal section anchors (Cols A, S, AH, AY, BO)
+        // Horizontal Identity Resolution: Identify employee from ANY of the 5 section name anchors
+        // A=0, S=18, AH=33, AY=50, BO=66
         const possibleNames = [row[0], row[18], row[33], row[50], row[66]]
             .map(v => String(v || '').trim())
             .filter(v => v !== '' && v.toLowerCase() !== 'employee' && !v.toLowerCase().includes('total'));
@@ -133,9 +139,9 @@ export const importConsolidatedLedger = async (
         const emp = ensureEmployee(employeeName);
         const period = resolvePeriodFromRow(row);
 
-        // Section 1: Annual Bonus Summary (A-M) - Does not require a period
+        // Section 1: Annual Bonus Summary (A-M)
         if (String(row[0] || '').trim() && String(row[0] || '').toLowerCase() !== 'employee') {
-            const data: AnnualBonusSummary = {
+            const bonusData: AnnualBonusSummary = {
                 id: emp.id,
                 employeeName: emp.name,
                 basis: String(row[1] || ''),
@@ -151,19 +157,19 @@ export const importConsolidatedLedger = async (
                 lastPeriod: String(row[11] || ''),
                 remarks: String(row[12] || '')
             };
-            batch.set(doc(db, 'bonus_summaries', emp.id), data, { merge: true });
+            batch.set(doc(db, 'bonus_summaries', emp.id), bonusData, { merge: true });
             results.bonusSummaries++;
             writeCount++;
         }
 
-        // Period-dependent sections (2, 3, 4, 5)
+        // Period-dependent sections (Requires valid Year/Month)
         if (period) {
             const periodId = `${period.year}_${period.month}`;
 
             // Section 2: Bonus Ledger (P-Y)
             if (String(row[18] || '').trim() && String(row[18] || '').toLowerCase() !== 'employee') {
                 const id = `${emp.id}_${periodId}`;
-                const data: BonusLedgerEntry = {
+                const entry: BonusLedgerEntry = {
                     id,
                     runTime: String(row[15] || ''),
                     periodAD: String(row[16] || ''),
@@ -175,11 +181,11 @@ export const importConsolidatedLedger = async (
                     basis: String(row[19] || ''),
                     baseAmount: coerceNumber(row[20]),
                     attendancePct: coerceNumber(row[21]),
-                    isEligible: String(row[22] || '').toLowerCase() === 'true' || String(row[22] || '').toLowerCase() === 'yes',
+                    isEligible: String(row[22] || '').toLowerCase().includes('yes'),
                     accrual: coerceNumber(row[23]),
                     note: String(row[24] || '')
                 };
-                batch.set(doc(db, 'bonus_ledger', id), data, { merge: true });
+                batch.set(doc(db, 'bonus_ledger', id), entry, { merge: true });
                 results.bonusLedger++;
                 writeCount++;
             }
@@ -187,7 +193,7 @@ export const importConsolidatedLedger = async (
             // Section 3: Behavior Ledger (AB-AS)
             if (String(row[33] || '').trim() && String(row[33] || '').toLowerCase() !== 'employee') {
                 const id = `${emp.id}_${periodId}`;
-                const data: BehaviorLedgerEntry = {
+                const entry: BehaviorLedgerEntry = {
                     id,
                     runTime: String(row[27] || ''),
                     periodBS: String(row[28] || ''),
@@ -209,7 +215,7 @@ export const importConsolidatedLedger = async (
                     extraOkHours: coerceNumber(row[43]),
                     otHours: coerceNumber(row[44])
                 };
-                batch.set(doc(db, 'behavior_ledger', id), data, { merge: true });
+                batch.set(doc(db, 'behavior_ledger', id), entry, { merge: true });
                 results.behaviorLedger++;
                 writeCount++;
             }
@@ -217,7 +223,7 @@ export const importConsolidatedLedger = async (
             // Section 4: Payroll Ledger (AV-BJ)
             if (String(row[50] || '').trim() && String(row[50] || '').toLowerCase() !== 'employee') {
                 const payrollId = `${period.year}-${period.month}-${emp.id}`;
-                const data: Omit<Payroll, 'id'> = {
+                const entry: Omit<Payroll, 'id'> = {
                     bsYear: period.year,
                     bsMonth: period.month,
                     runTime: String(row[47] || ''),
@@ -240,7 +246,7 @@ export const importConsolidatedLedger = async (
                     createdBy: importedBy,
                     createdAt: now
                 };
-                batch.set(doc(db, COLLECTIONS.PAYROLL, payrollId), data, { merge: true });
+                batch.set(doc(db, COLLECTIONS.PAYROLL, payrollId), entry, { merge: true });
                 results.payroll++;
                 writeCount++;
             }
@@ -248,7 +254,7 @@ export const importConsolidatedLedger = async (
             // Section 5: Behavior Analytics (BL-BW)
             if (String(row[66] || '').trim() && String(row[66] || '').toLowerCase() !== 'employee') {
                 const id = `${emp.id}_${periodId}`;
-                const data: BehaviorAnalyticsEntry = {
+                const entry: BehaviorAnalyticsEntry = {
                     id,
                     runTime: String(row[63] || ''),
                     periodBS: String(row[64] || ''),
@@ -266,7 +272,7 @@ export const importConsolidatedLedger = async (
                     bestDayOfWeek: String(row[73] || ''),
                     worstDayOfWeek: String(row[74] || '')
                 };
-                batch.set(doc(db, 'behavior_analytics', id), data, { merge: true });
+                batch.set(doc(db, 'behavior_analytics', id), entry, { merge: true });
                 results.behaviorAnalytics++;
                 writeCount++;
             }
@@ -279,6 +285,6 @@ export const importConsolidatedLedger = async (
     }
 
     if (writeCount > 0) await commitBatch();
-    console.log("[VBA Import] Successfully mapped row data:", results);
+    console.log("[VBA Import] Successful. Record counts:", results);
     return results;
 };

@@ -45,7 +45,6 @@ export default function ImportPayrollPage() {
                     const data = new Uint8Array(e.target?.result as ArrayBuffer);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     
-                    // We use the first sheet for the Consolidated Ledger
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     const grid = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
@@ -57,7 +56,7 @@ export default function ImportPayrollPage() {
 
                     toast({ 
                         title: 'Import Successful', 
-                        description: `Finalized: ${result.payroll} Payroll rows, ${result.behaviorLedger} Behavior rows, ${result.bonusSummaries} Bonus summaries, and ${result.behaviorAnalytics} Analytics records.` 
+                        description: `Finalized: ${result.payroll} Payroll, ${result.behaviorLedger} Behavior, ${result.bonusSummaries} Bonus, and ${result.behaviorAnalytics} Analytics records.` 
                     });
                     
                     setTimeout(() => {
@@ -117,7 +116,7 @@ export default function ImportPayrollPage() {
                             size="lg" 
                             className="h-12 px-10 font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-primary/20"
                         >
-                            {isProcessing ? 'Processing Master Grid...' : 're check the this import function functionality. we are repeatively facing issue for data for payroll and analytics. check in depth whats causing dato not being imported'}
+                            {isProcessing ? 'Processing Master Grid...' : 'Authorize Cloud Import'}
                         </Button>
                         
                         {importProgress && (
