@@ -132,7 +132,7 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
                                 <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoadingData}>
                                     <SelectTrigger className="w-[100px] h-9 bg-white"><SelectValue placeholder="Year" /></SelectTrigger>
                                     <SelectContent>
-                                        {bsYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                                        {bsYears.map(y => <SelectItem key={`year-opt-${y}`} value={String(y)}>{y}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -141,7 +141,7 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
                                 <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoadingData}>
                                     <SelectTrigger className="w-[140px] h-9 bg-white"><SelectValue placeholder="Month" /></SelectTrigger>
                                     <SelectContent>
-                                        {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                                        {NEPALI_MONTHS.map(m => <SelectItem key={`month-opt-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>

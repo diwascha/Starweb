@@ -120,8 +120,7 @@ export const importConsolidatedLedger = async (
 
     for (let r = CL_DATA_START; r < grid.length; r++) {
         const row = grid[r];
-        // Ensure row has at least some content to avoid processing fully blank end-of-file rows
-        if (!row || row.every(cell => cell === null || cell === undefined || cell === '')) continue;
+        if (!row || row.length < 5) continue;
 
         // Identity resolution: Check all 5 horizontal section anchors (Cols A, S, AH, AY, BO)
         const possibleNames = [row[0], row[18], row[33], row[50], row[66]]
@@ -130,15 +129,12 @@ export const importConsolidatedLedger = async (
 
         if (possibleNames.length === 0) continue;
         
-        // Take the first valid name found as the row owner
         const employeeName = possibleNames[0];
         const emp = ensureEmployee(employeeName);
-
-        // Resolve period: Check numeric columns in Sec 3, fallback to strings in 2, 4, 5
         const period = resolvePeriodFromRow(row);
 
         // Section 1: Annual Bonus Summary (A-M) - Does not require a period
-        if (String(row[0] || '').trim()) {
+        if (String(row[0] || '').trim() && String(row[0] || '').toLowerCase() !== 'employee') {
             const data: AnnualBonusSummary = {
                 id: emp.id,
                 employeeName: emp.name,
@@ -165,7 +161,7 @@ export const importConsolidatedLedger = async (
             const periodId = `${period.year}_${period.month}`;
 
             // Section 2: Bonus Ledger (P-Y)
-            if (String(row[18] || '').trim()) {
+            if (String(row[18] || '').trim() && String(row[18] || '').toLowerCase() !== 'employee') {
                 const id = `${emp.id}_${periodId}`;
                 const data: BonusLedgerEntry = {
                     id,
@@ -189,7 +185,7 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 3: Behavior Ledger (AB-AS)
-            if (String(row[33] || '').trim()) {
+            if (String(row[33] || '').trim() && String(row[33] || '').toLowerCase() !== 'employee') {
                 const id = `${emp.id}_${periodId}`;
                 const data: BehaviorLedgerEntry = {
                     id,
@@ -219,7 +215,7 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 4: Payroll Ledger (AV-BJ)
-            if (String(row[50] || '').trim()) {
+            if (String(row[50] || '').trim() && String(row[50] || '').toLowerCase() !== 'employee') {
                 const payrollId = `${period.year}-${period.month}-${emp.id}`;
                 const data: Omit<Payroll, 'id'> = {
                     bsYear: period.year,
@@ -250,7 +246,7 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 5: Behavior Analytics (BL-BW)
-            if (String(row[66] || '').trim()) {
+            if (String(row[66] || '').trim() && String(row[66] || '').toLowerCase() !== 'employee') {
                 const id = `${emp.id}_${periodId}`;
                 const data: BehaviorAnalyticsEntry = {
                     id,
