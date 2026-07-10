@@ -1,10 +1,21 @@
 /**
  * @fileOverview Employee service.
- * Refactored for non-blocking offline writes.
+ * Refactored for non-blocking offline writes and enhanced noise filtering.
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, setDoc } from 'firebase/firestore';
+import { 
+    collection, 
+    onSnapshot, 
+    DocumentData, 
+    QueryDocumentSnapshot, 
+    getDoc, 
+    getDocs, 
+    doc, 
+    updateDoc, 
+    deleteDoc, 
+    setDoc 
+} from 'firebase/firestore';
 import type { Employee } from '@/lib/types';
 import { deleteFile } from './storage-service';
 import { COLLECTIONS } from '@/lib/constants';
@@ -18,9 +29,9 @@ const getEmployeesCollection = () => {
 
 /**
  * Enhanced name validation to prevent "noise" rows (analytics, trends, headers) 
- * from the Consolidated Ledger being incorrectly saved as employees.
+ * from the Consolidated Ledger being incorrectly saved or shown as employees.
  */
-const isValidEmployeeName = (name: string): boolean => {
+export const isValidEmployeeName = (name: string): boolean => {
     if (!name || typeof name !== 'string') return false;
     const n = name.trim();
     if (n.length < 2) return false;
@@ -66,7 +77,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         department: data.department,
         position: data.position,
         wageBasis: data.wageBasis,
-        wageAmount: data.wageAmount,
+        wageAmount: data.wageAmount || 0,
         allowance: data.allowance,
         address: data.address,
         gender: data.gender,
@@ -86,7 +97,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 
 export const getEmployees = async (): Promise<Employee[]> => {
     const snapshot = await getDocs(getEmployeesCollection());
-    return snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
+    return snapshot.docs
+        .map(fromFirestore)
+        .filter(emp => isValidEmployeeName(emp.name));
 };
 
 export const getEmployee = async (id: string): Promise<Employee | null> => {
@@ -125,25 +138,29 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
 export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): () => void => {
     return onSnapshot(getEmployeesCollection(), 
         (snapshot) => {
-            const validEmployees = snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
+            const validEmployees = snapshot.docs
+                .map(fromFirestore)
+                .filter(emp => isValidEmployeeName(emp.name));
             callback(validEmployees);
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.EMPLOYEES, operation: 'list' }));
+             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.EMPLOYEES, operation: 'list' }));
         }
     );
 };
 
 export const updateEmployee = async (id: string, employee: Partial<Omit<Employee, 'id'>>): Promise<void> => {
     const employeeDoc = doc(getEmployeesCollection(), id);
-    updateDoc(employeeDoc, {
+    const payload = {
         ...employee,
         lastModifiedAt: new Date().toISOString(),
-    }).catch(async (err) => {
+    };
+
+    updateDoc(employeeDoc, payload).catch(async (err) => {
         const permissionError = new FirestorePermissionError({
             path: employeeDoc.path,
             operation: 'update',
-            requestResourceData: employee,
+            requestResourceData: payload,
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
     });
@@ -162,4 +179,3 @@ export const deleteEmployee = async (id: string, photoURL?: string): Promise<voi
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: employeeDoc.path, operation: 'delete' }));
     });
 };
-

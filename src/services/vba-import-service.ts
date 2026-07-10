@@ -8,7 +8,7 @@
  * 1. Horizontal Identity Scan (Finds employee name in any of the 5 section anchors)
  * 2. Multi-Section Period Extraction (Cross-references all date sources for accurate BS filing)
  * 3. Strict Numeric Typing (Ensures Year/Month/Financials are stored as Numbers for UI filtering)
- * 4. Noise Filtering (Prevents analysis rows from becoming system employees)
+ * 4. Aggressive Noise Filtering (Prevents analysis rows from becoming system employees)
  */
 
 import { getFirebase } from '@/lib/firebase';
@@ -25,7 +25,7 @@ import type {
     BehaviorLedgerEntry,
     BehaviorAnalyticsEntry
 } from '@/lib/types';
-import { getEmployees } from './employee-service';
+import { getEmployees, isValidEmployeeName } from './employee-service';
 import { createTimestamp, coerceNumber } from '@/lib/service-utils';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -60,35 +60,6 @@ const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | nul
     }
     
     return null;
-};
-
-/**
- * Robust check to see if a cell contains a valid employee name or just spreadsheet noise.
- */
-const isValidEmployeeName = (name: string): boolean => {
-    if (!name) return false;
-    const n = name.trim();
-    if (n.length < 2) return false;
-    
-    const lower = n.toLowerCase();
-    
-    const noisePatterns = [
-        'trend:', 'absenteeism:', 'arrivals:', 'utilization:', 
-        'absences (', 'shift-start', 'hotspots:', 'patterns', 
-        'insights', 'comparison', 'total', 'employee'
-    ];
-
-    if (noisePatterns.some(pattern => lower.includes(pattern))) return false;
-
-    return !(
-        lower === 'employee' || 
-        lower === 'total' ||
-        lower === 'behavioral patterns (from attendance data)' ||
-        lower === 'enhanced employee insights' ||
-        lower === 'pattern insights' ||
-        lower === 'day of week patterns' ||
-        lower === 'month-to-month behavioral comparison'
-    );
 };
 
 export const importConsolidatedLedger = async (
@@ -153,6 +124,7 @@ export const importConsolidatedLedger = async (
         if (!row || row.length < 5) continue;
 
         // Horizontal Identity Check: Check all 5 section anchors
+        // A(0), S(18), AH(33), AY(50), BO(66)
         const identityAnchors = [row[0], row[18], row[33], row[50], row[66]]
             .map(v => String(v || '').trim())
             .filter(v => isValidEmployeeName(v));
@@ -194,9 +166,9 @@ export const importConsolidatedLedger = async (
                 const id = `${emp.id}_${periodId}`;
                 const entry: BonusLedgerEntry = {
                     id,
-                    runTime: String(row[15] || ''),
-                    periodAD: String(row[16] || ''),
-                    periodBS: String(row[17] || ''),
+                    runTime: String(row[15] || ''), // P
+                    periodAD: String(row[16] || ''), // Q
+                    periodBS: String(row[17] || ''), // R
                     bsYear: period.year,
                     bsMonth: period.month,
                     employeeId: emp.id,
@@ -266,7 +238,7 @@ export const importConsolidatedLedger = async (
                     salaryTotal: coerceNumber(row[58]) - coerceNumber(row[59]),
                     advance: coerceNumber(row[60]),
                     netPayment: coerceNumber(row[61]),
-                    regularHours: coerceNumber(row[34]) * 8, // Derived if missing
+                    regularHours: coerceNumber(row[34]) * 8, 
                     otHours: coerceNumber(row[44]),
                     createdBy: importedBy,
                     createdAt: now
@@ -308,6 +280,5 @@ export const importConsolidatedLedger = async (
     }
 
     if (writeCount > 0) await commitBatch();
-    console.log("Import Finalized:", results);
     return results;
 };

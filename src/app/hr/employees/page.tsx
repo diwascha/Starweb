@@ -23,7 +23,9 @@ import {
     CheckSquare,
     Square,
     AlertTriangle,
-    RefreshCw
+    RefreshCw,
+    UserCheck,
+    UserX
 } from 'lucide-react';
 import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus, Department, Position, BloodGroup, EmployeeDocument } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -68,7 +70,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
 import { uploadFile, deleteFile } from '@/services/storage-service';
-import { Avatar, AvatarFallback, AvatarImage } from '@/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -81,7 +83,6 @@ type SortDirection = 'asc' | 'desc';
 const employeeStatuses: EmployeeStatus[] = ['Working', 'Long Leave', 'Resigned', 'Dismissed'];
 const departments: Department[] = ['Production', 'Admin'];
 const positions: Position[] = ['Manager', 'Supervisor', 'Machine Operator', 'Helpers', 'Staff'];
-const bloodGroups: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 const initialFormState = {
     name: '',
@@ -161,7 +162,7 @@ export default function EmployeesPage() {
   };
 
   const toggleAll = () => {
-    if (selectedIds.size === filteredAndSortedEmployees.length) {
+    if (selectedIds.size === filteredAndSortedEmployees.length && filteredAndSortedEmployees.length > 0) {
         setSelectedIds(new Set());
     } else {
         setSelectedIds(new Set(filteredAndSortedEmployees.map(e => e.id)));
@@ -341,7 +342,7 @@ export default function EmployeesPage() {
                 <TableRow className="hover:bg-transparent">
                     <TableHead className="w-12 pl-6">
                         <Checkbox 
-                            checked={selectedIds.size > 0 && selectedIds.size === filteredAndSortedEmployees.length} 
+                            checked={filteredAndSortedEmployees.length > 0 && selectedIds.size === filteredAndSortedEmployees.length} 
                             onCheckedChange={toggleAll}
                         />
                     </TableHead>
@@ -383,7 +384,7 @@ export default function EmployeesPage() {
                     <TableCell className="text-xs font-medium font-mono text-blue-900">{employee.joiningDate ? toNepaliDate(employee.joiningDate) : '—'}</TableCell>
                     <TableCell className="text-right">
                         <div className="flex flex-col">
-                            <span className="font-black text-xs text-gray-900">Rs. {employee.wageAmount.toLocaleString()}</span>
+                            <span className="font-black text-xs text-gray-900">Rs. {(employee.wageAmount || 0).toLocaleString()}</span>
                             <span className="text-[9px] text-muted-foreground uppercase tracking-tighter font-black">{employee.wageBasis}</span>
                         </div>
                     </TableCell>
@@ -408,12 +409,15 @@ export default function EmployeesPage() {
                     </TableCell>
                 </TableRow>
                 ))}
+                {!isLoading && filteredAndSortedEmployees.length === 0 && (
+                    <TableRow><TableCell colSpan={7} className="h-40 text-center text-muted-foreground italic">No employee records found matching your criteria.</TableCell></TableRow>
+                )}
             </TableBody>
           </Table>
       </Card>
 
       <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
-        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
+        <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
             <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
                 <DialogTitle className="text-2xl font-black text-gray-900 uppercase tracking-tight">{editingEmployee ? 'Update Profile' : 'Onboard Employee'}</DialogTitle>
                 <DialogDescription className="text-xs uppercase font-bold tracking-widest text-muted-foreground">Master Data Entry</DialogDescription>
@@ -482,3 +486,4 @@ export default function EmployeesPage() {
     </div>
   );
 }
+
