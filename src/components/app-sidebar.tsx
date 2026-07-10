@@ -345,7 +345,6 @@ export function AppSidebar() {
                                 
                                 <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Financials</SidebarGroupLabel>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Workforce Ledger</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Payslip Viewer</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>
                     </SidebarMenuItem>

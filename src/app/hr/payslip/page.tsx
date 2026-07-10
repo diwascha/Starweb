@@ -1,19 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense, use } from 'react';
+import { useState, useEffect, Suspense, use } from 'react';
 import type { Payroll, Employee } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
-import { Printer, Search, MoreHorizontal, View } from 'lucide-react';
-import { onPayrollUpdate, getPayrollForEmployee } from '@/services/payroll-service';
+import { getPayrollForEmployee } from '@/services/payroll-service';
 import { getEmployee } from '@/services/employee-service';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Input } from '@/components/ui/input';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import NepaliDate from 'nepali-date-converter';
+import { useRouter } from 'next/navigation';
 import PayslipView from './_components/payslip-view';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -51,165 +42,16 @@ function PayslipContent(props: { params: Promise<any>, searchParams: Promise<any
         }
     }, [employeeId, year, month]);
 
-    if (employeeId && year && month) {
-        if (loading) return <div className="p-8">Loading payslip...</div>;
-        if (!employee || !payrollData) return <div className="p-8">Payslip data not found for the selected period.</div>;
-        return <PayslipView employee={employee} payroll={payrollData} bsYear={parseInt(year)} bsMonthName={nepaliMonths[parseInt(month)]?.name || ''} />;
-    }
-
-    return <PayslipList />;
-}
-
-function PayslipList() {
-    const [allPayroll, setAllPayroll] = useState<Payroll[]>([]);
-    const [bsYears, setBsYears] = useState<number[]>([]);
-    const [selectedBsYear, setSelectedBsYear] = useState<string>('');
-    const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
-    const [searchQuery, setSearchQuery] = useState('');
-    const router = useRouter();
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const unsubPayroll = onPayrollUpdate((payrolls) => {
-            setAllPayroll(payrolls);
-            const years = Array.from(new Set(payrolls.map(p => p.bsYear))).sort((a, b) => b - a);
-            setBsYears(years);
-
-            if (years.length > 0) {
-                setSelectedBsYear(prevYear => {
-                    if (prevYear && years.includes(parseInt(prevYear))) return prevYear;
-                    const currentYear = new NepaliDate().getYear();
-                    return String(years.includes(currentYear) ? currentYear : years[0]);
-                });
-                setSelectedBsMonth(prevMonth => {
-                    if (prevMonth) return prevMonth;
-                    return String(new NepaliDate().getMonth());
-                });
-            }
-        });
-        return () => unsubPayroll();
-    }, []);
-
-    const filteredPayroll = useMemo(() => {
-        if (!selectedBsYear || selectedBsMonth === '') return [];
-        const year = parseInt(selectedBsYear);
-        const month = parseInt(selectedBsMonth);
-        
-        let filtered = allPayroll.filter(p => p.bsYear === year && p.bsMonth === month);
-
-        if (searchQuery) {
-            filtered = filtered.filter(p => p.employeeName.toLowerCase().includes(searchQuery.toLowerCase()));
-        }
-
-        return filtered;
-    }, [allPayroll, selectedBsYear, selectedBsMonth, searchQuery]);
-
-    const openPrintWindow = (employeeId?: string) => {
-        if (!selectedBsYear || !selectedBsMonth) return;
-        const url = `/hr/payslip?employeeId=${employeeId}&year=${selectedBsYear}&month=${selectedBsMonth}`;
-        const printWindow = window.open(url, '_blank');
-        if (printWindow) {
-            printWindow.onload = () => {
-                setTimeout(() => {
-                    printWindow.print();
-                }, 1000);
-            };
-        }
-    };
-
-    const handlePrintAll = () => {
-        toast({ title: "Printing All", description: "Preparing all payslips for printing..." });
-        filteredPayroll?.forEach((p, index) => {
-            setTimeout(() => {
-                openPrintWindow(p.employeeId);
-            }, index * 2000);
-        });
-    };
-
+    if (loading) return <div className="p-8">Loading payslip...</div>;
+    if (!employee || !payrollData) return <div className="p-8">Payslip data not found for the selected period.</div>;
+    
     return (
-        <div className="flex flex-col gap-8">
-            <header>
-                <h1 className="text-3xl font-bold tracking-tight">View Payslips</h1>
-                <p className="text-muted-foreground">Select a period to view and print imported employee payslips.</p>
-            </header>
-            
-             <Card>
-                <CardHeader>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="space-y-1.5">
-                            <CardTitle>Select Period</CardTitle>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                            <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={bsYears.length === 0}>
-                                <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
-                                <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={bsYears.length === 0}>
-                                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
-                                <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </CardHeader>
-            </Card>
-
-            {filteredPayroll.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div className="space-y-1.5">
-                                <CardTitle>Payslips for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}</CardTitle>
-                            </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                                 <div className="relative">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input placeholder="Search employee..." className="pl-8 w-full sm:w-auto" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                                </div>
-                                <Button variant="outline" onClick={handlePrintAll}>
-                                    <Printer className="mr-2 h-4 w-4" /> Print All
-                                </Button>
-                             </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Employee Name</TableHead>
-                                    <TableHead>Net Payment</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredPayroll.map(p => (
-                                    <TableRow key={p.id}>
-                                        <TableCell className="font-medium">{p.employeeName}</TableCell>
-                                        <TableCell>{(p.netPayment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onSelect={() => router.push(`/hr/payslip?employeeId=${p.employeeId}&year=${selectedBsYear}&month=${selectedBsMonth}`)}>
-                                                        <View className="mr-2 h-4 w-4" /> View
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onSelect={() => openPrintWindow(p.employeeId)}>
-                                                        <Printer className="mr-2 h-4 w-4" /> Print
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            )}
-        </div>
+        <PayslipView 
+            employee={employee} 
+            payroll={payrollData} 
+            bsYear={parseInt(year)} 
+            bsMonthName={nepaliMonths[parseInt(month)]?.name || ''} 
+        />
     );
 }
 

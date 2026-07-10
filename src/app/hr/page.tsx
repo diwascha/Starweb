@@ -25,7 +25,6 @@ const hrModules = [
     { name: 'Attendance Registry', description: 'Validated work-hour records and metrics.', href: '/hr/attendance', icon: Calendar },
     { name: 'Operations & Logic', description: 'Configure rules, shifts, holidays, and leaves.', href: '/hr/office', icon: Settings2 },
     { name: 'Workforce Ledger', description: 'Consolidated Payroll, Bonus, and Analytics.', href: '/hr/payroll', icon: FileText },
-    { name: 'Payslip Viewer', description: 'View and print employee payslips.', href: '/hr/payslip', icon: Wallet },
 ];
 
 function DashboardSkeleton() {
