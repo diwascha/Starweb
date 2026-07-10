@@ -68,7 +68,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
 import { uploadFile, deleteFile } from '@/services/storage-service';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -120,8 +120,6 @@ export default function EmployeesPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const docInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: EmployeeSortKey; direction: SortDirection }>({
@@ -192,6 +190,11 @@ export default function EmployeesPage() {
     setEditingEmployee(null);
     setPhotoFile(null);
     setPhotoPreview(null);
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormState(prev => ({ ...prev, [name]: value }));
   };
 
   const openAddEmployeeDialog = () => {
@@ -409,7 +412,6 @@ export default function EmployeesPage() {
           </Table>
       </Card>
 
-      {/* Employee Dialog */}
       <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
             <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
@@ -480,4 +482,3 @@ export default function EmployeesPage() {
     </div>
   );
 }
-

@@ -8,6 +8,7 @@
  * 1. Horizontal Identity Scan (Finds employee name in any of the 5 section anchors)
  * 2. Multi-Section Period Extraction (Cross-references all date sources for accurate BS filing)
  * 3. Strict Numeric Typing (Ensures Year/Month/Financials are stored as Numbers for UI filtering)
+ * 4. Noise Filtering (Prevents analysis rows from becoming system employees)
  */
 
 import { getFirebase } from '@/lib/firebase';
@@ -71,10 +72,13 @@ const isValidEmployeeName = (name: string): boolean => {
     
     const lower = n.toLowerCase();
     
-    // Pattern insights noise from the spreadsheet
-    if (lower.includes('trend:') || lower.includes('absenteeism:') || lower.includes('arrivals:') || lower.includes('utilization:')) return false;
-    if (lower.includes('absences (')) return false;
-    if (lower.includes('hotspots:')) return false;
+    const noisePatterns = [
+        'trend:', 'absenteeism:', 'arrivals:', 'utilization:', 
+        'absences (', 'shift-start', 'hotspots:', 'patterns', 
+        'insights', 'comparison', 'total', 'employee'
+    ];
+
+    if (noisePatterns.some(pattern => lower.includes(pattern))) return false;
 
     return !(
         lower === 'employee' || 
@@ -142,11 +146,13 @@ export const importConsolidatedLedger = async (
         return employee;
     };
 
+    console.log(`Starting Horizontal Import Scan: ${grid.length} rows detected.`);
+
     for (let r = CL_DATA_START; r < grid.length; r++) {
         const row = grid[r];
         if (!row || row.length < 5) continue;
 
-        // Horizontal Identity Check
+        // Horizontal Identity Check: Check all 5 section anchors
         const identityAnchors = [row[0], row[18], row[33], row[50], row[66]]
             .map(v => String(v || '').trim())
             .filter(v => isValidEmployeeName(v));
@@ -260,6 +266,8 @@ export const importConsolidatedLedger = async (
                     salaryTotal: coerceNumber(row[58]) - coerceNumber(row[59]),
                     advance: coerceNumber(row[60]),
                     netPayment: coerceNumber(row[61]),
+                    regularHours: coerceNumber(row[34]) * 8, // Derived if missing
+                    otHours: coerceNumber(row[44]),
                     createdBy: importedBy,
                     createdAt: now
                 };
@@ -300,6 +308,6 @@ export const importConsolidatedLedger = async (
     }
 
     if (writeCount > 0) await commitBatch();
+    console.log("Import Finalized:", results);
     return results;
 };
-

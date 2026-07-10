@@ -347,10 +347,6 @@ export const deleteAllRawLogs = async (): Promise<void> => {
 
 // --- Hourly Calculation Logic ---
 
-/**
- * Logic Utilities
- */
-
 const timeToMinutes = (time: string): number => {
     const [h, m, s] = time.split(':').map(Number);
     return Math.round(((h || 0) * 3600 + (m || 0) * 60 + (s || 0)) / 60);
@@ -407,7 +403,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const holidays = await getHolidays();
     const leaveRequests = await getLeaveRequests();
     
-    // Clear existing processed records for target period
     const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const processedSnap = await getDocs(qProcessed);
     if (!processedSnap.empty) {
@@ -620,22 +615,20 @@ export const deleteAttendanceRecord = async (id: string) => {
     await deleteDoc(doc(getAttendanceCollection(), id));
 };
 
-/**
- * Enhanced period discovery.
- * Checks both calculated attendance AND imported behavior ledger to find years with data.
- */
 export const getAttendanceYears = async (): Promise<number[]> => {
     const { db } = getFirebase();
     const years = new Set<number>();
     
     try {
-        const [attSnap, blSnap] = await Promise.all([
+        const [attSnap, blSnap, paySnap] = await Promise.all([
             getDocs(getAttendanceCollection()),
-            getDocs(collection(db, 'behavior_ledger'))
+            getDocs(collection(db, 'behavior_ledger')),
+            getDocs(collection(db, COLLECTIONS.PAYROLL))
         ]);
         
         attSnap.docs.forEach(d => years.add(d.data().bsYear as number));
         blSnap.docs.forEach(d => years.add(d.data().bsYear as number));
+        paySnap.docs.forEach(d => years.add(d.data().bsYear as number));
     } catch (e) {
         console.error("Failed to discover years", e);
     }
