@@ -539,53 +539,6 @@ export default function HrOfficePage() {
                     <DialogFooter><Button onClick={handleSaveLeaveRequest} className="w-full h-11 font-black text-xs uppercase shadow-lg shadow-blue-500/20">Commit Request</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
-            
-            {/* Detention Selector Dialog (Used within tabs) */}
-            <Dialog open={isDetentionDialogOpen} onOpenChange={setIsDetentionDialogOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Select Period</DialogTitle></DialogHeader>
-                    <div className="py-4 flex justify-center">
-                        <DualDateRangePicker selected={detentionDateRange} onSelect={setDetentionDateRange} />
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDetentionDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleConfirmDetention}>Confirm</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
-    );
-}
-
-// Internal reusable components
-function DetentionSelector({ label, range, onConfirm, onClear }: any) {
-    const [open, setOpen] = useState(false);
-    const [localRange, setLocalRange] = useState(range);
-    
-    return (
-        <div className="space-y-2">
-            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
-            <div className="flex items-center gap-2">
-                <Button variant="outline" className="w-full justify-start font-normal h-10" onClick={() => setOpen(true)}>
-                    <CalendarIcon className="mr-2 h-4 w-4"/>
-                    {range?.from ? `${toNepaliDate(range.from.toISOString())} - ${range.to ? toNepaliDate(range.to.toISOString()) : ''}` : 'Select Range'}
-                </Button>
-                {range?.from && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onClear}><X className="h-4 w-4"/></Button>
-                )}
-            </div>
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Select Period Range</DialogTitle></DialogHeader>
-                    <div className="py-4 flex justify-center">
-                        <DualDateRangePicker selected={localRange} onSelect={setLocalRange} />
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                        <Button onClick={() => { onConfirm(localRange); setOpen(false); }}>Confirm</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }

@@ -259,7 +259,7 @@ export const importConsolidatedLedger = async (
                     createdBy: importedBy,
                     createdAt: now
                 };
-                batch.set(doc(db, COLLECTIONS.PAYROLL, payrollId), entry, { merge: true });
+                batch.set(doc(getPayrollCollection(), payrollId), entry, { merge: true });
                 results.payroll++;
                 writeCount++;
             }
