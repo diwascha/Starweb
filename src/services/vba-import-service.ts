@@ -37,7 +37,6 @@ const CL_DATA_START = 2; // Row 3
  * AE (30) / AF (31) are preferred direct numeric columns.
  */
 const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | null => {
-    // 1. Direct Numeric Logic (Section 3: AE & AF)
     const yearNum = coerceNumber(row[30], 0);
     const monthNum = coerceNumber(row[31], 0);
     
@@ -45,8 +44,6 @@ const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | nul
         return { year: yearNum, month: monthNum - 1 };
     }
 
-    // 2. Complex String Logic (Fallback for other sections)
-    // Columns: R (17), AX (49), BM (64)
     const periodStrings = [row[49], row[17], row[64]].map(v => String(v || '').trim());
     const dateRegex = /(\d{4})[-/](\d{1,2})/;
 
@@ -64,17 +61,29 @@ const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | nul
     return null;
 };
 
-const isHeaderRow = (name: string): boolean => {
+/**
+ * Robust check to see if a cell contains a valid employee name or just spreadsheet noise.
+ */
+const isValidEmployeeName = (name: string): boolean => {
     if (!name) return false;
-    const n = name.trim().toLowerCase();
-    return (
-        n === 'employee' || 
-        n === 'total' ||
-        n === 'behavioral patterns (from attendance data)' ||
-        n === 'enhanced employee insights' ||
-        n === 'pattern insights' ||
-        n === 'day of week patterns' ||
-        n === 'month-to-month behavioral comparison'
+    const n = name.trim();
+    if (n.length < 2) return false;
+    
+    const lower = n.toLowerCase();
+    
+    // Pattern insights noise from the spreadsheet
+    if (lower.includes('trend:') || lower.includes('absenteeism:') || lower.includes('arrivals:') || lower.includes('utilization:')) return false;
+    if (lower.includes('absences (')) return false;
+    if (lower.includes('hotspots:')) return false;
+
+    return !(
+        lower === 'employee' || 
+        lower === 'total' ||
+        lower === 'behavioral patterns (from attendance data)' ||
+        lower === 'enhanced employee insights' ||
+        lower === 'pattern insights' ||
+        lower === 'day of week patterns' ||
+        lower === 'month-to-month behavioral comparison'
     );
 };
 
@@ -106,7 +115,6 @@ export const importConsolidatedLedger = async (
             batch = writeBatch(db);
             writeCount = 0;
         } catch (err: any) {
-            console.error("[VBA Import] Batch Fault:", err);
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'consolidated_ledger', operation: 'write' }));
             throw err;
         }
@@ -134,17 +142,14 @@ export const importConsolidatedLedger = async (
         return employee;
     };
 
-    console.log(`[VBA Import] Matrix Scan Initiated (${grid.length} rows)...`);
-
     for (let r = CL_DATA_START; r < grid.length; r++) {
         const row = grid[r];
         if (!row || row.length < 5) continue;
 
-        // Horizontal Identity Check: Scan all 5 section anchors for employee name
-        // Anchors: A=0, S=18, AH=33, AY=50, BO=66
+        // Horizontal Identity Check
         const identityAnchors = [row[0], row[18], row[33], row[50], row[66]]
             .map(v => String(v || '').trim())
-            .filter(v => v !== '' && !isHeaderRow(v));
+            .filter(v => isValidEmployeeName(v));
 
         if (identityAnchors.length === 0) continue;
         
@@ -153,7 +158,7 @@ export const importConsolidatedLedger = async (
         const period = resolvePeriodFromRow(row);
 
         // Section 1: Annual Bonus Summary (A-M)
-        if (String(row[0] || '').trim() && !isHeaderRow(String(row[0]))) {
+        if (isValidEmployeeName(String(row[0]))) {
             const bonusData: AnnualBonusSummary = {
                 id: emp.id,
                 employeeName: emp.name,
@@ -175,12 +180,11 @@ export const importConsolidatedLedger = async (
             writeCount++;
         }
 
-        // Period-Dependent Sections (Requires Year & Month match)
         if (period) {
             const periodId = `${period.year}_${period.month}`;
 
             // Section 2: Bonus Ledger (P-Y)
-            if (String(row[18] || '').trim() && !isHeaderRow(String(row[18]))) {
+            if (isValidEmployeeName(String(row[18]))) {
                 const id = `${emp.id}_${periodId}`;
                 const entry: BonusLedgerEntry = {
                     id,
@@ -204,7 +208,7 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 3: Behavior Ledger (AB-AS)
-            if (String(row[33] || '').trim() && !isHeaderRow(String(row[33]))) {
+            if (isValidEmployeeName(String(row[33]))) {
                 const id = `${emp.id}_${periodId}`;
                 const entry: BehaviorLedgerEntry = {
                     id,
@@ -234,7 +238,7 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 4: Payroll Ledger (AV-BJ)
-            if (String(row[50] || '').trim() && !isHeaderRow(String(row[50]))) {
+            if (isValidEmployeeName(String(row[50]))) {
                 const payrollId = `${period.year}-${period.month}-${emp.id}`;
                 const entry: Omit<Payroll, 'id'> = {
                     bsYear: period.year,
@@ -259,21 +263,19 @@ export const importConsolidatedLedger = async (
                     createdBy: importedBy,
                     createdAt: now
                 };
-                batch.set(doc(getPayrollCollection(), payrollId), entry, { merge: true });
+                batch.set(doc(collection(db, COLLECTIONS.PAYROLL), payrollId), entry, { merge: true });
                 results.payroll++;
                 writeCount++;
             }
 
             // Section 5: Behavior Analytics (BL-BW)
-            if (String(row[66] || '').trim() && !isHeaderRow(String(row[66]))) {
+            if (isValidEmployeeName(String(row[66]))) {
                 const id = `${emp.id}_${periodId}`;
                 const entry: BehaviorAnalyticsEntry = {
                     id,
                     runTime: String(row[63] || ''),
                     periodBS: String(row[64] || ''),
                     periodAD: String(row[65] || ''),
-                    bsYear: period.year,
-                    bsMonth: period.month,
                     employeeId: emp.id,
                     employeeName: emp.name,
                     behaviorInsight: String(row[67] || ''),
@@ -298,6 +300,6 @@ export const importConsolidatedLedger = async (
     }
 
     if (writeCount > 0) await commitBatch();
-    console.log("[VBA Import] Success Summary:", results);
     return results;
 };
+

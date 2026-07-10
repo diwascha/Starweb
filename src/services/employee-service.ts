@@ -16,16 +16,43 @@ const getEmployeesCollection = () => {
     return collection(db, COLLECTIONS.EMPLOYEES);
 }
 
+/**
+ * Enhanced name validation to prevent "noise" rows (analytics, trends, headers) 
+ * from the Consolidated Ledger being incorrectly saved as employees.
+ */
 const isValidEmployeeName = (name: string): boolean => {
     if (!name || typeof name !== 'string') return false;
-    const trimmedName = name.trim();
-    if (trimmedName.length === 0) return false;
+    const n = name.trim();
+    if (n.length < 2) return false;
+    
+    const lower = n.toLowerCase();
+    
+    // Explicitly block analysis metrics and spreadsheet UI strings
+    const noisePatterns = [
+        'trend:', 
+        'absenteeism:', 
+        'arrivals:', 
+        'utilization:', 
+        'absences (', 
+        'shift-start', 
+        'hotspots:',
+        'employee', 
+        'total',
+        'behavioral patterns',
+        'enhanced employee',
+        'pattern insights',
+        'day of week patterns',
+        'month-to-month'
+    ];
 
-    if (/^\d+$/.test(trimmedName)) return false;
-    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmedName)) return false; 
-    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(trimmedName)) return false; 
-    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(trimmedName)) return false; 
-    if (trimmedName.toLowerCase().includes('gmt')) return false; 
+    if (noisePatterns.some(pattern => lower.includes(pattern))) return false;
+
+    // Block common date/time formats often found in error rows
+    if (/^\d+$/.test(n)) return false;
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(n)) return false; 
+    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(n)) return false; 
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(n)) return false; 
+    if (lower.includes('gmt')) return false; 
 
     return true;
 };
@@ -135,3 +162,4 @@ export const deleteEmployee = async (id: string, photoURL?: string): Promise<voi
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: employeeDoc.path, operation: 'delete' }));
     });
 };
+
