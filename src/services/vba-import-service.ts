@@ -65,6 +65,20 @@ const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | nul
     return null;
 };
 
+const isHeaderRow = (name: string): boolean => {
+    if (!name) return false;
+    const n = name.trim().toLowerCase();
+    return (
+        n === 'employee' || 
+        n === 'total' ||
+        n === 'behavioral patterns (from attendance data)' ||
+        n === 'enhanced employee insights' ||
+        n === 'pattern insights' ||
+        n === 'day of week patterns' ||
+        n === 'month-to-month behavioral comparison'
+    );
+};
+
 export const importConsolidatedLedger = async (
     grid: any[][],
     importedBy: string,
@@ -121,7 +135,7 @@ export const importConsolidatedLedger = async (
         return employee;
     };
 
-    console.log(`[VBA Import] Analyzing Spreadsheet Matrix (${grid.length} rows)...`);
+    console.log(`[VBA Import] Starting Horizontal Matrix Scan (${grid.length} rows)...`);
 
     for (let r = CL_DATA_START; r < grid.length; r++) {
         const row = grid[r];
@@ -131,7 +145,7 @@ export const importConsolidatedLedger = async (
         // A=0, S=18, AH=33, AY=50, BO=66
         const possibleNames = [row[0], row[18], row[33], row[50], row[66]]
             .map(v => String(v || '').trim())
-            .filter(v => v !== '' && v.toLowerCase() !== 'employee' && !v.toLowerCase().includes('total'));
+            .filter(v => v !== '' && !isHeaderRow(v));
 
         if (possibleNames.length === 0) continue;
         
@@ -140,7 +154,7 @@ export const importConsolidatedLedger = async (
         const period = resolvePeriodFromRow(row);
 
         // Section 1: Annual Bonus Summary (A-M)
-        if (String(row[0] || '').trim() && String(row[0] || '').toLowerCase() !== 'employee') {
+        if (String(row[0] || '').trim() && !isHeaderRow(String(row[0]))) {
             const bonusData: AnnualBonusSummary = {
                 id: emp.id,
                 employeeName: emp.name,
@@ -167,7 +181,7 @@ export const importConsolidatedLedger = async (
             const periodId = `${period.year}_${period.month}`;
 
             // Section 2: Bonus Ledger (P-Y)
-            if (String(row[18] || '').trim() && String(row[18] || '').toLowerCase() !== 'employee') {
+            if (String(row[18] || '').trim() && !isHeaderRow(String(row[18]))) {
                 const id = `${emp.id}_${periodId}`;
                 const entry: BonusLedgerEntry = {
                     id,
@@ -191,7 +205,7 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 3: Behavior Ledger (AB-AS)
-            if (String(row[33] || '').trim() && String(row[33] || '').toLowerCase() !== 'employee') {
+            if (String(row[33] || '').trim() && !isHeaderRow(String(row[33]))) {
                 const id = `${emp.id}_${periodId}`;
                 const entry: BehaviorLedgerEntry = {
                     id,
@@ -221,7 +235,7 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 4: Payroll Ledger (AV-BJ)
-            if (String(row[50] || '').trim() && String(row[50] || '').toLowerCase() !== 'employee') {
+            if (String(row[50] || '').trim() && !isHeaderRow(String(row[50]))) {
                 const payrollId = `${period.year}-${period.month}-${emp.id}`;
                 const entry: Omit<Payroll, 'id'> = {
                     bsYear: period.year,
@@ -252,7 +266,7 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 5: Behavior Analytics (BL-BW)
-            if (String(row[66] || '').trim() && String(row[66] || '').toLowerCase() !== 'employee') {
+            if (String(row[66] || '').trim() && !isHeaderRow(String(row[66]))) {
                 const id = `${emp.id}_${periodId}`;
                 const entry: BehaviorAnalyticsEntry = {
                     id,
@@ -285,6 +299,6 @@ export const importConsolidatedLedger = async (
     }
 
     if (writeCount > 0) await commitBatch();
-    console.log("[VBA Import] Successful. Record counts:", results);
+    console.log("[VBA Import] Matrix scan complete.", results);
     return results;
 };
