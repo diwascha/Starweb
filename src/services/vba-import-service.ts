@@ -38,6 +38,7 @@ const CL_DATA_START = 2; // Row 3
  * AE (30) / AF (31) are preferred direct numeric columns.
  */
 const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | null => {
+    // AE(30) AF(31) are specific month/year identifiers
     const yearNum = coerceNumber(row[30], 0);
     const monthNum = coerceNumber(row[31], 0);
     
@@ -45,7 +46,8 @@ const resolvePeriodFromRow = (row: any[]): { year: number, month: number } | nul
         return { year: yearNum, month: monthNum - 1 };
     }
 
-    const periodStrings = [row[49], row[17], row[64]].map(v => String(v || '').trim());
+    // Fallback: Check standard period display columns Q(16), AX(49), BM(64)
+    const periodStrings = [row[16], row[49], row[64]].map(v => String(v || '').trim());
     const dateRegex = /(\d{4})[-/](\d{1,2})/;
 
     for (const str of periodStrings) {
@@ -129,11 +131,18 @@ export const importConsolidatedLedger = async (
             .map(v => String(v || '').trim())
             .filter(v => isValidEmployeeName(v));
 
-        if (identityAnchors.length === 0) continue;
+        if (identityAnchors.length === 0) {
+            // console.log(`Row ${r+1}: No valid identity found in anchors.`, row.slice(0, 5));
+            continue;
+        }
         
         const employeeName = identityAnchors[0];
         const emp = ensureEmployee(employeeName);
         const period = resolvePeriodFromRow(row);
+
+        if (!period) {
+            console.warn(`Row ${r+1} (${employeeName}): Period could not be resolved. Skipping financial/behavioral import.`);
+        }
 
         // Section 1: Annual Bonus Summary (A-M)
         if (isValidEmployeeName(String(row[0]))) {
@@ -190,12 +199,12 @@ export const importConsolidatedLedger = async (
                 const id = `${emp.id}_${periodId}`;
                 const entry: BehaviorLedgerEntry = {
                     id,
-                    runTime: String(row[27] || ''),
-                    periodBS: String(row[28] || ''),
-                    periodAD: String(row[29] || ''),
+                    runTime: String(row[27] || ''), // AB
+                    periodBS: String(row[28] || ''), // AC
+                    periodAD: String(row[29] || ''), // AD
                     bsYear: period.year,
                     bsMonth: period.month,
-                    bsMonthName: String(row[32] || ''),
+                    bsMonthName: String(row[32] || ''), // AG
                     employeeId: emp.id,
                     employeeName: emp.name,
                     workdays: coerceNumber(row[34]),
@@ -216,29 +225,28 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 4: Payroll Ledger (AV-BJ)
-            if (isValidEmployeeName(String(row[50]))) {
+            if (isValidEmployeeName(String(row[50]))) { // AY
                 const payrollId = `${period.year}-${period.month}-${emp.id}`;
                 const entry: Omit<Payroll, 'id'> = {
                     bsYear: period.year,
                     bsMonth: period.month,
-                    runTime: String(row[47] || ''),
-                    periodAD: String(row[48] || ''),
-                    periodBS: String(row[49] || ''),
+                    runTime: String(row[47] || ''), // AV
+                    periodAD: String(row[48] || ''), // AW
+                    periodBS: String(row[49] || ''), // AX
                     employeeId: emp.id,
                     employeeName: emp.name,
-                    base: String(row[51] || ''),
-                    presentDays: coerceNumber(row[52]),
-                    extraDays: coerceNumber(row[53]),
-                    leaveDays: coerceNumber(row[54]),
-                    regularPay: coerceNumber(row[55]),
-                    otPay: coerceNumber(row[56]),
-                    allowance: coerceNumber(row[57]),
-                    totalPay: coerceNumber(row[58]),
-                    tds: coerceNumber(row[59]),
-                    salaryTotal: coerceNumber(row[58]) - coerceNumber(row[59]),
-                    advance: coerceNumber(row[60]),
-                    netPayment: coerceNumber(row[61]),
-                    regularHours: coerceNumber(row[34]) * 8, 
+                    base: String(row[51] || ''), // AZ
+                    presentDays: coerceNumber(row[52]), // BA
+                    extraDays: coerceNumber(row[53]), // BB
+                    leaveDays: coerceNumber(row[54]), // BC
+                    regularPay: coerceNumber(row[55]), // BD
+                    otPay: coerceNumber(row[56]), // BE
+                    allowance: coerceNumber(row[57]), // BF
+                    totalPay: coerceNumber(row[58]), // BG
+                    tds: coerceNumber(row[59]), // BH
+                    advance: coerceNumber(row[60]), // BI
+                    netPayment: coerceNumber(row[61]), // BJ
+                    regularHours: coerceNumber(row[34]) * 8, // Calc from workdays
                     otHours: coerceNumber(row[44]),
                     createdBy: importedBy,
                     createdAt: now
@@ -249,23 +257,25 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 5: Behavior Analytics (BL-BW)
-            if (isValidEmployeeName(String(row[66]))) {
+            if (isValidEmployeeName(String(row[66]))) { // BO
                 const id = `${emp.id}_${periodId}`;
                 const entry: BehaviorAnalyticsEntry = {
                     id,
-                    runTime: String(row[63] || ''),
-                    periodBS: String(row[64] || ''),
-                    periodAD: String(row[65] || ''),
+                    runTime: String(row[63] || ''), // BL
+                    periodBS: String(row[64] || ''), // BM
+                    periodAD: String(row[65] || ''), // BN
+                    bsYear: period.year,
+                    bsMonth: period.month,
                     employeeId: emp.id,
                     employeeName: emp.name,
-                    behaviorInsight: String(row[67] || ''),
-                    punctualityTrend: String(row[68] || ''),
-                    absencePattern: String(row[69] || ''),
-                    otImpact: String(row[70] || ''),
-                    shiftEndBehavior: String(row[71] || ''),
-                    performanceInsight: String(row[72] || ''),
-                    bestDayOfWeek: String(row[73] || ''),
-                    worstDayOfWeek: String(row[74] || '')
+                    behaviorInsight: String(row[67] || ''), // BP
+                    punctualityTrend: String(row[68] || ''), // BQ
+                    absencePattern: String(row[69] || ''), // BR
+                    otImpact: String(row[70] || ''), // BS
+                    shiftEndBehavior: String(row[71] || ''), // BT
+                    performanceInsight: String(row[72] || ''), // BU
+                    bestDayOfWeek: String(row[73] || ''), // BV
+                    worstDayOfWeek: String(row[74] || '') // BW
                 };
                 batch.set(doc(db, 'behavior_analytics', id), entry, { merge: true });
                 results.behaviorAnalytics++;

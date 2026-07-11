@@ -179,6 +179,7 @@ export type IdentityType = 'Citizenship' | 'Voters Card' | 'License' | 'Passport
 export type EmployeeStatus = 'Working' | 'Long Leave' | 'Resigned' | 'Dismissed';
 export type Department = 'Production' | 'Admin';
 export type Position = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers' | 'Staff';
+export type PositionStatus = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers' | 'Staff';
 export type BloodGroup = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
 
 export interface EmployeeDocument {
@@ -437,6 +438,8 @@ export interface BehaviorAnalyticsEntry {
     runTime: string;
     periodBS: string;
     periodAD: string;
+    bsYear: number;
+    bsMonth: number;
     employeeId: string;
     employeeName: string;
     behaviorInsight: string;
@@ -996,81 +999,4 @@ export interface AppBranding {
   appName: string;
   appMotto: string;
   appLogoURL?: string;
-}
-
-// --- Rental Property Management Types ---
-
-export interface RentalProperty {
-  id: string;
-  name: string;
-  address: string;
-  totalUnits: number;
-  createdBy: string;
-  createdAt: string;
-  lastModifiedBy?: string;
-  lastModifiedAt?: string;
-}
-
-export type RentalUnitStatus = 'Occupied' | 'Vacant' | 'Reserved' | 'Under Maintenance';
-
-export interface RentalUnit {
-  id: string;
-  propertyId: string;
-  propertyName?: string;
-  unitNumber: string;
-  floor: string;
-  type: string; // e.g., Apartment, Shop, Warehouse
-  monthlyRent: number;
-  status: RentalUnitStatus;
-  tenantId?: string; // Link to PartyId
-  tenantName?: string;
-  outstandingBalance: number;
-  createdBy: string;
-  createdAt: string;
-  lastModifiedBy?: string;
-  lastModifiedAt?: string;
-}
-
-export interface RentalAgreement {
-  id: string;
-  unitId: string;
-  unitNumber?: string;
-  propertyId: string;
-  propertyName?: string;
-  tenantId: string;
-  tenantName?: string;
-  monthlyRent: number;
-  securityDeposit: number;
-  billingDate: number; // Day of month (1-31)
-  lateFee: number;
-  startDate: string;
-  endDate: string;
-  status: 'Active' | 'Pending' | 'Expired' | 'Terminated';
-  createdBy: string;
-  createdAt: string;
-  lastModifiedBy?: string;
-  lastModifiedAt?: string;
-}
-
-export type RentalBillType = 'Rent' | 'Electricity' | 'Water' | 'Internet' | 'Maintenance' | 'Parking' | 'Other';
-
-export interface RentalBill {
-  id: string;
-  agreementId: string;
-  tenantId: string;
-  tenantName: string;
-  unitId: string;
-  unitNumber: string;
-  propertyId: string;
-  propertyName: string;
-  type: RentalBillType;
-  amount: number;
-  billingMonth: number; // 0-11
-  billingYear: number;
-  dueDate: string;
-  status: 'Paid' | 'Unpaid' | 'Partial';
-  transactionId?: string; // Link to Transaction entity
-  remarks?: string;
-  createdBy: string;
-  createdAt: string;
 }
