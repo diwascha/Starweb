@@ -234,7 +234,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 {invoiceToEdit && <Button variant="outline" onClick={onSaveSuccess}>Cancel Edit</Button>}
             </header>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-                <div className="space-y-2"><Label>Document No.</Label><Input value={invoiceNumber} readOnly className="bg-muted/50" /></div>
+                <div className="space-y-2"><Label>Document No.</Label><Input value={invoiceNumber} readOnly className="bg-muted/50 h-10 font-mono text-sm" /></div>
                 <div className="space-y-2"><Label>Date</Label>
                     <Popover>
                         <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start text-left font-normal h-10"><CalendarIcon className="mr-2 h-4 w-4" />{date ? toNepaliDate(date.toISOString()) : 'Select Date'}</Button></PopoverTrigger>
@@ -343,24 +343,24 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                         ))}
                     </TableBody>
                 </Table>
-                <div className="p-6 border-t bg-muted/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="p-4 border-t bg-muted/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <Button variant="outline" size="sm" onClick={() => setItems([...items, { id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }])} className="h-9"><Plus className="mr-2 h-4 w-4" /> Add Row</Button>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-right w-full md:w-auto">
-                        <div className="space-y-1">
-                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Total Quantity</p>
-                            <p className="text-lg font-bold tabular-nums">{invoiceData.totalQuantity.toLocaleString()}</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-right w-full md:w-auto">
+                        <div className="space-y-0.5">
+                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Total Qty</p>
+                            <p className="text-sm font-bold tabular-nums">{invoiceData.totalQuantity.toLocaleString()}</p>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Gross Amount</p>
-                            <p className="text-lg font-bold tabular-nums">Rs. {invoiceData.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                        <div className="space-y-0.5">
+                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Gross Amt</p>
+                            <p className="text-sm font-bold tabular-nums">Rs. {invoiceData.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">VAT (13%)</p>
-                            <p className="text-lg font-bold tabular-nums text-blue-600">Rs. {invoiceData.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                        <div className="space-y-0.5">
+                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">VAT (13%)</p>
+                            <p className="text-sm font-bold tabular-nums text-blue-600">Rs. {invoiceData.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Net Total</p>
-                            <p className="text-2xl font-black text-blue-900 tabular-nums">Rs. {invoiceData.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                        <div className="space-y-0.5">
+                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Net Total</p>
+                            <p className="text-base font-black text-blue-900 tabular-nums">Rs. {invoiceData.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                         </div>
                     </div>
                 </div>
