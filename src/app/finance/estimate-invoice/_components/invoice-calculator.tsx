@@ -10,7 +10,7 @@ import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber, generateI
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
-import { onProductsUpdate } from '@/services/product-service';
+import { onProductsUpdate, addProduct } from '@/services/product-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -49,6 +49,12 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, ownership: 'Both' as AccountOwnership, address: '', panNumber: '' });
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
+    
+    const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+    const [productForm, setProductForm] = useState({ name: '', rate: '' });
+    const [productSearch, setProductSearch] = useState('');
+    const [activeRowIndex, setActiveRowIndex] = useState<number | null>(null);
+
     const [isSaving, setIsSaving] = useState(false);
     const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
     
@@ -111,6 +117,35 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 toast({ title: 'New party added.' });
             }
             setIsPartyDialogOpen(false);
+        } catch {
+            toast({ title: 'Error', variant: 'destructive' });
+        }
+    };
+
+    const handleSubmitProduct = async () => {
+        if (!user || !productForm.name || !party) {
+            toast({ title: 'Error', description: 'Product name and a selected customer are required.', variant: 'destructive' });
+            return;
+        }
+        try {
+            const newId = await addProduct({
+                name: productForm.name,
+                rate: parseFloat(productForm.rate) || 0,
+                partyId: party.id,
+                partyName: party.name,
+                partyAddress: party.address || '',
+                specification: {},
+                createdBy: user.username,
+                createdAt: new Date().toISOString()
+            });
+            
+            if (activeRowIndex !== null) {
+                handleItemChange(activeRowIndex, 'productName', productForm.name);
+            }
+            
+            toast({ title: 'Product Added', description: `${productForm.name} saved to catalog.` });
+            setIsProductDialogOpen(false);
+            setProductForm({ name: '', rate: '' });
         } catch {
             toast({ title: 'Error', variant: 'destructive' });
         }
@@ -201,13 +236,13 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 <div className="space-y-2"><Label>Document No.</Label><Input value={invoiceNumber} readOnly className="bg-muted/50" /></div>
                 <div className="space-y-2"><Label>Date</Label>
                     <Popover>
-                        <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{date ? toNepaliDate(date.toISOString()) : 'Select Date'}</Button></PopoverTrigger>
+                        <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start text-left font-normal h-10"><CalendarIcon className="mr-2 h-4 w-4" />{date ? toNepaliDate(date.toISOString()) : 'Select Date'}</Button></PopoverTrigger>
                         <PopoverContent className="w-auto p-0"><DualCalendar selected={date} onSelect={d => d && setDate(d)} /></PopoverContent>
                     </Popover>
                 </div>
                 <div className="space-y-2"><Label>Party Name</Label>
                     <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
-                        <PopoverTrigger asChild><Button variant="outline" role="combobox" className="w-full justify-between">{party ? party.name : "Select party..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
+                        <PopoverTrigger asChild><Button variant="outline" role="combobox" className="w-full justify-between h-10">{party ? party.name : "Select party..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
                         <PopoverContent className="p-0">
                             <Command>
                                 <CommandInput placeholder="Search party..." value={partySearch} onValueChange={setPartySearch} />
@@ -221,59 +256,153 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 </div>
             </div>
 
-            <Card className="p-0 overflow-hidden">
+            <Card className="p-0 overflow-hidden shadow-sm border-gray-200">
                 <Table>
-                    <TableHeader className="bg-muted/50"><TableRow><TableHead className="w-12"></TableHead><TableHead>Product</TableHead><TableHead className="w-32">Qty</TableHead><TableHead className="w-32">Rate</TableHead><TableHead className="w-32 text-right">Amount</TableHead></TableRow></TableHeader>
+                    <TableHeader className="bg-muted/50">
+                        <TableRow>
+                            <TableHead className="w-12"></TableHead>
+                            <TableHead>Product / Particulars</TableHead>
+                            <TableHead className="w-32">Qty</TableHead>
+                            <TableHead className="w-32">Rate</TableHead>
+                            <TableHead className="w-32 text-right pr-6">Amount</TableHead>
+                        </TableRow>
+                    </TableHeader>
                     <TableBody>
                         {items.map((item, index) => (
-                            <TableRow key={item.id}>
-                                <TableCell><Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== index))} className="text-destructive h-8 w-8"><Trash2 className="h-4 w-4" /></Button></TableCell>
+                            <TableRow key={item.id} className="h-14">
+                                <TableCell className="pl-4">
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={() => setItems(items.filter((_, i) => i !== index))} 
+                                        className="text-destructive h-8 w-8 hover:bg-red-50"
+                                        disabled={items.length === 1}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
                                 <TableCell>
                                     <Popover>
-                                        <PopoverTrigger asChild><Button variant="outline" className="w-full justify-between h-9 text-xs">{item.productName || "Select product..."}<ChevronDown className="h-3 w-3 opacity-50"/></Button></PopoverTrigger>
-                                        <PopoverContent className="p-0"><Command><CommandInput placeholder="Search..."/><CommandList><CommandGroup>{products.map(p => (<CommandItem key={p.id} value={p.name} onSelect={() => handleItemChange(index, 'productName', p.name)} className="text-xs">{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-between h-10 text-xs font-normal bg-white">
+                                                {item.productName || "Select product..."}
+                                                <ChevronDown className="h-3 w-3 opacity-50"/>
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="p-0 w-[400px]">
+                                            <Command>
+                                                <CommandInput 
+                                                    placeholder="Search catalog..." 
+                                                    value={productSearch} 
+                                                    onValueChange={setProductSearch}
+                                                />
+                                                <CommandList>
+                                                    <CommandEmpty>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            className="w-full justify-start text-xs text-primary font-bold" 
+                                                            onClick={() => {
+                                                                if (!party) {
+                                                                    toast({ title: 'Selection Required', description: 'Select a customer first.', variant: 'destructive' });
+                                                                    return;
+                                                                }
+                                                                setProductForm({ name: productSearch, rate: '' });
+                                                                setActiveRowIndex(index);
+                                                                setIsProductDialogOpen(true);
+                                                            }}
+                                                        >
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}" to catalog
+                                                        </Button>
+                                                    </CommandEmpty>
+                                                    <CommandGroup>
+                                                        {products.map(p => (
+                                                            <CommandItem 
+                                                                key={p.id} 
+                                                                value={p.name} 
+                                                                onSelect={() => handleItemChange(index, 'productName', p.name)} 
+                                                                className="text-xs flex items-center justify-between"
+                                                            >
+                                                                <div className="flex items-center">
+                                                                    <Check className={cn("mr-2 h-3 w-3", item.productName === p.name ? "opacity-100" : "opacity-0")} />
+                                                                    <span>{p.name}</span>
+                                                                </div>
+                                                                <span className="text-[10px] text-muted-foreground font-mono">Rs. {p.rate}</span>
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
                                     </Popover>
                                 </TableCell>
-                                <TableCell><Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} className="h-9" /></TableCell>
-                                <TableCell><Input type="number" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)} className="h-9" /></TableCell>
-                                <TableCell className="text-right font-bold">Rs. {item.gross.toLocaleString()}</TableCell>
+                                <TableCell><Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} className="h-10 font-bold" /></TableCell>
+                                <TableCell><Input type="number" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)} className="h-10" /></TableCell>
+                                <TableCell className="text-right pr-6 font-bold tabular-nums">Rs. {item.gross.toLocaleString()}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
                 <div className="p-4 border-t bg-muted/10 flex justify-between items-center">
-                    <Button variant="outline" size="sm" onClick={() => setItems([...items, { id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }])}><Plus className="mr-2 h-4 w-4" /> Add Row</Button>
+                    <Button variant="outline" size="sm" onClick={() => setItems([...items, { id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }])} className="h-9"><Plus className="mr-2 h-4 w-4" /> Add Row</Button>
                     <div className="text-right space-y-1">
-                        <p className="text-xs text-muted-foreground uppercase font-bold">Total Estimate</p>
-                        <p className="text-xl font-black text-blue-900">Rs. {invoiceData.netTotal.toLocaleString()}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Net Estimate (Inc. VAT)</p>
+                        <p className="text-2xl font-black text-blue-900 tabular-nums">Rs. {invoiceData.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                     </div>
                 </div>
             </Card>
 
-            <div className="flex justify-end gap-2">
-                 <Button variant="outline" onClick={() => setIsPreviewOpen(true)} disabled={!party || items.length === 0}><Printer className="mr-2 h-4 w-4" /> Preview</Button>
-                 <Button onClick={handleSaveInvoice} disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save Invoice</Button>
+            <div className="flex justify-end gap-3 pt-4">
+                 <Button variant="outline" size="lg" className="h-12 px-8" onClick={() => setIsPreviewOpen(true)} disabled={!party || items.length === 0}><Printer className="mr-2 h-4 w-4" /> Preview & Print</Button>
+                 <Button size="lg" className="h-12 px-8 font-bold shadow-lg" onClick={handleSaveInvoice} disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save Document</Button>
             </div>
 
             <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-                <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
-                    <DialogHeader className="p-6 pb-2"><DialogTitle>Invoice Preview</DialogTitle></DialogHeader>
+                <DialogContent className="max-w-4xl h-[95vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+                    <DialogHeader className="p-6 pb-2 border-b bg-muted/5 shrink-0"><DialogTitle className="text-xl font-black uppercase">Document Preview</DialogTitle></DialogHeader>
                     <ScrollArea className="flex-1 bg-muted/20 p-8"><div ref={printRef} className="mx-auto w-[210mm] shadow-2xl bg-white"><InvoiceView {...invoiceData} /></div></ScrollArea>
-                    <DialogFooter className="p-6 border-t"><Button variant="outline" onClick={handleExportPdf}>Save as PDF</Button><Button onClick={() => window.print()}>Print</Button></DialogFooter>
+                    <DialogFooter className="p-6 border-t bg-white shrink-0"><Button variant="outline" onClick={handleExportPdf} className="h-10 px-6">Save as PDF</Button><Button onClick={() => window.print()} className="h-10 px-10 font-bold">Print Invoice</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
             <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>{editingParty ? 'Edit Party' : 'Quick Add Party'}</DialogTitle></DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="space-y-2"><Label>Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} /></div>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle className="text-xl font-black uppercase">{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle></DialogHeader>
+                    <div className="grid gap-5 py-4">
+                        <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Full Name / Trading Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} className="h-11 font-bold" /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2"><Label>Type</Label><Select value={partyForm.type} onValueChange={(v: any) => setPartyForm({...partyForm, type: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem></SelectContent></Select></div>
-                            <div className="space-y-2"><Label>Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem></SelectContent></Select></div>
+                            <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Type</Label><Select value={partyForm.type} onValueChange={(v: any) => setPartyForm({...partyForm, type: v})}><SelectTrigger className="h-10"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor / Supplier</SelectItem><SelectItem value="Customer">Customer / Client</SelectItem></SelectContent></Select></div>
+                            <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger className="h-10"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan Dhuwani</SelectItem><SelectItem value="Shivam">Shivam Packaging</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
+                        </div>
+                         <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">PAN/VAT Number</Label><Input value={partyForm.panNumber} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} className="h-10 font-mono" /></div>
+                        <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Address</Label><Textarea value={partyForm.address} onChange={e => setPartyForm({...partyForm, address: e.target.value})} className="min-h-[80px]" /></div>
+                    </div>
+                    <DialogFooter><Button onClick={handleSubmitParty} className="h-11 px-8 font-bold">Save Partner Record</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black uppercase">Quick Add Product</DialogTitle>
+                        <DialogDescription className="text-xs uppercase font-bold text-muted-foreground tracking-widest">Entry for: {party?.name}</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-5 py-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Product Name</Label>
+                            <Input value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} className="h-10 font-bold" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Standard Rate (NPR)</Label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-black text-[10px]">रु</span>
+                                <Input type="number" value={productForm.rate} onChange={e => setProductForm({...productForm, rate: e.target.value})} className="pl-8 h-10 font-black" />
+                            </div>
                         </div>
                     </div>
-                    <DialogFooter><Button onClick={handleSubmitParty}>Save Record</Button></DialogFooter>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsProductDialogOpen(false)} className="h-10 font-bold">Cancel</Button>
+                        <Button onClick={handleSubmitProduct} className="h-10 px-8 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">Add to Catalog</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
