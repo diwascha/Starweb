@@ -164,11 +164,12 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     };
 
     const invoiceData = useMemo(() => {
+        const totalQuantity = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
         const grossTotal = items.reduce((sum, item) => sum + item.gross, 0);
         const vatTotal = grossTotal * 0.13;
         const netTotal = grossTotal + vatTotal;
         return {
-            invoiceNumber, date: date.toISOString(), party, items, grossTotal, vatTotal, netTotal,
+            invoiceNumber, date: date.toISOString(), party, items, totalQuantity, grossTotal, vatTotal, netTotal,
             amountInWords: toWords(netTotal), createdBy: user?.username,
         }
     }, [items, party, date, invoiceNumber, user]);
@@ -342,11 +343,25 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                         ))}
                     </TableBody>
                 </Table>
-                <div className="p-4 border-t bg-muted/10 flex justify-between items-center">
+                <div className="p-6 border-t bg-muted/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <Button variant="outline" size="sm" onClick={() => setItems([...items, { id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }])} className="h-9"><Plus className="mr-2 h-4 w-4" /> Add Row</Button>
-                    <div className="text-right space-y-1">
-                        <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Net Estimate (Inc. VAT)</p>
-                        <p className="text-2xl font-black text-blue-900 tabular-nums">Rs. {invoiceData.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-right w-full md:w-auto">
+                        <div className="space-y-1">
+                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Total Quantity</p>
+                            <p className="text-lg font-bold tabular-nums">{invoiceData.totalQuantity.toLocaleString()}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Gross Amount</p>
+                            <p className="text-lg font-bold tabular-nums">Rs. {invoiceData.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">VAT (13%)</p>
+                            <p className="text-lg font-bold tabular-nums text-blue-600">Rs. {invoiceData.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Net Total</p>
+                            <p className="text-2xl font-black text-blue-900 tabular-nums">Rs. {invoiceData.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                        </div>
                     </div>
                 </div>
             </Card>
