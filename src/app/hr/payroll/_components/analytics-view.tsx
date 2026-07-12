@@ -8,11 +8,10 @@ import type {
     BehaviorAnalyticsEntry,
     AnalyticsData
 } from '@/lib/types';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Activity, Clock, AlertTriangle, CheckCircle2, Calendar, Zap, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Calendar, Zap, ShieldCheck } from 'lucide-react';
 import { generateAnalyticsForMonth } from '@/services/payroll-service';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -25,9 +24,10 @@ interface AnalyticsViewProps {
     selectedBsMonth: string;
     employees: Employee[];
     attendance: AttendanceRecord[];
+    refreshTrigger?: number;
 }
 
-export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employees, attendance }: AnalyticsViewProps) {
+export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employees, attendance, refreshTrigger }: AnalyticsViewProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
     const [behavioralPatterns, setBehavioralPatterns] = useState<BehaviorLedgerEntry[]>([]);
@@ -61,8 +61,6 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
             await fetchImportedLedgerData(year, month);
             const data = generateAnalyticsForMonth(year, month, employees, attendance, null);
             setAnalyticsData(data);
-            
-            if (isManual) toast({ title: "Intelligence Engine Synchronized" });
         } catch (error) {
             if (isManual) toast({ title: "Computation Failed", variant: "destructive" });
         } finally {
@@ -71,29 +69,16 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
     }, [selectedBsYear, selectedBsMonth, employees, attendance, fetchImportedLedgerData, toast]);
 
     useEffect(() => {
-        handleGenerateAnalytics();
-    }, [handleGenerateAnalytics]);
+        handleGenerateAnalytics(refreshTrigger !== undefined && refreshTrigger > 0);
+    }, [handleGenerateAnalytics, refreshTrigger]);
     
     return (
         <div className="space-y-6">
-            <div className="flex justify-end print:hidden">
-                <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => handleGenerateAnalytics(true)} 
-                    disabled={isProcessing || !selectedBsYear} 
-                    className="h-8 font-black uppercase text-[10px] tracking-widest px-4 text-muted-foreground hover:text-primary"
-                >
-                    {isProcessing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-2 h-3.5 w-3.5" />}
-                    Refresh Analytics
-                </Button>
-            </div>
-
             {analyticsData && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <InsightCard title="Peak Absenteeism" value={analyticsData.highestAbsenteeism.day} sub={`${analyticsData.highestAbsenteeism.count} instances`} icon={AlertTriangle} color="red" />
-                        <InsightCard title="Peak Tardiness" value={analyticsData.highestLateArrivals.day} sub={`${analyticsData.highestLateArrivals.count} instances`} icon={Clock} color="amber" />
+                        <InsightCard title="Peak Tardiness" value={analyticsData.highestLateArrivals.day} sub={`${analyticsData.highestLateArrivals.count} instances`} icon={Zap} color="amber" />
                         <InsightCard title="Punctuality Leader" value={analyticsData.mostPunctualWeekday.day} sub={`${analyticsData.mostPunctualWeekday.rate.toFixed(1)}%`} icon={CheckCircle2} color="emerald" />
                         <InsightCard title="Sat. Utilization" value={`${analyticsData.saturdayUtilization.toFixed(0)}%`} sub="Shift coverage" icon={Calendar} color="blue" />
                     </div>

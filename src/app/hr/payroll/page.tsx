@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, Suspense, use } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Award, BarChart2, Upload, Loader2, Trash2 } from 'lucide-react';
+import { FileText, Award, BarChart2, Upload, Loader2, Trash2, RefreshCcw } from 'lucide-react';
 import PayrollClientPage from './_components/payroll-client-page';
 import BonusView from './_components/bonus-view';
 import AnalyticsView from './_components/analytics-view';
@@ -49,6 +49,8 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
     const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [isPurging, setIsPurging] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
         setIsLoadingData(true);
@@ -94,6 +96,18 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
         } finally {
             setIsPurging(false);
         }
+    };
+
+    const handleGlobalRefresh = () => {
+        setIsRefreshing(true);
+        setRefreshTrigger(prev => prev + 1);
+        setTimeout(() => {
+            setIsRefreshing(false);
+            toast({ 
+                title: 'Data Synchronized', 
+                description: `Workforce metrics updated for ${periodName}.` 
+            });
+        }, 800);
     };
 
     return (
@@ -155,6 +169,17 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
                                 </AlertDialogContent>
                             </AlertDialog>
 
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={handleGlobalRefresh} 
+                                disabled={isLoadingData || isRefreshing} 
+                                className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
+                            >
+                                {isRefreshing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-2 h-3.5 w-3.5" />}
+                                Sync Metrics
+                            </Button>
+
                             <Button variant="outline" onClick={() => router.push('/hr/payroll/import')} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5">
                                 <Upload className="mr-2 h-3.5 w-3.5" /> Import Ledger
                             </Button>
@@ -207,6 +232,7 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
                                 selectedBsMonth={selectedBsMonth}
                                 employees={employees}
                                 attendance={attendance}
+                                refreshTrigger={refreshTrigger}
                             />
                         </Suspense>
                     </TabsContent>
