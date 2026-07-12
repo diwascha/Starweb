@@ -134,7 +134,7 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="p-0">
-                                <ScrollArea className="h-[400px]">
+                                <ScrollArea className="h-[500px]">
                                     <div className="divide-y divide-indigo-100">
                                         {behavioralInsights.map(bi => (
                                             <div key={`insight-${bi.id}`} className="p-4 space-y-2 hover:bg-white transition-colors">
@@ -143,6 +143,14 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
                                                     <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-1">{bi.performanceInsight}</Badge>
                                                 </div>
                                                 <p className="text-[10px] text-gray-700 italic border-l-2 border-indigo-200 pl-2 mt-2 leading-relaxed">{bi.behaviorInsight}</p>
+                                                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 border-t border-indigo-100/70">
+                                                    <InsightField label="Punctuality" value={bi.punctualityTrend} />
+                                                    <InsightField label="Absence" value={bi.absencePattern} />
+                                                    <InsightField label="OT Impact" value={bi.otImpact} />
+                                                    <InsightField label="Shift End" value={bi.shiftEndBehavior} />
+                                                    <InsightField label="Best Day" value={bi.bestDayOfWeek} />
+                                                    <InsightField label="Worst Day" value={bi.worstDayOfWeek} />
+                                                </div>
                                             </div>
                                         ))}
                                         {behavioralInsights.length === 0 && (
@@ -179,5 +187,15 @@ function InsightCard({ title, value, sub, icon: Icon, color }: any) {
                 </div>
             </CardContent>
         </Card>
+    );
+}
+
+function InsightField({ label, value }: { label: string; value?: string }) {
+    if (!value) return null;
+    return (
+        <div className="space-y-0.5">
+            <p className="text-[7px] font-black uppercase tracking-widest text-indigo-400">{label}</p>
+            <p className="text-[9px] font-bold text-gray-700 leading-tight">{value}</p>
+        </div>
     );
 }

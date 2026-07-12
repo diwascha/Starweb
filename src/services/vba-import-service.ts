@@ -145,7 +145,12 @@ export const importConsolidatedLedger = async (
         }
 
         // Section 1: Annual Bonus Summary (A-M)
-        if (isValidEmployeeName(String(row[0]))) {
+        // Guard on row[1] (Basis) in addition to the employee name: column A is
+        // repeated as a tracking value on many period-block rows further down
+        // the sheet, but those rows leave B-M blank. Without this extra check,
+        // the last such row processed for an employee would overwrite their
+        // real summary data with zeros.
+        if (isValidEmployeeName(String(row[0])) && String(row[1] || '').trim() !== '') {
             const bonusData: AnnualBonusSummary = {
                 id: emp.id,
                 employeeName: emp.name,
