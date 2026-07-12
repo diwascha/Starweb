@@ -41,7 +41,7 @@ function LiveDateTime() {
 
   return (
     <div className="flex flex-col items-end md:items-start lg:items-end bg-muted/30 border border-dashed rounded-lg px-4 py-1.5 shadow-sm min-w-[140px]">
-        <div className="text-lg font-black tabular-nums tracking-tighter text-primary leading-none">
+        <div className="text-lg font-black tabular-nums tracking-tighter text-black leading-none">
             {format(now, 'HH:mm:ss')}
         </div>
         <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1 flex items-center gap-1">
