@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense, use, useCallback } from 'react';
+import { useState, useEffect, useMemo, Suspense, use } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Award, BarChart2, Upload, Calculator, Loader2, CalendarDays } from 'lucide-react';
+import { FileText, Award, BarChart2, Upload, Loader2 } from 'lucide-react';
 import PayrollClientPage from './_components/payroll-client-page';
 import BonusView from './_components/bonus-view';
 import AnalyticsView from './_components/analytics-view';
@@ -15,34 +15,14 @@ import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
 import { getAttendanceYears, onAttendanceUpdate } from '@/services/attendance-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { calculateAndSavePayrollForMonth } from '@/services/payroll-service';
 import { useAuth } from '@/hooks/use-auth';
-import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Separator } from '@/components/ui/separator';
 import type { Employee, AttendanceRecord } from '@/lib/types';
-
-function UnifiedPayrollSkeleton() {
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div className="space-y-2">
-                    <Skeleton className="h-10 w-64" />
-                    <Skeleton className="h-4 w-96" />
-                </div>
-            </div>
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-[500px] w-full" />
-        </div>
-    );
-}
 
 export default function UnifiedWorkforcePage(props: { params: Promise<any>, searchParams: Promise<any> }) {
     const searchParams = use(props.searchParams);
     const activeTab = searchParams.tab || "payroll";
     const router = useRouter();
-    const { toast } = useToast();
     const { user } = useAuth();
 
     // Global Selection State
@@ -54,7 +34,6 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
-    const [isCalculating, setIsCalculating] = useState(false);
 
     useEffect(() => {
         setIsLoadingData(true);
@@ -78,35 +57,6 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
             unsubAtt();
         };
     }, []);
-
-    const handleCalculatePayroll = async () => {
-        if (!selectedBsYear || selectedBsMonth === '' || !user) {
-            toast({ title: 'Error', description: 'Please select a valid period.', variant: 'destructive' });
-            return;
-        }
-        setIsCalculating(true);
-        try {
-            const year = parseInt(selectedBsYear, 10);
-            const month = parseInt(selectedBsMonth, 10);
-            
-            const result = await calculateAndSavePayrollForMonth(
-                year,
-                month,
-                employees,
-                attendance,
-                user.username
-            );
-            
-            toast({
-                title: 'Calculation Complete',
-                description: `Generated payroll for ${result.employeeCount} employees.`
-            });
-        } catch (error: any) {
-            toast({ title: 'Calculation Failed', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsCalculating(false);
-        }
-    };
 
     const periodName = useMemo(() => {
         const m = NEPALI_MONTHS.find(m => m.value === parseInt(selectedBsMonth));
@@ -151,27 +101,6 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
                             <Button variant="outline" onClick={() => router.push('/hr/payroll/import')} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5">
                                 <Upload className="mr-2 h-3.5 w-3.5" /> Import Ledger
                             </Button>
-                            
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button disabled={isCalculating || isLoadingData} className="h-9 px-6 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20">
-                                        {isCalculating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Calculator className="mr-2 h-3.5 w-3.5" />}
-                                        Re-Run Logic
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Recalculate Entire Period?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will overwrite existing payroll records for <b>{periodName}</b> using current HR Office rules and Attendance machine logs.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleCalculatePayroll} className="bg-primary text-primary-foreground font-bold">Confirm Commit</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
                         </div>
                     </div>
                 </CardHeader>

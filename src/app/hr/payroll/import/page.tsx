@@ -13,6 +13,8 @@ import { importConsolidatedLedger } from '@/services/vba-import-service';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
+const TARGET_SHEET_NAME = 'Consolidated Ledger';
+
 export default function ImportPayrollPage() {
     const router = useRouter();
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -44,10 +46,43 @@ export default function ImportPayrollPage() {
                 try {
                     const data = new Uint8Array(e.target?.result as ArrayBuffer);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    
-                    const sheetName = workbook.SheetNames[0];
+
+                    // Find the target sheet by name (case-insensitive, trimmed) instead of
+                    // blindly grabbing SheetNames[0]. Sheet order in the workbook is not
+                    // guaranteed to put the Consolidated Ledger first.
+                    const sheetName = workbook.SheetNames.find(
+                        (name) => name.trim().toLowerCase() === TARGET_SHEET_NAME.toLowerCase()
+                    );
+
+                    if (!sheetName) {
+                        toast({
+                            title: 'Sheet Not Found',
+                            description: `Could not find a sheet named "${TARGET_SHEET_NAME}" in this workbook. Available sheets: ${workbook.SheetNames.join(', ')}`,
+                            variant: 'destructive',
+                        });
+                        setFileName(null);
+                        setImportProgress(null);
+                        setIsProcessing(false);
+                        return;
+                    }
+
                     const worksheet = workbook.Sheets[sheetName];
                     const grid = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
+
+                    // Sanity check: header row 2 (index 1), column B should read "Employee".
+                    // Catches future layout drift before we burn a full parse pass on bad data.
+                    const headerRow = grid[1] || [];
+                    if (String(headerRow[0] || '').trim().toLowerCase() !== 'employee') {
+                        toast({
+                            title: 'Unexpected Sheet Layout',
+                            description: `Row 2, Column A was expected to read "Employee" but found "${headerRow[0] ?? '(empty)'}". The ledger layout may have changed.`,
+                            variant: 'destructive',
+                        });
+                        setFileName(null);
+                        setImportProgress(null);
+                        setIsProcessing(false);
+                        return;
+                    }
 
                     setImportProgress("Mapping data blocks...");
                     const result = await importConsolidatedLedger(grid, user.username, (current, total) => {
