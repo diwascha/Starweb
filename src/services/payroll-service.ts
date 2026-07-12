@@ -1,6 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import type { Payroll, Employee, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord, AnalyticsReport } from '@/lib/types';
+import type { Payroll, Employee, AttendanceRecord, AnalyticsReport } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from './settings-service';
 import { COLLECTIONS, NEPALI_MONTHS } from '@/lib/constants';
@@ -84,22 +84,38 @@ export const getPayrollYears = async (): Promise<number[]> => {
 export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
     const { db } = getFirebase();
     try {
-        const reportId = `${bsYear}-${bsMonth}`;
-        await deleteDoc(doc(getAnalyticsCollection(), reportId));
-
-        const q = query(getPayrollCollection(), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
-        const snapshot = await getDocs(q);
-
-        if (snapshot.empty) return;
-
+        const year = Number(bsYear);
+        const month = Number(bsMonth);
+        const reportId = `${year}-${month}`;
+        
+        // Define all relevant collections that store period-specific data from the Consolidated Ledger
+        const collections = [
+            COLLECTIONS.PAYROLL, 
+            'bonus_ledger', 
+            'behavior_ledger', 
+            'behavior_analytics'
+        ];
+        
         const CHUNK_SIZE = 400;
-        const docsToDelete = snapshot.docs;
 
-        for (let i = 0; i < docsToDelete.length; i += CHUNK_SIZE) {
-            const chunk = docsToDelete.slice(i, i + CHUNK_SIZE);
-            const batch = writeBatch(db);
-            chunk.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
+        // 1. Delete analytics report if it exists
+        await deleteDoc(doc(db, 'analytics_reports', reportId));
+
+        // 2. Clear all period-specific entries across collections
+        for (const collName of collections) {
+            const q = query(collection(db, collName), where("bsYear", "==", year), where("bsMonth", "==", month));
+            const snapshot = await getDocs(q);
+
+            if (!snapshot.empty) {
+                const docsToDelete = snapshot.docs;
+                // Delete in chunks to respect batch limits
+                for (let i = 0; i < docsToDelete.length; i += CHUNK_SIZE) {
+                    const chunk = docsToDelete.slice(i, i + CHUNK_SIZE);
+                    const batch = writeBatch(db);
+                    chunk.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                }
+            }
         }
     } catch (error) {
         logServiceError('deletePayrollForMonth', error);
@@ -508,10 +524,10 @@ export const getHeaderMap = (headerRow: any[]) => {
 };
 
 export interface AnalyticsData {
-    punctuality: PunctualityInsight[];
-    behavior: BehaviorInsight[];
-    workforce: WorkforceAnalytics[];
-    patterns: PatternInsight[];
+    punctuality: any[];
+    behavior: any[];
+    workforce: any[];
+    patterns: any[];
     highestAbsenteeism: { day: string; count: number };
     highestLateArrivals: { day: string; count: number };
     lateHotspots: { date: string; count: number }[];
@@ -529,9 +545,9 @@ export const generateAnalyticsForMonth = (
     importedReport?: AnalyticsReport | null
 ): AnalyticsData => {
     const monthlyAttendance = allAttendance.filter(r => r.bsYear === bsYear && r.bsMonth === bsMonth);
-    const punctuality: PunctualityInsight[] = [];
-    const behavior: BehaviorInsight[] = [];
-    const workforce: WorkforceAnalytics[] = [];
+    const punctuality: any[] = [];
+    const behavior: any[] = [];
+    const workforce: any[] = [];
     
     const dayStats: Record<string, { total: number, absent: number, late: number }> = {
         'Sunday': { total: 0, absent: 0, late: 0 }, 'Monday': { total: 0, absent: 0, late: 0 },

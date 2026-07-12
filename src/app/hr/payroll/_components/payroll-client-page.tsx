@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Payroll, Employee } from '@/lib/types';
+import type { Payroll } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Printer, Loader2, View, Trash2 } from 'lucide-react';
-import { onPayrollUpdate, deletePayrollForMonth } from '@/services/payroll-service';
+import { Download, Printer, Loader2, View } from 'lucide-react';
+import { onPayrollUpdate } from '@/services/payroll-service';
 import { useRouter } from 'next/navigation';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { NEPALI_MONTHS } from '@/lib/constants';
 
 const customEmployeeOrder = [
@@ -28,7 +27,6 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
     const [allPayroll, setAllPayroll] = useState<Payroll[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
-    const { toast } = useToast();
 
     useEffect(() => {
         const unsubPayroll = onPayrollUpdate((payrolls) => {
@@ -37,18 +35,6 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         });
         return () => unsubPayroll();
     }, []);
-
-    const handleDeletePayrollForMonth = async () => {
-        if (!selectedBsYear || selectedBsMonth === '') return;
-        try {
-            const year = parseInt(selectedBsYear);
-            const month = parseInt(selectedBsMonth);
-            await deletePayrollForMonth(year, month);
-            toast({ title: 'Deletion Successful', description: `Payroll data for ${NEPALI_MONTHS[month].name} ${year} has been removed.` });
-        } catch (error) {
-            toast({ title: 'Deletion Failed', variant: 'destructive' });
-        }
-    };
 
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
@@ -120,21 +106,6 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         <Card className="shadow-lg border-gray-100 bg-white overflow-hidden">
             <CardContent className="pt-6">
                 <div className="mb-6 flex justify-end gap-2 print:hidden">
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-destructive h-8 font-black text-[10px] uppercase tracking-widest" disabled={monthlyPayroll.length === 0}><Trash2 className="mr-1.5 h-3.5 w-3.5" /> Purge Month</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Period Records?</AlertDialogTitle>
-                                <AlertDialogDescription>Permanently remove all payroll data for {NEPALI_MONTHS[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}?</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDeletePayrollForMonth} className="bg-destructive text-white">Purge Everything</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
                     <Button variant="outline" size="sm" onClick={handleExport} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest border-gray-300">
                         <Download className="mr-1.5 h-3.5 w-3.5" /> Export XLSX
                     </Button>
