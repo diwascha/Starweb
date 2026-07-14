@@ -40,7 +40,7 @@ function LiveDateTime() {
   if (!now) return null;
 
   return (
-    <div className="flex flex-col items-start bg-muted/30 border border-dashed rounded-lg px-3 py-1.5 shadow-sm w-fit">
+    <div className="flex flex-col items-start bg-muted/30 border border-dashed rounded-lg px-3 py-1.5 shadow-sm w-fit mt-2">
         <div className="text-lg font-black tabular-nums tracking-tighter text-black leading-none">
             {format(now, 'HH:mm:ss')}
         </div>
@@ -121,7 +121,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-6 overflow-hidden">
+        <div className="flex items-center gap-6 overflow-hidden text-left">
             <div className="flex flex-col min-w-0 max-w-full">
               <h1 className="text-lg sm:text-xl font-black tracking-tighter uppercase whitespace-nowrap overflow-hidden text-ellipsis">
                 {companyProfile.nameEn}
@@ -130,9 +130,7 @@ export default function DashboardPage() {
               <div className="mt-1">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase truncate">{companyProfile.address}</p>
                 <p className="text-[11px] text-muted-foreground">Welcome back, {user?.username}</p>
-                <div className="mt-2">
-                    <LiveDateTime />
-                </div>
+                <LiveDateTime />
               </div>
             </div>
         </div>
@@ -161,120 +159,120 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        <Link href="/fleet/policies" className="block">
-          <Card className={cn(
-            "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm", 
-            stats.fleetStats.expired > 0 ? "border-l-destructive bg-destructive/5" : (stats.fleetStats.comingSoon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-green-500")
-          )}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1 w-full">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fleet Alerts</p>
-                  <div className="grid grid-cols-3 gap-1 mt-2">
-                    <div className="flex flex-col text-center">
-                        <span className={cn("text-lg font-bold", stats.fleetStats.expired > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.fleetStats.expired}</span>
-                        <span className="text-[8px] text-muted-foreground uppercase leading-none">Expired</span>
-                    </div>
-                    <div className="flex flex-col text-center border-x px-1">
-                        <span className={cn("text-lg font-bold", stats.fleetStats.comingSoon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.fleetStats.comingSoon}</span>
-                        <span className="text-[8px] text-muted-foreground uppercase leading-none">Soon</span>
-                    </div>
-                    <div className="flex flex-col text-center pl-1">
-                        <span className="text-lg font-bold text-green-600">{stats.fleetStats.ok}</span>
-                        <span className="text-[8px] text-muted-foreground uppercase leading-none">OK</span>
-                    </div>
-                  </div>
-                </div>
-                <Truck className="h-6 w-6 text-muted-foreground opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/finance/cheque-generator" className="block">
-          <Card className={cn(
-            "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm", 
-            stats.chequeStats.overdue > 0 ? "border-l-destructive bg-destructive/5" : (stats.chequeStats.soon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-blue-500")
-          )}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1 w-full">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Cheque Alerts</p>
-                  <div className="grid grid-cols-3 gap-1 mt-2">
-                    <div className="flex flex-col text-center">
-                        <span className={cn("text-lg font-bold", stats.chequeStats.overdue > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.chequeStats.overdue}</span>
-                        <span className="text-[8px] text-muted-foreground uppercase leading-none">Overdue</span>
-                    </div>
-                    <div className="flex flex-col text-center border-x px-1">
-                        <span className={cn("text-lg font-bold", stats.chequeStats.soon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.chequeStats.soon}</span>
-                        <span className="text-[8px] text-muted-foreground uppercase leading-none">Soon</span>
-                    </div>
-                    <div className="flex flex-col text-center pl-1">
-                        <span className="text-lg font-bold text-blue-600">{stats.chequeStats.notDue}</span>
-                        <span className="text-[8px] text-muted-foreground uppercase leading-none">Not Due</span>
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+        <div className="xl:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 h-fit">
+          <Link href="/fleet/policies" className="block">
+            <Card className={cn(
+              "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm", 
+              stats.fleetStats.expired > 0 ? "border-l-destructive bg-destructive/5" : (stats.fleetStats.comingSoon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-green-500")
+            )}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1 w-full text-left">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fleet Alerts</p>
+                    <div className="grid grid-cols-3 gap-1 mt-2">
+                      <div className="flex flex-col text-center">
+                          <span className={cn("text-lg font-bold", stats.fleetStats.expired > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.fleetStats.expired}</span>
+                          <span className="text-[8px] text-muted-foreground uppercase leading-none">Expired</span>
+                      </div>
+                      <div className="flex flex-col text-center border-x px-1">
+                          <span className={cn("text-lg font-bold", stats.fleetStats.comingSoon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.fleetStats.comingSoon}</span>
+                          <span className="text-[8px] text-muted-foreground uppercase leading-none">Soon</span>
+                      </div>
+                      <div className="flex flex-col text-center pl-1">
+                          <span className="text-lg font-bold text-green-600">{stats.fleetStats.ok}</span>
+                          <span className="text-[8px] text-muted-foreground uppercase leading-none">OK</span>
+                      </div>
                     </div>
                   </div>
+                  <Truck className="h-6 w-6 text-muted-foreground opacity-20" />
                 </div>
-                <Clock className="h-6 w-6 text-muted-foreground opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <Link href="/purchase-orders/list" className="block">
-          <Card className="border-l-4 border-l-amber-500 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Open Orders</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{stats.openPOs}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Pending POs</span>
+          <Link href="/finance/cheque-generator" className="block">
+            <Card className={cn(
+              "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm", 
+              stats.chequeStats.overdue > 0 ? "border-l-destructive bg-destructive/5" : (stats.chequeStats.soon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-blue-500")
+            )}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1 w-full text-left">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Cheque Alerts</p>
+                    <div className="grid grid-cols-3 gap-1 mt-2">
+                      <div className="flex flex-col text-center">
+                          <span className={cn("text-lg font-bold", stats.chequeStats.overdue > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.chequeStats.overdue}</span>
+                          <span className="text-[8px] text-muted-foreground uppercase leading-none">Overdue</span>
+                      </div>
+                      <div className="flex flex-col text-center border-x px-1">
+                          <span className={cn("text-lg font-bold", stats.chequeStats.soon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.chequeStats.soon}</span>
+                          <span className="text-[8px] text-muted-foreground uppercase leading-none">Soon</span>
+                      </div>
+                      <div className="flex flex-col text-center pl-1">
+                          <span className="text-lg font-bold text-blue-600">{stats.chequeStats.notDue}</span>
+                          <span className="text-[8px] text-muted-foreground uppercase leading-none">Not Due</span>
+                      </div>
+                    </div>
                   </div>
+                  <Clock className="h-6 w-6 text-muted-foreground opacity-20" />
                 </div>
-                <ShoppingCart className="h-6 w-6 text-amber-500 opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <Link href="/finance/estimate-invoice" className="block">
-          <Card className="border-l-4 border-l-green-600 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">MTD Revenue Est.</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold">Rs.{stats.mtdRevenue.toLocaleString()}</span>
+          <Link href="/purchase-orders/list" className="block">
+            <Card className="border-l-4 border-l-amber-500 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1 text-left">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Open Orders</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold">{stats.openPOs}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase font-semibold">Pending POs</span>
+                    </div>
                   </div>
+                  <ShoppingCart className="h-6 w-6 text-amber-500 opacity-20" />
                 </div>
-                <TrendingUp className="h-6 w-6 text-green-600 opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <Link href="/settings" className="block">
-          <Card className="border-l-4 border-l-purple-500 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">System Traffic</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{stats.totalVisits.toLocaleString()}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Visits</span>
+          <Link href="/finance/estimate-invoice" className="block">
+            <Card className="border-l-4 border-l-green-600 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1 text-left">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">MTD Revenue Est.</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xl font-bold">Rs.{stats.mtdRevenue.toLocaleString()}</span>
+                    </div>
                   </div>
+                  <TrendingUp className="h-6 w-6 text-green-600 opacity-20" />
                 </div>
-                <MousePointerClick className="h-6 w-6 text-purple-500 opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
+              </CardContent>
+            </Card>
+          </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="space-y-4 lg:col-start-3">
+          <Link href="/settings" className="block">
+            <Card className="border-l-4 border-l-purple-500 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1 text-left">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">System Traffic</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold">{stats.totalVisits.toLocaleString()}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase font-semibold">Visits</span>
+                    </div>
+                  </div>
+                  <MousePointerClick className="h-6 w-6 text-purple-500 opacity-20" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        <div className="xl:col-span-1">
           <Card className="overflow-hidden shadow-md">
             <CardHeader className="p-4 bg-muted/50 border-b">
               <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center justify-between">
