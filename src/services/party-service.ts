@@ -25,6 +25,7 @@ import type { Party, PartyType, AccountOwnership } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { logAudit } from './log-service';
 
 const getPartiesCollection = () => {
     const { db } = getFirebase();
@@ -115,7 +116,9 @@ export const addParty = async (party: Omit<Party, 'id' | 'createdAt'>): Promise<
     };
 
     // Non-blocking setDoc for offline resilience
-    setDoc(docRef, payload).catch(async (err) => {
+    setDoc(docRef, payload).then(() => {
+        logAudit(`New Party Added: ${party.name}`, 'Accounting', { id, type: party.type });
+    }).catch(async (err) => {
         const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'create',
@@ -146,7 +149,9 @@ export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>)
         lastModifiedAt: new Date().toISOString(),
     };
 
-    updateDoc(partyDoc, payload).catch(async (err) => {
+    updateDoc(partyDoc, payload).then(() => {
+        logAudit(`Party Record Updated: ${party.name || id}`, 'Accounting', { id, changes: party });
+    }).catch(async (err) => {
         const permissionError = new FirestorePermissionError({
             path: partyDoc.path,
             operation: 'update',
@@ -159,7 +164,12 @@ export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>)
 export const deleteParty = async (id: string): Promise<void> => {
     if (!id) return;
     const partyDoc = doc(getPartiesCollection(), id);
-    deleteDoc(partyDoc).catch(async (err) => {
+    const snap = await getDoc(partyDoc);
+    const name = snap.exists() ? snap.data().name : id;
+
+    deleteDoc(partyDoc).then(() => {
+        logAudit(`Party Permanently Deleted: ${name}`, 'Accounting', { id });
+    }).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: partyDoc.path, operation: 'delete' }));
     });
 };
@@ -206,7 +216,12 @@ export const mergeParties = async (sourceId: string, destinationId: string): Pro
     }
 
     batch.delete(sourceSnap.ref);
-    batch.commit().catch(err => {
+    batch.commit().then(() => {
+        logAudit(`Parties Merged: ${sourceParty.name} into ${destinationParty.name}`, 'Accounting', {
+            sourceId,
+            destinationId
+        });
+    }).catch(err => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'batch-merge', operation: 'write' }));
     });
 };

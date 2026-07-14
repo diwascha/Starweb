@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,6 +16,7 @@ import { AuthErrorCodes } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 import { getAdminCredentials, getUserByLogin, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
+import { logAudit } from '@/services/log-service';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
 import { cn } from '@/lib/utils';
@@ -105,9 +105,11 @@ export default function LoginPage() {
         const adminCreds = getAdminCredentials();
         if (data.password === adminCreds.password) {
             await login({ username: 'Administrator', id: 'admin', permissions: {}, isApproved: true } as any, true);
+            logAudit('Successful Administrator Session Started', 'Security');
             toast({ title: 'Success', description: 'Admin session started.' });
         } else {
             setFailedAttempts(prev => prev + 1);
+            logAudit('Failed Administrator Login Attempt', 'Security');
             toast({ title: 'Access Denied', description: 'Invalid administrator password.', variant: 'destructive'});
         }
         setIsSubmitting(false);
@@ -130,6 +132,7 @@ export default function LoginPage() {
       // 5. Verify Approval Status
       if (cloudUser.isApproved === false) {
         await auth.signOut();
+        logAudit(`Blocked Login Attempt (Unapproved Account): ${cloudUser.username}`, 'Security');
         toast({ 
             title: 'Account Pending', 
             description: 'Your account is pending administrator approval.', 
@@ -140,11 +143,13 @@ export default function LoginPage() {
 
       // 6. Establish local session tracking
       await login(cloudUser, false);
+      logAudit(`Successful Login: ${cloudUser.username}`, 'Security');
       toast({ title: 'Welcome', description: `Signed in as ${cloudUser.username}` });
       setFailedAttempts(0); // Reset on success
       
     } catch (error: any) {
       setFailedAttempts(prev => prev + 1);
+      logAudit(`Failed Login Attempt: ${data.loginString}`, 'Security', { code: error.code });
       let errorMessage = 'Login failed. Please check your credentials.';
       
       if (error.message === "Username does not exist in our system.") {
@@ -236,7 +241,7 @@ export default function LoginPage() {
                 <div className="space-y-3 p-4 bg-amber-50 rounded-xl border-2 border-amber-200 animate-in slide-in-from-top-2">
                     <div className="flex items-center justify-between">
                         <Label className="text-[10px] font-black uppercase text-amber-800 tracking-widest">Security Challenge</Label>
-                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-amber-700" onClick={generateCaptcha}>
+                        <Button type="button" variant="ghost" size="icon" className="h-3 w-3 text-amber-700" onClick={generateCaptcha}>
                             <RefreshCw className="h-3 w-3" />
                         </Button>
                     </div>

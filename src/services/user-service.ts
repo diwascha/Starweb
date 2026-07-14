@@ -24,6 +24,7 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
 import type { User, Permissions } from '@/lib/types';
 import { z } from 'zod';
+import { logAudit } from './log-service';
 
 const USERS_COLLECTION = 'system_users';
 const USERNAMES_COLLECTION = 'usernames';
@@ -41,7 +42,7 @@ const defaultAdminCreds = {
  * Zod schema for validating User data from Firestore.
  * Ensures data integrity and provides safe defaults.
  */
-const UserSchema = z.object({
+const UserSchema = zod.object({
     username: z.string().min(1),
     email: z.string().email().optional().or(z.literal('')),
     isApproved: z.boolean().optional().default(true),
@@ -100,6 +101,12 @@ export const saveUser = async (user: User) => {
         updatedAt: serverTimestamp()
     }, { merge: true });
 
+    // Log the action for security auditing
+    logAudit(`Permissions/Status Updated for User: ${user.username}`, 'Security', {
+        isApproved: user.isApproved,
+        permissionMatrix: user.permissions
+    });
+
     // Ensure mapping is in sync
     if (user.username && user.email) {
         const usernameRef = doc(db, USERNAMES_COLLECTION, user.username.toLowerCase().trim());
@@ -147,6 +154,9 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     try {
         const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
         await deleteApp(secondaryApp);
+        
+        logAudit(`New User Created: ${login}`, 'Security', { email });
+        
         return userCredential.user;
     } catch (error) {
         await deleteApp(secondaryApp);
@@ -194,6 +204,7 @@ export const deleteUser = async (userId: string, username?: string) => {
     await deleteDoc(doc(db, USERS_COLLECTION, userId));
     if (username) {
         await deleteDoc(doc(db, USERNAMES_COLLECTION, username.toLowerCase().trim()));
+        logAudit(`User Permanently Deleted: ${username}`, 'Security', { userId });
     }
 };
 
@@ -241,6 +252,8 @@ export const setAdminPassword = async (password: string, date: string) => {
         password, 
         passwordLastUpdated: date 
     }, { merge: true });
+    
+    logAudit('Master Administrator Password Updated', 'Security');
 };
 
 /**

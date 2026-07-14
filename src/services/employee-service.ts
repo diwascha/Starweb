@@ -21,6 +21,7 @@ import { deleteFile } from './storage-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { logAudit } from './log-service';
 
 const getEmployeesCollection = () => {
     const { db } = getFirebase();
@@ -123,7 +124,9 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
         createdAt: now,
     };
 
-    setDoc(docRef, payload).catch(async (err) => {
+    setDoc(docRef, payload).then(() => {
+        logAudit(`New Employee Onboarded: ${employee.name}`, 'HR', { id });
+    }).catch(async (err) => {
         const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'create',
@@ -151,12 +154,22 @@ export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): ()
 
 export const updateEmployee = async (id: string, employee: Partial<Omit<Employee, 'id'>>): Promise<void> => {
     const employeeDoc = doc(getEmployeesCollection(), id);
+    
+    // Fetch old data for audit trail
+    const snap = await getDoc(employeeDoc);
+    const oldData = snap.exists() ? snap.data() : null;
+
     const payload = {
         ...employee,
         lastModifiedAt: new Date().toISOString(),
     };
 
-    updateDoc(employeeDoc, payload).catch(async (err) => {
+    updateDoc(employeeDoc, payload).then(() => {
+        logAudit(`Employee Profile Updated: ${oldData?.name || id}`, 'HR', {
+            id,
+            changes: employee
+        });
+    }).catch(async (err) => {
         const permissionError = new FirestorePermissionError({
             path: employeeDoc.path,
             operation: 'update',
@@ -167,6 +180,10 @@ export const updateEmployee = async (id: string, employee: Partial<Omit<Employee
 };
 
 export const deleteEmployee = async (id: string, photoURL?: string): Promise<void> => {
+    const employeeDoc = doc(getEmployeesCollection(), id);
+    const snap = await getDoc(employeeDoc);
+    const name = snap.exists() ? snap.data().name : id;
+
     if (photoURL) {
         try {
             await deleteFile(photoURL);
@@ -174,8 +191,10 @@ export const deleteEmployee = async (id: string, photoURL?: string): Promise<voi
             console.error("Failed to delete employee photo from storage:", error);
         }
     }
-    const employeeDoc = doc(getEmployeesCollection(), id);
-    deleteDoc(employeeDoc).catch(async (err) => {
+
+    deleteDoc(employeeDoc).then(() => {
+        logAudit(`Employee Record Permanently Deleted: ${name}`, 'HR', { id });
+    }).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: employeeDoc.path, operation: 'delete' }));
     });
 };

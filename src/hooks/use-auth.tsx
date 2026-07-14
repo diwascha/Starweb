@@ -9,6 +9,7 @@ import { toast } from '@/hooks/use-toast';
 import { getUserByLogin } from '@/services/user-service';
 import { getFirebase } from '@/lib/firebase';
 import { collection, query, where, limit, onSnapshot } from 'firebase/firestore';
+import { logAudit } from '@/services/log-service';
 
 interface UserSession {
   id: string;
@@ -133,6 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const auth = useAuthService();
 
   const logout = useCallback(async () => {
+    logAudit('User Logout Initiated', 'Security');
     try {
         await signOut(auth);
     } catch (e) {

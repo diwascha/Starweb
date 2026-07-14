@@ -78,6 +78,37 @@ export const logError = async (error: Error | any, moduleName: string, context?:
 };
 
 /**
+ * Records an administrative or security audit log.
+ * Provides forensic evidence of critical operations.
+ */
+export const logAudit = async (action: string, moduleName: string, context?: any) => {
+    try {
+        const { db } = getFirebase();
+        
+        let user = null;
+        try {
+            const userSession = typeof window !== 'undefined' ? localStorage.getItem('user_session') : null;
+            user = userSession ? JSON.parse(userSession) : null;
+        } catch (e) {}
+
+        await addDoc(collection(db, COLLECTIONS.LOGS), {
+            timestamp: new Date().toISOString(),
+            level: 'info',
+            module: moduleName || 'Audit',
+            message: action,
+            username: user?.username || 'Guest',
+            userId: user?.id || 'anonymous',
+            context: context ?? null,
+            createdAt: serverTimestamp()
+        });
+    } catch (e) {
+        if (process.env.NODE_ENV === 'development') {
+            console.error("Critical: Audit Logger Failure", e);
+        }
+    }
+};
+
+/**
  * Real-time listener for logs (for settings dashboard).
  */
 export const onLogsUpdate = (callback: (logs: SystemLog[]) => void) => {

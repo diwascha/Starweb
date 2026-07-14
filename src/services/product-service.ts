@@ -1,7 +1,7 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Product, RateHistoryEntry } from '@/lib/types';
-import { logServiceError } from '@/lib/service-utils';
+import { logServiceError, logAudit } from '@/lib/service-utils';
 
 const getProductsCollection = () => {
     const { db } = getFirebase();
@@ -73,10 +73,19 @@ export const updateProduct = async (id: string, productUpdate: Partial<Omit<Prod
         ...updates,
         lastModifiedAt: new Date().toISOString(),
     });
+
+    logAudit(`Product Record Updated: ${existingProduct.name}`, 'Reports', {
+        id,
+        changes: productUpdate
+    });
 };
 
 
 export const deleteProduct = async (id: string): Promise<void> => {
     const productDoc = doc(getProductsCollection(), id);
+    const snap = await getDoc(productDoc);
+    const name = snap.exists() ? snap.data().name : id;
+    
     await deleteDoc(productDoc);
+    logAudit(`Product Permanently Deleted: ${name}`, 'Reports', { id });
 };
