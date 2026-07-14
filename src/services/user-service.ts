@@ -42,7 +42,7 @@ const defaultAdminCreds = {
  * Zod schema for validating User data from Firestore.
  * Ensures data integrity and provides safe defaults.
  */
-const UserSchema = zod.object({
+const UserSchema = z.object({
     username: z.string().min(1),
     email: z.string().email().optional().or(z.literal('')),
     isApproved: z.boolean().optional().default(true),
