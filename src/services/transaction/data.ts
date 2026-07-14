@@ -1,6 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, onSnapshot, getDocs, query, where, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import type { Transaction } from '@/lib/types';
+import { collection, doc, onSnapshot, getDocs, query, orderBy, setDoc, updateDoc, deleteDoc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import type { Transaction, TransactionType, InvoiceType, BillingType } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 
@@ -9,13 +9,41 @@ export const transactionsCollection = () => {
     return collection(db, COLLECTIONS.TRANSACTIONS);
 };
 
-export const fromFirestore = (snapshot: any): Transaction => {
+export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | any): Transaction => {
     const data = snapshot.data();
-    return { id: snapshot.id, ...data };
+    return { 
+        id: snapshot.id,
+        purchaseNumber: data.purchaseNumber ? String(data.purchaseNumber) : null,
+        vehicleId: data.vehicleId ? String(data.vehicleId) : null,
+        date: String(data.date || ''),
+        invoiceNumber: data.invoiceNumber ? String(data.invoiceNumber) : null,
+        invoiceDate: data.invoiceDate ? String(data.invoiceDate) : null,
+        invoiceType: (data.invoiceType || 'Normal') as InvoiceType,
+        billingType: (data.billingType || 'Cash') as BillingType,
+        chequeNumber: data.chequeNumber ? String(data.chequeNumber) : null,
+        chequeDate: data.chequeDate ? String(data.chequeDate) : null,
+        dueDate: data.dueDate ? String(data.dueDate) : null,
+        partyId: data.partyId ? String(data.partyId) : null,
+        accountId: data.accountId ? String(data.accountId) : null,
+        items: Array.isArray(data.items) ? data.items : [],
+        amount: Number(data.amount) || 0,
+        remarks: data.remarks ? String(data.remarks) : null,
+        tripId: data.tripId ? String(data.tripId) : null,
+        type: (data.type || 'Payment') as TransactionType,
+        category: data.category ? String(data.category) : null,
+        referenceType: data.referenceType ? String(data.referenceType) : null,
+        referenceId: data.referenceId ? String(data.referenceId) : null,
+        voucherId: data.voucherId ? String(data.voucherId) : null,
+        createdBy: String(data.createdBy || 'System'),
+        createdAt: String(data.createdAt || ''),
+        lastModifiedBy: data.lastModifiedBy ? String(data.lastModifiedBy) : null,
+        lastModifiedAt: data.lastModifiedAt ? String(data.lastModifiedAt) : null,
+    };
 }
 
 export const onTransactionsUpdate = (callback: (txns: Transaction[]) => void): () => void => {
-    return onSnapshot(transactionsCollection(), (snapshot) => {
+    const q = query(transactionsCollection(), orderBy('date', 'desc'));
+    return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };

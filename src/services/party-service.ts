@@ -21,7 +21,7 @@ import {
     getDocFromCache,
     getDocsFromCache
 } from 'firebase/firestore';
-import type { Party } from '@/lib/types';
+import type { Party, PartyType, AccountOwnership } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -35,16 +35,20 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     const data = snapshot.data();
     return {
         id: snapshot.id,
-        name: data.name,
-        type: data.type,
-        ownership: data.ownership || 'Both',
-        address: data.address,
-        panNumber: data.panNumber,
-        photoURL: data.photoURL,
-        createdBy: data.createdBy,
-        createdAt: data.createdAt,
-        lastModifiedBy: data.lastModifiedBy,
-        lastModifiedAt: data.lastModifiedAt,
+        name: String(data.name || ''),
+        type: (data.type || 'Vendor') as PartyType,
+        ownership: (data.ownership || 'Both') as AccountOwnership,
+        address: data.address ? String(data.address) : undefined,
+        panNumber: data.panNumber ? String(data.panNumber) : undefined,
+        photoURL: data.photoURL ? String(data.photoURL) : undefined,
+        identityType: data.identityType ? String(data.identityType) : undefined,
+        documentNumber: data.documentNumber ? String(data.documentNumber) : undefined,
+        issueDate: data.issueDate ? String(data.issueDate) : undefined,
+        expiryDate: data.expiryDate ? String(data.expiryDate) : undefined,
+        createdBy: String(data.createdBy || 'System'),
+        createdAt: String(data.createdAt || ''),
+        lastModifiedBy: data.lastModifiedBy ? String(data.lastModifiedBy) : undefined,
+        lastModifiedAt: data.lastModifiedAt ? String(data.lastModifiedAt) : undefined,
     };
 }
 

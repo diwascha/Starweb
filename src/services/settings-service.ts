@@ -1,6 +1,5 @@
-
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { AppSetting, CostSetting, CostSettingHistoryEntry } from '@/lib/types';
 
 const getSettingsCollection = () => {
@@ -16,7 +15,11 @@ export const getSetting = async (id: string): Promise<AppSetting | null> => {
     const docRef = doc(getSettingsCollection(), id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as AppSetting;
+        const data = docSnap.data();
+        return { 
+            id: docSnap.id, 
+            value: data.value 
+        };
     }
     return null;
 };
@@ -31,7 +34,8 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
     return onSnapshot(docRef, 
         (docSnap) => {
             if (docSnap.exists()) {
-                callback({ id: docSnap.id, ...docSnap.data() } as AppSetting);
+                const data = docSnap.data();
+                callback({ id: docSnap.id, value: data.value });
             } else {
                 callback(null);
             }
@@ -42,7 +46,6 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
         }
     );
 };
-
 
 export const setSetting = async (id: string, value: any): Promise<void> => {
     if (!id) return;

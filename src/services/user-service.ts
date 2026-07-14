@@ -11,7 +11,9 @@ import {
     limit, 
     onSnapshot,
     serverTimestamp,
-    getDoc
+    getDoc,
+    DocumentData,
+    QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { 
     Auth, 
@@ -21,6 +23,7 @@ import {
 import { initializeApp, deleteApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
 import type { User, Permissions } from '@/lib/types';
+import { z } from 'zod';
 
 const USERS_COLLECTION = 'system_users';
 const USERNAMES_COLLECTION = 'usernames';
@@ -30,6 +33,36 @@ const defaultAdminCreds = {
   password: 'Admin@123',
   isApproved: true,
   permissions: {} as Permissions
+};
+
+// --- Schema Validation ---
+
+/**
+ * Zod schema for validating User data from Firestore.
+ * Ensures data integrity and provides safe defaults.
+ */
+const UserSchema = z.object({
+    username: z.string().min(1),
+    email: z.string().email().optional().or(z.literal('')),
+    isApproved: z.boolean().optional().default(true),
+    permissions: z.record(z.string(), z.array(z.string())).optional().default({}),
+    passwordLastUpdated: z.string().optional(),
+});
+
+/**
+ * Maps a Firestore document to a User object with strict validation.
+ */
+const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): User => {
+    const data = snapshot.data();
+    const validated = UserSchema.parse(data);
+    return {
+        id: snapshot.id,
+        username: validated.username,
+        email: validated.email,
+        isApproved: validated.isApproved,
+        permissions: validated.permissions as Permissions,
+        passwordLastUpdated: validated.passwordLastUpdated,
+    };
 };
 
 // --- Cloud User Service ---
@@ -44,7 +77,7 @@ export const onUsersUpdate = (callback: (users: User[]) => void) => {
     const { db } = getFirebase();
     const q = query(collection(db, USERS_COLLECTION));
     return onSnapshot(q, (snapshot) => {
-        const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
+        const users = snapshot.docs.map(fromFirestore);
         callback(users);
     });
 };
@@ -187,12 +220,12 @@ export const getUserByLogin = async (loginString: string): Promise<User | null> 
     // Now find the full user record in system_users by email
     const qEmail = query(collection(db, USERS_COLLECTION), where("email", "==", email), limit(1));
     const snapEmail = await getDocs(qEmail);
-    if (!snapEmail.empty) return { id: snapEmail.docs[0].id, ...snapEmail.docs[0].data() } as User;
+    if (!snapEmail.empty) return fromFirestore(snapEmail.docs[0]);
 
     // Fallback search by username in system_users directly
     const qUsername = query(collection(db, USERS_COLLECTION), where("username", "==", login), limit(1));
     const snapUsername = await getDocs(qUsername);
-    if (!snapUsername.empty) return { id: snapUsername.docs[0].id, ...snapUsername.docs[0].data() } as User;
+    if (!snapUsername.empty) return fromFirestore(snapUsername.docs[0]);
 
     return null;
 };
@@ -232,5 +265,5 @@ export const validatePassword = (password: string, isRequired: boolean = true): 
 export const getUsers = async (): Promise<User[]> => {
     const { db } = getFirebase();
     const snap = await getDocs(collection(db, USERS_COLLECTION));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+    return snap.docs.map(fromFirestore);
 };

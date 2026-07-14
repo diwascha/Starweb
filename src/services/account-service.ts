@@ -1,7 +1,6 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
-import type { Account } from '@/lib/types';
+import type { Account, AccountType, AccountOwnership, BankAccountType } from '@/lib/types';
 
 const getAccountsCollection = () => {
     const { db } = getFirebase();
@@ -12,17 +11,17 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
     const data = snapshot.data();
     return {
         id: snapshot.id,
-        name: data.name,
-        type: data.type,
-        ownership: data.ownership || 'Both', // Default for legacy data
-        accountNumber: data.accountNumber,
-        bankName: data.bankName,
-        branch: data.branch,
-        bankAccountType: data.bankAccountType,
-        createdBy: data.createdBy,
-        createdAt: data.createdAt,
-        lastModifiedBy: data.lastModifiedBy,
-        lastModifiedAt: data.lastModifiedAt,
+        name: String(data.name || ''),
+        type: (data.type || 'Cash') as AccountType,
+        ownership: (data.ownership || 'Both') as AccountOwnership,
+        accountNumber: data.accountNumber ? String(data.accountNumber) : undefined,
+        bankName: data.bankName ? String(data.bankName) : undefined,
+        branch: data.branch ? String(data.branch) : undefined,
+        bankAccountType: data.bankAccountType as BankAccountType | undefined,
+        createdBy: String(data.createdBy || 'System'),
+        createdAt: String(data.createdAt || ''),
+        lastModifiedBy: data.lastModifiedBy ? String(data.lastModifiedBy) : undefined,
+        lastModifiedAt: data.lastModifiedAt ? String(data.lastModifiedAt) : undefined,
     };
 }
 

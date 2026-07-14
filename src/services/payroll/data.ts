@@ -24,12 +24,35 @@ export const getPayrollCollection = () => {
 export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Payroll => {
     const data = snapshot.data();
     return {
-        id: snapshot.id, bsYear: data.bsYear, bsMonth: data.bsMonth, employeeId: data.employeeId, employeeName: String(data.employeeName || ''),
-        totalHours: coerceNumber(data.totalHours), otHours: coerceNumber(data.otHours), regularHours: coerceNumber(data.regularHours),
-        rate: coerceNumber(data.rate), regularPay: coerceNumber(data.regularPay), otPay: coerceNumber(data.otPay), allowance: coerceNumber(data.allowance),
-        totalPay: coerceNumber(data.totalPay), absentDays: coerceNumber(data.absentDays), deduction: coerceNumber(data.deduction), tds: coerceNumber(data.tds),
-        salaryTotal: coerceNumber(data.salaryTotal), advance: coerceNumber(data.advance), netPayment: coerceNumber(data.netPayment),
-        remark: String(data.remark || ''), createdBy: data.createdBy, createdAt: data.createdAt,
+        id: snapshot.id,
+        bsYear: Number(data.bsYear) || 0,
+        bsMonth: Number(data.bsMonth) || 0,
+        runTime: data.runTime ? String(data.runTime) : undefined,
+        periodAD: String(data.periodAD || ''),
+        periodBS: String(data.periodBS || ''),
+        employeeId: String(data.employeeId || ''),
+        employeeName: String(data.employeeName || ''),
+        base: String(data.base || ''),
+        presentDays: coerceNumber(data.presentDays),
+        extraDays: coerceNumber(data.extraDays),
+        leaveDays: coerceNumber(data.leaveDays),
+        totalHours: coerceNumber(data.totalHours),
+        otHours: coerceNumber(data.otHours),
+        regularHours: coerceNumber(data.regularHours),
+        rate: coerceNumber(data.rate),
+        regularPay: coerceNumber(data.regularPay),
+        otPay: coerceNumber(data.otPay),
+        allowance: coerceNumber(data.allowance),
+        totalPay: coerceNumber(data.totalPay),
+        absentDays: coerceNumber(data.absentDays),
+        deduction: coerceNumber(data.deduction),
+        tds: coerceNumber(data.tds),
+        salaryTotal: coerceNumber(data.salaryTotal),
+        advance: coerceNumber(data.advance),
+        netPayment: coerceNumber(data.netPayment),
+        remark: String(data.remark || ''),
+        createdBy: String(data.createdBy || 'System'),
+        createdAt: String(data.createdAt || ''),
     };
 };
 
@@ -64,7 +87,8 @@ export const getPayrollYears = async (): Promise<number[]> => {
 };
 
 export const getPayrollForEmployee = async (employeeId: string, bsYear: number, bsMonth: number): Promise<Payroll | null> => {
-    const docSnap = await getDocs(query(getPayrollCollection(), where("employeeId", "==", employeeId), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth), limit(1)));
+    const q = query(getPayrollCollection(), where("employeeId", "==", employeeId), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth), limit(1));
+    const docSnap = await getDocs(q);
     return docSnap.empty ? null : fromFirestore(docSnap.docs[0]);
 };
 

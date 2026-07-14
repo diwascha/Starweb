@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import type { AttendanceRecord, RawMachineLog } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
-import { logServiceError } from '@/lib/service-utils';
+import { logServiceError, coerceNumber } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -33,25 +33,25 @@ export const fromFirestoreLog = (snapshot: QueryDocumentSnapshot<DocumentData>):
     const data = snapshot.data();
     return {
         id: snapshot.id,
-        date: data.date,
-        dateBS: data.dateBS || '',
-        bsYear: data.bsYear,
-        bsMonth: data.bsMonth,
-        employeeName: data.employeeName,
-        onDuty: data.onDuty,
-        offDuty: data.offDuty,
-        clockIn: data.clockIn,
-        clockOut: data.clockOut,
-        statusFromMachine: data.statusFromMachine,
-        regularHoursFromMachine: data.regularHoursFromMachine,
-        overtimeHoursFromMachine: data.overtimeHoursFromMachine,
-        remarks: data.remarks,
-        importId: data.importId,
-        importedAt: data.importedAt,
-        importedBy: data.importedBy,
-        sourceSheet: data.sourceSheet,
-        rawPayload: data.rawPayload,
-        rowIndex: data.rowIndex,
+        date: String(data.date || ''),
+        dateBS: String(data.dateBS || ''),
+        bsYear: Number(data.bsYear) || 0,
+        bsMonth: Number(data.bsMonth) || 0,
+        employeeName: String(data.employeeName || ''),
+        onDuty: data.onDuty ? String(data.onDuty) : null,
+        offDuty: data.offDuty ? String(data.offDuty) : null,
+        clockIn: data.clockIn ? String(data.clockIn) : null,
+        clockOut: data.clockOut ? String(data.clockOut) : null,
+        statusFromMachine: String(data.statusFromMachine || ''),
+        regularHoursFromMachine: Number(data.regularHoursFromMachine) || 0,
+        overtimeHoursFromMachine: Number(data.overtimeHoursFromMachine) || 0,
+        remarks: data.remarks ? String(data.remarks) : null,
+        importId: String(data.importId || ''),
+        importedAt: String(data.importedAt || ''),
+        importedBy: String(data.importedBy || ''),
+        sourceSheet: String(data.sourceSheet || ''),
+        rawPayload: (data.rawPayload || {}) as Record<string, any>,
+        rowIndex: data.rowIndex !== undefined ? Number(data.rowIndex) : undefined,
         isManual: !!data.isManual,
     };
 };
@@ -60,25 +60,25 @@ export const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData
     const data = snapshot.data();
     return {
         id: snapshot.id,
-        date: data.date,
-        dateBS: data.dateBS || data.bsDate,
-        bsYear: data.bsYear,
-        bsMonth: data.bsMonth,
+        date: String(data.date || ''),
+        dateBS: String(data.dateBS || data.bsDate || ''),
+        bsYear: Number(data.bsYear) || 0,
+        bsMonth: Number(data.bsMonth) || 0,
         employeeName: String(data.employeeName || ''),
-        employeeId: data.employeeId,
-        onDuty: data.onDuty || null,
-        offDuty: data.offDuty || null,
-        clockIn: data.clockIn || null,
-        clockOut: data.clockOut || null,
+        employeeId: String(data.employeeId || ''),
+        onDuty: data.onDuty ? String(data.onDuty) : null,
+        offDuty: data.offDuty ? String(data.offDuty) : null,
+        clockIn: data.clockIn ? String(data.clockIn) : null,
+        clockOut: data.clockOut ? String(data.clockOut) : null,
         status: String(data.status || ''),
         grossHours: Number(data.grossHours) || 0,
         overtimeHours: Number(data.overtimeHours) || 0,
         regularHours: Number(data.regularHours) || 0,
-        remarks: data.remarks || null,
-        calculatedAt: data.calculatedAt,
-        calculatedBy: data.calculatedBy,
-        sourceLogId: data.sourceLogId,
-        rowIndex: data.rowIndex,
+        remarks: data.remarks ? String(data.remarks) : null,
+        calculatedAt: String(data.calculatedAt || ''),
+        calculatedBy: String(data.calculatedBy || ''),
+        sourceLogId: data.sourceLogId ? String(data.sourceLogId) : undefined,
+        rowIndex: data.rowIndex !== undefined ? Number(data.rowIndex) : undefined,
     };
 };
 
