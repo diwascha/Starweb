@@ -41,6 +41,28 @@ export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => v
     });
 };
 
+/**
+ * Scans the payroll registry to discover all unique years for which financial records exist.
+ * 
+ * @returns Promise resolving to a sorted array of BS years (descending).
+ */
+export const getPayrollYears = async (): Promise<number[]> => {
+    const { db } = getFirebase();
+    const years = new Set<number>();
+    try {
+        const snapshot = await getDocs(getPayrollCollection());
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.bsYear) {
+                years.add(Number(data.bsYear));
+            }
+        });
+    } catch (error) {
+        logServiceError('getPayrollYears', error);
+    }
+    return Array.from(years).sort((a, b) => b - a);
+};
+
 export const getPayrollForEmployee = async (employeeId: string, bsYear: number, bsMonth: number): Promise<Payroll | null> => {
     const docSnap = await getDocs(query(getPayrollCollection(), where("employeeId", "==", employeeId), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth), limit(1)));
     return docSnap.empty ? null : fromFirestore(docSnap.docs[0]);
