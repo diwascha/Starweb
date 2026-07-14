@@ -110,7 +110,7 @@ export default function LoginPage() {
         } else {
             setFailedAttempts(prev => prev + 1);
             logAudit('Failed Administrator Login Attempt', 'Security');
-            toast({ title: 'Access Denied', description: 'Invalid administrator password.', variant: 'destructive'});
+            toast({ title: 'Authentication Error', description: 'Invalid username or password.', variant: 'destructive'});
         }
         setIsSubmitting(false);
         return;
@@ -125,7 +125,7 @@ export default function LoginPage() {
       
       if (!cloudUser) {
         await auth.signOut();
-        toast({ title: 'Profile Error', description: 'Account authenticated but profile missing.', variant: 'destructive' });
+        toast({ title: 'Authentication Error', description: 'Invalid username or password.', variant: 'destructive' });
         return;
       }
 
@@ -149,14 +149,11 @@ export default function LoginPage() {
       
     } catch (error: any) {
       setFailedAttempts(prev => prev + 1);
-      logAudit(`Failed Login Attempt: ${data.loginString}`, 'Security', { code: error.code });
-      let errorMessage = 'Login failed. Please check your credentials.';
+      logAudit(`Failed Login Attempt: ${data.loginString}`, 'Security', { code: error.code, message: error.message });
       
-      if (error.message === "Username does not exist in our system.") {
-          errorMessage = error.message;
-      } else if (error.code === AuthErrorCodes.INVALID_PASSWORD || error.code === 'auth/invalid-credential') {
-          errorMessage = 'Incorrect password.';
-      } else if (error.code === AuthErrorCodes.TOO_MANY_ATTEMPTS_TRY_LATER) {
+      let errorMessage = 'Invalid username or password.';
+      
+      if (error.code === AuthErrorCodes.TOO_MANY_ATTEMPTS_TRY_LATER) {
           errorMessage = 'Too many attempts. Locked for security.';
       }
       
