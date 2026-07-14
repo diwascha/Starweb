@@ -110,17 +110,20 @@ export default function AttendanceRegistryPage() {
   };
 
   const getDisplayRemark = useCallback((record: AttendanceRecord) => {
+    if (!record?.date) return '—';
+    
     const recordDate = startOfDay(new Date(record.date));
     const finalRemarks: string[] = [];
     
     // 1. Check for Holiday
-    const holiday = holidays.find(h => isEqual(startOfDay(new Date(h.date)), recordDate));
+    const holiday = holidays.find(h => h?.date && isEqual(startOfDay(new Date(h.date)), recordDate));
     if (holiday) finalRemarks.push(`Public Holiday: ${holiday.name}`);
 
     // 2. Check for Approved Leave
     const leave = leaveRequests.find(l => 
-        l.employeeId === record.employeeId && 
-        l.status === 'Approved' &&
+        l?.employeeId === record.employeeId && 
+        l?.status === 'Approved' &&
+        l?.startDate && l?.endDate &&
         isWithinInterval(recordDate, { 
             start: startOfDay(new Date(l.startDate)), 
             end: startOfDay(new Date(l.endDate)) 
@@ -141,7 +144,7 @@ export default function AttendanceRegistryPage() {
     }
 
     // 5. Existing Remarks
-    if (record.remarks && !finalRemarks.some(fr => record.remarks?.includes(fr) || fr.includes(record.remarks))) {
+    if (record.remarks && !finalRemarks.some(fr => record.remarks?.includes(fr) || fr.includes(record.remarks || ''))) {
         finalRemarks.push(record.remarks);
     }
 

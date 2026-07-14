@@ -335,13 +335,17 @@ export default function SettingsPage() {
         onLogsUpdate(setLogs),
     ];
     
-    import('@/services/payroll-service').then(m => m.getPayrollYears().then(years => {
-        const currentYear = new NepaliDate().getYear();
-        const allYears = Array.from(new Set([...years, currentYear])).sort((a,b) => b-a);
-        setBsYears(allYears);
-        setSelectedLockYear(String(allYears[0] || currentYear));
-        setSelectedLockMonth(String(new NepaliDate().getMonth()));
-    }));
+    import('@/services/payroll-service').then(m => {
+        if (typeof m?.getPayrollYears === 'function') {
+            m.getPayrollYears().then(years => {
+                const currentYear = new NepaliDate().getYear();
+                const allYears = Array.from(new Set([...(years || []), currentYear])).sort((a,b) => b-a);
+                setBsYears(allYears);
+                setSelectedLockYear(String(allYears[0] || currentYear));
+                setSelectedLockMonth(String(new NepaliDate().getMonth()));
+            });
+        }
+    });
 
     setIsLoading(false);
     return () => unsubs.forEach(u => u());
@@ -433,6 +437,7 @@ export default function SettingsPage() {
         try {
             const content = e.target?.result as string;
             const data = JSON.parse(content);
+            if (!data) throw new Error("File content is empty or invalid JSON.");
             setIsImporting(true);
             await importData(data);
             toast({ title: 'Import Successful', description: 'Data has been restored from backup. The application will now reload.' });
@@ -704,8 +709,8 @@ export default function SettingsPage() {
   ];
 
   const usageStats = useMemo(() => {
-    const total = pageVisits.reduce((sum, v) => sum + v.count, 0);
-    const sorted = [...pageVisits].sort((a, b) => a.count - b.count);
+    const total = pageVisits.reduce((sum, v) => sum + (v.count || 0), 0);
+    const sorted = [...pageVisits].sort((a, b) => (b.count || 0) - (a.count || 0));
     return { total, top5: sorted.slice(0, 5) };
   }, [pageVisits]);
 
@@ -1042,7 +1047,7 @@ export default function SettingsPage() {
             <TabsContent value="usage-analytics">
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Card className="bg-primary text-primary-foreground shadow-lg"><CardHeader className="pb-2"><CardTitle className="text-[10px] uppercase font-black tracking-widest opacity-70">Total Interactions</CardTitle></CardHeader><CardContent><div className="text-3xl font-black">{usageStats.total.toLocaleString()}</div></CardContent></Card>
+                        <Card className="bg-primary text-primary-foreground shadow-lg"><CardHeader className="pb-2"><CardTitle className="text-[10px] uppercase font-black tracking-widest opacity-70">Total Interactions</CardTitle></CardHeader><CardContent><div className="text-3xl font-black">{(usageStats.total || 0).toLocaleString()}</div></CardContent></Card>
                     </div>
                 </div>
             </TabsContent>

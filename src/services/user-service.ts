@@ -57,6 +57,8 @@ export const onUsersUpdate = (callback: (users: User[]) => void) => {
  */
 export const saveUser = async (user: User) => {
     const { db } = getFirebase();
+    if (!user?.id) throw new Error("Invalid user ID for save.");
+
     const userRef = doc(db, USERS_COLLECTION, user.id);
     
     // Save the main user record
@@ -88,7 +90,10 @@ export const saveUser = async (user: User) => {
  */
 export const adminCreateUserWithUsername = async (auth: Auth, username: string, email: string, password: string) => {
     const { db } = getFirebase();
-    const usernameRef = doc(db, USERNAMES_COLLECTION, username.toLowerCase().trim());
+    const login = (username || '').toLowerCase().trim();
+    if (!login) throw new Error("Username is required.");
+
+    const usernameRef = doc(db, USERNAMES_COLLECTION, login);
     
     // 1. Check uniqueness
     const snap = await getDoc(usernameRef);
@@ -99,7 +104,7 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     // 2. Save mapping in Firestore
     await setDoc(usernameRef, { 
         email: email.toLowerCase().trim(), 
-        username: username.toLowerCase().trim() 
+        username: login 
     });
 
     // 3. Create Auth Account using a secondary app instance
@@ -127,7 +132,10 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
  */
 export const loginWithUsername = async (auth: Auth, username: string, password: string) => {
     const { db } = getFirebase();
-    const usernameRef = doc(db, USERNAMES_COLLECTION, username.toLowerCase().trim());
+    const login = (username || '').toLowerCase().trim();
+    if (!login) throw new Error("Username is required.");
+
+    const usernameRef = doc(db, USERNAMES_COLLECTION, login);
     
     // 1. Look up email
     const snap = await getDoc(usernameRef);
@@ -135,7 +143,8 @@ export const loginWithUsername = async (auth: Auth, username: string, password: 
         throw new Error("Username does not exist in our system.");
     }
 
-    const { email } = snap.data();
+    const email = snap.data()?.email;
+    if (!email) throw new Error("Account data corrupted. Please contact administrator.");
     
     // 2. Sign in with the resolved email
     return signInWithEmailAndPassword(auth, email, password);
@@ -163,7 +172,8 @@ export const deleteUser = async (userId: string, username?: string) => {
  */
 export const getUserByLogin = async (loginString: string): Promise<User | null> => {
     const { db } = getFirebase();
-    const login = loginString.toLowerCase().trim();
+    const login = (loginString || '').toLowerCase().trim();
+    if (!login) return null;
 
     // Check mapping first
     const usernameRef = doc(db, USERNAMES_COLLECTION, login);
@@ -171,7 +181,7 @@ export const getUserByLogin = async (loginString: string): Promise<User | null> 
     
     let email = login;
     if (usernameSnap.exists()) {
-        email = usernameSnap.data().email;
+        email = usernameSnap.data()?.email || login;
     }
 
     // Now find the full user record in system_users by email
@@ -211,7 +221,7 @@ export const setAdminPassword = async (password: string, date: string) => {
 export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean, error?: string } => {
     if (!isRequired && !password) return { isValid: true };
     if (isRequired && !password) return { isValid: false, error: 'Password is required.' };
-    if (password.length < 8) return { isValid: false, error: 'Password must be at least 8 characters long.' };
+    if ((password?.length || 0) < 8) return { isValid: false, error: 'Password must be at least 8 characters long.' };
     if (!/[a-z]/.test(password)) return { isValid: false, error: 'Password must contain a lowercase letter.' };
     if (!/[A-Z]/.test(password)) return { isValid: false, error: 'Password must contain an uppercase letter.' };
     if (!/[0-9]/.test(password)) return { isValid: false, error: 'Password must contain a number.' };

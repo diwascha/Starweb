@@ -6,7 +6,7 @@ import type { User, Permissions, Module, Action } from '@/lib/types';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 import { toast } from '@/hooks/use-toast';
-import { getUserByLogin, getAdminCredentials } from '@/services/user-service';
+import { getUserByLogin } from '@/services/user-service';
 
 interface UserSession {
   id: string;
@@ -66,7 +66,7 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
     const router = useRouter();
     const pathname = usePathname();
 
-    const getNormalizedPath = (path: string) => path.replace(/\/$/, '') || '/';
+    const getNormalizedPath = (path: string) => path?.replace(/\/$/, '') || '/';
 
     useEffect(() => {
         if (loading) return;
@@ -129,7 +129,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const auth = useAuthService();
 
   const logout = useCallback(async () => {
-    await signOut(auth);
+    try {
+        await signOut(auth);
+    } catch (e) {
+        console.error("Firebase signOut failure", e);
+    }
     localStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
   }, [auth]);
@@ -139,7 +143,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (sessionJson) {
       try {
         const session = JSON.parse(sessionJson);
-        setUser(session);
+        if (session) {
+            setUser(session);
+        }
       } catch {
         localStorage.removeItem(USER_SESSION_KEY);
       }
@@ -168,8 +174,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         const currentSessionJson = localStorage.getItem(USER_SESSION_KEY);
         if (currentSessionJson) {
-            const currentSession = JSON.parse(currentSessionJson);
-            if (!currentSession.isAdmin) {
+            try {
+                const currentSession = JSON.parse(currentSessionJson);
+                if (currentSession && !currentSession.isAdmin) {
+                    localStorage.removeItem(USER_SESSION_KEY);
+                    setUser(null);
+                }
+            } catch {
                 localStorage.removeItem(USER_SESSION_KEY);
                 setUser(null);
             }
@@ -182,6 +193,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [auth]);
   
   const login = useCallback(async (userToLogin: User, isLocalAdmin: boolean = false) => {
+    if (!userToLogin) return;
+    
     if (isLocalAdmin) {
         const session: UserSession = {
             id: 'admin_user',
@@ -213,7 +226,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (user.isApproved === false) return false;
     
     const act = action === 'create' ? 'add' : action;
-    const m = String(module);
+    const m = String(module || '');
 
     let primaryKey: Module | null = null;
 
