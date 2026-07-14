@@ -76,6 +76,7 @@ import {
   Eye,
   PlusCircle,
   Pencil,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -781,6 +782,17 @@ export default function SettingsPage() {
                             <Button onClick={() => setIsChangePasswordDialogOpen(true)} variant="outline" className="w-full h-10 border-gray-300 font-bold text-xs text-primary">
                                 <KeyRound className="mr-2 h-4 w-4"/> Update Secure Password
                             </Button>
+                            
+                            <Separator className="my-2" />
+                            <div className="p-4 rounded-xl bg-amber-50 border-2 border-dashed border-amber-200">
+                                <div className="flex items-center gap-2 mb-2 text-amber-700">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Incident Response</span>
+                                </div>
+                                <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
+                                    In case of suspected compromise, review the **Security Runbook** in your documentation and use the **Purge User** or **IsApproved** toggle to contain threats.
+                                </p>
+                            </div>
                         </CardContent>
                     </Card>
 
@@ -824,7 +836,9 @@ export default function SettingsPage() {
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
-                                                        <DropdownMenuItem onSelect={() => openUserDialog(u)}><Edit className="mr-2 h-4 w-4" /> Edit Access</DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => openUserDialog(u)} className="text-xs">
+                                                            <Edit className="mr-2 h-3 w-3" /> Edit Access
+                                                        </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
