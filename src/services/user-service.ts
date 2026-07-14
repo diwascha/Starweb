@@ -34,6 +34,12 @@ const defaultAdminCreds = {
 
 // --- Cloud User Service ---
 
+/**
+ * Sets up a real-time listener for the cloud user registry.
+ * 
+ * @param callback - Function called with the array of active system users.
+ * @returns An unsubscribe function to stop the listener.
+ */
 export const onUsersUpdate = (callback: (users: User[]) => void) => {
     const { db } = getFirebase();
     const q = query(collection(db, USERS_COLLECTION));
@@ -43,6 +49,12 @@ export const onUsersUpdate = (callback: (users: User[]) => void) => {
     });
 };
 
+/**
+ * Persists a user profile and synchronizes the username-to-email mapping.
+ * 
+ * @param user - The complete user object to save.
+ * @throws Will throw an error if the Firestore write is denied.
+ */
 export const saveUser = async (user: User) => {
     const { db } = getFirebase();
     const userRef = doc(db, USERS_COLLECTION, user.id);
@@ -64,9 +76,15 @@ export const saveUser = async (user: User) => {
 };
 
 /**
- * Requirement 1: Function (Admin Side)
- * Creates user mapping and auth account.
- * Uses a secondary app instance to avoid logging out the admin.
+ * Securely creates a new user account without disrupting the administrator's active session.
+ * This is achieved by initializing a temporary secondary Firebase App instance.
+ * 
+ * @param auth - The primary Auth instance.
+ * @param username - Unique system username.
+ * @param email - Primary account email.
+ * @param password - Initial secure password.
+ * @returns The created Firebase Auth User object.
+ * @throws Error if username is taken or password doesn't meet requirements.
  */
 export const adminCreateUserWithUsername = async (auth: Auth, username: string, email: string, password: string) => {
     const { db } = getFirebase();
@@ -85,7 +103,6 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     });
 
     // 3. Create Auth Account using a secondary app instance
-    // This prevents the admin from being signed out on the client.
     const secondaryApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`);
     const secondaryAuth = (await import('firebase/auth')).getAuth(secondaryApp);
     
@@ -95,15 +112,18 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
         return userCredential.user;
     } catch (error) {
         await deleteApp(secondaryApp);
-        // If auth fails, we should technically roll back the Firestore mapping, 
-        // but for a prototype, throwing the error is sufficient.
         throw error;
     }
 };
 
 /**
- * Requirement 2: Function (User Login)
- * Look up email by username mapping and sign in.
+ * Resolves a username to an email address and authenticates the user.
+ * 
+ * @param auth - The Auth instance.
+ * @param username - The login username provided by the user.
+ * @param password - The login password.
+ * @returns A promise resolving to the Firebase UserCredential.
+ * @throws Error if the username does not exist.
  */
 export const loginWithUsername = async (auth: Auth, username: string, password: string) => {
     const { db } = getFirebase();
@@ -112,7 +132,6 @@ export const loginWithUsername = async (auth: Auth, username: string, password: 
     // 1. Look up email
     const snap = await getDoc(usernameRef);
     if (!snap.exists()) {
-        // Requirement 3: Error handling for non-existent username
         throw new Error("Username does not exist in our system.");
     }
 
@@ -122,6 +141,12 @@ export const loginWithUsername = async (auth: Auth, username: string, password: 
     return signInWithEmailAndPassword(auth, email, password);
 };
 
+/**
+ * Removes a user profile and their associated username mapping.
+ * 
+ * @param userId - The unique identifier of the user record.
+ * @param username - The username to remove from the mapping collection.
+ */
 export const deleteUser = async (userId: string, username?: string) => {
     const { db } = getFirebase();
     await deleteDoc(doc(db, USERS_COLLECTION, userId));
@@ -130,6 +155,12 @@ export const deleteUser = async (userId: string, username?: string) => {
     }
 };
 
+/**
+ * Look up a user record by either their username or email address.
+ * 
+ * @param loginString - The username or email address.
+ * @returns The User object or null if no match found.
+ */
 export const getUserByLogin = async (loginString: string): Promise<User | null> => {
     const { db } = getFirebase();
     const login = loginString.toLowerCase().trim();
@@ -169,6 +200,14 @@ export const setAdminPassword = async (password: string, date: string) => {
     }, { merge: true });
 };
 
+/**
+ * Validates a password against system complexity requirements.
+ * Requirements: Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char.
+ * 
+ * @param password - The raw password string.
+ * @param isRequired - Whether an empty string is allowed (useful for optional updates).
+ * @returns Object indicating validity and specific error message.
+ */
 export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean, error?: string } => {
     if (!isRequired && !password) return { isValid: true };
     if (isRequired && !password) return { isValid: false, error: 'Password is required.' };

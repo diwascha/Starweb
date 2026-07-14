@@ -6,12 +6,24 @@ import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
 import { format, parse } from 'date-fns';
 
+/**
+ * Combines multiple class names using clsx and tailwind-merge.
+ * This ensures that conditional classes are applied correctly and that
+ * conflicting Tailwind classes (e.g., p-2 and p-4) are resolved.
+ * 
+ * @param inputs - A list of class names, arrays, or conditional objects.
+ * @returns A single string of merged Tailwind CSS classes.
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
 /**
- * Converts common "viewer" links (Google Drive, Dropbox) into direct image links.
+ * Converts a viewer URL (like Google Drive or Dropbox) into a direct 
+ * raw image link that can be used in <img> tags.
+ * 
+ * @param url - The original sharing URL.
+ * @returns A direct image source URL or the original URL if no transform is needed.
  */
 export const getDirectImageUrl = (url: string | undefined | null): string => {
     if (!url) return '';
@@ -35,7 +47,10 @@ export const getDirectImageUrl = (url: string | undefined | null): string => {
 };
 
 /**
- * Generates a unique ID.
+ * Generates a unique identifier.
+ * Uses cryptographically secure randomUUID if available, otherwise falls back to math.random.
+ * 
+ * @returns A unique string ID.
  */
 export const generateId = (): string => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
@@ -45,13 +60,24 @@ export const generateId = (): string => {
 };
 
 /**
- * Normalizes a path by removing trailing slashes.
+ * Normalizes a URL path by removing trailing slashes.
+ * Useful for consistent matching in navigation and breadcrumbs.
+ * 
+ * @param path - The raw path string.
+ * @returns The normalized path (e.g., "/dashboard/" becomes "/dashboard").
  */
 export const getNormalizedPath = (path: string): string => {
   if (!path) return '/';
   return path.replace(/\/$/, '') || '/';
 };
 
+/**
+ * Standardizes the Bursting Factor (BF) representation.
+ * Ensures values like "18", "18bf", and "18 BF" are all returned as "18 BF".
+ * 
+ * @param val - The raw BF input.
+ * @returns A standardized string like "18 BF".
+ */
 export const normalizeBF = (val: any): string => {
   if (val === undefined || val === null || val === '') return "";
   const trimmed = String(val).trim();
@@ -66,7 +92,12 @@ export const normalizeBF = (val: any): string => {
 };
 
 /**
- * Pure helper to calculate the next sequence number from an array of strings.
+ * Calculates the next sequence number from an array of existing serials.
+ * Scans for the highest numeric value following a specific prefix.
+ * 
+ * @param numbers - Array of existing serial strings.
+ * @param prefix - The string prefix to search for (e.g., "SPI-").
+ * @returns The next serial in the sequence (e.g., "SPI-012").
  */
 export const calculateNextSequence = (
   numbers: (string | undefined | null)[],
@@ -88,7 +119,14 @@ export const calculateNextSequence = (
 };
 
 /**
- * Async wrapper that fetches the prefix from settings and calculates the next number.
+ * Higher-level function to generate the next document number.
+ * Fetches the current prefix configuration from Firestore settings before calculating.
+ * 
+ * @param items - The current collection of items to scan.
+ * @param fieldName - The property name holding the serial number.
+ * @param settingKey - The key in the documentPrefixes setting object.
+ * @param defaultPrefix - Fallback prefix if no setting is configured.
+ * @returns A promise resolving to the next available sequence string.
  */
 export const generateNextNumber = async (
   items: any[],
@@ -181,6 +219,13 @@ export const formatTimeForDisplay = (timeString: string | null | undefined): str
     return timeString;
 };
 
+/**
+ * Converts a numeric value into a human-readable English currency string.
+ * Supports values up to 99 Crores.
+ * 
+ * @param num - The number to convert.
+ * @returns A string representation (e.g., "Five Thousand Two Hundred Only.")
+ */
 export const toWords = (num: number): string => {
     if (num === 0) return 'Zero Only.';
     

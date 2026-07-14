@@ -17,16 +17,41 @@ import { createTimestamp } from '@/lib/service-utils';
 import { getSetting } from '../settings-service';
 import { getAttendanceCollection, getRawLogsCollection, fromFirestoreLog } from './data';
 
+/**
+ * Converts a time string (HH:mm:ss) into the total number of minutes from midnight.
+ * 
+ * @param time - Standard time string.
+ * @returns Minutes as a number.
+ */
 const timeToMinutes = (time: string): number => {
     const [h, m, s] = time.split(':').map(Number);
     return Math.round(((h || 0) * 3600 + (m || 0) * 60 + (s || 0)) / 60);
 };
 
+/**
+ * Rounds a numeric value to the nearest multiple of a step.
+ * Used for standardizing overtime hours to 0.5hr blocks.
+ * 
+ * @param value - Raw decimal value.
+ * @param step - Rounding increment (e.g., 0.5).
+ * @returns Rounded value.
+ */
 const roundToNearest = (value: number, step: number): number => {
     if (step <= 0) return value;
     return Math.round(value / step) * step;
 };
 
+/**
+ * Calculates paid duration by subtracting a fixed break period from a shift duration.
+ * Ensures that breaks are only deducted if the shift crosses the break window and
+ * exceeds a minimum duration threshold (4 hours).
+ * 
+ * @param startMins - Actual start time in minutes.
+ * @param endMins - Actual end time in minutes.
+ * @param breakStartMins - Configured break start.
+ * @param breakEndMins - Configured break end.
+ * @returns Paid hours as a decimal.
+ */
 const applyFixedBreak = (startMins: number, endMins: number, breakStartMins: number, breakEndMins: number): number => {
     const duration = endMins - startMins;
     if (duration <= 0) return 0;
@@ -38,12 +63,20 @@ const applyFixedBreak = (startMins: number, endMins: number, breakStartMins: num
     return finalMins / 60;
 };
 
-const getPeriodBucket = (dateStr: string, period: 'WEEKLY' | 'MONTHLY'): string => {
-    const d = new Date(dateStr);
-    if (period === 'WEEKLY') return format(startOfWeek(d, { weekStartsOn: 0 }), 'yyyyMMdd');
-    return format(d, 'yyyyMM');
-};
-
+/**
+ * The core attendance logic engine. 
+ * Transforms raw machine logs into validated work-hour records by applying:
+ * 1. Grace Period & Late Penalties
+ * 2. Overtime Calculation
+ * 3. Holiday/Leave Exceptions
+ * 4. Saturday Rules
+ * 
+ * @param year - Target BS Year.
+ * @param month - Target BS Month (0-indexed).
+ * @param calculatedBy - Username of the operator.
+ * @returns Promise resolving to the number of records processed.
+ * @throws Error if HR Operational Rules are missing.
+ */
 export const runHourlyCalculation = async (year: number, month: number, calculatedBy: string): Promise<{ processed: number }> => {
     const { db } = getFirebase();
     const configSetting = await getSetting('hr_config');
@@ -68,7 +101,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         await deleteBatch.commit();
     }
 
-    const passCounters = new Map<string, number>();
     const rawLogs = rawSnap.docs.map(d => fromFirestoreLog(d as any)).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const results: Omit<AttendanceRecord, 'id'>[] = [];
     const now = createTimestamp();

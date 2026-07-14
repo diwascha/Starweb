@@ -8,6 +8,17 @@ import { createTimestamp, logServiceError, coerceNumber } from '@/lib/service-ut
 import { getPayrollCollection } from './data';
 import { extractSection, extractPatternInsights, isAnalyticsRow } from './analytics';
 
+/**
+ * Calculates and persists monthly payroll records based on validated attendance.
+ * This function applies base salary formulas, OT multipliers, and standard 1% TDS.
+ * 
+ * @param bsYear - Target Nepali Year.
+ * @param bsMonth - Target Nepali Month (0-11).
+ * @param allEmployees - Array of employee master records.
+ * @param allAttendance - Collection of work-hour records for the period.
+ * @param calculatedBy - Username for audit trail.
+ * @returns Object with the headcount of processed payroll entries.
+ */
 export const calculateAndSavePayrollForMonth = async (bsYear: number, bsMonth: number, allEmployees: Employee[], allAttendance: AttendanceRecord[], calculatedBy: string): Promise<{ employeeCount: number }> => {
     const { db } = getFirebase();
     const workingEmployees = allEmployees.filter(e => e.status === 'Working');
@@ -32,6 +43,13 @@ export const calculateAndSavePayrollForMonth = async (bsYear: number, bsMonth: n
     return { employeeCount: workingEmployees.length };
 };
 
+/**
+ * Maps spreadsheet header names to internal database keys for the bulk import process.
+ * Supports fuzzy matching for common variants (e.g., "Basic Pay" vs "Regular Salary").
+ * 
+ * @param headerRow - Array of column labels from Excel.
+ * @returns A mapping object [key: string]: columnIndex.
+ */
 export const getHeaderMap = (headerRow: any[]) => {
     const map: Record<string, number> = {};
     const payrollHeaders: Record<string, string[]> = {
