@@ -688,8 +688,19 @@ export default function SettingsPage() {
     if (!isValid) { setChangePasswordError(error!); return; }
     setChangePasswordError(null);
     try {
-        if (user.isAdmin) { await setAdminPassword(newPassword, new Date().toISOString()); }
-        else { const currentUser = users.find(u => u.username === user.username); if (currentUser) { await saveUser({ ...currentUser, passwordLastUpdated: new Date().toISOString(), permissions: currentUser.permissions }); } }
+        const now = new Date().toISOString();
+        if (user.isAdmin) { 
+            await setAdminPassword(newPassword, now); 
+        } else { 
+            const currentUser = users.find(u => u.username === user.username); 
+            if (currentUser) { 
+                await saveUser({ 
+                    ...currentUser, 
+                    passwordLastUpdated: now, 
+                    permissions: currentUser.permissions 
+                }); 
+            } 
+        }
         toast({ title: 'Success', description: 'Password updated. Please log in again.' });
         setIsChangePasswordDialogOpen(false);
         await logout();
