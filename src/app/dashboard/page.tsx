@@ -40,7 +40,7 @@ function LiveDateTime() {
   if (!now) return null;
 
   return (
-    <div className="flex flex-col items-end md:items-start lg:items-end bg-muted/30 border border-dashed rounded-lg px-4 py-1.5 shadow-sm min-w-[140px]">
+    <div className="flex flex-col items-start bg-muted/30 border border-dashed rounded-lg px-3 py-1.5 shadow-sm w-fit">
         <div className="text-lg font-black tabular-nums tracking-tighter text-black leading-none">
             {format(now, 'HH:mm:ss')}
         </div>
@@ -130,16 +130,13 @@ export default function DashboardPage() {
               <div className="mt-1">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase truncate">{companyProfile.address}</p>
                 <p className="text-[11px] text-muted-foreground">Welcome back, {user?.username}</p>
+                <div className="mt-2">
+                    <LiveDateTime />
+                </div>
               </div>
-            </div>
-            <div className="hidden lg:block">
-              <LiveDateTime />
             </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5 pb-2 md:pb-0">
-          <div className="lg:hidden w-full mb-2">
-            <LiveDateTime />
-          </div>
           {hasPermission('fleet', 'create') && (
             <Button asChild size="sm" variant="secondary" className="h-7 text-[10px] px-3 font-bold uppercase tracking-wider">
               <Link href="/fleet/transactions/expenses/new">
