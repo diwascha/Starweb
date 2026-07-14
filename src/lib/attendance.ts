@@ -1,12 +1,19 @@
-
 import {
   format,
   isValid,
   parse,
-  differenceInMinutes
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { RawAttendanceRow } from './types';
+
+/**
+ * Shared constants to eliminate magic numbers and improve readability.
+ */
+const EXCEL_EPOCH_OFFSET = 25569;
+const SECONDS_PER_DAY = 86400;
+const MILLISECONDS_PER_SECOND = 1000;
+const MIN_EXCEL_DATE_VALUE = 1;
+const MAX_HEADER_SCAN_LIMIT = 25;
 
 /* =========================
    Types
@@ -50,8 +57,9 @@ export function parseTimeToString(timeInput: any): string | null {
     if (t === '-' || t === '' || t.toLowerCase() === 'null' || t === '0' || t === '0.0' || t === '0:00' || t === '00:00:00') return null;
     
     const numericTime = parseFloat(t);
+    // Excel represents time as a fraction of a day (0 to 1)
     if (!isNaN(numericTime) && numericTime < 1 && numericTime > 0.00001) {
-        const totalSeconds = Math.round(numericTime * 86400);
+        const totalSeconds = Math.round(numericTime * SECONDS_PER_DAY);
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const seconds = totalSeconds % 60;
@@ -82,8 +90,9 @@ const parseExcelDate = (dateInput: any): Date | null => {
     if (dateInput instanceof Date && isValid(dateInput)) return dateInput;
 
     if (typeof dateInput === 'number') {
-        if (dateInput > 1) {
-            const date = new Date((dateInput - 25569) * 86400 * 1000);
+        if (dateInput > MIN_EXCEL_DATE_VALUE) {
+            // Excel counts days from Dec 30, 1899. EXCEL_EPOCH_OFFSET is the offset to Unix epoch (Jan 1, 1970).
+            const date = new Date((dateInput - EXCEL_EPOCH_OFFSET) * SECONDS_PER_DAY * MILLISECONDS_PER_SECOND);
             if (isValid(date)) return date;
         }
     }
@@ -121,7 +130,7 @@ export const processAttendanceImport = (
     if (!jsonData || jsonData.length < 2) return { processedData: [], skippedCount: 0 };
 
     let headerIndex = -1;
-    for (let i = 0; i < Math.min(jsonData.length, 25); i++) {
+    for (let i = 0; i < Math.min(jsonData.length, MAX_HEADER_SCAN_LIMIT); i++) {
         const row = jsonData[i];
         if (row && row.some((cell: any) => {
             const s = String(cell || '').toLowerCase();
