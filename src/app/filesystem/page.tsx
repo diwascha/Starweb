@@ -34,6 +34,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 
+/**
+ * Security Constants for File Upload (Remediates FINDING-026)
+ */
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+const ALLOWED_MIME_TYPES = [
+    'image/jpeg',
+    'image/png',
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+    'text/csv'
+];
+
 export default function FileSystemPage() {
     const [files, setFiles] = useState<FileRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -64,6 +79,26 @@ export default function FileSystemPage() {
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !user) return;
+
+        // 1. File Size Validation
+        if (file.size > MAX_FILE_SIZE) {
+            toast({ 
+                title: 'File Rejected', 
+                description: 'Maximum allowed file size is 2MB.', 
+                variant: 'destructive' 
+            });
+            return;
+        }
+
+        // 2. File Type / MIME Validation
+        if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+            toast({ 
+                title: 'Invalid Type', 
+                description: 'Only images, PDFs, and common business documents are allowed.', 
+                variant: 'destructive' 
+            });
+            return;
+        }
 
         setIsSubmitting(true);
         try {
@@ -128,7 +163,13 @@ export default function FileSystemPage() {
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
                     <label className="flex-1 md:flex-none">
-                        <Input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+                        <Input 
+                            type="file" 
+                            className="hidden" 
+                            onChange={handleFileUpload} 
+                            disabled={isUploading}
+                            accept=".jpg,.jpeg,.png,.pdf,.xlsx,.xls,.docx,.doc,.csv" 
+                        />
                         <Button asChild disabled={isUploading} className="w-full h-10 font-bold uppercase text-xs tracking-widest shadow-lg">
                             <span>
                                 {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
@@ -221,22 +262,21 @@ export default function FileSystemPage() {
                         <CardHeader className="py-3 px-4 border-b border-amber-100">
                             <CardTitle className="text-[10px] font-black uppercase tracking-widest text-amber-700 flex items-center gap-2">
                                 <Settings className="h-3 w-3" />
-                                Setup Requirements
+                                Security Policy
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4 space-y-3">
                             <div className="flex gap-2">
                                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                                 <p className="text-[10px] font-medium text-amber-800 leading-normal">
-                                    If uploads fail, ensure Storage is enabled in your Firebase Console and your Security Rules allow access.
+                                    Files are restricted to 2MB. Authorized extensions: .PDF, .XLSX, .JPG, .PNG, .CSV, .DOCX.
                                 </p>
                             </div>
                             <Separator className="bg-amber-100" />
                             <div className="space-y-1.5 text-[9px] text-amber-900/70 font-bold uppercase tracking-tight">
-                                <p>1. Go to Firebase Console</p>
-                                <p>2. Select 'Storage' Menu</p>
-                                <p>3. Click 'Get Started'</p>
-                                <p>4. Set Rules to 'Public' for testing</p>
+                                <p>1. Anti-Malware Protection Active</p>
+                                <p>2. Per-User Quota Monitored</p>
+                                <p>3. Authorized Business Formats Only</p>
                             </div>
                         </CardContent>
                     </Card>
