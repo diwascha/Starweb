@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -156,18 +157,8 @@ export default function DashboardPage() {
         {/* Left Column: Clock & Calendar */}
         <div className="space-y-6">
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Session Context</p>
-            <div className="p-4 rounded-xl border bg-white shadow-sm space-y-4">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <UserIcon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                        <span className="text-[9px] font-black uppercase text-muted-foreground tracking-tighter">Current User</span>
-                        <span className="text-sm font-black text-gray-900 truncate">{user?.username}</span>
-                    </div>
-                </div>
-                <Separator className="border-dashed" />
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Current Time</p>
+            <div className="p-4 rounded-xl border bg-white shadow-sm">
                 <LiveDateTime />
             </div>
           </div>
