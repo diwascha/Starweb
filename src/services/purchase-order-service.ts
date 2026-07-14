@@ -7,7 +7,8 @@ import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, setDoc } from 'firebase/firestore';
 import type { PurchaseOrder, PurchaseOrderVersion } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
-import { createTimestamp, logServiceError, logAudit } from '@/lib/service-utils';
+import { createTimestamp, logServiceError } from '@/lib/service-utils';
+import { logAudit } from './log-service';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 

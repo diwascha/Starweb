@@ -1,7 +1,8 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Product, RateHistoryEntry } from '@/lib/types';
-import { logServiceError, logAudit } from '@/lib/service-utils';
+import { logServiceError } from '@/lib/service-utils';
+import { logAudit } from './log-service';
 
 const getProductsCollection = () => {
     const { db } = getFirebase();
