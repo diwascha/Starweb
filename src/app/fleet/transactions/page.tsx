@@ -22,8 +22,10 @@ import {
   Download,
   Edit,
   Wallet,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -57,6 +59,8 @@ import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import NepaliDate from 'nepali-date-converter';
 import { LedgerReportPreview } from './_components/ledger-report-preview';
+
+const ITEMS_PER_PAGE = 50;
 
 interface LedgerEntry extends Transaction {
     vehicleName: string;
@@ -140,6 +144,7 @@ export default function FleetTransactionsPage() {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
     const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
     const router = useRouter();
     const { toast } = useToast();
     const { user } = useAuth();
@@ -173,6 +178,11 @@ export default function FleetTransactionsPage() {
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
     }, []);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterParties, filterVehicles, filterBillingTypes, selectedBsYear, selectedBsMonth, dateRange, filterCategory, globalSearch]);
 
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
@@ -315,6 +325,13 @@ export default function FleetTransactionsPage() {
             }
         };
     }, [transactions, filterParties, filterVehicles, filterBillingTypes, selectedBsYear, selectedBsMonth, dateRange, filterCategory, globalSearch, vehiclesById, partiesById]);
+
+    const paginatedEntries = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return ledgerData.entries.slice(start, start + ITEMS_PER_PAGE);
+    }, [ledgerData.entries, currentPage]);
+
+    const totalPages = Math.ceil(ledgerData.entries.length / ITEMS_PER_PAGE);
 
     const handleExport = async (type: 'excel' | 'pdf') => {
         const periodStr = dateRange?.from ? `${toNepaliDate(dateRange.from.toISOString())} - ${dateRange.to ? toNepaliDate(dateRange.to.toISOString()) : 'Present'}` : 'All Time';
@@ -608,19 +625,21 @@ export default function FleetTransactionsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody className="bg-white">
-                                <TableRow className="bg-gray-50/30 font-medium h-12">
-                                    <TableCell colSpan={2}></TableCell>
-                                    <TableCell className="font-bold text-blue-700 italic">Balance B/F (Opening)</TableCell>
-                                    <TableCell className="text-center">-</TableCell>
-                                    <TableCell className="text-center">-</TableCell>
-                                    <TableCell className="text-right">-</TableCell>
-                                    <TableCell className="text-right">-</TableCell>
-                                    <TableCell className="text-right font-black">
-                                        {Math.abs(ledgerData.stats.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}
-                                    </TableCell>
-                                </TableRow>
+                                {currentPage === 1 && (
+                                    <TableRow className="bg-gray-50/30 font-medium h-12">
+                                        <TableCell colSpan={2}></TableCell>
+                                        <TableCell className="font-bold text-blue-700 italic">Balance B/F (Opening)</TableCell>
+                                        <TableCell className="text-center">-</TableCell>
+                                        <TableCell className="text-center">-</TableCell>
+                                        <TableCell className="text-right">-</TableCell>
+                                        <TableCell className="text-right">-</TableCell>
+                                        <TableCell className="text-right font-black">
+                                            {Math.abs(ledgerData.stats.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
 
-                                {ledgerData.entries.map((entry) => (
+                                {paginatedEntries.map((entry) => (
                                     <TableRow key={entry.id} className="h-14 border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
                                         <TableCell className="text-gray-600">{toNepaliDate(entry.date)}</TableCell>
                                         <TableCell>
@@ -701,6 +720,34 @@ export default function FleetTransactionsPage() {
                         <ScrollBar orientation="horizontal" />
                     </ScrollArea>
                 </div>
+                {totalPages > 1 && (
+                    <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            Showing <span className="font-bold text-foreground">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, ledgerData.entries.length)}</span> of <span className="font-bold text-foreground">{ledgerData.entries.length}</span> entries
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="h-8 w-8 p-0"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <div className="text-xs font-bold px-2">Page {currentPage} of {totalPages}</div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="h-8 w-8 p-0"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
 
             <LedgerReportPreview 

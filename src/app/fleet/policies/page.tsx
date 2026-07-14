@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { 
   Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, 
   CalendarIcon, Check, ChevronsUpDown, Info, Loader2, Eye,
-  RefreshCcw, Archive
+  RefreshCcw, Archive, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -51,11 +51,14 @@ type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberN
 type SortDirection = 'asc' | 'desc';
 type StatusFilter = 'All' | 'Active' | 'Expiring Soon' | 'Expired' | 'Archived';
 
+const ITEMS_PER_PAGE = 25;
+
 export default function PoliciesPage() {
     const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -112,6 +115,11 @@ export default function PoliciesPage() {
     useEffect(() => {
         setFilterMemberId('All');
     }, [filterMemberType]);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, filterMemberType, filterMemberId, filterStatus]);
 
     const providers = useMemo(() => Array.from(new Set(policies.map(p => p.provider))).sort(), [policies]);
     const policyTypes = useMemo(() => Array.from(new Set(policies.map(p => p.type))).sort(), [policies]);
@@ -355,6 +363,13 @@ export default function PoliciesPage() {
         return sortedAndFilteredPolicies.reduce((sum, p) => sum + (p.cost || 0), 0);
     }, [sortedAndFilteredPolicies]);
 
+    const paginatedPolicies = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return sortedAndFilteredPolicies.slice(start, start + ITEMS_PER_PAGE);
+    }, [sortedAndFilteredPolicies, currentPage]);
+
+    const totalPages = Math.ceil(sortedAndFilteredPolicies.length / ITEMS_PER_PAGE);
+
     const getStatusBadge = (policy: any) => {
         if (policy.status === 'Renewed') return <Badge variant="outline" className="text-muted-foreground border-muted-foreground">Renewed</Badge>;
         if (policy.status === 'Archived') return <Badge variant="outline" className="text-muted-foreground border-muted-foreground">Archived</Badge>;
@@ -391,102 +406,132 @@ export default function PoliciesPage() {
 
         return (
             <Card>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="p-0 text-[11px]">Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')} className="p-0 text-[11px]">Policy # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')} className="p-0 text-[11px]">For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')} className="p-0 text-[11px]">Expiry Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('cost')} className="p-0 text-right w-full text-[11px]">Premium <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead className="text-[11px]">Status</TableHead>
-                             <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="p-0 text-[11px]">Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead className="text-right text-[11px]">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedAndFilteredPolicies.map(policy => (
-                            <TableRow key={policy.id} className={cn(
-                                policy.displayStatus === 'Expired' && 'bg-red-50/50 hover:bg-red-100/50',
-                                (policy.displayStatus === 'Active' && policy.daysRemaining <= 15) && 'bg-amber-50/50 hover:bg-amber-100/50'
-                            )}>
-                                <TableCell className="font-medium text-xs">{policy.type}</TableCell>
-                                <TableCell className="text-xs">{policy.policyNumber}</TableCell>
-                                <TableCell className="text-xs">{policy.memberName}</TableCell>
-                                <TableCell>
-                                    <div className="flex flex-col">
-                                        <span className="text-xs">{toNepaliDate(policy.endDate)}</span>
-                                        <span className={cn(
-                                            "text-[9px] font-bold uppercase",
-                                            policy.daysRemaining < 0 ? 'text-destructive' : (policy.daysRemaining <= 15 ? 'text-amber-600' : 'text-muted-foreground')
-                                        )}>
-                                            {policy.daysRemaining < 0 ? `${-policy.daysRemaining} days ago` : `${policy.daysRemaining} days left`}
-                                        </span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right tabular-nums text-xs font-mono">Rs. {policy.cost.toLocaleString()}</TableCell>
-                                <TableCell>{getStatusBadge(policy)}</TableCell>
-                                <TableCell>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-help uppercase font-bold">
-                                                    <Info className="h-3 w-3" />
-                                                    <span>{policy.lastModifiedBy || policy.createdBy}</span>
-                                                </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <div className="text-xs space-y-1">
-                                                    <p><span className="font-semibold">Created:</span> {policy.createdBy} ({format(new Date(policy.createdAt), "PPp")})</p>
-                                                    {policy.lastModifiedBy && (
-                                                        <p><span className="font-semibold">Modified:</span> {policy.lastModifiedBy} ({format(new Date(policy.lastModifiedAt || policy.createdAt), "PPp")})</p>
-                                                    )}
-                                                </div>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onSelect={() => { setViewingPolicy(policy); setIsViewDialogOpen(true); }}>
-                                                <Eye className="mr-2 h-4 w-4" /> View Details
-                                            </DropdownMenuItem>
-                                            {hasPermission('fleet', 'edit') && (
-                                                <>
-                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy, true)}>
-                                                    <RefreshCcw className="mr-2 h-4 w-4" /> Renew
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
-                                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                                </DropdownMenuItem>
-                                                {policy.status !== 'Archived' && policy.status !== 'Renewed' && (
-                                                    <DropdownMenuItem onSelect={() => handleArchive(policy)}>
-                                                        <Archive className="mr-2 h-4 w-4" /> Move to History
-                                                    </DropdownMenuItem>
-                                                )}
-                                                </>
-                                            )}
-                                            {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
-                                            {hasPermission('fleet', 'delete') && (
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader><AlertDialogTitle>Confirm Deletion</AlertDialogTitle><AlertDialogDescription>This will permanently remove this record from the database. This action cannot be reversed.</AlertDialogDescription></AlertDialogHeader>
-                                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(policy.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="p-0 text-[11px]">Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')} className="p-0 text-[11px]">Policy # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')} className="p-0 text-[11px]">For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')} className="p-0 text-[11px]">Expiry Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('cost')} className="p-0 text-right w-full text-[11px]">Premium <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead className="text-[11px]">Status</TableHead>
+                                 <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="p-0 text-[11px]">Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead className="text-right text-[11px]">Actions</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedPolicies.map(policy => (
+                                <TableRow key={policy.id} className={cn(
+                                    policy.displayStatus === 'Expired' && 'bg-red-50/50 hover:bg-red-100/50',
+                                    (policy.displayStatus === 'Active' && policy.daysRemaining <= 15) && 'bg-amber-50/50 hover:bg-amber-100/50'
+                                )}>
+                                    <TableCell className="font-medium text-xs">{policy.type}</TableCell>
+                                    <TableCell className="text-xs">{policy.policyNumber}</TableCell>
+                                    <TableCell className="text-xs">{policy.memberName}</TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col">
+                                            <span className="text-xs">{toNepaliDate(policy.endDate)}</span>
+                                            <span className={cn(
+                                                "text-[9px] font-bold uppercase",
+                                                policy.daysRemaining < 0 ? 'text-destructive' : (policy.daysRemaining <= 15 ? 'text-amber-600' : 'text-muted-foreground')
+                                            )}>
+                                                {policy.daysRemaining < 0 ? `${-policy.daysRemaining} days ago` : `${policy.daysRemaining} days left`}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right tabular-nums text-xs font-mono">Rs. {policy.cost.toLocaleString()}</TableCell>
+                                    <TableCell>{getStatusBadge(policy)}</TableCell>
+                                    <TableCell>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-help uppercase font-bold">
+                                                        <Info className="h-3 w-3" />
+                                                        <span>{policy.lastModifiedBy || policy.createdBy}</span>
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <div className="text-xs space-y-1">
+                                                        <p><span className="font-semibold">Created:</span> {policy.createdBy} ({format(new Date(policy.createdAt), "PPp")})</p>
+                                                        {policy.lastModifiedBy && (
+                                                            <p><span className="font-semibold">Modified:</span> {policy.lastModifiedBy} ({format(new Date(policy.lastModifiedAt || policy.createdAt), "PPp")})</p>
+                                                        )}
+                                                    </div>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onSelect={() => { setViewingPolicy(policy); setIsViewDialogOpen(true); }}>
+                                                    <Eye className="mr-2 h-4 w-4" /> View Details
+                                                </DropdownMenuItem>
+                                                {hasPermission('fleet', 'edit') && (
+                                                    <>
+                                                     <DropdownMenuItem onSelect={() => handleOpenDialog(policy, true)}>
+                                                        <RefreshCcw className="mr-2 h-4 w-4" /> Renew
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
+                                                        <Edit className="mr-2 h-4 w-4" /> Edit
+                                                    </DropdownMenuItem>
+                                                    {policy.status !== 'Archived' && policy.status !== 'Renewed' && (
+                                                        <DropdownMenuItem onSelect={() => handleArchive(policy)}>
+                                                            <Archive className="mr-2 h-4 w-4" /> Move to History
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    </>
+                                                )}
+                                                {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
+                                                {hasPermission('fleet', 'delete') && (
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader><AlertDialogTitle>Confirm Deletion</AlertDialogTitle><AlertDialogDescription>This will permanently remove this record from the database. This action cannot be reversed.</AlertDialogDescription></AlertDialogHeader>
+                                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(policy.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+                {totalPages > 1 && (
+                    <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            Showing <span className="font-bold text-foreground">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, sortedAndFilteredPolicies.length)}</span> of <span className="font-bold text-foreground">{sortedAndFilteredPolicies.length}</span> records
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="h-8 w-8 p-0"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <div className="text-xs font-bold px-2">Page {currentPage} of {totalPages}</div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="h-8 w-8 p-0"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
         );
     };

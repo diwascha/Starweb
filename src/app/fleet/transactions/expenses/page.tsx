@@ -15,12 +15,14 @@ import {
   Check,
   ChevronDown,
   Users,
-  Truck
+  Truck,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import type { Vehicle, Party } from '@/lib/types';
 import type { Expense } from '@/lib/expense-types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +47,8 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 
 type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType';
 type SortDirection = 'asc' | 'desc';
+
+const ITEMS_PER_PAGE = 50;
 
 // Helper component for multi-select with "All" support
 const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
@@ -116,6 +120,7 @@ export default function ExpenseLogsPage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
     
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -139,6 +144,10 @@ export default function ExpenseLogsPage() {
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
     }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds]);
 
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
@@ -208,6 +217,13 @@ export default function ExpenseLogsPage() {
 
         return filtered;
     }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, sortConfig, vehiclesById]);
+
+    const paginatedExpenses = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredAndSortedExpenses.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredAndSortedExpenses, currentPage]);
+
+    const totalPages = Math.ceil(filteredAndSortedExpenses.length / ITEMS_PER_PAGE);
 
     const handleDelete = async (id: string) => {
         try {
@@ -320,69 +336,99 @@ export default function ExpenseLogsPage() {
             </div>
 
             <Card>
-                <Table>
-                    <TableHeader className="bg-muted/50">
-                        <TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-xs">Voucher # <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead className="text-xs">Vehicle</TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-xs">Type <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead className="text-xs">Payee / Detail</TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-xs text-right w-full">Total Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead className="text-right text-xs">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            <TableRow><TableCell colSpan={7} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                        ) : filteredAndSortedExpenses.map(e => (
-                            <TableRow key={e.id} className="hover:bg-muted/30 h-14">
-                                <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
-                                <TableCell className="font-mono text-[11px]">{e.voucherNo}</TableCell>
-                                <TableCell>
-                                    <span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">
-                                        {vehiclesById.get(e.vehicleId) || 'N/A'}
-                                    </span>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant="outline" className={cn(
-                                        "text-[9px] uppercase font-bold shadow-none",
-                                        e.expenseType === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
-                                        e.expenseType === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
-                                        e.expenseType === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
-                                        e.expenseType === 'Membership Renewal' && "border-purple-200 bg-purple-50 text-purple-700",
-                                    )}>
-                                        {e.expenseType}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="py-3">
-                                    <div className="flex flex-col">
-                                        <span className="text-[11px] font-semibold text-gray-900">
-                                            {e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}
-                                        </span>
-                                        {e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right font-bold text-red-600 text-[11px] tabular-nums">
-                                    Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/edit?id=${e.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/new`)}><PlusCircle className="mr-2 h-4 w-4" /> New Entry</DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
-                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader className="bg-muted/50">
+                            <TableRow>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-xs">Voucher # <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                <TableHead className="text-xs">Vehicle</TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-xs">Type <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                <TableHead className="text-xs">Payee / Detail</TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-xs text-right w-full">Total Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                <TableHead className="text-right text-xs">Actions</TableHead>
                             </TableRow>
-                        ))}
-                        {!isLoading && filteredAndSortedExpenses.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground italic">No expense records found.</TableCell></TableRow>}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow><TableCell colSpan={7} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                            ) : paginatedExpenses.map(e => (
+                                <TableRow key={e.id} className="hover:bg-muted/30 h-14">
+                                    <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
+                                    <TableCell className="font-mono text-[11px]">{e.voucherNo}</TableCell>
+                                    <TableCell>
+                                        <span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">
+                                            {vehiclesById.get(e.vehicleId) || 'N/A'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className={cn(
+                                            "text-[9px] uppercase font-bold shadow-none",
+                                            e.expenseType === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
+                                            e.expenseType === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                                            e.expenseType === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
+                                            e.expenseType === 'Membership Renewal' && "border-purple-200 bg-purple-50 text-purple-700",
+                                        )}>
+                                            {e.expenseType}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="py-3">
+                                        <div className="flex flex-col">
+                                            <span className="text-[11px] font-semibold text-gray-900">
+                                                {e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}
+                                            </span>
+                                            {e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-bold text-red-600 text-[11px] tabular-nums">
+                                        Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/edit?id=${e.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/new`)}><PlusCircle className="mr-2 h-4 w-4" /> New Entry</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {!isLoading && filteredAndSortedExpenses.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground italic">No expense records found.</TableCell></TableRow>}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+                {totalPages > 1 && (
+                    <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            Showing <span className="font-bold text-foreground">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, filteredAndSortedExpenses.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span> entries
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="h-8 w-8 p-0"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <div className="text-xs font-bold px-2">Page {currentPage} of {totalPages}</div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="h-8 w-8 p-0"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
         </div>
     );

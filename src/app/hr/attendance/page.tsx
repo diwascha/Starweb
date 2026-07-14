@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { AttendanceRecord, Employee, AttendanceStatus, PublicHoliday, LeaveRequest } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +20,9 @@ import {
     ClipboardList,
     Plus,
     UserCheck,
-    AlertCircle
+    AlertCircle,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +52,8 @@ import Link from 'next/link';
 type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
 type SortDirection = 'asc' | 'desc';
 
+const ITEMS_PER_PAGE = 50;
+
 export default function AttendanceRegistryPage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -59,6 +63,7 @@ export default function AttendanceRegistryPage() {
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
   const { toast } = useToast();
   const { hasPermission, user } = useAuth();
+  const [currentPage, setCurrentPage] = useState(1);
   
   const [filterEmployeeName, setFilterEmployeeName] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<string>('All');
@@ -90,6 +95,11 @@ export default function AttendanceRegistryPage() {
   useEffect(() => {
     getAttendanceYears().then(setBsYears);
   }, [attendance]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedBsYear, selectedBsMonth, searchQuery, filterEmployeeName, filterStatus]);
 
   const requestSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -166,6 +176,13 @@ export default function AttendanceRegistryPage() {
     });
     return filtered;
   }, [attendance, selectedBsYear, selectedBsMonth, sortConfig, searchQuery, filterEmployeeName, filterStatus]);
+
+  const paginatedRecords = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAndSortedRecords.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredAndSortedRecords, currentPage]);
+
+  const totalPages = Math.ceil(filteredAndSortedRecords.length / ITEMS_PER_PAGE);
   
   const sortedEmployeesForFilter = useMemo(() => {
     return [...employees].sort((a, b) => a.name.localeCompare(b.name));
@@ -335,7 +352,7 @@ export default function AttendanceRegistryPage() {
                         <TableBody>
                             {isDataLoading ? (
                                 <TableRow key="loading-row"><TableCell colSpan={9} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
-                            ) : filteredAndSortedRecords.map(r => (
+                            ) : paginatedRecords.map(r => (
                                 <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors">
                                     <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
                                     <TableCell className="font-mono font-bold text-blue-900">{toNepaliDate(r.date)}</TableCell>
@@ -357,7 +374,7 @@ export default function AttendanceRegistryPage() {
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {!isDataLoading && filteredAndSortedRecords.length === 0 && (
+                            {!isDataLoading && paginatedRecords.length === 0 && (
                                 <TableRow key="no-records-row">
                                     <TableCell colSpan={9} className="h-60 text-center text-muted-foreground italic">
                                         <div className="flex flex-col items-center gap-3">
@@ -371,6 +388,34 @@ export default function AttendanceRegistryPage() {
                     </Table>
                 </ScrollArea>
             </CardContent>
+            {totalPages > 1 && (
+                <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        Showing <span className="font-bold text-foreground">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, filteredAndSortedRecords.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedRecords.length}</span> records
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="h-8 w-8 p-0"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="text-xs font-bold px-2">Page {currentPage} of {totalPages}</div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="h-8 w-8 p-0"
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </CardFooter>
+            )}
         </Card>
 
         {/* Manual Tweak Dialog */}
