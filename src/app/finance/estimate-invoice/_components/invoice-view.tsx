@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Party, EstimateInvoiceItem, CompanyProfile } from '@/lib/types';
@@ -8,15 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useState, useEffect } from 'react';
 import { onSettingUpdate } from '@/services/settings-service';
-
-const defaultCompanyProfile: CompanyProfile = {
-  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
-  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-  address: "Hetauda 08, Bagmati Province, Nepal",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
+import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 
 interface InvoiceViewProps {
   invoiceNumber: string;
@@ -39,10 +30,10 @@ export function InvoiceView({
   netTotal,
   amountInWords,
 }: InvoiceViewProps) {
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
   
   useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
     return () => unsub();
   }, []);
 
@@ -75,8 +66,8 @@ export function InvoiceView({
         <Table>
             <TableHeader>
                 <TableRow className="border-y border-black">
-                    <TableHead className="text-black font-semibold h-8 px-2">S.N.</TableHead>
-                    <TableHead className="text-black font-semibold h-8 px-2">Particulars</TableHead>
+                    <TableHead className="text-black font-semibold h-8 px-2 text-xs">S.N.</TableHead>
+                    <TableHead className="text-black font-semibold h-8 px-2 text-xs">Particulars</TableHead>
                     <TableHead className="text-black font-semibold h-8 px-2 text-right">Quantity</TableHead>
                     <TableHead className="text-black font-semibold h-8 px-2 text-right">Rate</TableHead>
                     <TableHead className="text-black font-semibold h-8 px-2 text-right">Amount</TableHead>
@@ -85,8 +76,8 @@ export function InvoiceView({
             <TableBody>
                 {items.map((item, index) => (
                     <TableRow key={item.id} className="border-b border-gray-400">
-                        <TableCell className="px-2 py-1">{index + 1}</TableCell>
-                        <TableCell className="px-2 py-1">{item.productName}</TableCell>
+                        <TableCell className="px-2 py-1 text-xs">{index + 1}</TableCell>
+                        <TableCell className="px-2 py-1 text-xs">{item.productName}</TableCell>
                         <TableCell className="px-2 py-1 text-right">{item.quantity}</TableCell>
                         <TableCell className="px-2 py-1 text-right">{item.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                         <TableCell className="px-2 py-1 text-right">{item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>

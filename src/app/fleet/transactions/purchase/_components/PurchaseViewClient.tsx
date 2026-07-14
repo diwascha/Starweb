@@ -10,15 +10,7 @@ import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead, TableFoo
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onSettingUpdate } from '@/services/settings-service';
-
-const defaultCompanyProfile: CompanyProfile = {
-  nameEn: "SIJAN DHUWANI SEWA",
-  nameNp: "सिजन ढुवानी सेवा",
-  address: "HETAUDA 16, BAGMATI PROVIENCE, NEPAL",
-  phone: "N/A",
-  email: "N/A",
-  pan: "304603712"
-};
+import { DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 
 interface PurchaseViewClientProps {
   initialTransaction: Transaction;
@@ -35,7 +27,7 @@ export default function PurchaseViewClient({
 }: PurchaseViewClientProps) {
   const router = useRouter();
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
   
   const vehicle = vehicles.find(v => v.id === initialTransaction.vehicleId);
   const party = parties.find(p => p.id === initialTransaction.partyId);

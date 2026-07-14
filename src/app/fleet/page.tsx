@@ -19,15 +19,7 @@ import { onPoliciesUpdate } from '@/services/policy-service';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { useToast } from '@/hooks/use-toast';
-
-const defaultFleetProfile: CompanyProfile = {
-  nameEn: "SIJAN DHUWANI SEWA",
-  nameNp: "सिजन ढुवानी सेवा",
-  address: "HETAUDA 16, BAGMATI PROVIENCE, NEPAL",
-  phone: "N/A",
-  email: "N/A",
-  pan: "304603712"
-};
+import { DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 
 export default function FleetDashboardPage() {
     const { user, hasPermission } = useAuth();
@@ -37,7 +29,7 @@ export default function FleetDashboardPage() {
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultFleetProfile);
+    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
     
     useEffect(() => {
         setIsLoading(true);

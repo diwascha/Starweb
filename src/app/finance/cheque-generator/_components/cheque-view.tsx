@@ -1,4 +1,3 @@
-
 'use client';
 
 import { toWords, toNepaliDate } from '@/lib/utils';
@@ -7,15 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import type { Account, CompanyProfile } from '@/lib/types';
 import { useState, useEffect } from 'react';
 import { onSettingUpdate } from '@/services/settings-service';
-
-const defaultCompanyProfile: CompanyProfile = {
-  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
-  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-  address: "Hetauda 08, Bagmati Province, Nepal",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
+import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 
 interface SplitDetail {
   chequeDate: Date;
@@ -32,12 +23,12 @@ interface ChequeViewProps {
 }
 
 export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits }: ChequeViewProps) {
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
   const nepaliDate = toNepaliDate(voucherDate.toISOString());
   const adDate = format(voucherDate, 'yyyy-MM-dd');
   
   useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
     return () => unsub();
   }, []);
 

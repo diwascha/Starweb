@@ -10,15 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { updateReport } from '@/services/report-service';
 import { onSettingUpdate } from '@/services/settings-service';
-
-const defaultCompanyProfile: CompanyProfile = {
-  nameEn: "Shivam Packaging Industry Private Limited",
-  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-  address: "Hetauda 08, Bagmati Province, Nepal",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
+import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 
 const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
   'dimension',
@@ -36,14 +28,14 @@ const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
 export default function ReportView({ initialReport }: { initialReport: Report }) {
   const [report, setReport] = useState<Report>(initialReport);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
 
   useEffect(() => {
     setReport(initialReport);
   }, [initialReport]);
 
   useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
     return () => unsub();
   }, []);
 

@@ -52,21 +52,21 @@ export const NEPALI_MONTHS = [
 export const NEPALI_MONTH_NAMES = NEPALI_MONTHS.map(m => m.name);
 
 export const DEFAULT_COMPANY_PROFILE = {
-  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
-  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-  address: "Hetauda 08, Bagmati Province, Nepal",
+  nameEn: "GENERIC ENTERPRISE PVT LTD.",
+  nameNp: "जेनेरिक इन्टरप्राइज प्रा.लि.",
+  address: "ADDRESS NOT CONFIGURED",
   phone: "N/A",
   email: "N/A",
   pan: "N/A"
 };
 
 export const DEFAULT_FLEET_PROFILE = {
-  nameEn: "SIJAN DHUWANI SEWA",
-  nameNp: "सिजन ढुवानी सेवा",
-  address: "HETAUDA 16, BAGMATI PROVIENCE, NEPAL",
+  nameEn: "GENERIC LOGISTICS SEWA",
+  nameNp: "जेनेरिक ढुवानी सेवा",
+  address: "ADDRESS NOT CONFIGURED",
   phone: "N/A",
   email: "N/A",
-  pan: "304603712"
+  pan: "N/A"
 };
 
 export const PLY_OPTIONS = ['3', '5', '7', '9'];
