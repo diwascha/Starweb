@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
@@ -14,7 +13,7 @@ interface UserSession {
   username: string;
   email?: string;
   isApproved: boolean;
-  is_admin: boolean;
+  isAdmin: boolean;
   permissions: Permissions;
   passwordLastUpdated?: string;
 }
@@ -85,7 +84,7 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
             return;
         }
 
-        if (user && !isAuthPage && !user.is_admin) {
+        if (user && !isAuthPage && !user.isAdmin) {
             const pathSegments = pathname.split('/').filter(Boolean);
             const firstSegment = pathSegments[0] || 'dashboard';
             const currentModule = routeToCoreModule(firstSegment);
@@ -155,7 +154,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             username: cloudUser.username,
             email: cloudUser.email,
             isApproved: true,
-            is_admin: false,
+            isAdmin: false,
             permissions: cloudUser.permissions || {},
             passwordLastUpdated: cloudUser.passwordLastUpdated
           };
@@ -170,7 +169,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const currentSessionJson = localStorage.getItem(USER_SESSION_KEY);
         if (currentSessionJson) {
             const currentSession = JSON.parse(currentSessionJson);
-            if (!currentSession.is_admin) {
+            if (!currentSession.isAdmin) {
                 localStorage.removeItem(USER_SESSION_KEY);
                 setUser(null);
             }
@@ -184,12 +183,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const login = useCallback(async (userToLogin: User, isLocalAdmin: boolean = false) => {
     if (isLocalAdmin) {
-        const adminCreds = getAdminCredentials();
         const session: UserSession = {
             id: 'admin_user',
             username: userToLogin.username,
             isApproved: true,
-            is_admin: true,
+            isAdmin: true,
             permissions: {}
         };
         localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
@@ -200,7 +198,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             username: userToLogin.username,
             email: userToLogin.email,
             isApproved: true,
-            is_admin: false,
+            isAdmin: false,
             permissions: userToLogin.permissions || {},
             passwordLastUpdated: userToLogin.passwordLastUpdated
         };
@@ -211,7 +209,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const hasPermission = useCallback((module: string, action: Action | 'create'): boolean => {
     if (!user) return false;
-    if (user.is_admin) return true;
+    if (user.isAdmin) return true;
     if (user.isApproved === false) return false;
     
     const act = action === 'create' ? 'add' : action;

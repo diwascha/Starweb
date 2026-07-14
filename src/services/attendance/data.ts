@@ -61,7 +61,7 @@ export const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData
     return {
         id: snapshot.id,
         date: data.date,
-        bsDate: data.bsDate,
+        dateBS: data.dateBS || data.bsDate,
         bsYear: data.bsYear,
         bsMonth: data.bsMonth,
         employeeName: String(data.employeeName || ''),

@@ -20,7 +20,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
 
-const defaultCompanyProfile: CompanyProfile = {
+const DEFAULT_COMPANY_PROFILE_LOCAL: CompanyProfile = {
   nameEn: "Shivam Packaging Industry Private Limited",
   nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
   address: "Hetauda 08, Bagmati Province, Nepal",
@@ -29,7 +29,7 @@ const defaultCompanyProfile: CompanyProfile = {
   pan: "N/A"
 };
 
-const paperTypes = ['Kraft Paper', 'Virgin Paper'];
+const PAPER_TYPES = ['Kraft Paper', 'Virgin Paper'];
 
 const normalizeBF = (val: any): string => {
   if (val === undefined || val === null || val === '') return "";
@@ -48,30 +48,30 @@ const normalizeBF = (val: any): string => {
  * Reusable component to render the PO document structure
  */
 function PurchaseOrderDocument({ 
-  po, 
+  purchaseOrder, 
   includeAmendments = true,
   containerRef,
   companyProfile
 }: { 
-  po: any, 
+  purchaseOrder: any, 
   includeAmendments?: boolean,
   containerRef?: React.RefObject<HTMLDivElement | null>,
   companyProfile: CompanyProfile
 }) {
-  const nepaliPoDateString = new NepaliDate(new Date(po.poDate)).format('YYYY/MM/DD');
-  const showAmendedDate = po.amendments && po.amendments.length > 0;
-  const lastAmendment = showAmendedDate ? po.amendments[po.amendments.length - 1] : null;
+  const nepaliPoDateString = new NepaliDate(new Date(purchaseOrder.poDate)).format('YYYY/MM/DD');
+  const showAmendedDate = purchaseOrder.amendments && purchaseOrder.amendments.length > 0;
+  const lastAmendment = showAmendedDate ? purchaseOrder.amendments[purchaseOrder.amendments.length - 1] : null;
   const amendedDate = lastAmendment ? new Date(lastAmendment.date) : null;
   const nepaliAmendedDateString = amendedDate ? new NepaliDate(amendedDate).format('YYYY/MM/DD') : '';
 
   const groupedItems = useMemo(() => {
-    return (po.items || []).reduce((acc: any, item: any) => {
+    return (purchaseOrder.items || []).reduce((acc: any, item: any) => {
         const key = item.rawMaterialType || 'Other';
         if (!acc[key]) acc[key] = [];
         acc[key].push(item);
         return acc;
     }, {} as Record<string, any>);
-  }, [po.items]);
+  }, [purchaseOrder.items]);
 
   return (
     <div ref={containerRef} className="bg-white text-black p-8 font-sans">
@@ -89,18 +89,18 @@ function PurchaseOrderDocument({
         
         <div className="grid grid-cols-2 text-sm mb-4">
             <div>
-                <p><span className="font-semibold">PO No:</span> {po.poNumber}</p>
+                <p><span className="font-semibold">PO No:</span> {purchaseOrder.poNumber}</p>
                 <div className="mt-4">
                     <p className="font-bold">To:</p>
-                    <p className="font-bold text-lg">{po.companyName}</p>
-                    <p>{po.companyAddress}</p>
-                    {po.panNumber && <p>PAN: {po.panNumber}</p>}
+                    <p className="font-bold text-lg">{purchaseOrder.companyName}</p>
+                    <p>{purchaseOrder.companyAddress}</p>
+                    {purchaseOrder.panNumber && <p>PAN: {purchaseOrder.panNumber}</p>}
                 </div>
             </div>
             <div className="text-right flex flex-col justify-between">
                 <div>
                     <p><span className="font-semibold">Date:</span> {nepaliPoDateString} B.S.</p>
-                    <p className="text-xs text-gray-500">({new Date(po.poDate).toLocaleDateString('en-CA')})</p>
+                    <p className="text-xs text-gray-500">({new Date(purchaseOrder.poDate).toLocaleDateString('en-CA')})</p>
                     {showAmendedDate && amendedDate && (
                         <div className="mt-2">
                             <p><span className="font-semibold">Amended:</span> {nepaliAmendedDateString} B.S.</p>
@@ -115,7 +115,7 @@ function PurchaseOrderDocument({
 
         <div className="space-y-6">
             {Object.entries(groupedItems).map(([type, items]: [string, any]) => {
-                const isPaper = paperTypes.includes(type);
+                const isPaper = PAPER_TYPES.includes(type);
                 const sortedItems = isPaper
                     ? [...items].sort((a, b) => {
                         const gsmA = parseFloat(a.gsm) || 0;
@@ -187,11 +187,11 @@ function PurchaseOrderDocument({
             })}
         </div>
 
-        {includeAmendments && po.amendments && po.amendments.length > 0 && (
+        {includeAmendments && purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && (
             <div className="mt-8 border-t border-gray-300 pt-4">
                 <h3 className="text-sm font-bold uppercase mb-2">Amendment History</h3>
                 <div className="space-y-2">
-                    {po.amendments.map((am: any, i: number) => (
+                    {purchaseOrder.amendments.map((am: any, i: number) => (
                         <div key={i} className="text-[10px] text-gray-700">
                             <span className="font-bold">{i + 1}. Amended on:</span> {new Date(am.date).toLocaleString()}
                             <p className="ml-4 italic">Remarks: {am.remarks}</p>
@@ -215,7 +215,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const [includeAmendments, setIncludeAmendments] = useState(true);
   const [selectedVersion, setSelectedVersion] = useState<PurchaseOrderVersion | null>(null);
   const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE_LOCAL);
   
   const mainPrintRef = useRef<HTMLDivElement>(null);
   const snapshotPrintRef = useRef<HTMLDivElement>(null);
@@ -232,11 +232,11 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   }, [initialPurchaseOrder, poId]);
 
   useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE_LOCAL));
     return () => unsub();
   }, []);
   
-  const handleExportPdf = async (targetPo: any, poNo: string) => {
+  const handleExportPdf = async (targetPurchaseOrder: any, poNo: string) => {
     const key = `pdf-${poNo}`;
     setIsExporting(prev => ({ ...prev, [key]: true }));
     try {
@@ -255,16 +255,16 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         doc.setFont('Helvetica', 'normal');
         doc.text(`To:`, 14, 45);
         doc.setFont('Helvetica', 'bold');
-        doc.text(targetPo.companyName, 14, 50);
+        doc.text(targetPurchaseOrder.companyName, 14, 50);
         doc.setFont('Helvetica', 'normal');
-        if (targetPo.companyAddress) doc.text(targetPo.companyAddress, 14, 55);
-        if (targetPo.panNumber) doc.text(`PAN: ${targetPo.panNumber}`, 14, 60);
-        doc.text(`PO No: ${targetPo.poNumber}`, doc.internal.pageSize.getWidth() - 14, 45, { align: 'right' });
-        const nepaliPoDate = new NepaliDate(new Date(targetPo.poDate)).format('YYYY/MM/DD');
+        if (targetPurchaseOrder.companyAddress) doc.text(targetPurchaseOrder.companyAddress, 14, 55);
+        if (targetPurchaseOrder.panNumber) doc.text(`PAN: ${targetPurchaseOrder.panNumber}`, 14, 60);
+        doc.text(`PO No: ${targetPurchaseOrder.poNumber}`, doc.internal.pageSize.getWidth() - 14, 45, { align: 'right' });
+        const nepaliPoDate = new NepaliDate(new Date(targetPurchaseOrder.poDate)).format('YYYY/MM/DD');
         doc.text(`Date: ${nepaliPoDate} BS`, doc.internal.pageSize.getWidth() - 14, 50, { align: 'right' });
         
         let finalY = 65;
-        const groupedItems = targetPo.items.reduce((acc: any, item: any) => {
+        const groupedItems = targetPurchaseOrder.items.reduce((acc: any, item: any) => {
             const key = item.rawMaterialType || 'Other';
             if (!acc[key]) acc[key] = [];
             acc[key].push(item);
@@ -272,7 +272,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         }, {} as Record<string, any>);
 
         for (const [type, items] of Object.entries(groupedItems) as [string, any][]) {
-            const isPaper = paperTypes.includes(type);
+            const isPaper = PAPER_TYPES.includes(type);
             const head = [['S.N.', 'Description', ...(isPaper ? ['Size', 'GSM', 'BF'] : []), 'Quantity']];
             const body = items.map((item: any, index: number) => [
                 index + 1, item.rawMaterialName, ...(isPaper ? [item.size || '-', item.gsm || '-', normalizeBF(item.bf) || '-'] : []), `${item.quantity} ${item.unit}`
@@ -376,7 +376,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
 
       <Card className="border shadow-lg">
         <PurchaseOrderDocument 
-            po={purchaseOrder} 
+            purchaseOrder={purchaseOrder} 
             includeAmendments={includeAmendments} 
             containerRef={mainPrintRef}
             companyProfile={companyProfile}
@@ -469,7 +469,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                     {selectedVersion && (
                         <div className="border rounded-lg shadow-inner overflow-hidden">
                             <PurchaseOrderDocument 
-                                po={selectedVersion.data} 
+                                purchaseOrder={selectedVersion.data} 
                                 includeAmendments={false} 
                                 containerRef={snapshotPrintRef}
                                 companyProfile={companyProfile}

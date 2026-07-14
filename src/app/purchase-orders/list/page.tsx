@@ -100,7 +100,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
                     <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
                         <div className="flex items-center gap-2 overflow-hidden text-left">
                             {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                            <span className="truncate">{displayText}</span>
+                            <span className="truncate text-left">{displayText}</span>
                         </div>
                         <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                     </Button>
@@ -118,12 +118,12 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
                             <CommandEmpty>No results found.</CommandEmpty>
                             <CommandGroup>
                                 <CommandItem value="All" onSelect={() => toggleItem('All')} className="text-xs">
-                                    <Check className={cn("mr-2 h-3.5 w-3.5", isAll ? "opacity-100" : "opacity-0")} />
+                                    <Check className={cn("mr-2 h-4 w-4", isAll ? "opacity-100" : "opacity-0")} />
                                     All {placeholder}s
                                 </CommandItem>
                                 {items.map((item: any) => (
                                     <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
-                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
+                                        <Check className={cn("mr-2 h-4 w-4", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
                                         {item.name}
                                     </CommandItem>
                                 ))}
@@ -150,7 +150,7 @@ export default function PurchaseOrdersListPage() {
   const { hasPermission, user } = useAuth();
 
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
-  const [poToUpdate, setPoToUpdate] = useState<PurchaseOrder | null>(null);
+  const [purchaseOrderToUpdate, setPurchaseOrderToUpdate] = useState<PurchaseOrder | null>(null);
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
   
   // ERP Filter State (Multiple Selection)
@@ -161,8 +161,8 @@ export default function PurchaseOrdersListPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    const unsubscribe = onPurchaseOrdersUpdate((poData) => {
-        setPurchaseOrders(poData);
+    const unsubscribe = onPurchaseOrdersUpdate((purchaseOrderData) => {
+        setPurchaseOrders(purchaseOrderData);
         setIsLoading(false);
     });
     return () => unsubscribe();
@@ -171,10 +171,10 @@ export default function PurchaseOrdersListPage() {
   const { availableYears, availableCompanies } = useMemo(() => {
     const years = new Set<number>();
     const companiesSet = new Set<string>();
-    purchaseOrders.forEach(po => {
+    purchaseOrders.forEach(purchaseOrder => {
         try {
-            years.add(new NepaliDate(new Date(po.poDate)).getYear());
-            companiesSet.add(po.companyName);
+            years.add(new NepaliDate(new Date(purchaseOrder.poDate)).getYear());
+            companiesSet.add(purchaseOrder.companyName);
         } catch {}
     });
     return {
@@ -192,7 +192,7 @@ export default function PurchaseOrdersListPage() {
     }
   };
   
-  const updatePoStatus = (id: string, status: PurchaseOrderStatus, deliveryDateISO?: string) => {
+  const updatePurchaseOrderStatus = (id: string, status: PurchaseOrderStatus, deliveryDateISO?: string) => {
     try {
       const updateData: any = { 
         status, 
@@ -214,17 +214,17 @@ export default function PurchaseOrdersListPage() {
     }
   };
 
-  const handleOpenDeliveryDialog = (po: PurchaseOrder) => {
-    setPoToUpdate(po);
-    setDeliveryDate(po.deliveryDate ? new Date(po.deliveryDate) : new Date());
+  const handleOpenDeliveryDialog = (purchaseOrder: PurchaseOrder) => {
+    setPurchaseOrderToUpdate(purchaseOrder);
+    setDeliveryDate(purchaseOrder.deliveryDate ? new Date(purchaseOrder.deliveryDate) : new Date());
     setDeliveryDialogOpen(true);
   };
   
   const handleConfirmDelivery = () => {
-    if (poToUpdate && deliveryDate) {
-      updatePoStatus(poToUpdate.id, 'Delivered', deliveryDate.toISOString());
+    if (purchaseOrderToUpdate && deliveryDate) {
+      updatePurchaseOrderStatus(purchaseOrderToUpdate.id, 'Delivered', deliveryDate.toISOString());
       setDeliveryDialogOpen(false);
-      setPoToUpdate(null);
+      setPurchaseOrderToUpdate(null);
     }
   };
   
@@ -249,37 +249,37 @@ export default function PurchaseOrdersListPage() {
     let filtered = [...purchaseOrders];
 
     if (filterBsYears.length > 0) {
-      filtered = filtered.filter(po => {
+      filtered = filtered.filter(purchaseOrder => {
         try {
-          const year = new NepaliDate(new Date(po.poDate)).getYear();
+          const year = new NepaliDate(new Date(purchaseOrder.poDate)).getYear();
           return filterBsYears.includes(String(year));
         } catch { return false; }
       });
     }
 
     if (filterBsMonths.length > 0) {
-      filtered = filtered.filter(po => {
+      filtered = filtered.filter(purchaseOrder => {
         try {
-          const month = new NepaliDate(new Date(po.poDate)).getMonth();
+          const month = new NepaliDate(new Date(purchaseOrder.poDate)).getMonth();
           return filterBsMonths.includes(String(month));
         } catch { return false; }
       });
     }
     
     if (filterCompanies.length > 0) {
-        filtered = filtered.filter(po => filterCompanies.includes(po.companyName));
+        filtered = filtered.filter(purchaseOrder => filterCompanies.includes(purchaseOrder.companyName));
     }
 
     if (filterStatuses.length > 0) {
-        filtered = filtered.filter(po => filterStatuses.includes(po.status));
+        filtered = filtered.filter(purchaseOrder => filterStatuses.includes(purchaseOrder.status));
     }
 
     if (searchQuery) {
         const lowercasedQuery = searchQuery.toLowerCase();
-        filtered = filtered.filter(po =>
-            (po.poNumber || '').toLowerCase().includes(lowercasedQuery) ||
-            (po.companyName || '').toLowerCase().includes(lowercasedQuery) ||
-            po.items.some(item => (item.rawMaterialName || '').toLowerCase().includes(lowercasedQuery))
+        filtered = filtered.filter(purchaseOrder =>
+            (purchaseOrder.poNumber || '').toLowerCase().includes(lowercasedQuery) ||
+            (purchaseOrder.companyName || '').toLowerCase().includes(lowercasedQuery) ||
+            purchaseOrder.items.some(item => (item.rawMaterialName || '').toLowerCase().includes(lowercasedQuery))
         );
     }
     
@@ -351,7 +351,7 @@ export default function PurchaseOrdersListPage() {
               {hasPermission('purchaseOrders', 'create') && (
                 <Button className="mt-4" asChild>
                     <Link href="/purchase-orders/new">
-                    <PlusCircle className="mr-2 h-4 w-4" /> New Purchase Order
+                    <PlusCircle className="mr-2 h-4 w-4" /> New PO
                     </Link>
                 </Button>
               )}
@@ -396,27 +396,27 @@ export default function PurchaseOrdersListPage() {
             </TableHeader>
             <TableBody>
                 {filteredAndSortedPOs.length > 0 ? (
-                    filteredAndSortedPOs.map(po => (
-                    <TableRow key={po.id}>
-                        <TableCell className="font-medium text-xs">{po.poNumber}</TableCell>
-                        <TableCell className="text-xs">{toNepaliDate(po.poDate)}</TableCell>
-                        <TableCell className="text-xs">{po.companyName}</TableCell>
+                    filteredAndSortedPOs.map(purchaseOrder => (
+                    <TableRow key={purchaseOrder.id}>
+                        <TableCell className="font-medium text-xs">{purchaseOrder.poNumber}</TableCell>
+                        <TableCell className="text-xs">{toNepaliDate(purchaseOrder.poDate)}</TableCell>
+                        <TableCell className="text-xs">{purchaseOrder.companyName}</TableCell>
                         <TableCell>
-                            {renderStatusBadge(po.status)}
+                            {renderStatusBadge(purchaseOrder.status)}
                         </TableCell>
                         <TableCell>
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-default uppercase font-bold">
-                                            {po.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                            <span>{po.lastModifiedBy || po.createdBy}</span>
+                                            {purchaseOrder.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                            <span>{purchaseOrder.lastModifiedBy || purchaseOrder.createdBy}</span>
                                         </div>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p className="text-xs">Created by: {po.createdBy}{po.createdAt ? ` on ${format(new Date(po.createdAt), "PP")}` : ''}</p>
-                                        {po.lastModifiedBy && (
-                                          <p className="text-xs">Modified by: {po.lastModifiedBy}{po.updatedAt ? ` on ${format(new Date(po.updatedAt), "PP")}` : ''}</p>
+                                        <p className="text-xs">Created by: {purchaseOrder.createdBy}{purchaseOrder.createdAt ? ` on ${format(new Date(purchaseOrder.createdAt), "PP")}` : ''}</p>
+                                        {purchaseOrder.lastModifiedBy && (
+                                          <p className="text-xs">Modified by: {purchaseOrder.lastModifiedBy}{purchaseOrder.updatedAt ? ` on ${format(new Date(purchaseOrder.updatedAt), "PP")}` : ''}</p>
                                         )}
                                     </TooltipContent>
                                 </Tooltip>
@@ -427,17 +427,17 @@ export default function PurchaseOrdersListPage() {
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                             {hasPermission('purchaseOrders', 'view') && (
-                                <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/view?id=${po.id}`)}>
+                                <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/view?id=${purchaseOrder.id}`)}>
                                     <View className="mr-2 h-4 w-4" /> View
                                 </DropdownMenuItem>
                             )}
                             {hasPermission('purchaseOrders', 'edit') && (
-                                <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit?id=${po.id}`)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit?id=${purchaseOrder.id}`)} disabled={purchaseOrder.status === 'Delivered' || purchaseOrder.status === 'Canceled'}>
                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
                             )}
                              {hasPermission('purchaseOrders', 'view') && (
-                                <DropdownMenuItem onSelect={() => handlePrint(po.id)}>
+                                <DropdownMenuItem onSelect={() => handlePrint(purchaseOrder.id)}>
                                     <Printer className="mr-2 h-4 w-4" /> Print
                                 </DropdownMenuItem>
                             )}
@@ -449,18 +449,18 @@ export default function PurchaseOrdersListPage() {
 
                             {hasPermission('purchaseOrders', 'edit') && (
                                 <>
-                                    {po.status !== 'Delivered' ? (
-                                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)} disabled={po.status === 'Canceled'}>
+                                    {purchaseOrder.status !== 'Delivered' ? (
+                                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(purchaseOrder)} disabled={purchaseOrder.status === 'Canceled'}>
                                             <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
                                         </DropdownMenuItem>
                                     ) : (
-                                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)}>
+                                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(purchaseOrder)}>
                                             <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Date
                                         </DropdownMenuItem>
                                     )}
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={e => e.preventDefault()} disabled={po.status === 'Delivered' || po.status === 'Canceled'} className="text-destructive focus:text-destructive">
+                                            <DropdownMenuItem onSelect={e => e.preventDefault()} disabled={purchaseOrder.status === 'Delivered' || purchaseOrder.status === 'Canceled'} className="text-destructive focus:text-destructive">
                                                 <Ban className="mr-2 h-4 w-4" /> Cancel Order
                                             </DropdownMenuItem>
                                         </AlertDialogTrigger>
@@ -468,12 +468,12 @@ export default function PurchaseOrdersListPage() {
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>Are you sure you want to cancel this order?</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    This action will mark PO #{po.poNumber} as Canceled. This action cannot be reversed.
+                                                    This action will mark PO #{purchaseOrder.poNumber} as Canceled. This action cannot be reversed.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Go Back</AlertDialogCancel>
-                                                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => updatePoStatus(po.id, 'Canceled')}>Confirm Cancellation</AlertDialogAction>
+                                                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => updatePurchaseOrderStatus(purchaseOrder.id, 'Canceled')}>Confirm Cancellation</AlertDialogAction>
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
@@ -499,7 +499,7 @@ export default function PurchaseOrdersListPage() {
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeletePurchaseOrder(po.id)}>Delete</AlertDialogAction>
+                                        <AlertDialogAction onClick={() => handleDeletePurchaseOrder(purchaseOrder.id)}>Delete</AlertDialogAction>
                                     </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
@@ -597,7 +597,7 @@ export default function PurchaseOrdersListPage() {
             <DialogHeader>
                 <DialogTitle>Confirm Delivery</DialogTitle>
                 <DialogDescription>
-                    Select the delivery date for PO #{poToUpdate?.poNumber}.
+                    Select the delivery date for PO #{purchaseOrderToUpdate?.poNumber}.
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4 flex justify-center">

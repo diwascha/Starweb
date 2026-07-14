@@ -1,4 +1,3 @@
-
 'use client';
 import { PurchaseOrderForm } from '@/app/purchase-orders/_components/purchase-order-form';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
@@ -9,13 +8,13 @@ import { useSearchParams } from 'next/navigation';
 function EditPurchaseOrderComponent() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
-  const [po, setPo] = useState<PurchaseOrder | null>(null);
+  const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (id) {
         getPurchaseOrder(id).then(data => {
-            setPo(data);
+            setPurchaseOrder(data);
             setLoading(false);
         });
     } else {
@@ -31,11 +30,11 @@ function EditPurchaseOrderComponent() {
       return <div>No Purchase Order ID provided.</div>;
   }
 
-  if (!po) {
+  if (!purchaseOrder) {
     return <div>Purchase order not found.</div>;
   }
 
-  return <PurchaseOrderForm poToEdit={po} />;
+  return <PurchaseOrderForm poToEdit={purchaseOrder} />;
 }
 
 export default function EditPurchaseOrderPage() {

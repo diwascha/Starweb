@@ -137,7 +137,7 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
             }
         }
 
-        results.push({ date: log.date, bsDate: log.dateBS, bsYear: year, bsMonth: month, employeeName: employee.name, employeeId: employee.id, onDuty: log.onDuty, offDuty: log.offDuty, clockIn: log.clockIn, clockOut: log.clockOut, status: finalStatus, regularHours: reg, overtimeHours: ot, grossHours: reg + ot, calculatedAt: now, calculatedBy, remarks: finalRemarks || null, sourceLogId: log.id, rowIndex: log.rowIndex });
+        results.push({ date: log.date, dateBS: log.dateBS, bsYear: year, bsMonth: month, employeeName: employee.name, employeeId: employee.id, onDuty: log.onDuty, offDuty: log.offDuty, clockIn: log.clockIn, clockOut: log.clockOut, status: finalStatus, regularHours: reg, overtimeHours: ot, grossHours: reg + ot, calculatedAt: now, calculatedBy, remarks: finalRemarks || null, sourceLogId: log.id, rowIndex: log.rowIndex });
     }
 
     const CHUNK = 400;

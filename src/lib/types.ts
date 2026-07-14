@@ -275,7 +275,7 @@ export interface RawMachineLog {
 export interface AttendanceRecord {
     id: string;
     date: string; // AD Date as ISO string
-    bsDate: string;
+    dateBS: string;
     bsYear: number;
     bsMonth: number;
     employeeName: string;
@@ -427,6 +427,15 @@ export interface Payroll {
     netPayment: number; // Mapping "Net Pay"
     createdBy: string;
     createdAt: string;
+    totalHours?: number; // Internal Use
+    otHours?: number;
+    regularHours?: number;
+    rate?: number;
+    absentDays?: number;
+    deduction?: number;
+    salaryTotal?: number;
+    remark?: string;
+    bonus?: number;
 }
 
 /**

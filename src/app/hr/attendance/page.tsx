@@ -355,7 +355,7 @@ export default function AttendanceRegistryPage() {
                             ) : paginatedRecords.map(r => (
                                 <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors">
                                     <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
-                                    <TableCell className="font-mono font-bold text-blue-900">{toNepaliDate(r.date)}</TableCell>
+                                    <TableCell className="font-mono font-bold text-blue-900">{r.dateBS}</TableCell>
                                     <TableCell className="font-black text-gray-900">{r.employeeName}</TableCell>
                                     <TableCell className="text-center"><Badge variant={getAttendanceBadgeVariant(r.status as any)} className="text-[9px] font-black uppercase h-5">{r.status}</Badge></TableCell>
                                     <TableCell className="text-center font-medium text-blue-800">

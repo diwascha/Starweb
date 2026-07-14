@@ -48,16 +48,16 @@ import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 
-const defaultCompanyProfile: CompanyProfile = {
-  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
-  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-  address: "HETAUDA 08, BAGMATI PROVIENCE, NEPAL",
+const DEFAULT_COMPANY_PROFILE_LOCAL: CompanyProfile = {
+  nameEn: "GENERIC ENTERPRISE PVT LTD.",
+  nameNp: "जेनेरिक इन्टरप्राइज प्रा.लि.",
+  address: "ADDRESS NOT CONFIGURED",
   phone: "N/A",
   email: "N/A",
   pan: "N/A"
 };
 
-const initialTdsRates: TdsRate[] = [
+const INITIAL_TDS_RATES: TdsRate[] = [
   { value: '1.5', label: 'Goods & Contracts', description: 'Supply of goods and contracts/sub-contracts (1.5%)' },
   { value: '15', label: 'Services (Individual)', description: 'Payment for services to natural persons (15%)' },
   { value: '10', label: 'Rent', description: 'Payment of rent (10%)' },
@@ -413,7 +413,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const [includeVat, setIncludeVat] = useState(true);
   
   const [parties, setParties] = useState<Party[]>([]);
-  const [tdsRates, setTdsRates] = useState<TdsRate[]>(initialTdsRates);
+  const [tdsRates, setTdsRates] = useState<TdsRate[]>(INITIAL_TDS_RATES);
   
   // Dialog States
   const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
@@ -1019,10 +1019,10 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
 export default function TdsCalculatorPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [calculationToEdit, setCalculationToEdit] = useState<TdsCalculation | null>(null);
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE_LOCAL);
 
     useEffect(() => {
-        const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+        const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE_LOCAL));
         return () => unsub();
     }, []);
 
