@@ -1,7 +1,7 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { UnitOfMeasurement } from '@/lib/types';
+import { logServiceError } from '@/lib/service-utils';
 
 const getUomCollection = () => {
     const { db } = getFirebase();
@@ -40,7 +40,7 @@ export const onUomsUpdate = (callback: (uoms: UnitOfMeasurement[]) => void): () 
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("FIREBASE FAIL MESSAGE (UoM):", error.message, error);
+            logServiceError("onUomsUpdate", error);
         }
     );
 };

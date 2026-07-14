@@ -1,6 +1,7 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { AppSetting, CostSetting, CostSettingHistoryEntry } from '@/lib/types';
+import { logServiceError } from '@/lib/service-utils';
 
 const getSettingsCollection = () => {
     const { db } = getFirebase();
@@ -9,7 +10,7 @@ const getSettingsCollection = () => {
 
 export const getSetting = async (id: string): Promise<AppSetting | null> => {
     if (!id || typeof id !== 'string') {
-        console.error("getSetting called with invalid ID:", id);
+        logServiceError("getSetting", new Error("Invalid ID: " + id));
         return null;
     }
     const docRef = doc(getSettingsCollection(), id);
@@ -26,7 +27,7 @@ export const getSetting = async (id: string): Promise<AppSetting | null> => {
 
 export const onSettingUpdate = (id: string, callback: (setting: AppSetting | null) => void): () => void => {
     if (!id || typeof id !== 'string') {
-        console.error("onSettingUpdate called with an invalid ID:", id);
+        logServiceError("onSettingUpdate", new Error("Invalid ID: " + id));
         callback(null);
         return () => {}; // Return a no-op unsubscribe function
     }
@@ -41,7 +42,7 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
             }
         },
         (error) => {
-            console.error(`FIREBASE FAIL MESSAGE (Setting ${id}):`, error.message, error);
+            logServiceError("onSettingUpdate", error);
             callback(null);
         }
     );

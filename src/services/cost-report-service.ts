@@ -1,6 +1,7 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { CostReport } from '@/lib/types';
+import { logServiceError } from '@/lib/service-utils';
 
 const getCostReportsCollection = () => {
     const { db } = getFirebase();
@@ -41,7 +42,7 @@ export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): 
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Cost Reports):", error.message, error);
+            logServiceError("onCostReportsUpdate", error);
         }
     );
 };
@@ -76,7 +77,8 @@ export const updateCostReport = async (id: string, report: Partial<Omit<CostRepo
 
 export const deleteCostReport = async (id: string): Promise<void> => {
     if (!id) return;
-    await deleteDoc(doc(getCostReportsCollection(), id));
+    const reportDoc = doc(getCostReportsCollection(), id);
+    await deleteDoc(reportDoc);
 };
 
 export const generateNextCostReportNumber = async (reports: Pick<CostReport, 'reportNumber'>[]): Promise<string> => {

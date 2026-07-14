@@ -16,6 +16,7 @@ import {
   FirestoreDataConverter
 } from 'firebase/firestore';
 import type { Report } from '@/lib/types';
+import { logServiceError } from '@/lib/service-utils';
 
 /**
  * Firestore data converter for the Report type.
@@ -89,7 +90,7 @@ export const onReportsUpdate = (callback: (reports: Report[]) => void): () => vo
       callback(snapshot.docs.map(doc => doc.data()));
     },
     (error) => {
-      console.error("FIREBASE FAIL MESSAGE (Reports):", error.message, error);
+        logServiceError("onReportsUpdate", error);
     }
   );
 };
@@ -99,7 +100,7 @@ export const onReportsUpdate = (callback: (reports: Report[]) => void): () => vo
  */
 export const getReport = async (id: string): Promise<Report | null> => {
   if (!id || typeof id !== 'string') {
-    console.error("getReport called with an invalid ID:", id);
+    logServiceError("getReport", new Error("Invalid ID: " + id));
     return null;
   }
   const reportDoc = doc(getReportsCollection(), id);

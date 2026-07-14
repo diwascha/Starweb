@@ -71,7 +71,9 @@ export const logError = async (error: Error | any, moduleName: string, context?:
         });
     } catch (e) {
         // Absolute fallback to prevent recursion in error handling
-        console.error("Critical: Logger Failure", e, "Original Error:", error);
+        if (process.env.NODE_ENV === 'development') {
+            console.error("Critical: Logger Failure", e, "Original Error:", error);
+        }
     }
 };
 
@@ -86,7 +88,9 @@ export const onLogsUpdate = (callback: (logs: SystemLog[]) => void) => {
             callback(snapshot.docs.map(fromFirestore));
         });
     } catch (e) {
-        console.error("Failed to subscribe to logs", e);
+        if (process.env.NODE_ENV === 'development') {
+            console.error("Failed to subscribe to logs", e);
+        }
         return () => {};
     }
 };

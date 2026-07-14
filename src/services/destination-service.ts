@@ -1,6 +1,7 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Destination } from '@/lib/types';
+import { logServiceError } from '@/lib/service-utils';
 
 const getDestinationsCollection = () => {
     const { db } = getFirebase();
@@ -40,7 +41,7 @@ export const onDestinationsUpdate = (callback: (destinations: Destination[]) => 
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Destinations):", error.message, error);
+            logServiceError("onDestinationsUpdate", error);
         }
     );
 };

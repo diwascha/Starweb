@@ -2,6 +2,7 @@ import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 import { addExpense } from './expense-service';
+import { logServiceError } from '@/lib/service-utils';
 
 const getPoliciesCollection = () => {
     const { db } = getFirebase();
@@ -63,7 +64,7 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
                 destination: '',
             });
         } catch (error) {
-            console.error("Auto-expense failed for policy:", error);
+            logServiceError("AutoExpensePolicy", error);
         }
     }
 
@@ -77,7 +78,7 @@ export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => v
             callback(policies);
         },
         (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Policies):", error.message, error);
+            logServiceError("onPoliciesUpdate", error);
         }
     );
 };

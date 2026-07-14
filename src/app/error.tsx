@@ -21,7 +21,9 @@ export default function GlobalError({
     if (error) {
         logError(error, 'Global App Segment', { digest: error?.digest });
     }
-    console.error('Critical Application Failure:', error);
+    if (process.env.NODE_ENV === 'development') {
+        console.error('Critical Application Failure:', error);
+    }
   }, [error]);
 
   return (

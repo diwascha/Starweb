@@ -50,7 +50,9 @@ export const getFirebase = () => {
   try {
     rtdb = getDatabase(app);
   } catch (e) {
-    console.warn("RTDB Initialization failed, connection status may be unavailable.", e);
+    if (process.env.NODE_ENV === 'development') {
+        console.warn("RTDB Initialization failed, connection status may be unavailable.", e);
+    }
   }
 
   return { app, db, storage, auth, rtdb };

@@ -1,6 +1,7 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc, getDocs } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
+import { logServiceError } from '@/lib/service-utils';
 
 const getChequesCollection = () => {
     const { db } = getFirebase();
@@ -54,7 +55,7 @@ export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => vo
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Cheques):", error.message, error);
+            logServiceError("onChequesUpdate", error);
         }
     );
 };

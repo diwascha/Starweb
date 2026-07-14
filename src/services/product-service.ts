@@ -1,7 +1,7 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Product, RateHistoryEntry } from '@/lib/types';
+import { logServiceError } from '@/lib/service-utils';
 
 const getProductsCollection = () => {
     const { db } = getFirebase();
@@ -44,7 +44,7 @@ export const onProductsUpdate = (callback: (products: Product[]) => void): () =>
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Products):", error.message, error);
+            logServiceError("onProductsUpdate", error);
         }
     );
 };

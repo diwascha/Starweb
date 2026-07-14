@@ -1,7 +1,7 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy, getDoc } from 'firebase/firestore';
 import type { EstimatedInvoice } from '@/lib/types';
+import { logServiceError } from '@/lib/service-utils';
 
 const getInvoicesCollection = () => {
     const { db } = getFirebase();
@@ -64,7 +64,7 @@ export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Estimate Invoices):", error.message, error);
+            logServiceError("onEstimatedInvoicesUpdate", error);
         }
     );
 };

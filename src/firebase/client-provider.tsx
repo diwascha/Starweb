@@ -21,7 +21,9 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
         try {
             return getFirebase();
         } catch (error) {
-            console.error("Critical: Firebase boot failed", error);
+            if (process.env.NODE_ENV === 'development') {
+                console.error("Critical: Firebase boot failed", error);
+            }
             return null;
         }
     }, [isMounted]);
