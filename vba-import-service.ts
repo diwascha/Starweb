@@ -18,6 +18,16 @@ interface ImportResult {
   errors: string[];
 }
 
+/**
+ * Configuration for a per-employee data block.
+ */
+interface EmployeeBlockConfig {
+  title: string;
+  collection: string;
+  anchorCol: number;
+  colMap: { [key: string]: string };
+}
+
 const db = firestore();
 
 /**
@@ -139,7 +149,7 @@ async function parsePerEmployeeBlock(
   grid: any[][],
   period: ImportPeriod,
   result: ImportResult,
-  config: { title: string; collection: string; colMap: { [key: string]: string }; anchorCol: number }
+  config: EmployeeBlockConfig
 ): Promise<void> {
   const start = findBlockStart(grid, config.title);
   if (!start) {
@@ -361,7 +371,7 @@ export async function importVbaReports(fileBuffer: Buffer, period: ImportPeriod)
   };
 
   // Per-employee blocks
-  const perEmployeeConfigs = [
+  const perEmployeeConfigs: EmployeeBlockConfig[] = [
     {
       title: 'Behavioral Patterns (from attendance data)',
       collection: 'behavior_patterns',

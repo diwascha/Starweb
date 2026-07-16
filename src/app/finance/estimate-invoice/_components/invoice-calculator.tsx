@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { InvoiceView } from './invoice-view';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -214,7 +214,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         setIsExporting(true);
         try {
             const doc = new jsPDF();
-            (doc as any).autoTable({
+            autoTable(doc, {
                 startY: 65,
                 head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
                 body: invoiceData.items.map((item, index) => [index + 1, item.productName, item.quantity, item.rate, item.gross]),

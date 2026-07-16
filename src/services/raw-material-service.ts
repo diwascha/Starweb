@@ -74,8 +74,9 @@ export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise
     if (Array.isArray(material.units) && material.units.length > 0) {
         getUoms().then(async (existingUoms) => {
             const existingAbbrs = new Set(existingUoms.map(u => u.abbreviation.toLowerCase()));
-            for (const unit of material.units!) {
-                if (!existingAbbrs.has(unit.toLowerCase())) {
+            const unitsToProcess = material.units || [];
+            for (const unit of unitsToProcess) {
+                if (unit && !existingAbbrs.has(unit.toLowerCase())) {
                     await addUom({ 
                         name: unit, 
                         abbreviation: unit, 
@@ -122,7 +123,8 @@ export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMa
     if (Array.isArray(material.units) && material.units.length > 0 && material.lastModifiedBy) {
         getUoms().then(async (existingUoms) => {
             const existingAbbrs = new Set(existingUoms.map(u => u.abbreviation.toLowerCase()));
-            for (const unit of material.units!) {
+            const unitsToProcess = material.units || [];
+            for (const unit of unitsToProcess) {
                 if (unit && !existingAbbrs.has(unit.toLowerCase())) {
                     await addUom({ 
                         name: unit, 
