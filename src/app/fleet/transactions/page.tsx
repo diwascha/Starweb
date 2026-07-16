@@ -143,7 +143,7 @@ export default function FleetTransactionsPage() {
     const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
     const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(50);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     const router = useRouter();
     const { toast } = useToast();
     const { user } = useAuth();
@@ -175,7 +175,7 @@ export default function FleetTransactionsPage() {
         import('@/services/account-service').then(m => m.getAccounts(true).then(setAccounts));
 
         setIsLoading(false);
-        return () => unsubs.forEach(u => u());
+        return () => unsubs.forEach(unsub => unsub());
     }, []);
 
     // Reset pagination when filters change
@@ -228,6 +228,7 @@ export default function FleetTransactionsPage() {
             };
         });
 
+        // Always sort Ascending first to calculate running balances correctly
         rawMapped.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         const matchesNonDateFilters = (t: any) => {
@@ -312,8 +313,11 @@ export default function FleetTransactionsPage() {
         const totalCredit = processed.reduce((sum, t) => sum + t.credit, 0);
         const netBalance = totalDebit - totalCredit;
 
+        // Reverse for display: Latest at top
+        const reversedEntries = [...processed].reverse();
+
         return {
-            entries: processed,
+            entries: reversedEntries,
             stats: {
                 opening: openingBalance,
                 debit: totalDebit,
@@ -344,6 +348,8 @@ export default function FleetTransactionsPage() {
 
         if (type === 'excel') {
             const XLSX = await import('xlsx');
+            // For Excel, we might want chronological order
+            const chronologicalEntries = [...ledgerData.entries].reverse();
             const data = [
                 [fleetProfile.nameEn.toUpperCase()],
                 [fleetProfile.address],
@@ -356,7 +362,7 @@ export default function FleetTransactionsPage() {
                 [],
                 ['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance'],
                 ['', '', 'Balance B/F', '', '', '', '', `${Math.abs(ledgerData.stats.opening).toFixed(2)} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
-                ...ledgerData.entries.map(e => [
+                ...chronologicalEntries.map(e => [
                     toNepaliDate(e.date), e.refNo, `${e.remarks || e.type} (${e.lineItemsSummary})`, e.vehicleName, e.categoryDisplay, 
                     e.debit || 0, e.credit || 0, `${Math.abs(e.balance).toFixed(2)} ${e.balance >= 0 ? 'Dr' : 'Cr'}`
                 ]),
@@ -386,12 +392,15 @@ export default function FleetTransactionsPage() {
             doc.text(`Filters: ${partyStr} | ${vehicleStr} | Category: ${filterCategory}`, 14, 41);
             doc.text(`Report Generated: ${nowStr}`, 14, 46);
             
+            // For PDF report, chronological is usually preferred
+            const chronologicalEntries = [...ledgerData.entries].reverse();
+
             autoTable(doc, {
                 startY: 53,
                 head: [['Date (BS)', 'Ref No.', 'Particulars / Description', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance']],
                 body: [
                     ['', '', 'Balance B/F (Opening)', '-', '-', '-', '-', `${Math.abs(ledgerData.stats.opening).toLocaleString(undefined, {minimumFractionDigits: 2})} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
-                    ...ledgerData.entries.map(e => [
+                    ...chronologicalEntries.map(e => [
                         toNepaliDate(e.date), e.refNo, `${e.remarks || e.type}\n${e.lineItemsSummary}`, e.vehicleName, e.categoryDisplay,
                         e.debit ? e.debit.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-', e.credit ? e.credit.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-',
                         `${Math.abs(e.balance).toLocaleString(undefined, {minimumFractionDigits: 2})} ${e.balance >= 0 ? 'Dr' : 'Cr'}`
@@ -628,8 +637,8 @@ export default function FleetTransactionsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody className="bg-white">
-                                {currentPage === 1 && (
-                                    <TableRow className="bg-gray-50/30 font-medium h-12">
+                                {currentPage === totalPages && itemsPerPage !== -1 && (
+                                    <TableRow className="bg-gray-50/30 font-medium h-12 border-b-2">
                                         <TableCell colSpan={2}></TableCell>
                                         <TableCell className="font-bold text-blue-700 italic">Balance B/F (Opening)</TableCell>
                                         <TableCell className="text-center">-</TableCell>
