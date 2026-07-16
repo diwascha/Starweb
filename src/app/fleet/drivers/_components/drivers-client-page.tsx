@@ -1,12 +1,11 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, User, Image as ImageIcon, X } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, User, Image as ImageIcon, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import {
@@ -41,6 +40,7 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadFile } from '@/services/storage-service';
 import Image from 'next/image';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 type DriverSortKey = 'name' | 'nickname' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth' | 'authorship';
@@ -57,6 +57,10 @@ export default function DriversClientPage({
 }: DriversClientPageProps) {
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -86,6 +90,10 @@ export default function DriversClientPage({
         });
         return () => unsubscribe();
     }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, itemsPerPage]);
 
     const resetForm = () => {
         setEditingDriver(null);
@@ -227,6 +235,17 @@ export default function DriversClientPage({
         });
         return filtered;
     }, [drivers, searchQuery, sortConfig]);
+
+    const paginatedDrivers = useMemo(() => {
+        if (itemsPerPage === -1) return sortedAndFilteredDrivers;
+        const start = (currentPage - 1) * itemsPerPage;
+        return sortedAndFilteredDrivers.slice(start, start + itemsPerPage);
+    }, [sortedAndFilteredDrivers, currentPage, itemsPerPage]);
+
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(sortedAndFilteredDrivers.length / itemsPerPage);
+    }, [sortedAndFilteredDrivers, itemsPerPage]);
     
     const renderContent = () => {
         if (isLoading) {
@@ -257,80 +276,137 @@ export default function DriversClientPage({
 
         return (
             <Card>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('nickname')}>Nickname <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('licenseNumber')}>License Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('contactNumber')}>Contact Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                             <TableHead><Button variant="ghost" onClick={() => requestSort('dateOfBirth')}>Date of Birth (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                             <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedAndFilteredDrivers.map(driver => (
-                            <TableRow key={driver.id}>
-                                <TableCell>
-                                    <div className="flex items-center gap-3">
-                                        <Avatar>
-                                            <AvatarImage src={driver.photoURL} alt={driver.name} />
-                                            <AvatarFallback>{driver.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        {driver.name}
-                                    </div>
-                                </TableCell>
-                                <TableCell>{driver.nickname}</TableCell>
-                                <TableCell>{driver.licenseNumber}</TableCell>
-                                <TableCell>{driver.contactNumber}</TableCell>
-                                <TableCell>{toNepaliDate(driver.dateOfBirth)}</TableCell>
-                                <TableCell>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                                {driver.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                                <span>{driver.lastModifiedBy || driver.createdBy}</span>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                {driver.createdBy && (
-                                                    <p>
-                                                    Created by: {driver.createdBy}
-                                                    {driver.createdAt ? ` on ${format(new Date(driver.createdAt), "PP")}` : ''}
-                                                    </p>
-                                                )}
-                                                {driver.lastModifiedBy && driver.lastModifiedAt && (
-                                                <p>
-                                                    Modified by: {driver.lastModifiedBy}
-                                                    {driver.lastModifiedAt ? ` on ${format(new Date(driver.lastModifiedAt), "PP")}` : ''}
-                                                </p>
-                                                )}
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenDialog(driver)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
-                                            {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
-                                            {hasPermission('fleet', 'delete') && (
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the driver record.</AlertDialogDescription></AlertDialogHeader>
-                                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(driver.id, driver.photoURL)}>Delete</AlertDialogAction></AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('name')} className="text-xs">Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('nickname')} className="text-xs">Nickname <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('licenseNumber')} className="text-xs">License Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('contactNumber')} className="text-xs">Contact Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                 <TableHead><Button variant="ghost" onClick={() => requestSort('dateOfBirth')} className="text-xs">Date of Birth (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                 <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="text-xs">Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead className="text-right pr-6 text-xs">Actions</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedDrivers.map(driver => (
+                                <TableRow key={driver.id} className="h-14">
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar>
+                                                <AvatarImage src={driver.photoURL} alt={driver.name} />
+                                                <AvatarFallback>{driver.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            {driver.name}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{driver.nickname}</TableCell>
+                                    <TableCell>{driver.licenseNumber}</TableCell>
+                                    <TableCell>{driver.contactNumber}</TableCell>
+                                    <TableCell>{toNepaliDate(driver.dateOfBirth)}</TableCell>
+                                    <TableCell>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                                    {driver.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                    <span>{driver.lastModifiedBy || driver.createdBy}</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    {driver.createdBy && (
+                                                        <p>
+                                                        Created by: {driver.createdBy}
+                                                        {driver.createdAt ? ` on ${format(new Date(driver.createdAt), "PP")}` : ''}
+                                                        </p>
+                                                    )}
+                                                    {driver.lastModifiedBy && driver.lastModifiedAt && (
+                                                    <p>
+                                                        Modified by: {driver.lastModifiedBy}
+                                                        {driver.lastModifiedAt ? ` on ${format(new Date(driver.lastModifiedAt), "PP")}` : ''}
+                                                    </p>
+                                                    )}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </TableCell>
+                                    <TableCell className="text-right pr-6">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenDialog(driver)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
+                                                {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
+                                                {hasPermission('fleet', 'delete') && (
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the driver record.</AlertDialogDescription></AlertDialogHeader>
+                                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(driver.id, driver.photoURL)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+                {(totalPages > 1 || itemsPerPage !== -1) && (
+                    <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            {itemsPerPage === -1 ? (
+                                <>Showing all <span className="font-bold text-foreground">{sortedAndFilteredDrivers.length}</span> drivers</>
+                            ) : (
+                                <>
+                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, sortedAndFilteredDrivers.length)}</span> of <span className="font-bold text-foreground">{sortedAndFilteredDrivers.length}</span> drivers
+                                </>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                    setItemsPerPage(parseInt(v));
+                                    setCurrentPage(1);
+                                }}>
+                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="-1">All</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {itemsPerPage !== -1 && (
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
         );
     };

@@ -21,9 +21,11 @@ import {
     ChevronDown,
     Check,
     ArrowRight,
-    Terminal
+    Terminal,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -78,6 +80,11 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
     const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    
     const [importProgress, setImportProgress] = useState<string | null>(null);
     const [isCleaningAll, setIsCleaningAll] = useState(false);
     
@@ -127,6 +134,10 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
             unsubLogs();
         };
     }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, selectedYear, selectedMonth, selectedRemark, itemsPerPage]);
 
     const availableYears = useMemo(() => {
         const years = new Set<number>();
@@ -383,6 +394,17 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
         return filtered;
     }, [logs, searchQuery, selectedYear, selectedMonth, selectedRemark, sortConfig, getDisplayRemark]);
 
+    const paginatedLogs = useMemo(() => {
+        if (itemsPerPage === -1) return filteredLogs;
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredLogs.slice(start, start + itemsPerPage);
+    }, [filteredLogs, currentPage, itemsPerPage]);
+
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(filteredLogs.length / itemsPerPage);
+    }, [filteredLogs, itemsPerPage]);
+
     const handleClearFilters = () => {
         setSearchQuery('');
         setSelectedYear('All');
@@ -515,7 +537,7 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow key="loading-row"><TableCell colSpan={8} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
-                                ) : filteredLogs.map(l => (
+                                ) : paginatedLogs.map(l => (
                                     <TableRow key={l.id} className="h-12 border-b-gray-50 group hover:bg-muted/20 transition-colors">
                                         <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{format(new Date(l.date), 'yyyy-MM-dd')}</TableCell>
                                         <TableCell className="font-mono font-bold text-blue-900">{toNepaliDate(l.date)}</TableCell>
@@ -570,6 +592,61 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
                         </Table>
                     </ScrollArea>
                 </CardContent>
+                {(totalPages > 1 || itemsPerPage !== -1) && (
+                    <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            {itemsPerPage === -1 ? (
+                                <>Showing all <span className="font-bold text-foreground">{filteredLogs.length}</span> logs</>
+                            ) : (
+                                <>
+                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredLogs.length)}</span> of <span className="font-bold text-foreground">{filteredLogs.length}</span> logs
+                                </>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                    setItemsPerPage(parseInt(v));
+                                    setCurrentPage(1);
+                                }}>
+                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="-1">All</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {itemsPerPage !== -1 && (
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
 
             <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>

@@ -40,7 +40,8 @@ import {
   Scale,
   Receipt,
   Wallet,
-  Info
+  Info,
+  ChevronLeft
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -110,6 +111,10 @@ export default function TenantsPage() {
   const [availableUnits, setAvailableUnits] = useState<RentalUnit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTenant, setSelectedTenant] = useState<Party | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -170,6 +175,10 @@ export default function TenantsPage() {
   }, []);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
+
+  useEffect(() => {
     if (tenantForm.propertyId) {
       getUnitsByProperty(tenantForm.propertyId).then(data => {
         setAvailableUnits(data.filter(u => u.status === 'Vacant' || u.id === tenantForm.unitId));
@@ -201,6 +210,17 @@ export default function TenantsPage() {
       (t.address || '').toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((a, b) => a.name.localeCompare(b.name));
   }, [tenantSummaries, searchQuery]);
+
+  const paginatedTenants = useMemo(() => {
+    if (itemsPerPage === -1) return filteredTenants;
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredTenants.slice(start, start + itemsPerPage);
+  }, [filteredTenants, currentPage, itemsPerPage]);
+
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === -1) return 1;
+    return Math.ceil(filteredTenants.length / itemsPerPage);
+  }, [filteredTenants, itemsPerPage]);
 
   const resetForm = () => {
     setEditingTenantId(null);
@@ -439,27 +459,27 @@ export default function TenantsPage() {
         </div>
 
         <TabsContent value="records" className="mt-6">
-            <Card className="shadow-sm border-gray-100 bg-white">
+            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow className="hover:bg-transparent">
-                                <TableHead className="w-[300px] font-bold">Tenant Name</TableHead>
+                                <TableHead className="w-[300px] font-bold pl-6">Tenant Name</TableHead>
                                 <TableHead className="font-bold">Unit / Property</TableHead>
                                 <TableHead className="font-bold text-center">Lease Status</TableHead>
                                 <TableHead className="text-right font-bold">Outstanding</TableHead>
                                 <TableHead className="text-right font-bold">Deposit</TableHead>
-                                <TableHead className="w-[100px] text-right">Actions</TableHead>
+                                <TableHead className="w-[100px] text-right pr-6">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredTenants.map((tenant) => (
+                            {paginatedTenants.map((tenant) => (
                                 <TableRow 
                                     key={tenant.id} 
                                     className="group hover:bg-muted/30 cursor-pointer h-14"
                                     onClick={() => handleOpenDetail(tenant.id)}
                                 >
-                                    <TableCell>
+                                    <TableCell className="pl-6">
                                         <div className="flex items-center gap-3">
                                             <Avatar className="h-9 w-9 border shadow-sm shrink-0">
                                                 <AvatarImage src={tenant.photoURL} />
@@ -505,7 +525,7 @@ export default function TenantsPage() {
                                     <TableCell className="text-right font-mono text-xs text-gray-600 tabular-nums">
                                         Rs. {tenant.securityDeposit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right pr-6">
                                         <div className="flex items-center justify-end gap-1">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -565,6 +585,61 @@ export default function TenantsPage() {
                         </TableBody>
                     </Table>
                 </CardContent>
+                {(totalPages > 1 || itemsPerPage !== -1) && (
+                    <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            {itemsPerPage === -1 ? (
+                                <>Showing all <span className="font-bold text-foreground">{filteredTenants.length}</span> tenants</>
+                            ) : (
+                                <>
+                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredTenants.length)}</span> of <span className="font-bold text-foreground">{filteredTenants.length}</span> tenants
+                                </>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                    setItemsPerPage(parseInt(v));
+                                    setCurrentPage(1);
+                                }}>
+                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="-1">All</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {itemsPerPage !== -1 && (
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
         </TabsContent>
 

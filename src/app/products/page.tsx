@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, Check, ChevronsUpDown, User } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, Check, ChevronsUpDown, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Product, ProductSpecification, Report, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,15 +12,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +38,7 @@ import { getReportsByProductId, deleteReport } from '@/services/report-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import { onPartiesUpdate } from '@/services/party-service';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const initialSpecValues: ProductSpecification = {
@@ -69,6 +61,10 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   const [newProductName, setNewProductName] = useState('');
   const [newMaterialCode, setNewMaterialCode] = useState('');
@@ -103,6 +99,10 @@ export default function ProductsPage() {
         unsubParties();
     };
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
 
   const handlePartySelect = (partyId: string) => {
     setNewPartyId(partyId);
@@ -259,6 +259,17 @@ export default function ProductsPage() {
     return filteredProducts;
   }, [products, productSortConfig, searchQuery]);
 
+  const paginatedProducts = useMemo(() => {
+    if (itemsPerPage === -1) return filteredAndSortedProducts;
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedProducts.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedProducts, currentPage, itemsPerPage]);
+
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === -1) return 1;
+    return Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
+  }, [filteredAndSortedProducts, itemsPerPage]);
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -288,114 +299,171 @@ export default function ProductsPage() {
 
     return (
         <Card>
-            <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestProductSort('name')}>
-                    Product Name
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestProductSort('materialCode')}>
-                    Material Code
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestProductSort('partyName')}>
-                    Delivered To
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestProductSort('rate')}>
-                    Rate
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestProductSort('authorship')}>
-                        Authorship
+            <CardContent className="p-0">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestProductSort('name')} className="text-xs">
+                        Product Name
                         <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {filteredAndSortedProducts.map(product => (
-                <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>{product.materialCode}</TableCell>
-                    <TableCell>{product.partyName}</TableCell>
-                     <TableCell>{product.rate ? product.rate.toLocaleString() : 'N/A'}</TableCell>
-                    <TableCell>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                    {product.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                    <span>{product.lastModifiedBy || product.createdBy}</span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>
-                                        Created by: {product.createdBy}
-                                        {product.createdAt ? ` on ${format(new Date(product.createdAt), "PP")}` : ''}
-                                    </p>
-                                    {product.lastModifiedBy && product.lastModifiedAt && (
-                                      <p>
-                                        Modified by: {product.lastModifiedBy}
-                                        {product.lastModifiedAt ? ` on ${format(new Date(product.lastModifiedAt), "PP")}` : ''}
-                                      </p>
-                                    )}
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </TableCell>
-                    <TableCell className="text-right">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                         {hasPermission('products', 'edit') && (
-                            <DropdownMenuItem onSelect={() => openEditProductDialog(product)}>
-                                <Edit className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
-                         )}
-                         {hasPermission('products', 'delete') && hasPermission('products', 'edit') && <DropdownMenuSeparator />}
-                         {hasPermission('products', 'delete') && (
-                            <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                    <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
-                                    <span className="text-destructive">Delete</span>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestProductSort('materialCode')} className="text-xs">
+                        Material Code
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestProductSort('partyName')} className="text-xs">
+                        Delivered To
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                     <TableHead>
+                        <Button variant="ghost" onClick={() => requestProductSort('rate')} className="text-xs">
+                        Rate
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestProductSort('authorship')} className="text-xs">
+                            Authorship
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead className="text-right pr-6 text-xs">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {paginatedProducts.map(product => (
+                    <TableRow key={product.id} className="h-14">
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>{product.materialCode}</TableCell>
+                        <TableCell>{product.partyName}</TableCell>
+                         <TableCell className="font-mono text-xs">Rs. {product.rate ? product.rate.toLocaleString() : 'N/A'}</TableCell>
+                        <TableCell>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                        {product.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                        <span>{product.lastModifiedBy || product.createdBy}</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>
+                                            Created by: {product.createdBy}
+                                            {product.createdAt ? ` on ${format(new Date(product.createdAt), "PP")}` : ''}
+                                        </p>
+                                        {product.lastModifiedBy && product.lastModifiedAt && (
+                                          <p>
+                                            Modified by: {product.lastModifiedBy}
+                                            {product.lastModifiedAt ? ` on ${format(new Date(product.lastModifiedAt), "PP")}` : ''}
+                                          </p>
+                                        )}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                             {hasPermission('products', 'edit') && (
+                                <DropdownMenuItem onSelect={() => openEditProductDialog(product)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will permanently delete the product and all associated reports. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                         )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    </TableCell>
-                </TableRow>
-                ))}
-            </TableBody>
-            </Table>
+                             )}
+                             {hasPermission('products', 'delete') && hasPermission('products', 'edit') && <DropdownMenuSeparator />}
+                             {hasPermission('products', 'delete') && (
+                                <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                        <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
+                                        <span className="text-destructive">Delete</span>
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete the product and all associated reports. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                             )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+                </Table>
+            </CardContent>
+            {(totalPages > 1 || itemsPerPage !== -1) && (
+                <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        {itemsPerPage === -1 ? (
+                            <>Showing all <span className="font-bold text-foreground">{filteredAndSortedProducts.length}</span> products</>
+                        ) : (
+                            <>
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedProducts.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedProducts.length}</span> products
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                setItemsPerPage(parseInt(v));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="-1">All</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {itemsPerPage !== -1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </CardFooter>
+            )}
         </Card>
     );
   };
@@ -409,11 +477,11 @@ export default function ProductsPage() {
         </div>
         <div className="flex items-center gap-2">
             <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                     type="search"
                     placeholder="Search products..."
-                    className="pl-8 sm:w-[300px]"
+                    className="pl-8 sm:w-[250px]"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />

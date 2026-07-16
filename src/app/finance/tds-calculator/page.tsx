@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown, ChevronsUpDown, Check, Plus, MoreHorizontal } from 'lucide-react';
-import { toNepaliDate, toWords, generateNextVoucherNumber } from '@/lib/utils';
+import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown, ChevronsUpDown, Check, Plus, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { toNepaliDate, toWords, generateNextVoucherNumber, cn } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format as formatDate, format } from 'date-fns';
 import {
@@ -43,9 +43,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 
 const DEFAULT_COMPANY_PROFILE_LOCAL: CompanyProfile = {
@@ -115,6 +114,10 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
     
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    
     const [isVoucherViewOpen, setIsVoucherViewOpen] = useState(false);
     const [selectedRecordForView, setSelectedRecordForView] = useState<TdsCalculation | null>(null);
 
@@ -126,6 +129,10 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
         const unsub = onTdsCalculationsUpdate(setSavedCalculations);
         return () => unsub();
     }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, itemsPerPage]);
 
     const requestSort = (key: SortKey) => {
         let direction: SortDirection = 'asc';
@@ -156,6 +163,17 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
 
         return filtered;
     }, [savedCalculations, searchQuery, sortConfig]);
+
+    const paginatedCalculations = useMemo(() => {
+        if (itemsPerPage === -1) return sortedAndFilteredCalculations;
+        const start = (currentPage - 1) * itemsPerPage;
+        return sortedAndFilteredCalculations.slice(start, start + itemsPerPage);
+    }, [sortedAndFilteredCalculations, currentPage, itemsPerPage]);
+
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(sortedAndFilteredCalculations.length / itemsPerPage);
+    }, [sortedAndFilteredCalculations, itemsPerPage]);
 
     const handleDeleteCalculation = async (id: string) => {
         try {
@@ -304,57 +322,58 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
                 </div>
              </div>
            </CardHeader>
-           <CardContent>
+           <CardContent className="p-0">
              <Table>
-               <TableHeader>
-                 <TableRow>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date (BS) <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')}>Voucher # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('taxableAmount')}>Taxable Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead>TDS Amount</TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('netPayable')}>Net Payable <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead className="text-right">Actions</TableHead>
+               <TableHeader className="bg-muted/50">
+                 <TableRow className="hover:bg-transparent">
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="text-xs">Date (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="text-xs">Voucher # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="text-xs">Party Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('taxableAmount')} className="text-xs">Taxable Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                   <TableHead className="text-xs">TDS Amount</TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('netPayable')} className="text-xs">Net Payable <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                   <TableHead className="text-right pr-6 text-xs">Actions</TableHead>
                  </TableRow>
                </TableHeader>
                <TableBody>
-                 {sortedAndFilteredCalculations.length > 0 ? (
-                    sortedAndFilteredCalculations.map(calc => (
-                     <TableRow key={calc.id}>
+                 {paginatedCalculations.length > 0 ? (
+                    paginatedCalculations.map(calc => (
+                     <TableRow key={calc.id} className="h-14">
                        <TableCell>{toNepaliDate(calc.date)}</TableCell>
-                       <TableCell>{calc.voucherNo}</TableCell>
+                       <TableCell className="font-mono text-xs">{calc.voucherNo}</TableCell>
                        <TableCell>{calc.partyName}</TableCell>
-                       <TableCell>{calc.taxableAmount.toLocaleString()}</TableCell>
-                       <TableCell>{calc.tdsAmount.toLocaleString()}</TableCell>
-                       <TableCell>{calc.netPayable.toLocaleString()}</TableCell>
-                       <TableCell className="text-right">
+                       <TableCell className="font-mono text-xs">{calc.taxableAmount.toLocaleString()}</TableCell>
+                       <TableCell className="font-mono text-xs text-red-600">{calc.tdsAmount.toLocaleString()}</TableCell>
+                       <TableCell className="font-mono text-xs font-black">Rs. {calc.netPayable.toLocaleString()}</TableCell>
+                       <TableCell className="text-right pr-6">
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent>
+                            <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuItem onSelect={() => openVoucherView(calc)}>
                                     <Printer className="mr-2 h-4 w-4" /> Print / Export
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => onEdit(calc)}>
                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
-                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                        <Trash2 className="mr-2 h-4 w-4" /> Delete Record
                                     </DropdownMenuItem>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This will permanently delete the record.
+                                            This will permanently delete this TDS calculation record. This action cannot be undone.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteCalculation(calc.id)}>Delete</AlertDialogAction>
+                                        <AlertDialogAction onClick={() => handleDeleteCalculation(calc.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                                 </AlertDialog>
@@ -365,37 +384,100 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
                    ))
                  ) : (
                    <TableRow>
-                     <TableCell colSpan={7} className="text-center">
-                       No saved TDS calculations yet.
+                     <TableCell colSpan={7} className="text-center py-10 text-muted-foreground italic">
+                       No saved TDS calculations matching your search.
                      </TableCell>
                    </TableRow>
                  )}
                </TableBody>
              </Table>
            </CardContent>
+           {(totalPages > 1 || itemsPerPage !== -1) && (
+                <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        {itemsPerPage === -1 ? (
+                            <>Showing all <span className="font-bold text-foreground">{sortedAndFilteredCalculations.length}</span> records</>
+                        ) : (
+                            <>
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, sortedAndFilteredCalculations.length)}</span> of <span className="font-bold text-foreground">{sortedAndFilteredCalculations.length}</span> records
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                setItemsPerPage(parseInt(v));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="-1">All</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {itemsPerPage !== -1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </CardFooter>
+            )}
          </Card>
           <Dialog open={isVoucherViewOpen} onOpenChange={setIsVoucherViewOpen}>
-            <DialogContent className="max-w-xl">
-                <DialogHeader>
+            <DialogContent className="max-w-xl h-[90vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
+                <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
                     <DialogTitle>Voucher Preview</DialogTitle>
                     <DialogDescription>Review, print, or export the TDS voucher.</DialogDescription>
                 </DialogHeader>
-                <div className="bg-gray-100 p-4">
-                    <div ref={printRef}>
+                <ScrollArea className="flex-1 bg-gray-100 p-8">
+                    <div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">
                       {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} companyProfile={companyProfile} />}
                     </div>
-                </div>
-                 <DialogFooter className="sm:justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsVoucherViewOpen(false)}>Cancel</Button>
-                    <Button variant="outline" onClick={() => handleExportJpg()} disabled={isExporting}>
-                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
-                         Export as JPG
-                    </Button>
-                    <Button variant="outline" onClick={() => handleExportPdf()} disabled={isExporting}>
-                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                        Export as PDF
-                    </Button>
-                    <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                    <ScrollBar orientation="vertical" />
+                    <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+                 <DialogFooter className="p-6 border-t bg-white shrink-0">
+                    <div className="flex w-full justify-between items-center">
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleExportJpg()} disabled={isExporting} className="h-9 px-4">
+                                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                                Image
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleExportPdf()} disabled={isExporting} className="h-9 px-4">
+                                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                                PDF
+                            </Button>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="ghost" onClick={() => setIsVoucherViewOpen(false)} className="h-9 px-4 uppercase font-bold text-[10px]">Close</Button>
+                            <Button onClick={handlePrint} className="h-9 px-8 font-black uppercase text-[10px]"><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                        </div>
+                    </div>
                 </DialogFooter>
             </DialogContent>
          </Dialog>
@@ -538,23 +620,6 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
     }
   };
 
-  const doActualPrint = () => {
-    if (!printRef.current) return;
-    
-    const printWindow = window.open('', '', 'height=800,width=800');
-    printWindow?.document.write('<html><head><title>Print Voucher</title>');
-    printWindow?.document.write('<style>@media print{@page{size: A5;margin:0;}body{margin: 1cm;}}</style>');
-    printWindow?.document.write('</head><body>');
-    printWindow?.document.write(printRef.current.innerHTML);
-    printWindow?.document.write('</body></html>');
-    printWindow?.document.close();
-    printWindow?.focus();
-    setTimeout(() => {
-        printWindow?.print();
-        printWindow?.close();
-    }, 250);
-  };
-
   const handleExport = async (formatType: 'pdf' | 'jpg') => {
       if (!calculationData) return;
       setIsExporting(true);
@@ -684,67 +749,63 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
             <header className="print:hidden flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                  <div>
                     <h1 className="text-3xl font-bold tracking-tight">Advanced TDS Calculator</h1>
-                    <p className="text-muted-foreground">
-                        Quickly calculate Tax Deducted at Source (TDS) for various payment types.
-                    </p>
+                    <p className="text-muted-foreground text-sm font-medium italic">Quickly calculate Tax Deducted at Source (TDS) for various payment types.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button onClick={handleSave}>
+                    <Button onClick={handleSave} className="h-10 px-6 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">
                         <Save className="mr-2 h-4 w-4"/>
-                        {calculationToEdit ? 'Update Record' : 'Save Record'}
+                        {calculationToEdit ? 'Update Record' : 'Commit Entry'}
                     </Button>
-                    <Button onClick={handlePrint} disabled={!calculationData}>
-                        <Printer className="mr-2 h-4 w-4" /> Print / Export
+                    <Button onClick={handlePrint} disabled={!calculationData} variant="outline" className="h-10 px-6 font-bold text-xs uppercase tracking-widest border-gray-300">
+                        <Printer className="mr-2 h-4 w-4" /> Preview
                     </Button>
                     {calculationToEdit && (
-                        <Button variant="outline" onClick={onCancelEdit}>Cancel Edit</Button>
+                        <Button variant="ghost" onClick={onCancelEdit} className="h-10 text-xs font-bold uppercase tracking-widest text-muted-foreground">Cancel</Button>
                     )}
                 </div>
             </header>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Calculate TDS</CardTitle>
-                            <CardDescription>
-                            Enter the payment amount and select the nature of payment to see the detailed calculation.
-                            </CardDescription>
+                    <Card className="shadow-sm border-gray-100">
+                        <CardHeader className="bg-muted/30 border-b">
+                            <CardTitle className="text-sm font-black uppercase text-gray-900">Computation Input</CardTitle>
+                            <CardDescription className="text-xs uppercase font-bold text-muted-foreground tracking-tight">Enter details to see the detailed breakdown.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="voucher-no">Voucher No.</Label>
-                                        <Input id="voucher-no" value={voucherNo} readOnly className="bg-muted/50" />
+                        <CardContent className="space-y-8 p-6">
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Voucher No.</Label>
+                                        <Input id="voucher-no" value={voucherNo} readOnly className="bg-muted/50 h-10 font-mono text-sm border-none shadow-inner" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="date">Date</Label>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Posting Date</Label>
                                         <Popover>
                                             <PopoverTrigger asChild>
-                                                <Button variant={"outline"} className="w-full justify-start text-left font-normal">
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {date ? `${toNepaliDate(date.toISOString())} BS (${format(date, "PPP")})` : <span>Pick a date</span>}
+                                                <Button variant={"outline"} className="w-full justify-start text-left font-normal h-10 bg-white border-gray-300 shadow-sm">
+                                                <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                                                {date ? `${toNepaliDate(date.toISOString())} BS (${format(date, "PP")})` : <span>Pick a date</span>}
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0">
+                                            <PopoverContent className="w-auto p-0" align="start">
                                                 <DualCalendar selected={date} onSelect={(d) => d && setDate(d)} />
                                             </PopoverContent>
                                         </Popover>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="party-name">Party Name</Label>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Beneficiary Name</Label>
                                     <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
                                         <PopoverTrigger asChild>
-                                           <Button variant="outline" role="combobox" className="w-full justify-between">
-                                                {partyName || "Select a party..."}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                           <Button variant="outline" role="combobox" className="w-full justify-between h-10 bg-white border-gray-300 shadow-sm">
+                                                {partyName || "Select or type beneficiary..."}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
                                             </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                                             <Command>
                                                 <CommandInput 
-                                                    placeholder="Search party..." 
+                                                    placeholder="Search beneficiary registry..." 
                                                     value={partySearch}
                                                     onValueChange={setPartySearch}
                                                 />
@@ -752,14 +813,14 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                                 <CommandEmpty>
                                                     <Button
                                                         variant="ghost"
-                                                        className="w-full justify-start"
+                                                        className="w-full justify-start text-xs text-primary font-bold"
                                                         onClick={() => {
                                                             setPartyForm(prev => ({ ...prev, name: partySearch, type: 'Vendor', ownership: 'Both' }));
                                                             setIsPartyPopoverOpen(false);
                                                             setIsPartyDialogOpen(true);
                                                         }}
                                                     >
-                                                        <Plus className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                                        <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
                                                     </Button>
                                                 </CommandEmpty>
                                                 <CommandGroup>
@@ -767,7 +828,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                                     <CommandItem key={p.id} value={p.name} onSelect={() => {
                                                         setPartyName(p.name);
                                                         setIsPartyPopoverOpen(false);
-                                                    }}>
+                                                    }} className="text-xs">
                                                         <Check className={cn("mr-2 h-4 w-4", partyName === p.name ? "opacity-100" : "opacity-0")}/>
                                                         {p.name}
                                                     </CommandItem>
@@ -779,51 +840,56 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                     </Popover>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                                <div className="space-y-2">
-                                    <Label htmlFor="amount">Taxable Amount (NPR)</Label>
-                                    <Input
-                                    id="amount"
-                                    type="number"
-                                    placeholder="e.g., 50000"
-                                    value={amount}
-                                    onChange={handleAmountChange}
-                                    className="text-base"
-                                    />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end border-t pt-6">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Taxable Base Amount (NPR)</Label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-blue-400">रु</span>
+                                        <Input
+                                            id="amount"
+                                            type="number"
+                                            placeholder="0.00"
+                                            value={amount}
+                                            onChange={handleAmountChange}
+                                            className="pl-10 h-11 text-lg font-black border-gray-300 focus-visible:ring-primary shadow-sm"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="payment-nature">Nature of Payment</Label>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Nature of Payment / Rate</Label>
                                     <Select value={selectedRateValue} onValueChange={setSelectedRateValue}>
-                                        <SelectTrigger id="payment-nature">
-                                        <SelectValue placeholder="Select payment type..." />
+                                        <SelectTrigger id="payment-nature" className="h-11 bg-white border-gray-300 font-bold shadow-sm">
+                                            <SelectValue placeholder="Select classification..." />
                                         </SelectTrigger>
                                         <SelectContent>
                                         {tdsRates.map(rate => (
-                                            <SelectItem key={rate.value} value={rate.value}>{rate.label} ({rate.value}%)</SelectItem>
+                                            <SelectItem key={rate.value} value={rate.value} className="text-xs">{rate.label} ({rate.value}%)</SelectItem>
                                         ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
                             </div>
-                            <div className="flex items-center space-x-2">
+
+                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-muted/20 border border-gray-200">
                                 <Switch id="include-vat" checked={includeVat} onCheckedChange={setIncludeVat} />
-                                <Label htmlFor="include-vat">Include VAT (13%) in Calculation</Label>
+                                <Label htmlFor="include-vat" className="text-xs font-bold uppercase text-gray-700 cursor-pointer">Include Standard VAT (13%) in Estimate</Label>
                             </div>
                             
-                            <div className="space-y-4 rounded-lg border bg-muted/50 p-4">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-muted-foreground">Taxable Amount</span>
-                                <span className="font-medium">
-                                    {Number(amount || 0).toLocaleString('en-IN', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                    })}
-                                </span>
+                            <div className="space-y-4 rounded-2xl border-2 border-primary/20 bg-primary/[0.02] p-6 shadow-inner animate-in fade-in zoom-in-95">
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-muted-foreground uppercase font-black tracking-widest">Base Taxable</span>
+                                    <span className="font-bold tabular-nums">
+                                        {Number(amount || 0).toLocaleString('en-IN', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                        })}
+                                    </span>
                                 </div>
                                 {includeVat && (
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="text-muted-foreground">VAT (13%)</span>
-                                        <span className="font-medium">
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-muted-foreground uppercase font-black tracking-widest">Estimated VAT (13%)</span>
+                                        <span className="font-bold tabular-nums text-blue-600">
                                             + {vat.toLocaleString('en-IN', {
                                             minimumFractionDigits: 2,
                                             maximumFractionDigits: 2,
@@ -831,184 +897,197 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                         </span>
                                     </div>
                                 )}
-                                <Separator />
-                                <div className="flex justify-between items-center font-semibold">
-                                <span className="text-muted-foreground">Total with VAT</span>
-                                <span>
-                                    {totalWithVat.toLocaleString('en-IN', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                    })}
-                                </span>
+                                <Separator className="bg-primary/10" />
+                                <div className="flex justify-between items-center font-bold text-xs">
+                                    <span className="text-muted-foreground uppercase font-black tracking-widest">Gross Calculation</span>
+                                    <span className="tabular-nums">
+                                        {totalWithVat.toLocaleString('en-IN', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                        })}
+                                    </span>
                                 </div>
-                                <div className="flex justify-between items-center text-destructive">
-                                <span className="text-muted-foreground">TDS ({selectedRateValue}%)</span>
-                                <span className="font-medium">
-                                    - {tds.toLocaleString('en-IN', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                    })}
-                                </span>
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-destructive uppercase font-black tracking-widest">TDS WITHHOLDING ({selectedRateValue}%)</span>
+                                    <span className="font-black tabular-nums text-red-600">
+                                        - {tds.toLocaleString('en-IN', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                        })}
+                                    </span>
                                 </div>
-                                <Separator />
-                                <div className="flex justify-between items-center text-lg font-bold">
-                                <span>Net Payable Amount</span>
-                                <span>
-                                    {netAmount.toLocaleString('en-IN', {
-                                    style: 'currency',
-                                    currency: 'NPR',
-                                    minimumFractionDigits: 2,
-                                    })}
-                                </span>
+                                <Separator className="h-0.5 bg-primary/20" />
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-black uppercase tracking-[0.2em] text-gray-900">Net Payable Amount</span>
+                                    <span className="text-2xl font-black text-gray-900 tabular-nums">
+                                        {netAmount.toLocaleString('en-IN', {
+                                        style: 'currency',
+                                        currency: 'NPR',
+                                        minimumFractionDigits: 2,
+                                        })}
+                                    </span>
                                 </div>
-                                <div className="text-sm text-muted-foreground pt-2">
-                                <span className="font-semibold">In Words:</span> {toWords(netAmount)}
+                                <div className="text-[10px] text-muted-foreground pt-2 italic font-medium border-t border-dashed border-primary/10">
+                                    <span className="font-black uppercase not-italic mr-2">In Words:</span> {toWords(netAmount)}
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
                 <div className="lg:col-span-1 space-y-6 print:hidden">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle>Manage TDS Rates</CardTitle>
-                            <Button size="icon" variant="outline" onClick={() => handleOpenRateDialog()}>
+                    <Card className="shadow-sm border-gray-100 h-fit">
+                        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/10">
+                            <CardTitle className="text-xs uppercase font-black">Standard Rates</CardTitle>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-primary" onClick={() => handleOpenRateDialog()}>
                                 <PlusCircle className="h-4 w-4" />
                             </Button>
                         </CardHeader>
-                        <CardContent className="space-y-2">
-                            {tdsRates.map(rate => (
-                                <div key={rate.value} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
-                                    <div>
-                                        <div className="font-semibold">{rate.label} <Badge variant="outline">{rate.value}%</Badge></div>
-                                        <p className="text-xs text-muted-foreground">{rate.description}</p>
-                                    </div>
-                                    <div className="flex">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenRateDialog(rate)}>
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                                                    <Trash2 className="h-4 w-4" />
+                        <CardContent className="p-0">
+                            <ScrollArea className="h-[400px]">
+                                <div className="divide-y">
+                                    {tdsRates.map(rate => (
+                                        <div key={rate.value} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+                                            <div className="space-y-0.5">
+                                                <div className="font-black text-xs text-gray-900 flex items-center gap-2">
+                                                    {rate.label} 
+                                                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-black uppercase text-blue-700 bg-blue-50 border-blue-100">{rate.value}%</Badge>
+                                                </div>
+                                                <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-tight">{rate.description}</p>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleOpenRateDialog(rate)}>
+                                                    <Edit className="h-3.5 w-3.5" />
                                                 </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>This will permanently delete the "{rate.label}" rate.</AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteRate(rate.value)}>Delete</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Delete Rate Definition?</AlertDialogTitle>
+                                                            <AlertDialogDescription>Remove "{rate.label}" from standard rate picklist?</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDeleteRate(rate.value)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            </ScrollArea>
                         </CardContent>
                     </Card>
                 </div>
             </div>
             
             <Dialog open={isRateDialogOpen} onOpenChange={setIsRateDialogOpen}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{editingRate ? 'Edit TDS Rate' : 'Add New TDS Rate'}</DialogTitle>
+                    <DialogTitle className="text-xl font-black uppercase">{editingRate ? 'Modify Rate' : 'New Rate Definition'}</DialogTitle>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                    <Label htmlFor="rate-label">Label</Label>
-                    <Input id="rate-label" value={rateForm.label} onChange={(e) => setRateForm({...rateForm, label: e.target.value})} />
+                <div className="grid gap-5 py-4">
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Rate Label</Label>
+                        <Input value={rateForm.label} onChange={(e) => setRateForm({...rateForm, label: e.target.value})} placeholder="e.g. Rent" />
                     </div>
-                    <div className="space-y-2">
-                    <Label htmlFor="rate-value">Rate (%)</Label>
-                    <Input id="rate-value" type="number" value={rateForm.value} onChange={(e) => setRateForm({...rateForm, value: e.target.value})} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Percentage (%)</Label>
+                            <Input type="number" step="0.1" value={rateForm.value} onChange={(e) => setRateForm({...rateForm, value: e.target.value})} placeholder="1.5" />
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                    <Label htmlFor="rate-desc">Description</Label>
-                    <Input id="rate-desc" value={rateForm.description} onChange={(e) => setRateForm({...rateForm, description: e.target.value})} />
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Description</Label>
+                        <Input value={rateForm.description} onChange={(e) => setRateForm({...rateForm, description: e.target.value})} placeholder="Short policy description" />
                     </div>
                 </div>
-                <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsRateDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSaveRate}>Save Rate</Button>
-                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsRateDialogOpen(false)} className="h-10 uppercase font-bold text-xs">Cancel</Button>
+                    <Button onClick={handleSaveRate} className="h-10 px-8 font-black uppercase text-xs">Commit Rate</Button>
+                </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Add New Party</DialogTitle>
+                        <DialogTitle className="text-xl font-black uppercase tracking-tight">New Beneficiary</DialogTitle>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="party-name-dialog">Party Name</Label>
-                            <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
+                    <div className="grid gap-5 py-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Entity Name</Label>
+                            <Input value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} className="h-10 font-bold" />
                         </div>
                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="party-type-dialog">Party Type</Label>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Beneficiary Type</Label>
                                 <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                                    <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
+                                    <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Vendor">Vendor</SelectItem>
+                                        <SelectItem value="Vendor">Vendor / Agency</SelectItem>
                                         <SelectItem value="Customer">Customer</SelectItem>
                                         <SelectItem value="Both">Both</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="party-ownership-dialog">Ownership</Label>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Module Ownership</Label>
                                 <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
-                                    <SelectTrigger id="party-ownership-dialog"><SelectValue/></SelectTrigger>
+                                    <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
                                         <SelectItem value="Shivam">Shivam Packaging</SelectItem>
-                                        <SelectItem value="Both">Both</SelectItem>
+                                        <SelectItem value="Both">General Ledger</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="party-pan-dialog">PAN Number</Label>
-                            <Input id="party-pan-dialog" value={partyForm.panNumber || ''} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="party-address-dialog">Address</Label>
-                            <Textarea id="party-address-dialog" value={partyForm.address || ''} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} />
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">PAN/VAT Number</Label>
+                            <Input value={partyForm.panNumber || ''} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} className="h-10 font-mono" />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSubmitParty}>Add Party</Button>
+                        <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)} className="h-11 px-8 font-bold uppercase text-[10px]">Cancel</Button>
+                        <Button onClick={handleSubmitParty} className="h-11 px-8 font-black uppercase text-[10px] shadow-lg shadow-primary/20">Onboard Partner</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-                <DialogContent className="max-w-xl">
-                    <DialogHeader>
-                        <DialogTitle>Voucher Preview</DialogTitle>
+                <DialogContent className="max-w-xl h-[95vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
+                    <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
+                        <DialogTitle className="text-xl font-black uppercase">Document Preview</DialogTitle>
                     </DialogHeader>
-                    <div className="bg-gray-100 p-4">
-                      <div ref={printRef}>
-                        {calculationData && <TdsVoucherView calculation={calculationData} companyProfile={companyProfile} />}
-                      </div>
-                    </div>
-                    <DialogFooter className="sm:justify-end gap-2">
-                        <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
-                        <Button variant="outline" onClick={() => handleExport('jpg')} disabled={isExporting}>
-                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
-                             Export as JPG
-                        </Button>
-                        <Button variant="outline" onClick={() => handleExport('pdf')} disabled={isExporting}>
-                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                            Export as PDF
-                        </Button>
-                        <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                    <ScrollArea className="flex-1 bg-gray-100 p-8">
+                        <div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">
+                            {calculationData && <TdsVoucherView calculation={calculationData} companyProfile={companyProfile} />}
+                        </div>
+                        <ScrollBar orientation="vertical" />
+                        <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                    <DialogFooter className="p-6 border-t bg-white shrink-0">
+                        <div className="flex w-full justify-between items-center">
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => handleExport('jpg')} disabled={isExporting} className="h-10 px-4">
+                                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                                    Export Image
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} disabled={isExporting} className="h-10 px-4">
+                                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                                    Save PDF
+                                </Button>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="ghost" onClick={() => setIsPreviewOpen(false)} className="h-10 px-6 uppercase font-bold text-[10px]">Close</Button>
+                                <Button onClick={doActualPrint} className="h-10 px-10 font-black uppercase text-[10px] shadow-lg shadow-primary/20"><Printer className="mr-2 h-4 w-4" /> Print Voucher</Button>
+                            </div>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1038,17 +1117,15 @@ export default function TdsCalculatorPage() {
     
     const handleCancelEdit = () => {
         setCalculationToEdit(null);
-        // Optionally, switch back to history tab
-        // setActiveTab("history");
     };
 
     return (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
-                <TabsTrigger value="calculator">TDS Calculator</TabsTrigger>
-                <TabsTrigger value="history">Saved Records</TabsTrigger>
+            <TabsList className="mb-4 bg-muted/50 p-1">
+                <TabsTrigger value="calculator" className="gap-2 px-8 font-bold text-xs uppercase tracking-widest">Calculator</TabsTrigger>
+                <TabsTrigger value="history" className="gap-2 px-8 font-bold text-xs uppercase tracking-widest">Registry Log</TabsTrigger>
             </TabsList>
-            <TabsContent value="calculator">
+            <TabsContent value="calculator" className="mt-6">
                 <CalculatorTab 
                     calculationToEdit={calculationToEdit} 
                     onSaveSuccess={handleSaveSuccess}
@@ -1056,7 +1133,7 @@ export default function TdsCalculatorPage() {
                     companyProfile={companyProfile}
                 />
             </TabsContent>
-            <TabsContent value="history">
+            <TabsContent value="history" className="mt-6">
                 <SavedTdsRecords onEdit={handleEdit} companyProfile={companyProfile} />
             </TabsContent>
         </Tabs>

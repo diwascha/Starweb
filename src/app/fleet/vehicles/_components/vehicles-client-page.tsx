@@ -3,9 +3,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Vehicle, VehicleStatus, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -58,6 +58,10 @@ export default function VehiclesClientPage({
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
     const [formState, setFormState] = useState<Omit<Vehicle, 'id' | 'createdBy' | 'lastModifiedBy' | 'createdAt' | 'lastModifiedAt'>>({
@@ -90,6 +94,10 @@ export default function VehiclesClientPage({
             unsubDrivers();
         };
     }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, itemsPerPage]);
 
     const resetForm = () => {
         setEditingVehicle(null);
@@ -200,6 +208,17 @@ export default function VehiclesClientPage({
         return augmentedVehicles;
     }, [vehicles, searchQuery, sortConfig, driversById]);
 
+    const paginatedVehicles = useMemo(() => {
+        if (itemsPerPage === -1) return sortedAndFilteredVehicles;
+        const start = (currentPage - 1) * itemsPerPage;
+        return sortedAndFilteredVehicles.slice(start, start + itemsPerPage);
+    }, [sortedAndFilteredVehicles, currentPage, itemsPerPage]);
+
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(sortedAndFilteredVehicles.length / itemsPerPage);
+    }, [sortedAndFilteredVehicles, itemsPerPage]);
+
     const renderStatusBadge = (status: VehicleStatus) => {
         switch (status) {
           case 'Active': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>;
@@ -235,72 +254,130 @@ export default function VehiclesClientPage({
 
         return (
             <Card>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Name / Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('make')}>Make <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('model')}>Model <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('driverName')}>Assigned Driver <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('status')} className="font-bold text-primary">Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedAndFilteredVehicles.map(vehicle => (
-                            <TableRow key={vehicle.id}>
-                                <TableCell>{vehicle.name}</TableCell>
-                                <TableCell>{vehicle.make}</TableCell>
-                                <TableCell>{vehicle.model}</TableCell>
-                                <TableCell>{vehicle.driverName}</TableCell>
-                                <TableCell>{renderStatusBadge(vehicle.status)}</TableCell>
-                                <TableCell>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                                {vehicle.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                                <span>{vehicle.lastModifiedBy || vehicle.createdBy}</span>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                {vehicle.createdBy && (
-                                                    <p>
-                                                    Created by: {vehicle.createdBy}
-                                                    {vehicle.createdAt ? ` on ${format(new Date(vehicle.createdAt), "PP")}` : ''}
-                                                    </p>
-                                                )}
-                                                {vehicle.lastModifiedBy && vehicle.lastModifiedAt && (
-                                                <p>
-                                                    Modified by: {vehicle.lastModifiedBy}
-                                                    {vehicle.lastModifiedAt ? ` on ${format(new Date(vehicle.lastModifiedAt), "PP")}` : ''}
-                                                </p>
-                                                )}
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenDialog(vehicle)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
-                                            {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
-                                            {hasPermission('fleet', 'delete') && (
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the vehicle record.</AlertDialogDescription></AlertDialogHeader>
-                                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(vehicle.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('name')} className="text-xs">Name / Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('make')} className="text-xs">Make <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('model')} className="text-xs">Model <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('driverName')} className="text-xs">Assigned Driver <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('status')} className="font-bold text-primary text-xs">Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="text-xs">Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead className="text-right pr-6 text-xs">Actions</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedVehicles.map(vehicle => (
+                                <TableRow key={vehicle.id} className="h-14">
+                                    <TableCell className="font-bold">{vehicle.name}</TableCell>
+                                    <TableCell>{vehicle.make}</TableCell>
+                                    <TableCell>{vehicle.model}</TableCell>
+                                    <TableCell>{vehicle.driverName}</TableCell>
+                                    <TableCell>{renderStatusBadge(vehicle.status)}</TableCell>
+                                    <TableCell>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-default">
+                                                    {vehicle.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                    <span>{vehicle.lastModifiedBy || vehicle.createdBy}</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    {vehicle.createdBy && (
+                                                        <p>
+                                                        Created by: {vehicle.createdBy}
+                                                        {vehicle.createdAt ? ` on ${format(new Date(vehicle.createdAt), "PP")}` : ''}
+                                                        </p>
+                                                    )}
+                                                    {vehicle.lastModifiedBy && vehicle.lastModifiedAt && (
+                                                    <p>
+                                                        Modified by: {vehicle.lastModifiedBy}
+                                                        {vehicle.lastModifiedAt ? ` on ${format(new Date(vehicle.lastModifiedAt), "PP")}` : ''}
+                                                    </p>
+                                                    )}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </TableCell>
+                                    <TableCell className="text-right pr-6">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenDialog(vehicle)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
+                                                {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
+                                                {hasPermission('fleet', 'delete') && (
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the vehicle record.</AlertDialogDescription></AlertDialogHeader>
+                                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(vehicle.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+                {(totalPages > 1 || itemsPerPage !== -1) && (
+                    <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            {itemsPerPage === -1 ? (
+                                <>Showing all <span className="font-bold text-foreground">{sortedAndFilteredVehicles.length}</span> vehicles</>
+                            ) : (
+                                <>
+                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, sortedAndFilteredVehicles.length)}</span> of <span className="font-bold text-foreground">{sortedAndFilteredVehicles.length}</span> vehicles
+                                </>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                    setItemsPerPage(parseInt(v));
+                                    setCurrentPage(1);
+                                }}>
+                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="-1">All</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {itemsPerPage !== -1 && (
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
         );
     };

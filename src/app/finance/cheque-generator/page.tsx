@@ -4,7 +4,7 @@ import React, { Suspense, useState, useEffect, useMemo, useRef, useCallback } fr
 import { ChequeGeneratorForm } from './_components/cheque-generator-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { 
   Search, 
@@ -25,7 +25,9 @@ import {
   FilterX, 
   Users, 
   ShieldCheck, 
-  ChevronDown 
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -94,32 +96,32 @@ const ChequeSplitRow = React.memo(({
     };
 
     return (
-        <TableRow>
+        <TableRow className="h-14">
             <TableCell>{toNepaliDate(split.chequeDate.toISOString())}</TableCell>
-            <TableCell className="font-medium">{split.parentCheque.payeeName}</TableCell>
-            <TableCell className="font-mono text-xs">{split.chequeNumber}</TableCell>
-            <TableCell className="font-mono">Rs. {Number(split.amount).toLocaleString()}</TableCell>
-            <TableCell className="font-mono">Rs. {split.remainingAmount.toLocaleString()}</TableCell>
-            <TableCell>{getStatusBadge()}</TableCell>
-            <TableCell className="text-right">
+            <TableCell className="font-bold text-gray-900">{split.parentCheque.payeeName}</TableCell>
+            <TableCell className="font-mono text-xs text-blue-600 font-bold">{split.chequeNumber || 'N/A'}</TableCell>
+            <TableCell className="font-mono text-xs">Rs. {Number(split.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+            <TableCell className="font-mono text-xs text-red-600 font-bold">Rs. {split.remainingAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+            <TableCell className="text-center">{getStatusBadge()}</TableCell>
+            <TableCell className="text-right pr-6">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Voucher #{split.parentCheque.voucherNo}</DropdownMenuLabel>
+                    <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Voucher #{split.parentCheque.voucherNo}</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => onManagePayments(split)}><History className="mr-2 h-4 w-4" /> Payments</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => onEditVoucher(split.parentCheque)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => onPrintVoucher(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onManagePayments(split)}><History className="mr-2 h-4 w-4 text-primary" /> Payment Ledger</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onEditVoucher(split.parentCheque)}><Edit className="mr-2 h-4 w-4" /> Edit Voucher</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onPrintVoucher(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> View & Print</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => onMarkAsPaid(split.parentCheque, split.id)} className="text-emerald-600"><Check className="mr-2 h-4 w-4" /> Mark Paid</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => onMarkAsCanceled(split.parentCheque, split.id)} className="text-red-600"><X className="mr-2 h-4 w-4" /> Cancel</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => onMarkAsDue(split.parentCheque, split.id)}><Clock className="mr-2 h-4 w-4" /> Mark Due</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onMarkAsPaid(split.parentCheque, split.id)} className="text-emerald-600 font-bold"><Check className="mr-2 h-4 w-4" /> Mark Fully Paid</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onMarkAsCanceled(split.parentCheque, split.id)} className="text-red-600"><X className="mr-2 h-4 w-4" /> Cancel Issue</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onMarkAsDue(split.parentCheque, split.id)}><Clock className="mr-2 h-4 w-4" /> Reset to Due</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialog>
-                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete Record</DropdownMenuItem></AlertDialogTrigger>
                             <AlertDialogContent>
-                                <AlertDialogHeader><AlertDialogTitle>Delete Voucher?</AlertDialogTitle><AlertDialogDescription>This will remove all associated cheques.</AlertDialogDescription></AlertDialogHeader>
-                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => onDeleteVoucher(split.parentCheque.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                <AlertDialogHeader><AlertDialogTitle>Purge Voucher Data?</AlertDialogTitle><AlertDialogDescription>This will remove all associated cheques in this voucher. Action is permanent.</AlertDialogDescription></AlertDialogHeader>
+                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => onDeleteVoucher(split.parentCheque.id)} className="bg-destructive text-white">Purge Record</AlertDialogAction></AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
                     </DropdownMenuContent>
@@ -136,9 +138,13 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterParty, setFilterParty] = useState('All');
     const [filterStatus, setFilterStatus] = useState('All');
-    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'chequeDate', direction: 'asc' });
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'chequeDate', direction: 'desc' });
     const { toast } = useToast();
     const { user } = useAuth();
+    
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     
     const [chequeToPrint, setChequeToPrint] = useState<Cheque | null>(null);
     const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
@@ -161,6 +167,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         const unsubs = [onChequesUpdate(setCheques), onAccountsUpdate(setAccounts)];
         return () => unsubs.forEach(u => u());
     }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, filterParty, filterStatus, itemsPerPage]);
 
     const uniqueParties = useMemo(() => {
         const parties = new Set(cheques.map(c => c.payeeName));
@@ -194,6 +204,17 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
         return res;
     }, [cheques, searchQuery, sortConfig, filterParty, filterStatus]);
+
+    const paginatedSplits = useMemo(() => {
+        if (itemsPerPage === -1) return sortedAndFilteredSplits;
+        const start = (currentPage - 1) * itemsPerPage;
+        return sortedAndFilteredSplits.slice(start, start + itemsPerPage);
+    }, [sortedAndFilteredSplits, currentPage, itemsPerPage]);
+
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(sortedAndFilteredSplits.length / itemsPerPage);
+    }, [sortedAndFilteredSplits, itemsPerPage]);
 
     const handleStatusUpdate = useCallback(async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, remark?: string) => {
         if (!user) return;
@@ -243,7 +264,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         <div className="flex items-center gap-2">
                             <Select value={filterParty} onValueChange={setFilterParty}>
                                 <SelectTrigger className="h-9 w-[160px] text-xs bg-white border-gray-200 shadow-none">
-                                    <div className="flex items-center gap-2 overflow-hidden">
+                                    <div className="flex items-center gap-2 overflow-hidden text-left">
                                         <Users className="h-3 w-3 text-muted-foreground shrink-0" />
                                         <SelectValue placeholder="All Parties" />
                                     </div>
@@ -275,7 +296,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                onClick={() => { setSearchQuery(''); setFilterParty('All'); setFilterStatus('All'); }} 
+                                onClick={handleClearFilters} 
                                 className="h-9 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
                             >
                                 <FilterX className="mr-1.5 h-3.5 w-3.5" /> Clear
@@ -306,7 +327,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody className="bg-white">
-                                {sortedAndFilteredSplits.map(split => (
+                                {paginatedSplits.map(split => (
                                     <ChequeSplitRow 
                                         key={`${split.parentCheque.id}-${split.id}`}
                                         split={split}
@@ -328,6 +349,61 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         </Table>
                     </div>
                 </CardContent>
+                {(totalPages > 1 || itemsPerPage !== -1) && (
+                    <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            {itemsPerPage === -1 ? (
+                                <>Showing all <span className="font-bold text-foreground">{sortedAndFilteredSplits.length}</span> cheques</>
+                            ) : (
+                                <>
+                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, sortedAndFilteredSplits.length)}</span> of <span className="font-bold text-foreground">{sortedAndFilteredSplits.length}</span> cheques
+                                </>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                    setItemsPerPage(parseInt(v));
+                                    setCurrentPage(1);
+                                }}>
+                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="-1">All</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {itemsPerPage !== -1 && (
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
 
             <Dialog open={isPaidDialogOpen} onOpenChange={setIsPaidDialogOpen}>

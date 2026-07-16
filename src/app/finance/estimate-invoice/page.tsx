@@ -1,12 +1,11 @@
-
 'use client';
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, History, Printer, Save, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, History, Printer, Save, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
@@ -27,6 +26,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 function FormSkeleton() {
@@ -60,7 +60,10 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
-    const router = useRouter();
+    
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const [isViewOpen, setIsViewOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<EstimatedInvoice | null>(null);
@@ -77,6 +80,10 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
             unsubParties();
         }
     }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, itemsPerPage]);
     
     const partiesById = useMemo(() => new Map(parties.map(p => [p.name, p])), [parties]);
 
@@ -106,6 +113,17 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
         });
         return filtered;
     }, [invoices, searchQuery, sortConfig]);
+
+    const paginatedInvoices = useMemo(() => {
+        if (itemsPerPage === -1) return sortedAndFilteredInvoices;
+        const start = (currentPage - 1) * itemsPerPage;
+        return sortedAndFilteredInvoices.slice(start, start + itemsPerPage);
+    }, [sortedAndFilteredInvoices, currentPage, itemsPerPage]);
+
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(sortedAndFilteredInvoices.length / itemsPerPage);
+    }, [sortedAndFilteredInvoices, itemsPerPage]);
 
     const handleDeleteInvoice = async (id: string) => {
         try {
@@ -280,29 +298,29 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                 </div>
              </div>
            </CardHeader>
-           <CardContent>
+           <CardContent className="p-0">
              <Table>
-               <TableHeader>
-                 <TableRow>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date (BS) <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('invoiceNumber')}>Invoice # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('netTotal')}>Net Total <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead className="text-right">Actions</TableHead>
+               <TableHeader className="bg-muted/50">
+                 <TableRow className="hover:bg-transparent">
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="text-xs">Date (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('invoiceNumber')} className="text-xs">Invoice # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="text-xs">Party Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('netTotal')} className="text-xs">Net Total <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                   <TableHead className="text-right pr-6 text-xs">Actions</TableHead>
                  </TableRow>
                </TableHeader>
                <TableBody>
-                 {sortedAndFilteredInvoices.length > 0 ? (
-                    sortedAndFilteredInvoices.map(inv => (
-                     <TableRow key={inv.id}>
+                 {paginatedInvoices.length > 0 ? (
+                    paginatedInvoices.map(inv => (
+                     <TableRow key={inv.id} className="h-14">
                        <TableCell>{toNepaliDate(inv.date)}</TableCell>
-                       <TableCell>{inv.invoiceNumber}</TableCell>
+                       <TableCell className="font-mono text-xs">{inv.invoiceNumber}</TableCell>
                        <TableCell>{inv.partyName}</TableCell>
-                       <TableCell>{inv.netTotal.toLocaleString()}</TableCell>
-                       <TableCell className="text-right">
+                       <TableCell className="font-mono text-xs">Rs. {inv.netTotal.toLocaleString()}</TableCell>
+                       <TableCell className="text-right pr-6">
                          <DropdownMenu>
                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                           <DropdownMenuContent align="end">
+                           <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuItem onSelect={() => handleViewInvoice(inv)}><View className="mr-2 h-4 w-4"/> View</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => handlePrint(inv)}><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => handleExportPdf(inv)} disabled={isExporting}><Save className="mr-2 h-4 w-4"/> Export as PDF</DropdownMenuItem>
@@ -311,11 +329,11 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> <span>Delete</span></DropdownMenuItem>
                                   </AlertDialogTrigger>
                                   <AlertDialogContent>
                                     <AlertDialogHeader><AlertDialogTitle>Delete this invoice?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteInvoice(inv.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteInvoice(inv.id)} className="bg-destructive text-white">Delete</AlertDialogAction></AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
                            </DropdownMenuContent>
@@ -325,33 +343,91 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                    ))
                  ) : (
                    <TableRow>
-                     <TableCell colSpan={5} className="text-center">No saved invoices yet.</TableCell>
+                     <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic">No saved invoices yet.</TableCell>
                    </TableRow>
                  )}
                </TableBody>
              </Table>
            </CardContent>
+           {(totalPages > 1 || itemsPerPage !== -1) && (
+                <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        {itemsPerPage === -1 ? (
+                            <>Showing all <span className="font-bold text-foreground">{sortedAndFilteredInvoices.length}</span> invoices</>
+                        ) : (
+                            <>
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, sortedAndFilteredInvoices.length)}</span> of <span className="font-bold text-foreground">{sortedAndFilteredInvoices.length}</span> invoices
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                setItemsPerPage(parseInt(v));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="-1">All</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {itemsPerPage !== -1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </CardFooter>
+            )}
          </Card>
 
          <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-            <DialogContent className="max-w-4xl">
-                 <DialogHeader>
-                    <DialogTitle>Invoice Preview</DialogTitle>
-                </DialogHeader>
-                <div className="max-h-[80vh] overflow-auto p-4">
-                    {selectedInvoice && (
-                        <InvoiceView 
-                            invoiceNumber={selectedInvoice.invoiceNumber}
-                            date={selectedInvoice.date}
-                            party={partiesById.get(selectedInvoice.partyName) || null}
-                            items={selectedInvoice.items}
-                            grossTotal={selectedInvoice.grossTotal}
-                            vatTotal={selectedInvoice.vatTotal}
-                            netTotal={selectedInvoice.netTotal}
-                            amountInWords={selectedInvoice.amountInWords}
-                        />
-                    )}
-                </div>
+            <DialogContent className="max-w-4xl h-[90vh] overflow-hidden flex flex-col p-0">
+                 <DialogHeader className="p-6 border-b"><DialogTitle>Invoice Preview</DialogTitle></DialogHeader>
+                <ScrollArea className="flex-1 bg-muted/20 p-8">
+                    <div className="mx-auto w-[210mm] shadow-2xl bg-white p-4">
+                        {selectedInvoice && (
+                            <InvoiceView 
+                                invoiceNumber={selectedInvoice.invoiceNumber}
+                                date={selectedInvoice.date}
+                                party={partiesById.get(selectedInvoice.partyName) || null}
+                                items={selectedInvoice.items}
+                                grossTotal={selectedInvoice.grossTotal}
+                                vatTotal={selectedInvoice.vatTotal}
+                                netTotal={selectedInvoice.netTotal}
+                                amountInWords={selectedInvoice.amountInWords}
+                            />
+                        )}
+                    </div>
+                </ScrollArea>
+                <DialogFooter className="p-6 border-t bg-white">
+                    <Button variant="outline" onClick={() => setIsViewOpen(false)}>Close</Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
         
@@ -379,6 +455,11 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 function SavedRatesList() {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    
     const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
     const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -391,6 +472,10 @@ function SavedRatesList() {
         const unsub = onProductsUpdate(setProducts);
         return () => unsub();
     }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, itemsPerPage]);
 
     const handleOpenRateDialog = (product: Product) => {
         setEditingProduct(product);
@@ -424,6 +509,17 @@ function SavedRatesList() {
         return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.partyName || '').toLowerCase().includes(searchQuery.toLowerCase()));
     }, [products, searchQuery]);
 
+    const paginatedProducts = useMemo(() => {
+        if (itemsPerPage === -1) return filteredProducts;
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredProducts.slice(start, start + itemsPerPage);
+    }, [filteredProducts, currentPage, itemsPerPage]);
+
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(filteredProducts.length / itemsPerPage);
+    }, [filteredProducts, itemsPerPage]);
+
     return (
         <>
         <Card>
@@ -444,95 +540,159 @@ function SavedRatesList() {
                 </div>
              </div>
            </CardHeader>
-           <CardContent>
+           <CardContent className="p-0">
                <Table>
-                   <TableHeader>
-                       <TableRow>
-                           <TableHead>Product Name</TableHead>
-                           <TableHead>Delivered To</TableHead>
-                           <TableHead>Current Rate (NPR)</TableHead>
-                           <TableHead className="text-right">Actions</TableHead>
+                   <TableHeader className="bg-muted/50">
+                       <TableRow className="hover:bg-transparent">
+                           <TableHead className="pl-6 font-bold">Product Name</TableHead>
+                           <TableHead className="font-bold">Delivered To</TableHead>
+                           <TableHead className="font-bold">Current Rate (NPR)</TableHead>
+                           <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
                        </TableRow>
                    </TableHeader>
                    <TableBody>
-                       {filteredProducts.length > 0 ? (
-                           filteredProducts.map(p => (
-                               <TableRow key={p.id}>
-                                   <TableCell>{p.name}</TableCell>
+                       {paginatedProducts.length > 0 ? (
+                           paginatedProducts.map(p => (
+                               <TableRow key={p.id} className="h-14">
+                                   <TableCell className="pl-6 font-bold">{p.name}</TableCell>
                                    <TableCell>{p.partyName}</TableCell>
-                                   <TableCell>{p.rate ? p.rate.toLocaleString() : 'Not Set'}</TableCell>
-                                   <TableCell className="text-right space-x-2">
-                                       <Button variant="ghost" size="sm" onClick={() => handleOpenHistoryDialog(p)}>
-                                           <History className="mr-2 h-4 w-4" /> History
+                                   <TableCell className="font-mono text-xs">Rs. {p.rate ? p.rate.toLocaleString() : 'Not Set'}</TableCell>
+                                   <TableCell className="text-right pr-6 space-x-1">
+                                       <Button variant="ghost" size="sm" onClick={() => handleOpenHistoryDialog(p)} className="h-8 text-[10px] uppercase font-black">
+                                           <History className="mr-1.5 h-3.5 w-3.5" /> History
                                        </Button>
-                                       <Button variant="outline" size="sm" onClick={() => handleOpenRateDialog(p)}>
-                                           <Edit className="mr-2 h-4 w-4" /> Edit Rate
+                                       <Button variant="outline" size="sm" onClick={() => handleOpenRateDialog(p)} className="h-8 text-[10px] uppercase font-black border-primary/20 text-primary">
+                                           <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit Rate
                                        </Button>
                                    </TableCell>
                                </TableRow>
                            ))
                        ) : (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center">No products found.</TableCell>
+                                <TableCell colSpan={4} className="text-center py-10 text-muted-foreground italic">No products found.</TableCell>
                             </TableRow>
                        )}
                    </TableBody>
                </Table>
            </CardContent>
+           {(totalPages > 1 || itemsPerPage !== -1) && (
+                <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        {itemsPerPage === -1 ? (
+                            <>Showing all <span className="font-bold text-foreground">{filteredProducts.length}</span> products</>
+                        ) : (
+                            <>
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredProducts.length)}</span> of <span className="font-bold text-foreground">{filteredProducts.length}</span> products
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                setItemsPerPage(parseInt(v));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="-1">All</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {itemsPerPage !== -1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </CardFooter>
+            )}
         </Card>
         <Dialog open={isRateDialogOpen} onOpenChange={setIsRateDialogOpen}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Edit Rate for {editingProduct?.name}</DialogTitle>
+                    <DialogTitle className="text-xl font-black uppercase">Edit Rate: {editingProduct?.name}</DialogTitle>
                 </DialogHeader>
-                <div className="py-4">
-                    <Label htmlFor="rate-input">New Rate</Label>
-                    <Input
-                        id="rate-input"
-                        type="number"
-                        value={newRate}
-                        onChange={(e) => setNewRate(e.target.value)}
-                        placeholder="e.g. 150.50"
-                    />
+                <div className="py-6 space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="rate-input" className="text-[10px] uppercase font-bold text-muted-foreground">New Standard Rate (NPR)</Label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-blue-400">रु</span>
+                            <Input
+                                id="rate-input"
+                                type="number"
+                                value={newRate}
+                                onChange={(e) => setNewRate(e.target.value)}
+                                className="pl-10 h-12 text-lg font-black"
+                                placeholder="0.00"
+                            />
+                        </div>
+                    </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsRateDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSaveRate}>Save Rate</Button>
+                    <Button variant="outline" onClick={() => setIsRateDialogOpen(false)} className="h-10 font-bold uppercase text-[10px]">Cancel</Button>
+                    <Button onClick={handleSaveRate} className="h-10 px-8 font-black uppercase text-[10px] shadow-lg shadow-primary/20">Commit Rate Update</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
         <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>Rate History for {editingProduct?.name}</DialogTitle>
-                    <DialogDescription>A log of all past rates for this product.</DialogDescription>
+            <DialogContent className="sm:max-w-lg h-[80vh] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
+                    <DialogTitle className="text-xl font-black uppercase">Rate History: {editingProduct?.name}</DialogTitle>
+                    <DialogDescription className="text-xs uppercase font-bold tracking-widest text-muted-foreground">Historical price log.</DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="h-72 my-4">
+                <ScrollArea className="flex-1 p-0">
                     {selectedHistory.length > 0 ? (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date Set (BS)</TableHead>
-                                    <TableHead>Rate</TableHead>
-                                    <TableHead>Set By</TableHead>
+                        <Table className="text-xs">
+                            <TableHeader className="bg-muted/30 sticky top-0 z-10 shadow-sm">
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="pl-6 font-bold">Date Effective (BS)</TableHead>
+                                    <TableHead className="font-bold">Historical Rate</TableHead>
+                                    <TableHead className="font-bold">Authorized By</TableHead>
                                 </TableRow>
                             </TableHeader>
-                            <TableBody>
+                            <TableBody className="bg-white">
                                 {[...selectedHistory].reverse().map((entry, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell>{toNepaliDate(entry.date)}</TableCell>
-                                        <TableCell>{entry.rate.toLocaleString()}</TableCell>
-                                        <TableCell>{entry.setBy}</TableCell>
+                                    <TableRow key={index} className="h-11 border-b transition-colors hover:bg-muted/10">
+                                        <TableCell className="pl-6 text-gray-500 font-mono">{toNepaliDate(entry.date)}</TableCell>
+                                        <TableCell className="font-black text-gray-900 tabular-nums">Rs. {entry.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell className="font-bold text-primary uppercase text-[10px]">{entry.setBy}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
                     ) : (
-                        <div className="flex h-full items-center justify-center text-muted-foreground">
-                            No rate history available for this product.
+                        <div className="flex h-60 items-center justify-center text-muted-foreground italic text-sm">
+                            No historical rate changes logged.
                         </div>
                     )}
                 </ScrollArea>
+                <DialogFooter className="p-6 border-t bg-white shrink-0">
+                    <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)} className="w-full font-bold uppercase text-[10px]">Close History</Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
         </>
@@ -560,10 +720,10 @@ export default function EstimateInvoicePage() {
         <p className="text-muted-foreground">Create and manage estimate or pro-forma invoices for clients.</p>
       </header>
        <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
-                <TabsTrigger value="calculator">Invoice Calculator</TabsTrigger>
-                <TabsTrigger value="history">Saved Invoices</TabsTrigger>
-                <TabsTrigger value="rates">Saved Rates</TabsTrigger>
+            <TabsList className="mb-4 bg-muted/50 p-1">
+                <TabsTrigger value="calculator" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">Generator</TabsTrigger>
+                <TabsTrigger value="history" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">History</TabsTrigger>
+                <TabsTrigger value="rates" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">Rate Manager</TabsTrigger>
             </TabsList>
             <TabsContent value="calculator">
                 <Suspense fallback={<FormSkeleton />}>

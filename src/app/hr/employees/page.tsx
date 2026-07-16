@@ -25,11 +25,13 @@ import {
     AlertTriangle,
     RefreshCw,
     UserCheck,
-    UserX
+    UserX,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus, Department, Position, BloodGroup, EmployeeDocument } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -114,6 +116,10 @@ export default function EmployeesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formState, setFormState] = useState(initialFormState);
@@ -139,6 +145,10 @@ export default function EmployeesPage() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
   
   const filteredAndSortedEmployees = useMemo(() => {
     let filtered = employees;
@@ -153,6 +163,17 @@ export default function EmployeesPage() {
     });
     return filtered;
   }, [employees, sortConfig, searchQuery]);
+
+  const paginatedEmployees = useMemo(() => {
+    if (itemsPerPage === -1) return filteredAndSortedEmployees;
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedEmployees.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedEmployees, currentPage, itemsPerPage]);
+
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === -1) return 1;
+    return Math.ceil(filteredAndSortedEmployees.length / itemsPerPage);
+  }, [filteredAndSortedEmployees, itemsPerPage]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
@@ -358,7 +379,7 @@ export default function EmployeesPage() {
             <TableBody>
                 {isLoading ? (
                     <TableRow><TableCell colSpan={7} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20" /></TableCell></TableRow>
-                ) : filteredAndSortedEmployees.map(employee => (
+                ) : paginatedEmployees.map(employee => (
                 <TableRow key={employee.id} className={cn("group h-16 transition-colors", selectedIds.has(employee.id) ? "bg-primary/5" : "hover:bg-muted/30")}>
                     <TableCell className="pl-6">
                         <Checkbox checked={selectedIds.has(employee.id)} onCheckedChange={() => toggleSelect(employee.id)} />
@@ -415,6 +436,61 @@ export default function EmployeesPage() {
                 )}
             </TableBody>
           </Table>
+          {(totalPages > 1 || itemsPerPage !== -1) && (
+            <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                <div className="text-xs text-muted-foreground font-medium">
+                    {itemsPerPage === -1 ? (
+                        <>Showing all <span className="font-bold text-foreground">{filteredAndSortedEmployees.length}</span> employees</>
+                    ) : (
+                        <>
+                            Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedEmployees.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedEmployees.length}</span> employees
+                        </>
+                    )}
+                </div>
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                        <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                            setItemsPerPage(parseInt(v));
+                            setCurrentPage(1);
+                        }}>
+                            <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="25">25</SelectItem>
+                                <SelectItem value="50">50</SelectItem>
+                                <SelectItem value="-1">All</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    {itemsPerPage !== -1 && (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="h-8 w-8 p-0"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="h-8 w-8 p-0"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </CardFooter>
+          )}
       </Card>
 
       <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>

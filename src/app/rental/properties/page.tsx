@@ -18,10 +18,12 @@ import {
     LayoutGrid,
     List,
     Loader2,
-    X
+    X,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import type { RentalProperty, RentalUnit } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -54,6 +56,10 @@ function AssetRegistryContent() {
     const [units, setUnits] = useState<RentalUnit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    
     // UI State
     const [searchQuery, setSearchQuery] = useState('');
     const [isPropDialogOpen, setIsPropDialogOpen] = useState(false);
@@ -78,6 +84,11 @@ function AssetRegistryContent() {
         ];
         return () => unsubs.forEach(u => u());
     }, []);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, propIdFilter, itemsPerPage]);
 
     // Filtered Data
     const propertyStats = useMemo(() => {
@@ -108,6 +119,24 @@ function AssetRegistryContent() {
             return matchesSearch && matchesProperty;
         });
     }, [units, searchQuery, propIdFilter]);
+
+    const paginatedProperties = useMemo(() => {
+        if (itemsPerPage === -1) return filteredProperties;
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredProperties.slice(start, start + itemsPerPage);
+    }, [filteredProperties, currentPage, itemsPerPage]);
+
+    const paginatedUnits = useMemo(() => {
+        if (itemsPerPage === -1) return filteredUnits;
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredUnits.slice(start, start + itemsPerPage);
+    }, [filteredUnits, currentPage, itemsPerPage]);
+
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        const totalItems = activeTab === 'properties' ? filteredProperties.length : filteredUnits.length;
+        return Math.ceil(totalItems / itemsPerPage);
+    }, [activeTab, filteredProperties, filteredUnits, itemsPerPage]);
 
     // Handlers
     const handleSaveProperty = async () => {
@@ -210,7 +239,7 @@ function AssetRegistryContent() {
 
                 <TabsContent value="properties" className="space-y-6 pt-4 animate-in fade-in slide-in-from-left-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredProperties.map(p => (
+                        {paginatedProperties.map(p => (
                             <Card key={p.id} className="hover:shadow-md transition-all border-gray-100 group">
                                 <CardHeader className="pb-2">
                                     <div className="flex justify-between items-start">
@@ -283,7 +312,7 @@ function AssetRegistryContent() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredUnits.map(u => (
+                                    {paginatedUnits.map(u => (
                                         <TableRow key={u.id} className="h-14 hover:bg-muted/30">
                                             <TableCell className="font-black text-gray-900 pl-6">{u.unitNumber}</TableCell>
                                             {!propIdFilter && <TableCell className="text-sm font-medium text-blue-800">{u.propertyName}</TableCell>}
@@ -338,7 +367,7 @@ function AssetRegistryContent() {
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {filteredUnits.length === 0 && (
+                                    {paginatedUnits.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={7} className="h-40 text-center text-muted-foreground italic">
                                                 No units found. Try expanding your search.
@@ -350,6 +379,62 @@ function AssetRegistryContent() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+
+                {(totalPages > 1 || itemsPerPage !== -1) && (
+                    <div className="flex items-center justify-between py-4 mt-4 bg-muted/5 rounded-lg px-6 border">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            {itemsPerPage === -1 ? (
+                                <>Showing all <span className="font-bold text-foreground">{activeTab === 'properties' ? filteredProperties.length : filteredUnits.length}</span> entries</>
+                            ) : (
+                                <>
+                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, activeTab === 'properties' ? filteredProperties.length : filteredUnits.length)}</span> of <span className="font-bold text-foreground">{activeTab === 'properties' ? filteredProperties.length : filteredUnits.length}</span> entries
+                                </>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                    setItemsPerPage(parseInt(v));
+                                    setCurrentPage(1);
+                                }}>
+                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="-1">All</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {itemsPerPage !== -1 && (
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </Tabs>
 
             {/* Dialogs */}

@@ -52,8 +52,6 @@ import Link from 'next/link';
 type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
 type SortDirection = 'asc' | 'desc';
 
-const ITEMS_PER_PAGE = 50;
-
 export default function AttendanceRegistryPage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -63,7 +61,10 @@ export default function AttendanceRegistryPage() {
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
   const { toast } = useToast();
   const { hasPermission, user } = useAuth();
+  
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   const [filterEmployeeName, setFilterEmployeeName] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<string>('All');
@@ -99,7 +100,7 @@ export default function AttendanceRegistryPage() {
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedBsYear, selectedBsMonth, searchQuery, filterEmployeeName, filterStatus]);
+  }, [selectedBsYear, selectedBsMonth, searchQuery, filterEmployeeName, filterStatus, itemsPerPage]);
 
   const requestSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -181,11 +182,15 @@ export default function AttendanceRegistryPage() {
   }, [attendance, selectedBsYear, selectedBsMonth, sortConfig, searchQuery, filterEmployeeName, filterStatus]);
 
   const paginatedRecords = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredAndSortedRecords.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredAndSortedRecords, currentPage]);
+    if (itemsPerPage === -1) return filteredAndSortedRecords;
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedRecords.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedRecords, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(filteredAndSortedRecords.length / ITEMS_PER_PAGE);
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === -1) return 1;
+    return Math.ceil(filteredAndSortedRecords.length / itemsPerPage);
+  }, [filteredAndSortedRecords, itemsPerPage]);
   
   const sortedEmployeesForFilter = useMemo(() => {
     return [...employees].sort((a, b) => a.name.localeCompare(b.name));
@@ -391,31 +396,58 @@ export default function AttendanceRegistryPage() {
                     </Table>
                 </ScrollArea>
             </CardContent>
-            {totalPages > 1 && (
+            {(totalPages > 1 || itemsPerPage !== -1) && (
                 <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
                     <div className="text-xs text-muted-foreground font-medium">
-                        Showing <span className="font-bold text-foreground">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, filteredAndSortedRecords.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedRecords.length}</span> records
+                        {itemsPerPage === -1 ? (
+                            <>Showing all <span className="font-bold text-foreground">{filteredAndSortedRecords.length}</span> records</>
+                        ) : (
+                            <>
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedRecords.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedRecords.length}</span> records
+                            </>
+                        )}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                            className="h-8 w-8 p-0"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="text-xs font-bold px-2">Page {currentPage} of {totalPages}</div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages}
-                            className="h-8 w-8 p-0"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                setItemsPerPage(parseInt(v));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="-1">All</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {itemsPerPage !== -1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </CardFooter>
             )}

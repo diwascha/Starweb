@@ -1,12 +1,11 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { PlusCircle, FileText, MoreHorizontal, Trash2, View, Printer, ArrowUpDown, Search, Edit, User } from 'lucide-react';
+import { PlusCircle, FileText, MoreHorizontal, Trash2, View, Printer, ArrowUpDown, Search, Edit, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Report } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +32,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { onReportsUpdate, deleteReport, updateReport } from '@/services/report-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 type ReportSortKey = 'serialNumber' | 'productName' | 'taxInvoiceNumber' | 'challanNumber' | 'quantity' | 'authorship';
@@ -41,6 +41,10 @@ type SortDirection = 'asc' | 'desc';
 export default function ReportsListPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   const [reportSortConfig, setReportSortConfig] = useState<{ key: ReportSortKey; direction: SortDirection }>({
     key: 'serialNumber',
@@ -60,6 +64,10 @@ export default function ReportsListPage() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
   
   const handleDeleteReport = async (id: string) => {
     try {
@@ -161,6 +169,17 @@ export default function ReportsListPage() {
     return filteredReports;
   }, [reports, reportSortConfig, searchQuery]);
 
+  const paginatedReports = useMemo(() => {
+    if (itemsPerPage === -1) return filteredAndSortedReports;
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedReports.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedReports, currentPage, itemsPerPage]);
+
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === -1) return 1;
+    return Math.ceil(filteredAndSortedReports.length / itemsPerPage);
+  }, [filteredAndSortedReports, itemsPerPage]);
+
 
   const renderContent = () => {
     if (isLoading) {
@@ -194,131 +213,188 @@ export default function ReportsListPage() {
 
     return (
         <Card>
-            <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestReportSort('serialNumber')}>
-                    Test Serial No.
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestReportSort('productName')}>
-                    Product
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestReportSort('taxInvoiceNumber')}>
-                    Invoice Number
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestReportSort('challanNumber')}>
-                    Challan Number
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestReportSort('quantity')}>
-                    Quantities
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestReportSort('authorship')}>
-                        Authorship
+            <CardContent className="p-0">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestReportSort('serialNumber')} className="text-xs">
+                        Test Serial No.
                         <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {filteredAndSortedReports.map(report => (
-                <TableRow key={report.id}>
-                    <TableCell className="font-medium">{report.serialNumber}</TableCell>
-                    <TableCell>{report.product.name}</TableCell>
-                    <TableCell>{report.taxInvoiceNumber}</TableCell>
-                    <TableCell>{report.challanNumber}</TableCell>
-                    <TableCell>{report.quantity}</TableCell>
-                    <TableCell>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                    {report.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                    <span>{report.lastModifiedBy || report.createdBy}</span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>
-                                        Created by: {report.createdBy}
-                                        {report.createdAt ? ` on ${format(new Date(report.createdAt), "PP")}` : ''}
-                                    </p>
-                                    {report.lastModifiedBy && report.lastModifiedAt && (
-                                      <p>
-                                        Modified by: {report.lastModifiedBy}
-                                        {report.lastModifiedAt ? ` on ${format(new Date(report.lastModifiedAt), "PP")}` : ''}
-                                      </p>
-                                    )}
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </TableCell>
-                    <TableCell className="text-right">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                        {hasPermission('reports', 'view') && (
-                           <DropdownMenuItem onSelect={() => router.push(`/report?id=${report.id}`)}>
-                                <View className="mr-2 h-4 w-4" /> View
-                            </DropdownMenuItem>
-                        )}
-                        {hasPermission('reports', 'edit') && (
-                           <DropdownMenuItem onSelect={() => router.push(`/report/edit?id=${report.id}`)}>
-                                <Edit className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
-                        )}
-                        {hasPermission('reports', 'view') && (
-                            <DropdownMenuItem onSelect={() => handlePrint(report)}>
-                                <Printer className="mr-2 h-4 w-4" /> Print
-                            </DropdownMenuItem>
-                        )}
-                        {(hasPermission('reports', 'view') || hasPermission('reports', 'edit')) && hasPermission('reports', 'delete') && <DropdownMenuSeparator />}
-                        {hasPermission('reports', 'delete') && (
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                    <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                    <span className="text-destructive">Delete</span>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestReportSort('productName')} className="text-xs">
+                        Product
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestReportSort('taxInvoiceNumber')} className="text-xs">
+                        Invoice Number
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestReportSort('challanNumber')} className="text-xs">
+                        Challan Number
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestReportSort('quantity')} className="text-xs">
+                        Quantities
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestReportSort('authorship')} className="text-xs">
+                            Authorship
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead className="text-right pr-6 text-xs">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {paginatedReports.map(report => (
+                    <TableRow key={report.id} className="h-14">
+                        <TableCell className="font-medium">{report.serialNumber}</TableCell>
+                        <TableCell>{report.product.name}</TableCell>
+                        <TableCell>{report.taxInvoiceNumber}</TableCell>
+                        <TableCell>{report.challanNumber}</TableCell>
+                        <TableCell>{report.quantity}</TableCell>
+                        <TableCell>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                        {report.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                        <span>{report.lastModifiedBy || report.createdBy}</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>
+                                            Created by: {report.createdBy}
+                                            {report.createdAt ? ` on ${format(new Date(report.createdAt), "PP")}` : ''}
+                                        </p>
+                                        {report.lastModifiedBy && report.lastModifiedAt && (
+                                          <p>
+                                            Modified by: {report.lastModifiedBy}
+                                            {report.lastModifiedAt ? ` on ${format(new Date(report.lastModifiedAt), "PP")}` : ''}
+                                          </p>
+                                        )}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            {hasPermission('reports', 'view') && (
+                               <DropdownMenuItem onSelect={() => router.push(`/report?id=${report.id}`)}>
+                                    <View className="mr-2 h-4 w-4" /> View
                                 </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the report.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteReport(report.id)}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                            )}
+                            {hasPermission('reports', 'edit') && (
+                               <DropdownMenuItem onSelect={() => router.push(`/report/edit?id=${report.id}`)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                            )}
+                            {hasPermission('reports', 'view') && (
+                                <DropdownMenuItem onSelect={() => handlePrint(report)}>
+                                    <Printer className="mr-2 h-4 w-4" /> Print
+                                </DropdownMenuItem>
+                            )}
+                            {(hasPermission('reports', 'view') || hasPermission('reports', 'edit')) && hasPermission('reports', 'delete') && <DropdownMenuSeparator />}
+                            {hasPermission('reports', 'delete') && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                        <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                        <span className="text-destructive">Delete</span>
+                                    </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the report.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteReport(report.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+                </Table>
+            </CardContent>
+            {(totalPages > 1 || itemsPerPage !== -1) && (
+                <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        {itemsPerPage === -1 ? (
+                            <>Showing all <span className="font-bold text-foreground">{filteredAndSortedReports.length}</span> reports</>
+                        ) : (
+                            <>
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedReports.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedReports.length}</span> reports
+                            </>
                         )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    </TableCell>
-                </TableRow>
-                ))}
-            </TableBody>
-            </Table>
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                setItemsPerPage(parseInt(v));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="-1">All</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {itemsPerPage !== -1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </CardFooter>
+            )}
         </Card>
     );
   };
@@ -336,7 +412,7 @@ export default function ReportsListPage() {
                 <Input
                     type="search"
                     placeholder="Search reports..."
-                    className="pl-8 sm:w-[300px]"
+                    className="pl-8 sm:w-[250px]"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
