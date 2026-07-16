@@ -118,9 +118,8 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
         const unsubEmployees = onEmployeesUpdate(setEmployees);
         const unsubLogs = onRawLogsUpdate((data) => {
             setLogs(data);
-            setIsDataLoading(false);
+            setIsLoading(false);
         });
-        const setIsDataLoading = (v: boolean) => setIsLoading(v);
         return () => {
             unsubHolidays();
             unsubLeaves();
@@ -244,7 +243,7 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
             let currentOffset = 0;
 
             for (const sheetName of selectedSheets) {
-                const sheet = availableSheets.find(as => as.name === name);
+                const sheet = availableSheets.find(as => as.name === sheetName);
                 if (sheet) {
                     const result = await addRawMachineLogs(
                         sheet.jsonData,

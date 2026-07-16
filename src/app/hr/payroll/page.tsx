@@ -219,8 +219,6 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
                             <BonusView 
                                 selectedBsYear={selectedBsYear} 
                                 selectedBsMonth={selectedBsMonth}
-                                employees={employees}
-                                attendance={attendance}
                             />
                         </Suspense>
                     </TabsContent>

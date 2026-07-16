@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { AnnualBonusSummary, BonusLedgerEntry } from '@/lib/types';
+import type { AnnualBonusSummary, BonusLedgerEntry, Employee, AttendanceRecord } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +30,8 @@ function sortByCustomOrder<T extends { employeeName: string }>(items: T[]): T[] 
 interface BonusViewProps {
     selectedBsYear: string;
     selectedBsMonth: string;
+    employees?: Employee[];
+    attendance?: AttendanceRecord[];
 }
 
 export default function BonusView({ selectedBsYear, selectedBsMonth }: BonusViewProps) {

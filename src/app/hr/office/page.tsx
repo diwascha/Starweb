@@ -41,7 +41,7 @@ import { onEmployeesUpdate } from '@/services/employee-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { runHourlyCalculation } from '@/services/attendance-service';
 import type { HrShift, HrConfig, LeaveRequest, Employee, PublicHoliday } from '@/lib/types';
-import { toNepaliDate, cn } from '@/lib/utils';
+import { toNepaliDate, cn, createTimestamp } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -199,7 +199,7 @@ export default function HrOfficePage() {
     const handleSaveShift = async () => {
         if (!user) return;
         try {
-            await saveShift({ ...shiftForm, createdBy: user.username }, editingShift?.id);
+            await saveShift({ ...shiftForm, createdBy: user.username, createdAt: createTimestamp() }, editingShift?.id);
             toast({ title: 'Shift Saved' });
             setIsShiftDialogOpen(false);
         } catch {
@@ -210,7 +210,7 @@ export default function HrOfficePage() {
     const handleSaveHoliday = async () => {
         if (!user) return;
         try {
-            await saveHoliday({ ...holidayForm, date: new Date(holidayForm.date).toISOString(), createdBy: user.username });
+            await saveHoliday({ ...holidayForm, date: new Date(holidayForm.date).toISOString(), createdBy: user.username, createdAt: createTimestamp() });
             toast({ title: 'Holiday Recorded' });
             setIsHolidayDialogOpen(false);
         } catch {
@@ -368,7 +368,7 @@ export default function HrOfficePage() {
                                     <div className="space-y-4">
                                         <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Free Lates (Count)</Label><Input type="number" value={hrConfig.hours.freeLate} onChange={e => updateNestedConfig('hours', 'freeLate', Number(e.target.value))} className="h-9" /></div>
                                         <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Tolerance Cycle</Label>
-                                            <Select value={hrConfig.hours.freeLatePeriod} onValueChange={v => updateNestedConfig('hours', 'freeLatePeriod', v)}>
+                                            <Select value={hrConfig.hours.freeLatePeriod} onValueChange={(v: 'WEEKLY' | 'MONTHLY') => updateNestedConfig('hours', 'freeLatePeriod', v)}>
                                                 <SelectTrigger className="h-9"><SelectValue/></SelectTrigger>
                                                 <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
                                             </Select>

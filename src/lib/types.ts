@@ -330,6 +330,42 @@ export interface LeaveRequest {
     createdBy: string;
 }
 
+export interface HrConfig {
+    hours: {
+        baseDayHours: number;
+        roundStep: number;
+        graceMin: number;
+        blockMin: number;
+        freeLate: number;
+        freeLatePeriod: 'WEEKLY' | 'MONTHLY';
+        freeEarly: number;
+        freeEarlyPeriod: 'WEEKLY' | 'MONTHLY';
+        reviewThresh: number;
+        breakStart: string;
+        breakEnd: string;
+    };
+    payroll: {
+        defaultHourly: number;
+        fallbackHourly: number;
+        tdsRate: number;
+        monthDays: number;
+        stdWorkdays: number;
+        attendReqPct: number;
+        punctHighPct: number;
+        punctMidPct: number;
+        lateDaysHigh: number;
+        lateDaysMid: number;
+        otHighHours: number;
+        otMidHours: number;
+        dowLateHighPct: number;
+        dowLateMidPct: number;
+    };
+    bonus: {
+        bonusEligReq: number;
+        bonusAbsFactor: number;
+    };
+}
+
 // --- NEW CONSOLIDATED LEDGER TYPES ---
 
 /**
@@ -722,6 +758,7 @@ export interface User {
   username: string;
   email?: string;
   isApproved?: boolean;
+  isAdmin?: boolean;
   password?: string;
   permissions: Permissions;
   passwordLastUpdated?: string; // ISO Date string
@@ -955,6 +992,7 @@ export interface CostReport {
   kraftPaperCosts: Record<string, number>;
   virginPaperCost: number;
   conversionCost: number;
+  accessoryConversionCost: number;
   transportCost: number;
   transportCostType: 'Per Piece' | 'Per Consignment';
   items: Omit<CostReportItem, 'calculated'>[]; // We only store the inputs, not the calculated values
@@ -1008,4 +1046,76 @@ export interface AppBranding {
   appName: string;
   appMotto: string;
   appLogoURL?: string;
+}
+
+// Rental Management Types
+export interface RentalProperty {
+  id: string;
+  name: string;
+  address: string;
+  totalUnits: number;
+  createdBy: string;
+  createdAt: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
+export interface RentalUnit {
+  id: string;
+  propertyId: string;
+  propertyName?: string;
+  unitNumber: string;
+  floor: string;
+  type: string;
+  monthlyRent: number;
+  status: 'Vacant' | 'Occupied' | 'Under Maintenance';
+  tenantId?: string | null;
+  tenantName?: string | null;
+  outstandingBalance: number;
+  createdBy: string;
+  createdAt: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
+export interface RentalAgreement {
+  id: string;
+  unitId: string;
+  unitNumber?: string;
+  propertyId: string;
+  propertyName?: string;
+  tenantId: string;
+  tenantName?: string;
+  monthlyRent: number;
+  securityDeposit: number;
+  billingDate: number;
+  lateFee: number;
+  startDate: string;
+  endDate: string;
+  status: 'Pending' | 'Active' | 'Terminated';
+  createdBy: string;
+  createdAt: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
+export interface RentalBill {
+  id: string;
+  agreementId: string;
+  tenantId: string;
+  tenantName: string;
+  unitId: string;
+  unitNumber: string;
+  propertyId: string;
+  propertyName: string;
+  type: string;
+  amount: number;
+  billingMonth: number;
+  billingYear: number;
+  dueDate: string;
+  status: 'Unpaid' | 'Paid' | 'Partially Paid';
+  transactionId?: string;
+  remarks?: string;
+  createdBy: string;
+  createdAt: string;
 }

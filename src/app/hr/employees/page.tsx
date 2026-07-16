@@ -70,7 +70,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
 import { uploadFile, deleteFile } from '@/services/storage-service';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/avatar-placeholder';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -100,7 +100,7 @@ const initialFormState = {
     joiningDate: new Date().toISOString(),
     identityType: 'Citizenship' as IdentityType,
     documentNumber: '',
-    bloodGroup: '' as BloodGroup | '',
+    bloodGroup: undefined as BloodGroup | undefined,
     emergencyContactName: '',
     emergencyContactNumber: '',
     qualification: '',
@@ -221,7 +221,7 @@ export default function EmployeesPage() {
         joiningDate: employee.joiningDate || new Date().toISOString(),
         identityType: employee.identityType || 'Citizenship',
         documentNumber: employee.documentNumber || '',
-        bloodGroup: employee.bloodGroup || '',
+        bloodGroup: employee.bloodGroup,
         emergencyContactName: employee.emergencyContactName || '',
         emergencyContactNumber: employee.emergencyContactNumber || '',
         qualification: employee.qualification || '',
@@ -486,4 +486,3 @@ export default function EmployeesPage() {
     </div>
   );
 }
-
