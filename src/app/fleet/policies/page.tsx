@@ -66,7 +66,7 @@ export default function PoliciesPage() {
     const [editingPolicy, setEditingPolicy] = useState<PolicyOrMembership | null>(null);
     const [isRenewal, setIsRenewal] = useState(false);
     const [formState, setFormState] = useState<Omit<PolicyOrMembership, 'id' | 'createdBy' | 'lastModifiedBy' | 'createdAt' | 'lastModifiedAt'>>({
-        type: 'Insurance',
+        type: '',
         provider: '',
         policyNumber: '',
         startDate: new Date().toISOString(),
@@ -128,7 +128,7 @@ export default function PoliciesPage() {
         setEditingPolicy(null);
         setIsRenewal(false);
         setFormState({
-            type: 'Insurance',
+            type: '',
             provider: '',
             policyNumber: '',
             startDate: new Date().toISOString(),
