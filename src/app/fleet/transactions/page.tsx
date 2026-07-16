@@ -60,8 +60,6 @@ import type { DateRange } from 'react-day-picker';
 import NepaliDate from 'nepali-date-converter';
 import { LedgerReportPreview } from './_components/ledger-report-preview';
 
-const ITEMS_PER_PAGE = 50;
-
 interface LedgerEntry extends Transaction {
     vehicleName: string;
     partyName: string;
@@ -145,6 +143,7 @@ export default function FleetTransactionsPage() {
     const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
     const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(50);
     const router = useRouter();
     const { toast } = useToast();
     const { user } = useAuth();
@@ -182,7 +181,7 @@ export default function FleetTransactionsPage() {
     // Reset pagination when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [filterParties, filterVehicles, filterBillingTypes, selectedBsYear, selectedBsMonth, dateRange, filterCategory, globalSearch]);
+    }, [filterParties, filterVehicles, filterBillingTypes, selectedBsYear, selectedBsMonth, dateRange, filterCategory, globalSearch, itemsPerPage]);
 
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
@@ -327,11 +326,15 @@ export default function FleetTransactionsPage() {
     }, [transactions, filterParties, filterVehicles, filterBillingTypes, selectedBsYear, selectedBsMonth, dateRange, filterCategory, globalSearch, vehiclesById, partiesById]);
 
     const paginatedEntries = useMemo(() => {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return ledgerData.entries.slice(start, start + ITEMS_PER_PAGE);
-    }, [ledgerData.entries, currentPage]);
+        if (itemsPerPage === -1) return ledgerData.entries;
+        const start = (currentPage - 1) * itemsPerPage;
+        return ledgerData.entries.slice(start, start + itemsPerPage);
+    }, [ledgerData.entries, currentPage, itemsPerPage]);
 
-    const totalPages = Math.ceil(ledgerData.entries.length / ITEMS_PER_PAGE);
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(ledgerData.entries.length / itemsPerPage);
+    }, [ledgerData.entries, itemsPerPage]);
 
     const handleExport = async (type: 'excel' | 'pdf') => {
         const periodStr = dateRange?.from ? `${toNepaliDate(dateRange.from.toISOString())} - ${dateRange.to ? toNepaliDate(dateRange.to.toISOString()) : 'Present'}` : 'All Time';
@@ -720,31 +723,58 @@ export default function FleetTransactionsPage() {
                         <ScrollBar orientation="horizontal" />
                     </ScrollArea>
                 </div>
-                {totalPages > 1 && (
+                {(totalPages > 1 || itemsPerPage !== -1) && (
                     <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
                         <div className="text-xs text-muted-foreground font-medium">
-                            Showing <span className="font-bold text-foreground">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, ledgerData.entries.length)}</span> of <span className="font-bold text-foreground">{ledgerData.entries.length}</span> entries
+                            {itemsPerPage === -1 ? (
+                                <>Showing all <span className="font-bold text-foreground">{ledgerData.entries.length}</span> entries</>
+                            ) : (
+                                <>
+                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, ledgerData.entries.length)}</span> of <span className="font-bold text-foreground">{ledgerData.entries.length}</span> entries
+                                </>
+                            )}
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                disabled={currentPage === 1}
-                                className="h-8 w-8 p-0"
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <div className="text-xs font-bold px-2">Page {currentPage} of {totalPages}</div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                disabled={currentPage === totalPages}
-                                className="h-8 w-8 p-0"
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                    setItemsPerPage(parseInt(v));
+                                    setCurrentPage(1);
+                                }}>
+                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="-1">All</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {itemsPerPage !== -1 && (
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </CardFooter>
                 )}
