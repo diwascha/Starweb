@@ -19,6 +19,7 @@ import {
     Auth, 
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword,
+    updatePassword
 } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
@@ -30,19 +31,19 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { COLLECTIONS } from '@/lib/constants';
 
 const UserSchema = z.object({
-    username: z.string().min(1),
-    email: z.string().email().optional().or(z.literal('')),
-    isApproved: z.boolean().optional().default(true),
-    isAdmin: z.boolean().optional().default(false),
-    permissions: z.record(z.string(), z.array(z.string())).optional().default({}),
+    username: z.string().min(1).catch('unknown'),
+    email: z.string().email().optional().or(z.literal('')).catch(''),
+    isApproved: z.boolean().optional().default(true).catch(true),
+    isAdmin: z.boolean().optional().default(false).catch(false),
+    permissions: z.record(z.string(), z.array(z.string())).optional().default({}).catch({}),
     passwordLastUpdated: z.string().optional(),
 });
 
-const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): User => {
-    const data = snapshot.data();
+const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | any): User => {
+    const data = typeof snapshot.data === 'function' ? snapshot.data() : snapshot;
     const validated = UserSchema.parse(data);
     return {
-        id: snapshot.id,
+        id: snapshot.id || '',
         username: validated.username,
         email: validated.email,
         isApproved: validated.isApproved,
@@ -91,6 +92,31 @@ export const saveUser = async (user: User) => {
                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'write' }));
              }
         });
+    }
+};
+
+/**
+ * Updates the currently logged-in user's password and metadata.
+ */
+export const setAdminPassword = async (password: string, updatedAt: string) => {
+    const { auth, db } = getFirebase();
+    if (!auth.currentUser) throw new Error("No authenticated session found.");
+    
+    try {
+        await updatePassword(auth.currentUser, password);
+        
+        // Synchronize metadata to ensure sessions on other devices are invalidated
+        const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, auth.currentUser.uid);
+        await updateDoc(userRef, { 
+            passwordLastUpdated: updatedAt 
+        });
+        
+        logAudit('Administrative Key Updated', 'Security');
+    } catch (error: any) {
+        if (error.code === 'auth/requires-recent-login') {
+            throw new Error("This operation requires a fresh login session. Please sign out and sign back in before changing your password.");
+        }
+        throw error;
     }
 };
 
