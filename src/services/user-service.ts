@@ -65,6 +65,38 @@ export const onUsersUpdate = (callback: (users: User[]) => void) => {
     });
 };
 
+/**
+ * Restores the administrator profile documents in Firestore.
+ * Used for self-healing if a master admin account is accidentally deleted.
+ */
+export const restoreAdminProfile = async (uid: string, email: string, username: string) => {
+    const { db } = getFirebase();
+    const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, uid);
+    const usernameRef = doc(db, COLLECTIONS.USERNAMES, username.toLowerCase().trim());
+    const now = new Date().toISOString();
+
+    const payload = {
+        username: username.toLowerCase().trim(),
+        email: email.toLowerCase().trim(),
+        isApproved: true,
+        isAdmin: true,
+        permissions: {},
+        updatedAt: serverTimestamp(),
+        createdAt: now
+    };
+
+    try {
+        await setDoc(userRef, payload, { merge: true });
+        await setDoc(usernameRef, { 
+            email: email.toLowerCase().trim(), 
+            username: username.toLowerCase().trim() 
+        }, { merge: true });
+        logAudit(`Administrative Profile Restored: ${username}`, 'Security', { uid });
+    } catch (e) {
+        console.error("Critical: Failed to restore admin profile", e);
+    }
+};
+
 export const saveUser = async (user: User) => {
     const { db } = getFirebase();
     if (!user?.id) throw new Error("Invalid user ID.");

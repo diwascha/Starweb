@@ -9,6 +9,7 @@ import { toast } from '@/hooks/use-toast';
 import { getFirebase } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { logAudit } from '@/services/log-service';
+import { restoreAdminProfile } from '@/services/user-service';
 
 interface UserSession {
   id: string;
@@ -39,6 +40,7 @@ const AuthContext = createContext<AuthContextType>({
 
 const USER_SESSION_KEY = 'user_session';
 const SESSION_MAX_AGE = 24 * 60 * 60 * 1000; // 24 Hours
+const MASTER_ADMIN_UID = '0B9q71lXTDRnEjaTuwivIpIkiW42';
 
 const moduleToPath = (module: Module): string => {
     if (module === 'dashboard') return '/dashboard';
@@ -174,9 +176,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         unsubscribeFirestore = onSnapshot(userDocRef, (docSnap) => {
             if (!docSnap.exists()) {
-                // If user is logged into Auth but no Firestore doc exists,
-                // we'll try to sign them out or redirect to a profile setup.
-                // For an admin manually created, this doc MUST exist.
+                // Self-Healing Logic for Master Administrator
+                if (firebaseUser.uid === MASTER_ADMIN_UID) {
+                    restoreAdminProfile(firebaseUser.uid, firebaseUser.email || 'shivampackaging69@gmail.com', 'administrator');
+                    return; // Let the next snapshot cycle catch the newly created document
+                }
                 logout();
                 return;
             }
@@ -217,7 +221,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUser(session);
         }, (err) => {
             console.error("User sync failure:", err);
-            // Don't logout on intermittent connectivity issues
         });
 
       } else {
