@@ -19,11 +19,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addEstimatedInvoice, onEstimatedInvoicesUpdate, updateEstimatedInvoice } from '@/services/estimate-invoice-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { InvoiceView } from './invoice-view';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -215,7 +214,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         setIsExporting(true);
         try {
             const doc = new jsPDF();
-            autoTable(doc, {
+            (doc as any).autoTable({
                 startY: 65,
                 head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
                 body: invoiceData.items.map((item, index) => [index + 1, item.productName, item.quantity, item.rate, item.gross]),

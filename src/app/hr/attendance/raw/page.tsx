@@ -41,7 +41,7 @@ import type { PublicHoliday, LeaveRequest, Employee, RawMachineLog } from '@/lib
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { format, startOfDay, isEqual, isWithinInterval, differenceInDays } from 'date-fns';
+import { format, startOfDay, isEqual, isWithinInterval, differenceInDays, endOfDay } from 'date-fns';
 import { 
     AlertDialog, 
     AlertDialogAction, 

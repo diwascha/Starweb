@@ -245,9 +245,6 @@ export interface RawAttendanceRow {
     [key: string]: any;
 }
 
-/**
- * Represents a raw dump of machine data before any system calculation.
- */
 export interface RawMachineLog {
     id: string;
     date: string; // AD Date ISO
@@ -366,12 +363,6 @@ export interface HrConfig {
     };
 }
 
-// --- NEW CONSOLIDATED LEDGER TYPES ---
-
-/**
- * Section 1: Annual Bonus Summary (A-M)
- * Cumulative running total across all periods.
- */
 export interface AnnualBonusSummary {
     id: string; // employeeId (normalized name)
     employeeName: string;
@@ -389,10 +380,6 @@ export interface AnnualBonusSummary {
     remarks: string;
 }
 
-/**
- * Section 2: Bonus Ledger (P-Y)
- * Monthly accruals per employee per period.
- */
 export interface BonusLedgerEntry {
     id: string; // employeeId_year_month
     runTime: string;
@@ -410,10 +397,6 @@ export interface BonusLedgerEntry {
     note: string;
 }
 
-/**
- * Section 3: Behavior Ledger (AB-AS)
- * Raw attendance behavioral metrics.
- */
 export interface BehaviorLedgerEntry {
     id: string; // employeeId_year_month
     runTime: string;
@@ -437,10 +420,6 @@ export interface BehaviorLedgerEntry {
     otHours: number;
 }
 
-/**
- * Section 4: Payroll Ledger (AV-BJ)
- * Financial payroll output.
- */
 export interface Payroll {
     id: string; // employeeId_year_month
     bsYear: number;
@@ -474,10 +453,6 @@ export interface Payroll {
     bonus?: number;
 }
 
-/**
- * Section 5: Behavior Analytics (BL-BW)
- * Computed insight labels for employees.
- */
 export interface BehaviorAnalyticsEntry {
     id: string; // employeeId_year_month
     runTime: string;
@@ -524,8 +499,6 @@ export interface AnalyticsReport {
     importedBy: string;
 }
 
-
-// --- Fleet Management Types ---
 export type VehicleStatus = 'Active' | 'In Maintenance' | 'Decommissioned';
 
 export interface Vehicle {

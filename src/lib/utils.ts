@@ -6,31 +6,17 @@ import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
 import { format, parse } from 'date-fns';
 
-/**
- * Combines multiple class names using clsx and tailwind-merge.
- * This ensures that conditional classes are applied correctly and that
- * conflicting Tailwind classes (e.g., p-2 and p-4) are resolved.
- * 
- * @param inputs - A list of class names, arrays, or conditional objects.
- * @returns A single string of merged Tailwind CSS classes.
- */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/**
- * Converts a viewer URL (like Google Drive or Dropbox) into a direct 
- * raw image link that can be used in <img> tags.
- * 
- * @param url - The original sharing URL.
- * @returns A direct image source URL or the original URL if no transform is needed.
- */
+export const createTimestamp = () => new Date().toISOString();
+
 export const getDirectImageUrl = (url: string | undefined | null): string => {
     if (!url) return '';
     
     let processed = url.trim();
 
-    // Handle Google Drive
     if (processed.includes('drive.google.com')) {
         const match = processed.match(/\/d\/(.+?)\/(view|edit|preview)/) || processed.match(/id=(.+?)(&|$)/);
         if (match && match[1]) {
@@ -38,7 +24,6 @@ export const getDirectImageUrl = (url: string | undefined | null): string => {
         }
     }
 
-    // Handle Dropbox
     if (processed.includes('dropbox.com')) {
         return processed.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace(/\?dl=0$/, '');
     }
@@ -46,12 +31,6 @@ export const getDirectImageUrl = (url: string | undefined | null): string => {
     return processed;
 };
 
-/**
- * Generates a unique identifier.
- * Uses cryptographically secure randomUUID if available, otherwise falls back to math.random.
- * 
- * @returns A unique string ID.
- */
 export const generateId = (): string => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
     return window.crypto.randomUUID();
@@ -59,25 +38,11 @@ export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 11);
 };
 
-/**
- * Normalizes a URL path by removing trailing slashes.
- * Useful for consistent matching in navigation and breadcrumbs.
- * 
- * @param path - The raw path string.
- * @returns The normalized path (e.g., "/dashboard/" becomes "/dashboard").
- */
 export const getNormalizedPath = (path: string): string => {
   if (!path) return '/';
   return path.replace(/\/$/, '') || '/';
 };
 
-/**
- * Standardizes the Bursting Factor (BF) representation.
- * Ensures values like "18", "18bf", and "18 BF" are all returned as "18 BF".
- * 
- * @param val - The raw BF input.
- * @returns A standardized string like "18 BF".
- */
 export const normalizeBF = (val: any): string => {
   if (val === undefined || val === null || val === '') return "";
   const trimmed = String(val).trim();
@@ -91,14 +56,6 @@ export const normalizeBF = (val: any): string => {
   return trimmed;
 };
 
-/**
- * Calculates the next sequence number from an array of existing serials.
- * Scans for the highest numeric value following a specific prefix.
- * 
- * @param numbers - Array of existing serial strings.
- * @param prefix - The string prefix to search for (e.g., "SPI-").
- * @returns The next serial in the sequence (e.g., "SPI-012").
- */
 export const calculateNextSequence = (
   numbers: (string | undefined | null)[],
   prefix: string
@@ -118,16 +75,6 @@ export const calculateNextSequence = (
   return `${prefix}${nextNumber.toString().padStart(3, '0')}`;
 };
 
-/**
- * Higher-level function to generate the next document number.
- * Fetches the current prefix configuration from Firestore settings before calculating.
- * 
- * @param items - The current collection of items to scan.
- * @param fieldName - The property name holding the serial number.
- * @param settingKey - The key in the documentPrefixes setting object.
- * @param defaultPrefix - Fallback prefix if no setting is configured.
- * @returns A promise resolving to the next available sequence string.
- */
 export const generateNextNumber = async (
   items: any[],
   fieldName: string,
@@ -219,13 +166,6 @@ export const formatTimeForDisplay = (timeString: string | null | undefined): str
     return timeString;
 };
 
-/**
- * Converts a numeric value into a human-readable English currency string.
- * Supports values up to 99 Crores.
- * 
- * @param num - The number to convert.
- * @returns A string representation (e.g., "Five Thousand Two Hundred Only.")
- */
 export const toWords = (num: number): string => {
     if (num === 0) return 'Zero Only.';
     
@@ -242,7 +182,7 @@ export const toWords = (num: number): string => {
             return `${a[Math.floor(n/100)]} hundred ${inWords(n % 100)}`.trim();
         }
         if (n < 100000) {
-            return `${inWords(Math.floor(n/1000))} thousand ${inWords(n % 1000)}`.trim();
+            return `${inWords(Math.floor(n/1000))} thousand ${inWords(n % 100)}`.trim();
         }
         if (n < 10000000) {
             return `${inWords(Math.floor(n/100000))} lakh ${inWords(n % 100000)}`.trim();

@@ -41,7 +41,8 @@ import { onEmployeesUpdate } from '@/services/employee-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { runHourlyCalculation } from '@/services/attendance-service';
 import type { HrShift, HrConfig, LeaveRequest, Employee, PublicHoliday } from '@/lib/types';
-import { toNepaliDate, cn, createTimestamp } from '@/lib/utils';
+import { toNepaliDate, cn } from '@/lib/utils';
+import { createTimestamp } from '@/lib/service-utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -470,7 +471,6 @@ export default function HrOfficePage() {
                 </TabsContent>
             </Tabs>
 
-            {/* Shift Definition Dialog */}
             <Dialog open={isShiftDialogOpen} onOpenChange={setIsShiftDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">Define Shift Pattern</DialogTitle></DialogHeader>
@@ -486,7 +486,6 @@ export default function HrOfficePage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Holiday Registry Dialog */}
             <Dialog open={isHolidayDialogOpen} onOpenChange={setIsHolidayDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">Log Calendar Holiday</DialogTitle></DialogHeader>
@@ -502,7 +501,6 @@ export default function HrOfficePage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Leave Request Dialog */}
             <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">Record Authorized Leave</DialogTitle></DialogHeader>
