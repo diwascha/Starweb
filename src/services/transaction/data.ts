@@ -1,11 +1,24 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, onSnapshot, getDocs, query, orderBy, setDoc, updateDoc, deleteDoc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { 
+    collection, 
+    doc, 
+    onSnapshot, 
+    getDocs, 
+    query, 
+    orderBy, 
+    setDoc, 
+    updateDoc, 
+    deleteDoc, 
+    getDoc,
+    DocumentData, 
+    QueryDocumentSnapshot 
+} from 'firebase/firestore';
 import type { Transaction, TransactionType, InvoiceType, BillingType } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export const transactionsCollection = () => {
     const { db } = getFirebase();
@@ -13,7 +26,7 @@ export const transactionsCollection = () => {
 };
 
 export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | any): Transaction => {
-    const data = snapshot.data();
+    const data = typeof snapshot.data === 'function' ? snapshot.data() : snapshot;
     return { 
         id: snapshot.id,
         purchaseNumber: data.purchaseNumber ? String(data.purchaseNumber) : null,
@@ -43,6 +56,34 @@ export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | an
         lastModifiedAt: data.lastModifiedAt ? String(data.lastModifiedAt) : null,
     };
 }
+
+export const getTransaction = async (id: string): Promise<Transaction | null> => {
+    const docRef = doc(transactionsCollection(), id);
+    try {
+        const snap = await getDoc(docRef);
+        return snap.exists() ? fromFirestore(snap) : null;
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'get',
+        }));
+        return null;
+    }
+};
+
+export const getTransactions = async (): Promise<Transaction[]> => {
+    const q = query(transactionsCollection(), orderBy('date', 'desc'));
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(fromFirestore);
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.TRANSACTIONS,
+            operation: 'list',
+        }));
+        throw error;
+    }
+};
 
 export const onTransactionsUpdate = (callback: (txns: Transaction[]) => void): () => void => {
     const q = query(transactionsCollection(), orderBy('date', 'desc'));

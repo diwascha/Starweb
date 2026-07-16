@@ -8,20 +8,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data;
+    function isApproved() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isApproved == true;
     }
 
     function isAdmin() {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
-             getUserData().isAdmin == true;
-    }
-
-    function isApproved() {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
-             getUserData().isApproved == true;
+             get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isAdmin == true;
     }
 
     // --- Identity & Settings ---
@@ -42,7 +38,7 @@ service cloud.firestore {
       allow create: if true; 
       
       // CRITICAL: Prevent deletion of any administrator via the app
-      allow delete: if isAdmin() && resource.data.isAdmin != true;
+      allow delete: if isAdmin() && (resource == null || resource.data.isAdmin != true);
       
       allow update: if (isAdmin() && (
         // An admin cannot demote themselves or disable their own account to prevent lockout
@@ -52,8 +48,8 @@ service cloud.firestore {
         )
       )) || (
         isAuthenticated() && request.auth.uid == userId &&
-        request.resource.data.isApproved == resource.data.isApproved &&
-        request.resource.data.isAdmin == resource.data.isAdmin
+        request.resource.data.get('isApproved', true) == resource.data.get('isApproved', true) &&
+        request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false)
       );
     }
 

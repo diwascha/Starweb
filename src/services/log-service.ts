@@ -60,10 +60,9 @@ export const logError = async (error: Error | any, moduleName: string, context?:
         };
 
         addDoc(collection(db, COLLECTIONS.LOGS), payload).catch(async (err) => {
-            // We intentionally do not emit a permission-error here to avoid loops
-            // if logging itself is failing due to permissions.
+            // Log creation errors are silenced in the UI to prevent loops
             if (process.env.NODE_ENV === 'development') {
-                console.warn("Log creation failed silently in background:", err.message);
+                console.warn("Background log creation failed:", err.message);
             }
         });
     } catch (e) {}
@@ -91,7 +90,7 @@ export const logAudit = async (action: string, moduleName: string, context?: any
 
         addDoc(collection(db, COLLECTIONS.LOGS), payload).catch(async (err) => {
              if (process.env.NODE_ENV === 'development') {
-                console.warn("Audit creation failed silently in background:", err.message);
+                console.warn("Background audit creation failed:", err.message);
             }
         });
     } catch (e) {}
