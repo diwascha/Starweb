@@ -213,7 +213,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 username: data.username,
                 email: data.email,
                 isApproved: true,
-                isAdmin: false,
+                isAdmin: !!data.isAdmin,
                 permissions: data.permissions || {},
                 passwordLastUpdated: data.passwordLastUpdated,
                 sessionCreatedAt: Date.now() // Treat as last verified timestamp
@@ -271,7 +271,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             username: userToLogin.username,
             email: userToLogin.email,
             isApproved: true,
-            isAdmin: false,
+            isAdmin: !!userToLogin.isAdmin,
             permissions: userToLogin.permissions || {},
             passwordLastUpdated: userToLogin.passwordLastUpdated,
             sessionCreatedAt: now

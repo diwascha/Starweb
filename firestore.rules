@@ -3,68 +3,57 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- Core Security Helpers ---
-    
-    // Check if user is authenticated
+
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Check if user document exists and is approved
-    function isApproved() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isApproved == true;
+    function getUserData() {
+      return get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data;
     }
 
-    // Check if user is a system administrator
     function isAdmin() {
       return isAuthenticated() && 
-        exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isAdmin == true;
+             exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
+             getUserData().isAdmin == true;
     }
 
-    // --- Identity & Settings (Critical Path) ---
+    function isApproved() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
+             getUserData().isApproved == true;
+    }
 
-    // Branding and profile settings (Publicly readable for login/loading screens)
+    // --- Identity & Settings ---
+
     match /settings/{settingId} {
       allow read: if true; 
-      allow write: if isApproved();
+      allow write: if isAdmin();
     }
 
-    // User directory and security mappings
     match /system_users/{userId} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (request.auth.uid == userId && request.resource.data.isApproved == resource.data.isApproved);
+      allow read: if isAdmin() || request.auth.uid == userId;
+      allow create: if true; // Allow initial profile creation during registration
+      allow delete: if isAdmin();
+      allow update: if isAdmin() || (
+        request.auth.uid == userId &&
+        request.resource.data.isApproved == resource.data.isApproved &&
+        request.resource.data.isAdmin == resource.data.isAdmin
+      );
     }
 
-    // Username uniqueness registry
     match /usernames/{username} {
       allow read: if true;
-      allow write: if isAdmin() || isAuthenticated();
+      allow create: if isAuthenticated();
+      allow delete: if isAdmin();
     }
 
-    // --- Application Data Modules ---
+    // --- Application Data ---
 
-    // Explicitly allow core collections for all authenticated/approved users
-    match /{collectionId}/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isApproved();
-
-      // Support for sub-collections (e.g., employee documents or logs)
-      match /{subCollection}/{subDocId} {
-        allow read: if isAuthenticated();
-        allow write: if isApproved();
-      }
-    }
-
-    // --- Global Resiliency Gate ---
-    
-    // Fallback recursive match ensures that nested queries in complex logic 
-    // (like Payroll or Fleet Ledger) don't trigger permission denied errors.
     match /{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isApproved();
+      // General rule: Approved users can read/write data. 
+      // Individual services should refine this if granular multi-tenant isolation is needed.
+      allow read, write: if isApproved();
     }
   }
 }

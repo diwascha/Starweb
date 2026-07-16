@@ -31,19 +31,13 @@ import { FirestorePermissionError } from '@/firebase/errors';
 const USERS_COLLECTION = 'system_users';
 const USERNAMES_COLLECTION = 'usernames';
 
-const defaultAdminCreds = { 
-  username: 'Administrator', 
-  password: 'StarSutra@Secure#2025',
-  isApproved: true,
-  permissions: {} as Permissions
-};
-
 // --- Schema Validation ---
 
 const UserSchema = z.object({
     username: z.string().min(1),
     email: z.string().email().optional().or(z.literal('')),
     isApproved: z.boolean().optional().default(true),
+    isAdmin: z.boolean().optional().default(false),
     permissions: z.record(z.string(), z.array(z.string())).optional().default({}),
     passwordLastUpdated: z.string().optional(),
 });
@@ -56,6 +50,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         username: validated.username,
         email: validated.email,
         isApproved: validated.isApproved,
+        isAdmin: validated.isAdmin,
         permissions: validated.permissions as Permissions,
         passwordLastUpdated: validated.passwordLastUpdated,
     };
@@ -90,6 +85,7 @@ export const saveUser = async (user: User) => {
     setDoc(userRef, payload, { merge: true }).then(() => {
         logAudit(`Permissions/Status Updated for User: ${user.username}`, 'Security', {
             isApproved: user.isApproved,
+            isAdmin: user.isAdmin,
             permissionMatrix: user.permissions
         });
     }).catch(async (err) => {
@@ -218,21 +214,6 @@ export const getUserByLogin = async (loginString: string): Promise<User | null> 
     if (snapUsername && !snapUsername.empty) return fromFirestore(snapUsername.docs[0]);
 
     return null;
-};
-
-export const getAdminCredentials = () => defaultAdminCreds;
-
-export const setAdminPassword = async (password: string, date: string) => {
-    const { db } = getFirebase();
-    const adminRef = doc(db, 'settings', 'admin_config');
-    setDoc(adminRef, { 
-        password, 
-        passwordLastUpdated: date 
-    }, { merge: true }).then(() => {
-        logAudit('Master Administrator Password Updated', 'Security');
-    }).catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: adminRef.path, operation: 'update' }));
-    });
 };
 
 export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean, error?: string } => {

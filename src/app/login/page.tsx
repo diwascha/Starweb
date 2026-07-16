@@ -14,7 +14,7 @@ import { Loader2, ShieldCheck, Lock, User as UserIcon, RefreshCw } from 'lucide-
 import { useAuth } from '@/hooks/use-auth';
 import { AuthErrorCodes } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
-import { getAdminCredentials, getUserByLogin, loginWithUsername } from '@/services/user-service';
+import { getUserByLogin, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { logAudit } from '@/services/log-service';
 import type { AppBranding } from '@/lib/types';
@@ -100,27 +100,11 @@ export default function LoginPage() {
       }
     }
     
-    // 2. Administrator Bypass
-    if (data.loginString.toLowerCase() === 'administrator') {
-        const adminCreds = getAdminCredentials();
-        if (data.password === adminCreds.password) {
-            await login({ username: 'Administrator', id: 'admin', permissions: {}, isApproved: true } as any, true);
-            logAudit('Successful Administrator Session Started', 'Security');
-            toast({ title: 'Success', description: 'Admin session started.' });
-        } else {
-            setFailedAttempts(prev => prev + 1);
-            logAudit('Failed Administrator Login Attempt', 'Security');
-            toast({ title: 'Authentication Error', description: 'Invalid username or password.', variant: 'destructive'});
-        }
-        setIsSubmitting(false);
-        return;
-    }
-
     try {
-      // 3. Resolve username and authenticate
+      // 2. Resolve username and authenticate
       await loginWithUsername(auth, data.loginString, data.password);
       
-      // 4. Fetch User Record from Firestore
+      // 3. Fetch User Record from Firestore
       const cloudUser = await getUserByLogin(data.loginString);
       
       if (!cloudUser) {
@@ -129,7 +113,7 @@ export default function LoginPage() {
         return;
       }
 
-      // 5. Verify Approval Status
+      // 4. Verify Approval Status
       if (cloudUser.isApproved === false) {
         await auth.signOut();
         logAudit(`Blocked Login Attempt (Unapproved Account): ${cloudUser.username}`, 'Security');
@@ -141,7 +125,7 @@ export default function LoginPage() {
         return;
       }
 
-      // 6. Establish local session tracking
+      // 5. Establish local session tracking
       await login(cloudUser, false);
       logAudit(`Successful Login: ${cloudUser.username}`, 'Security');
       toast({ title: 'Welcome', description: `Signed in as ${cloudUser.username}` });
