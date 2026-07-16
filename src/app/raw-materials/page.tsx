@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check, User, Loader2, ChevronsUpDown } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check, User, Loader2, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,15 +23,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -73,6 +64,10 @@ export default function RawMaterialsPage() {
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   const [newMaterialType, setNewMaterialType] = useState('');
   const [newMaterialName, setNewMaterialName] = useState('');
   const [newMaterialSize, setNewMaterialSize] = useState('');
@@ -105,6 +100,10 @@ export default function RawMaterialsPage() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeTab, itemsPerPage]);
   
   const resetForm = () => {
     setNewMaterialType('');
@@ -267,6 +266,17 @@ export default function RawMaterialsPage() {
     }
     return filtered;
   }, [rawMaterials, sortConfig, searchQuery, activeTab]);
+
+  const paginatedMaterials = useMemo(() => {
+    if (itemsPerPage === -1) return filteredAndSortedMaterials;
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedMaterials.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedMaterials, currentPage, itemsPerPage]);
+
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === -1) return 1;
+    return Math.ceil(filteredAndSortedMaterials.length / itemsPerPage);
+  }, [filteredAndSortedMaterials, itemsPerPage]);
   
   const isPaperTypeSelectedInDialog = paperTypes.includes(newMaterialType);
 
@@ -339,14 +349,14 @@ export default function RawMaterialsPage() {
                 <TableHeader>
                     <TableRow>
                     <TableHead>
-                        <Button variant="ghost" onClick={() => requestSort('name')}>
+                        <Button variant="ghost" onClick={() => requestSort('name')} className="text-xs">
                         Material Description
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                     </TableHead>
                     {activeTab === 'All' &&
                         <TableHead>
-                            <Button variant="ghost" onClick={() => requestSort('type')}>
+                            <Button variant="ghost" onClick={() => requestSort('type')} className="text-xs">
                             Type
                             <ArrowUpDown className="ml-2 h-4 w-4" />
                             </Button>
@@ -354,23 +364,23 @@ export default function RawMaterialsPage() {
                     }
                     {isCurrentTabPaper && (
                         <>
-                            <TableHead className="text-center">Size (Inch)</TableHead>
-                            <TableHead className="text-center">GSM</TableHead>
-                            <TableHead className="text-center">BF</TableHead>
+                            <TableHead className="text-center font-bold text-[11px] uppercase">Size (Inch)</TableHead>
+                            <TableHead className="text-center font-bold text-[11px] uppercase">GSM</TableHead>
+                            <TableHead className="text-center font-bold text-[11px] uppercase">BF</TableHead>
                         </>
                     )}
-                    <TableHead>Units</TableHead>
+                    <TableHead className="font-bold text-[11px] uppercase">Units</TableHead>
                      <TableHead>
-                        <Button variant="ghost" onClick={() => requestSort('authorship')}>
+                        <Button variant="ghost" onClick={() => requestSort('authorship')} className="text-xs">
                             Authorship
                             <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                     </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-right pr-6 font-bold text-[11px] uppercase">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredAndSortedMaterials.map(material => {
+                    {paginatedMaterials.map(material => {
                         const isRowPaper = paperTypes.includes(material.type);
                         return (
                         <TableRow key={material.id}>
@@ -408,7 +418,7 @@ export default function RawMaterialsPage() {
                                     </Tooltip>
                                 </TooltipProvider>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right pr-6">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -452,6 +462,61 @@ export default function RawMaterialsPage() {
                 </TableBody>
                 </Table>
             </CardContent>
+            {(totalPages > 1 || itemsPerPage !== -1) && (
+                <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        {itemsPerPage === -1 ? (
+                            <>Showing all <span className="font-bold text-foreground">{filteredAndSortedMaterials.length}</span> materials</>
+                        ) : (
+                            <>
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedMaterials.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedMaterials.length}</span> materials
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                setItemsPerPage(parseInt(v));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="-1">All</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {itemsPerPage !== -1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </CardFooter>
+            )}
         </Card>
     );
   };
@@ -465,11 +530,11 @@ export default function RawMaterialsPage() {
         </div>
         <div className="flex items-center gap-2">
             <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                     type="search"
                     placeholder="Search materials..."
-                    className="pl-8 sm:w-[300px]"
+                    className="pl-8 sm:w-[250px]"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -629,7 +694,7 @@ export default function RawMaterialsPage() {
                                                 </CommandEmpty>
                                                 <CommandGroup>
                                                     {allUnits.filter(u => !newMaterialUnits.includes(u)).map(unit => (
-                                                        <CommandItem key={unit} onSelect={() => handleUnitSelect(unit)}>
+                                                        <CommandItem key={unit} onSelect={() => handleUnitSelect(unit)} className="text-xs">
                                                             <Check className={cn("mr-2 h-4 w-4", newMaterialUnits.includes(unit) ? "opacity-100" : "opacity-0")} />
                                                             {unit}
                                                         </CommandItem>
@@ -655,7 +720,7 @@ export default function RawMaterialsPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
               {tabs.map(tab => (
-                   <TabsTrigger key={tab} value={tab}>{tab}</TabsTrigger>
+                   <TabsTrigger key={tab} value={tab} className="font-bold text-xs uppercase tracking-widest">{tab}</TabsTrigger>
               ))}
           </TabsList>
           {tabs.map(tab => (

@@ -11,7 +11,9 @@ import {
   PrinterIcon, 
   ArrowRight,
   Info,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft,
+  Loader2
 } from 'lucide-react';
 import type { Product, ProductSpecification } from '@/lib/types';
 import { onProductsUpdate } from '@/services/product-service';
@@ -31,13 +33,14 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const formatLabel = (key: string) => {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 };
 
 const gsmFields: (keyof ProductSpecification)[] = [
-  'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'liner2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm'
+  'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'metric2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm'
 ];
 
 export default function PackSpecPage() {
@@ -46,6 +49,10 @@ export default function PackSpecPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12); // Grid layout usually looks better with multiples of 3 or 4
 
   useEffect(() => {
     const unsub = onProductsUpdate((data) => {
@@ -62,6 +69,17 @@ export default function PackSpecPage() {
       (p.partyName || '').toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((a, b) => a.name.localeCompare(b.name));
   }, [products, searchQuery]);
+
+  const paginatedProducts = useMemo(() => {
+    if (itemsPerPage === -1) return filteredProducts;
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(start, start + itemsPerPage);
+  }, [filteredProducts, currentPage, itemsPerPage]);
+
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === -1) return 1;
+    return Math.ceil(filteredProducts.length / itemsPerPage);
+  }, [filteredProducts, itemsPerPage]);
 
   const handleViewSpec = (product: Product) => {
     setSelectedProduct(product);
@@ -83,47 +101,105 @@ export default function PackSpecPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input 
             placeholder="Search by product or client..." 
-            className="pl-8" 
+            className="pl-8 h-10 bg-white" 
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
           />
         </div>
       </header>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse bg-muted" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => <Card key={i} className="h-48 animate-pulse bg-muted" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProducts.map(product => (
-            <Card key={product.id} className="hover:shadow-md transition-shadow group">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <Badge variant="outline" className="mb-2">{product.materialCode || 'No Code'}</Badge>
-                  <Package className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {paginatedProducts.map(product => (
+                <Card key={product.id} className="hover:shadow-md transition-shadow group h-full flex flex-col">
+                <CardHeader className="pb-3 shrink-0">
+                    <div className="flex justify-between items-start">
+                    <Badge variant="outline" className="mb-2">{product.materialCode || 'No Code'}</Badge>
+                    <Package className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <CardTitle className="text-lg line-clamp-1">{product.name}</CardTitle>
+                    <CardDescription className="line-clamp-1">{product.partyName || 'Unassigned Client'}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-0 flex-1">
+                    <div className="grid grid-cols-2 text-xs gap-2 border-t pt-3">
+                    <div className="flex flex-col">
+                        <span className="text-muted-foreground uppercase font-semibold text-[9px] tracking-widest">Dimension</span>
+                        <span className="font-bold">{product.specification?.dimension || 'N/A'}</span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-muted-foreground uppercase font-semibold text-[9px] tracking-widest">Ply</span>
+                        <span className="font-bold">{product.specification?.ply || 'N/A'} Ply</span>
+                    </div>
+                    </div>
+                    <Button variant="secondary" size="sm" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors mt-auto" onClick={() => handleViewSpec(product)}>
+                    View Full Spec <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                </CardContent>
+                </Card>
+            ))}
+            </div>
+            
+            {(totalPages > 1 || itemsPerPage !== -1) && (
+                <div className="flex items-center justify-between py-4 border-t mt-4 bg-muted/5 rounded-lg px-6">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        {itemsPerPage === -1 ? (
+                            <>Showing all <span className="font-bold text-foreground">{filteredProducts.length}</span> products</>
+                        ) : (
+                            <>
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredProducts.length)}</span> of <span className="font-bold text-foreground">{filteredProducts.length}</span> products
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Cards per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                setItemsPerPage(parseInt(v));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[75px] bg-white border-gray-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="12">12</SelectItem>
+                                    <SelectItem value="24">24</SelectItem>
+                                    <SelectItem value="48">48</SelectItem>
+                                    <SelectItem value="-1">All</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {itemsPerPage !== -1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <CardTitle className="text-lg line-clamp-1">{product.name}</CardTitle>
-                <CardDescription className="line-clamp-1">{product.partyName || 'Unassigned Client'}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 text-xs gap-2">
-                  <div className="flex flex-col">
-                    <span className="text-muted-foreground uppercase font-semibold text-[10px]">Dimension</span>
-                    <span>{product.specification?.dimension || 'N/A'}</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-muted-foreground uppercase font-semibold text-[10px]">Ply</span>
-                    <span>{product.specification?.ply || 'N/A'} Ply</span>
-                  </div>
-                </div>
-                <Button variant="secondary" size="sm" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" onClick={() => handleViewSpec(product)}>
-                  View Full Spec <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+            )}
+        </>
       )}
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
@@ -133,7 +209,7 @@ export default function PackSpecPage() {
               <header className="text-center space-y-1 mb-8 relative">
                 <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
                 <p className="text-sm">HETAUDA 08, NEPAL</p>
-                <h2 className="text-xl font-bold underline mt-2">TECHNICAL DATA SHEET (PACKSPEC)</h2>
+                <h2 className="text-xl font-bold underline mt-2 uppercase">TECHNICAL DATA SHEET (PACKSPEC)</h2>
                 <div className="absolute top-0 right-0 print:hidden flex gap-2">
                   <Button variant="outline" size="sm" onClick={handlePrint}>
                     <Printer className="mr-2 h-4 w-4" /> Print
