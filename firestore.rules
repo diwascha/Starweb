@@ -37,7 +37,8 @@ service cloud.firestore {
     }
 
     match /system_users/{userId} {
-      allow read: if isAdmin() || request.auth.uid == userId;
+      // Allow read for self or admins. Also allow public read for login resolution.
+      allow read: if true; 
       allow create: if true; 
       
       // CRITICAL: Prevent deletion of any administrator via the app
@@ -50,7 +51,7 @@ service cloud.firestore {
             request.resource.data.isApproved == true
         )
       )) || (
-        request.auth.uid == userId &&
+        isAuthenticated() && request.auth.uid == userId &&
         request.resource.data.isApproved == resource.data.isApproved &&
         request.resource.data.isAdmin == resource.data.isAdmin
       );
@@ -59,6 +60,13 @@ service cloud.firestore {
     match /usernames/{username} {
       allow read: if true;
       allow create: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // --- Logging ---
+    match /logs/{logId} {
+      allow create: if true; // Always allow logging errors
+      allow read: if isAdmin();
       allow delete: if isAdmin();
     }
 

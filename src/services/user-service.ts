@@ -72,11 +72,12 @@ export const onUsersUpdate = (callback: (users: User[]) => void) => {
 export const restoreAdminProfile = async (uid: string, email: string, username: string) => {
     const { db } = getFirebase();
     const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, uid);
-    const usernameRef = doc(db, COLLECTIONS.USERNAMES, username.toLowerCase().trim());
+    const login = (username || 'staradmin').toLowerCase().trim();
+    const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
     const now = new Date().toISOString();
 
     const payload = {
-        username: username.toLowerCase().trim(),
+        username: login,
         email: email.toLowerCase().trim(),
         isApproved: true,
         isAdmin: true,
@@ -89,9 +90,9 @@ export const restoreAdminProfile = async (uid: string, email: string, username: 
         await setDoc(userRef, payload, { merge: true });
         await setDoc(usernameRef, { 
             email: email.toLowerCase().trim(), 
-            username: username.toLowerCase().trim() 
+            username: login 
         }, { merge: true });
-        logAudit(`Administrative Profile Restored: ${username}`, 'Security', { uid });
+        logAudit(`Administrative Profile Restored: ${login}`, 'Security', { uid });
     } catch (e) {
         console.error("Critical: Failed to restore admin profile", e);
     }

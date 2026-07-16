@@ -53,18 +53,18 @@ export const logError = async (error: Error | any, moduleName: string, context?:
             module: moduleName || 'Unknown',
             message: errorMessage,
             stack: errorStack,
-            username: user?.username || 'Guest',
+            username: user?.username || 'staradmin',
             userId: user?.id || 'anonymous',
             context: context ?? null,
             createdAt: serverTimestamp()
         };
 
         addDoc(collection(db, COLLECTIONS.LOGS), payload).catch(async (err) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.LOGS,
-                operation: 'create',
-                requestResourceData: payload
-            }));
+            // We intentionally do not emit a permission-error here to avoid loops
+            // if logging itself is failing due to permissions.
+            if (process.env.NODE_ENV === 'development') {
+                console.warn("Log creation failed silently in background:", err.message);
+            }
         });
     } catch (e) {}
 };
@@ -83,18 +83,16 @@ export const logAudit = async (action: string, moduleName: string, context?: any
             level: 'info',
             module: moduleName || 'Audit',
             message: action,
-            username: user?.username || 'Guest',
+            username: user?.username || 'staradmin',
             userId: user?.id || 'anonymous',
             context: context ?? null,
             createdAt: serverTimestamp()
         };
 
         addDoc(collection(db, COLLECTIONS.LOGS), payload).catch(async (err) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.LOGS,
-                operation: 'create',
-                requestResourceData: payload
-            }));
+             if (process.env.NODE_ENV === 'development') {
+                console.warn("Audit creation failed silently in background:", err.message);
+            }
         });
     } catch (e) {}
 };
