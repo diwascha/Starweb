@@ -44,47 +44,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Application Data Collections (Standard access for approved users)
-    match /reports/{id} { allow read, write: if isApproved(); }
-    match /products/{id} { allow read, write: if isApproved(); }
-    match /purchaseOrders/{id} { allow read, write: if isApproved(); }
-    match /rawMaterials/{id} { allow read, write: if isApproved(); }
-    match /employees/{id} { allow read, write: if isApproved(); }
-    match /attendance/{id} { allow read, write: if isApproved(); }
-    match /payroll/{id} { allow read, write: if isApproved(); }
-    match /vehicles/{id} { allow read, write: if isApproved(); }
-    match /drivers/{id} { allow read, write: if isApproved(); }
-    match /policies/{id} { allow read, write: if isApproved(); }
-    match /transactions/{id} { allow read, write: if isApproved(); }
-    match /parties/{id} { allow read, write: if isApproved(); }
-    match /accounts/{id} { allow read, write: if isApproved(); }
-    match /uom/{id} { allow read, write: if isApproved(); }
-    match /destinations/{id} { allow read, write: if isApproved(); }
-    match /trips/{id} { allow read, write: if isApproved(); }
-    match /notes/{id} { allow read, write: if isApproved(); }
-    match /pageVisits/{id} { allow read, write: if isApproved(); }
-    match /tdsCalculations/{id} { allow read, write: if isApproved(); }
-    match /estimatedInvoices/{id} { allow read, write: if isApproved(); }
-    match /cheques/{id} { allow read, write: if isApproved(); }
-    match /expenses/{id} { allow read, write: if isApproved(); }
-    match /logs/{id} { allow read, write: if isApproved(); }
-    match /files/{id} { allow read, write: if isApproved(); }
-    match /rentalProperties/{id} { allow read, write: if isApproved(); }
-    match /rentalUnits/{id} { allow read, write: if isApproved(); }
-    match /rentalAgreements/{id} { allow read, write: if isApproved(); }
-    match /rentalBills/{id} { allow read, write: if isApproved(); }
-    match /raw_machine_logs/{id} { allow read, write: if isApproved(); }
-    match /bonus_ledger/{id} { allow read, write: if isApproved(); }
-    match /bonus_summaries/{id} { allow read, write: if isApproved(); }
-    match /behavior_ledger/{id} { allow read, write: if isApproved(); }
-    match /behavior_analytics/{id} { allow read, write: if isApproved(); }
-    match /hr_shifts/{id} { allow read, write: if isApproved(); }
-    match /public_holidays/{id} { allow read, write: if isApproved(); }
-    match /leave_requests/{id} { allow read, write: if isApproved(); }
+    // Application Data Collections
+    // Pattern: Read allowed for all authenticated, Write restricted to approved
+    match /{collection}/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isApproved();
+    }
 
     // Catch-all recursive safety
     match /{document=**} {
-      allow read, write: if isApproved();
+      allow read: if isAuthenticated();
+      allow write: if isApproved();
     }
   }
 }
