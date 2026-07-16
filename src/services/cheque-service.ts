@@ -1,9 +1,4 @@
 'use client';
-/**
- * @fileOverview Cheque service.
- * Refactored for contextual error handling and non-blocking writes.
- */
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, query, orderBy, updateDoc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
@@ -46,7 +41,6 @@ export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promi
         createdAt: new Date().toISOString(),
     };
     
-    // Non-blocking persistence
     setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'cheques',
@@ -64,7 +58,6 @@ export const updateCheque = async (id: string, cheque: Partial<Omit<Cheque, 'id'
         lastModifiedAt: new Date().toISOString(),
     };
     
-    // Non-blocking update
     updateDoc(chequeDoc, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: chequeDoc.path,
@@ -106,7 +99,6 @@ export const getCheques = async (): Promise<Cheque[]> => {
 export const deleteCheque = async (id: string): Promise<void> => {
     const chequeDoc = doc(getChequesCollection(), id);
     
-    // Non-blocking delete
     deleteDoc(chequeDoc).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: chequeDoc.path,

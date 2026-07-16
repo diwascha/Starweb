@@ -26,8 +26,13 @@ service cloud.firestore {
 
     // --- Identity & Settings ---
 
+    // Allow public read for branding so login/setup works for all users
+    match /settings/companyProfile { allow read: if true; }
+    match /settings/fleetCompanyProfile { allow read: if true; }
+    match /settings/appBranding { allow read: if true; }
+
     match /settings/{settingId} {
-      allow read: if true; 
+      allow read: if isAuthenticated(); 
       allow write: if isAdmin();
     }
 
@@ -50,9 +55,18 @@ service cloud.firestore {
 
     // --- Application Data ---
 
+    match /pageVisits/{pathId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /logs/{logId} {
+      allow read: if isApproved();
+      allow create: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
     match /{document=**} {
       // General rule: Approved users can read/write data. 
-      // Individual services should refine this if granular multi-tenant isolation is needed.
       allow read, write: if isApproved();
     }
   }

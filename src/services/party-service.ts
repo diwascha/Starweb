@@ -1,9 +1,4 @@
 'use client';
-/**
- * @fileOverview Party service for vendors, suppliers, and tenants.
- * Refactored for non-blocking offline writes and robust cache handling.
- */
-
 import { getFirebase } from '@/lib/firebase';
 import { 
     collection, 
@@ -18,13 +13,13 @@ import {
     query, 
     where, 
     limit, 
-    setDoc
+    setDoc,
+    writeBatch
 } from 'firebase/firestore';
 import type { Party, PartyType, AccountOwnership } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { logAudit } from './log-service';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getPartiesCollection = () => {
     const { db } = getFirebase();
@@ -60,7 +55,7 @@ export const getParties = async (): Promise<Party[]> => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: COLLECTIONS.PARTIES,
             operation: 'list',
-        }));
+        } satisfies SecurityRuleContext));
         throw error;
     }
 };
@@ -75,7 +70,7 @@ export const getParty = async (id: string): Promise<Party | null> => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: docRef.path,
             operation: 'get',
-        }));
+        } satisfies SecurityRuleContext));
         return null;
     }
 }
@@ -95,7 +90,7 @@ export const addParty = async (party: Omit<Party, 'id' | 'createdAt'>): Promise<
             path: docRef.path,
             operation: 'create',
             requestResourceData: payload,
-        }));
+        } satisfies SecurityRuleContext));
     });
 
     return id;
@@ -107,7 +102,10 @@ export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => voi
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
-             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.PARTIES, operation: 'list' }));
+             errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+                 path: COLLECTIONS.PARTIES, 
+                 operation: 'list' 
+             } satisfies SecurityRuleContext));
         }
     );
 };
@@ -125,7 +123,7 @@ export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>)
             path: partyDoc.path,
             operation: 'update',
             requestResourceData: payload,
-        }));
+        } satisfies SecurityRuleContext));
     });
 };
 
@@ -133,7 +131,10 @@ export const deleteParty = async (id: string): Promise<void> => {
     if (!id) return;
     const partyDoc = doc(getPartiesCollection(), id);
     deleteDoc(partyDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: partyDoc.path, operation: 'delete' }));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+            path: partyDoc.path, 
+            operation: 'delete' 
+        } satisfies SecurityRuleContext));
     });
 };
 
@@ -143,15 +144,14 @@ export const mergeParties = async (sourceId: string, destinationId: string): Pro
     const destRef = doc(getPartiesCollection(), destinationId);
 
     const sourceSnap = await getDoc(sourceRef);
-    const destSnap = await getDoc(destRef);
-
-    if (!sourceSnap.exists() || !destSnap.exists()) return;
+    if (!sourceSnap.exists()) return;
 
     const batch = writeBatch(db);
     batch.delete(sourceRef);
     batch.commit().catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'merge_batch', operation: 'write' }));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+            path: 'merge_batch', 
+            operation: 'write' 
+        } satisfies SecurityRuleContext));
     });
 };
-
-import { writeBatch } from 'firebase/firestore';

@@ -1,9 +1,4 @@
 'use client';
-/**
- * @fileOverview Usage tracking service.
- * Refactored for contextual error handling and non-blocking writes.
- */
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, setDoc, onSnapshot, increment, serverTimestamp, query, orderBy, getDocs, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { PageVisit } from '@/lib/types';
@@ -38,7 +33,6 @@ export const trackPageVisit = async (path: string) => {
         lastVisited: serverTimestamp()
     };
 
-    // Non-blocking write
     setDoc(docRef, payload, { merge: true }).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: docRef.path,

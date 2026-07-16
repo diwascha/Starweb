@@ -53,7 +53,6 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
         createdAt: new Date().toISOString(),
     };
     
-    // Non-blocking write leveraging native offline persistence
     setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: docRef.path,
@@ -86,7 +85,6 @@ export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMemb
         lastModifiedAt: new Date().toISOString(),
     };
     
-    // Non-blocking write
     updateDoc(policyDoc, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: policyDoc.path,
@@ -99,7 +97,6 @@ export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMemb
 export const deletePolicy = async (id: string): Promise<void> => {
     const policyDoc = doc(getPoliciesCollection(), id);
     
-    // Non-blocking delete
     deleteDoc(policyDoc).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: policyDoc.path,

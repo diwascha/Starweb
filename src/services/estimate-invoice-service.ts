@@ -1,9 +1,4 @@
 'use client';
-/**
- * @fileOverview Estimate Invoice service.
- * Refactored for contextual error handling and non-blocking writes.
- */
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy, getDoc, setDoc } from 'firebase/firestore';
 import type { EstimatedInvoice } from '@/lib/types';
@@ -72,7 +67,6 @@ export const addEstimatedInvoice = async (invoice: Omit<EstimatedInvoice, 'id'>)
         createdAt: new Date().toISOString(),
     };
     
-    // Non-blocking creation
     setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'estimatedInvoices',
@@ -90,7 +84,6 @@ export const updateEstimatedInvoice = async (id: string, invoice: Partial<Omit<E
         lastModifiedAt: new Date().toISOString(),
     };
     
-    // Non-blocking update
     updateDoc(invoiceDoc, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: invoiceDoc.path,
@@ -118,7 +111,6 @@ export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[
 export const deleteEstimatedInvoice = async (id: string): Promise<void> => {
     const invoiceDoc = doc(getInvoicesCollection(), id);
     
-    // Non-blocking delete
     deleteDoc(invoiceDoc).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: invoiceDoc.path,

@@ -3,7 +3,7 @@ import { getFirebase } from '@/lib/firebase';
 import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { AppSetting, CostSetting } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getSettingsCollection = () => {
     const { db } = getFirebase();
@@ -23,7 +23,7 @@ export const getSetting = async (id: string): Promise<AppSetting | null> => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: docRef.path,
             operation: 'get',
-        }));
+        } satisfies SecurityRuleContext));
     }
     return null;
 };
@@ -47,7 +47,7 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: docRef.path,
                 operation: 'get',
-            }));
+            } satisfies SecurityRuleContext));
             callback(null);
         }
     );
@@ -61,7 +61,7 @@ export const setSetting = async (id: string, value: any): Promise<void> => {
             path: docRef.path,
             operation: 'write',
             requestResourceData: { value },
-        }));
+        } satisfies SecurityRuleContext));
     });
 };
 
@@ -75,6 +75,6 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
             path: docRef.path,
             operation: 'update',
             requestResourceData: payload,
-        }));
+        } satisfies SecurityRuleContext));
     });
 };
