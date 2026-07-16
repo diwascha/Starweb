@@ -39,8 +39,17 @@ service cloud.firestore {
     match /system_users/{userId} {
       allow read: if isAdmin() || request.auth.uid == userId;
       allow create: if true; 
-      allow delete: if isAdmin();
-      allow update: if isAdmin() || (
+      
+      // CRITICAL: Prevent deletion of any administrator via the app
+      allow delete: if isAdmin() && resource.data.isAdmin != true;
+      
+      allow update: if (isAdmin() && (
+        // An admin cannot demote themselves or disable their own account to prevent lockout
+        request.auth.uid != userId || (
+            request.resource.data.isAdmin == true && 
+            request.resource.data.isApproved == true
+        )
+      )) || (
         request.auth.uid == userId &&
         request.resource.data.isApproved == resource.data.isApproved &&
         request.resource.data.isAdmin == resource.data.isAdmin

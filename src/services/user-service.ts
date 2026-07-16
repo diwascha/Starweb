@@ -186,7 +186,14 @@ export const getUserById = async (uid: string): Promise<User | null> => {
 
 export const deleteUser = async (userId: string, username?: string) => {
     const { db } = getFirebase();
+    
+    // Safety Check: Avoid deleting the root administrator account via application code
     const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, userId);
+    const userSnap = await getDoc(userRef);
+    
+    if (userSnap.exists() && userSnap.data().isAdmin === true) {
+        throw new Error("Administrative accounts are protected and cannot be deleted through this interface. Please use the Firebase Console if you must remove an administrator.");
+    }
     
     deleteDoc(userRef).catch(err => {
         if (err.code === 'permission-denied') {

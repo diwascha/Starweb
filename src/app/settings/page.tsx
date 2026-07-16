@@ -310,7 +310,7 @@ export default function SettingsPage() {
   const [uomForm, setUomForm] = useState({ name: '', abbreviation: '' });
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [userForm, setUserForm] = useState({ username: '', email: '', isApproved: true, password: '', permissions: {} as Permissions });
+  const [userForm, setUserForm] = useState({ username: '', email: '', isApproved: true, isAdmin: false, password: '', permissions: {} as Permissions });
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [isSubmittingUser, setIsSubmittingUser] = useState(false);
   const [moduleSearch, setModuleSearch] = useState('');
@@ -620,12 +620,13 @@ export default function SettingsPage() {
             username: userToEdit.username, 
             email: userToEdit.email || '', 
             isApproved: userToEdit.isApproved !== false, 
+            isAdmin: !!userToEdit.isAdmin,
             password: '', 
             permissions: freshPermissions
         });
     } else {
         setEditingUser(null);
-        setUserForm({ username: '', email: '', isApproved: true, password: '', permissions: freshPermissions });
+        setUserForm({ username: '', email: '', isApproved: true, isAdmin: false, password: '', permissions: freshPermissions });
     }
     setPasswordError(null);
     setIsUserDialogOpen(true);
@@ -657,7 +658,14 @@ export default function SettingsPage() {
             const authUser = await adminCreateUserWithUsername(auth, userForm.username, userForm.email, userForm.password);
             finalUserId = authUser.uid;
         }
-        await saveUser({ id: finalUserId, username: userForm.username.toLowerCase().trim(), email: userForm.email.toLowerCase().trim(), isApproved: userForm.isApproved, permissions: userForm.permissions });
+        await saveUser({ 
+            id: finalUserId, 
+            username: userForm.username.toLowerCase().trim(), 
+            email: userForm.email.toLowerCase().trim(), 
+            isApproved: userForm.isApproved, 
+            isAdmin: userForm.isAdmin,
+            permissions: userForm.permissions 
+        });
         toast({ title: 'Success', description: `User ${isEditing ? 'updated' : 'onboarded'}.` });
         setIsUserDialogOpen(false);
     } catch (e: any) {
@@ -677,7 +685,7 @@ export default function SettingsPage() {
           await deleteUserService(id, username);
           toast({ title: 'Success', description: 'User deleted.' });
       } catch (e: any) {
-          toast({ title: 'Error', description: 'Failed to delete user.', variant: 'destructive' });
+          toast({ title: 'Error', description: e.message || 'Failed to delete user.', variant: 'destructive' });
       }
   };
   
@@ -858,7 +866,13 @@ export default function SettingsPage() {
                                                         <DropdownMenuSeparator />
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
-                                                                <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Purge User</DropdownMenuItem>
+                                                                <DropdownMenuItem 
+                                                                    onSelect={e => e.preventDefault()} 
+                                                                    disabled={u.isAdmin}
+                                                                    className="text-destructive"
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" /> Purge User
+                                                                </DropdownMenuItem>
                                                             </AlertDialogTrigger>
                                                             <AlertDialogContent>
                                                                 <AlertDialogHeader><AlertDialogTitle>Delete user "{u.username}"?</AlertDialogTitle><AlertDialogDescription>This will immediately terminate all active sessions for this user and remove their username mapping. This action is permanent.</AlertDialogDescription></AlertDialogHeader>
@@ -1104,7 +1118,12 @@ export default function SettingsPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2 pt-2">
-                             <Switch id="user-approved" checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} />
+                             <Switch 
+                                id="user-approved" 
+                                checked={userForm.isApproved} 
+                                disabled={editingUser?.id === user?.id}
+                                onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} 
+                             />
                              <Label htmlFor="user-approved" className="text-xs font-bold uppercase text-gray-700">Administrator Approved (Enable cloud login)</Label>
                         </div>
                     </section>
