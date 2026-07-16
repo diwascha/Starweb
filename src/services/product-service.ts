@@ -1,8 +1,9 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Product, RateHistoryEntry } from '@/lib/types';
-import { logServiceError } from '@/lib/service-utils';
 import { logAudit } from './log-service';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getProductsCollection = () => {
     const { db } = getFirebase();
@@ -30,12 +31,27 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
 }
 
 export const getProducts = async (): Promise<Product[]> => {
-    const snapshot = await getDocs(getProductsCollection());
-    return snapshot.docs.map(fromFirestore);
+    try {
+        const snapshot = await getDocs(getProductsCollection());
+        return snapshot.docs.map(fromFirestore);
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'products',
+            operation: 'list',
+        }));
+        throw error;
+    }
 };
 
 export const addProduct = async (product: Omit<Product, 'id'>): Promise<string> => {
-    const docRef = await addDoc(getProductsCollection(), product);
+    const docRef = await addDoc(getProductsCollection(), product).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'products',
+            operation: 'create',
+            requestResourceData: product,
+        }));
+        throw err;
+    });
     return docRef.id;
 };
 
@@ -44,49 +60,81 @@ export const onProductsUpdate = (callback: (products: Product[]) => void): () =>
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
-        (error) => {
-            logServiceError("onProductsUpdate", error);
+        async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'products',
+                operation: 'list',
+            }));
         }
     );
 };
 
 export const updateProduct = async (id: string, productUpdate: Partial<Omit<Product, 'id'>>): Promise<void> => {
     const productDocRef = doc(getProductsCollection(), id);
-    const productDoc = await getDoc(productDocRef);
-    if (!productDoc.exists()) {
-        throw new Error("Product not found");
-    }
-    const existingProduct = fromFirestore(productDoc as QueryDocumentSnapshot<DocumentData>);
-    
-    const updates: Partial<Product> = { ...productUpdate };
+    try {
+        const productDoc = await getDoc(productDocRef);
+        if (!productDoc.exists()) {
+            throw new Error("Product not found");
+        }
+        const existingProduct = fromFirestore(productDoc as QueryDocumentSnapshot<DocumentData>);
+        
+        const updates: Partial<Product> = { ...productUpdate };
 
-    // If the rate is being updated, log the old one to history
-    if (productUpdate.rate !== undefined && existingProduct.rate !== undefined && productUpdate.rate !== existingProduct.rate) {
-        const newHistoryEntry: RateHistoryEntry = {
-            rate: existingProduct.rate,
-            date: existingProduct.lastModifiedAt || existingProduct.createdAt,
-            setBy: existingProduct.lastModifiedBy || existingProduct.createdBy,
+        if (productUpdate.rate !== undefined && existingProduct.rate !== undefined && productUpdate.rate !== existingProduct.rate) {
+            const newHistoryEntry: RateHistoryEntry = {
+                rate: existingProduct.rate,
+                date: existingProduct.lastModifiedAt || existingProduct.createdAt,
+                setBy: existingProduct.lastModifiedBy || existingProduct.createdBy,
+            };
+            updates.rateHistory = [...(existingProduct.rateHistory || []), newHistoryEntry];
+        }
+        
+        const payload = {
+            ...updates,
+            lastModifiedAt: new Date().toISOString(),
         };
-        updates.rateHistory = [...(existingProduct.rateHistory || []), newHistoryEntry];
-    }
-    
-    await updateDoc(productDocRef, {
-        ...updates,
-        lastModifiedAt: new Date().toISOString(),
-    });
 
-    logAudit(`Product Record Updated: ${existingProduct.name}`, 'Reports', {
-        id,
-        changes: productUpdate
-    });
+        updateDoc(productDocRef, payload).then(() => {
+            logAudit(`Product Record Updated: ${existingProduct.name}`, 'Reports', {
+                id,
+                changes: productUpdate
+            });
+        }).catch(async (err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: productDocRef.path,
+                operation: 'update',
+                requestResourceData: payload,
+            }));
+        });
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: productDocRef.path,
+            operation: 'update',
+        }));
+        throw error;
+    }
 };
 
 
 export const deleteProduct = async (id: string): Promise<void> => {
     const productDoc = doc(getProductsCollection(), id);
-    const snap = await getDoc(productDoc);
-    const name = snap.exists() ? snap.data().name : id;
-    
-    await deleteDoc(productDoc);
-    logAudit(`Product Permanently Deleted: ${name}`, 'Reports', { id });
+    try {
+        const snap = await getDoc(productDoc);
+        const name = snap.exists() ? snap.data().name : id;
+        
+        deleteDoc(productDoc).then(() => {
+            logAudit(`Product Permanently Deleted: ${name}`, 'Reports', { id });
+        }).catch(async (err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: productDoc.path,
+                operation: 'delete',
+            }));
+        });
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: productDoc.path,
+            operation: 'delete',
+        }));
+        throw error;
+    }
 };

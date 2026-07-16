@@ -2,7 +2,9 @@ import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 import type { RentalUnit } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
-import { createTimestamp, logServiceError } from '@/lib/service-utils';
+import { createTimestamp } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getCollection = () => {
     const { db } = getFirebase();
@@ -35,33 +37,65 @@ export const onUnitsUpdate = (callback: (units: RentalUnit[]) => void): () => vo
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     }, (error) => {
-        logServiceError('onUnitsUpdate', error);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.RENTAL_UNITS,
+            operation: 'list',
+        }));
     });
 };
 
 export const getUnitsByProperty = async (propertyId: string): Promise<RentalUnit[]> => {
     const q = query(getCollection(), where('propertyId', '==', propertyId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(fromFirestore);
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(fromFirestore);
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.RENTAL_UNITS,
+            operation: 'list',
+        }));
+        return [];
+    }
 };
 
 export const addUnit = async (unit: Omit<RentalUnit, 'id' | 'createdAt'>): Promise<string> => {
     const now = createTimestamp();
-    const docRef = await addDoc(getCollection(), {
+    const payload = {
         ...unit,
         createdAt: now,
+    };
+    const docRef = await addDoc(getCollection(), payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.RENTAL_UNITS,
+            operation: 'create',
+            requestResourceData: payload,
+        }));
+        throw err;
     });
     return docRef.id;
 };
 
 export const updateUnit = async (id: string, updates: Partial<RentalUnit>): Promise<void> => {
     const docRef = doc(getCollection(), id);
-    await updateDoc(docRef, {
+    const payload = {
         ...updates,
         lastModifiedAt: createTimestamp(),
+    };
+    updateDoc(docRef, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: payload,
+        }));
     });
 };
 
 export const deleteUnit = async (id: string): Promise<void> => {
-    await deleteDoc(doc(getCollection(), id));
+    const docRef = doc(getCollection(), id);
+    deleteDoc(docRef).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'delete',
+        }));
+    });
 };

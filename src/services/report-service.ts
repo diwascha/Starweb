@@ -16,7 +16,8 @@ import {
   FirestoreDataConverter
 } from 'firebase/firestore';
 import type { Report } from '@/lib/types';
-import { logServiceError } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 /**
  * Firestore data converter for the Report type.
@@ -69,15 +70,30 @@ const getReportsCollection = () => {
  * Fetches all reports.
  */
 export const getReports = async (): Promise<Report[]> => {
-  const snapshot = await getDocs(getReportsCollection());
-  return snapshot.docs.map(doc => doc.data());
+  try {
+    const snapshot = await getDocs(getReportsCollection());
+    return snapshot.docs.map(doc => doc.data());
+  } catch (error) {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: 'reports',
+      operation: 'list',
+    }));
+    throw error;
+  }
 };
 
 /**
  * Adds a new report and returns the generated ID.
  */
 export const addReport = async (report: Omit<Report, 'id'>): Promise<string> => {
-  const docRef = await addDoc(getReportsCollection(), report as WithFieldValue<Report>);
+  const docRef = await addDoc(getReportsCollection(), report as WithFieldValue<Report>).catch(async (err) => {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: 'reports',
+      operation: 'create',
+      requestResourceData: report,
+    }));
+    throw err;
+  });
   return docRef.id;
 };
 
@@ -89,8 +105,11 @@ export const onReportsUpdate = (callback: (reports: Report[]) => void): () => vo
     (snapshot) => {
       callback(snapshot.docs.map(doc => doc.data()));
     },
-    (error) => {
-        logServiceError("onReportsUpdate", error);
+    async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: 'reports',
+          operation: 'list',
+        }));
     }
   );
 };
@@ -100,12 +119,19 @@ export const onReportsUpdate = (callback: (reports: Report[]) => void): () => vo
  */
 export const getReport = async (id: string): Promise<Report | null> => {
   if (!id || typeof id !== 'string') {
-    logServiceError("getReport", new Error("Invalid ID: " + id));
     return null;
   }
   const reportDoc = doc(getReportsCollection(), id);
-  const docSnap = await getDoc(reportDoc);
-  return docSnap.exists() ? docSnap.data() : null;
+  try {
+    const docSnap = await getDoc(reportDoc);
+    return docSnap.exists() ? docSnap.data() : null;
+  } catch (error) {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: reportDoc.path,
+      operation: 'get',
+    }));
+    return null;
+  }
 };
 
 /**
@@ -114,16 +140,32 @@ export const getReport = async (id: string): Promise<Report | null> => {
 export const getReportsByProductId = async (productId: string): Promise<Report[]> => {
   if (!productId) return [];
   const q = query(getReportsCollection(), where("product.id", "==", productId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => doc.data());
+  try {
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data());
+  } catch (error) {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: 'reports',
+      operation: 'list',
+    }));
+    return [];
+  }
 };
 
 /**
  * Fetches report serial numbers (optimized for next-serial generation).
  */
 export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'>[]> => {
-  const snapshot = await getDocs(getReportsCollection());
-  return snapshot.docs.map(doc => ({ serialNumber: doc.data().serialNumber }));
+  try {
+    const snapshot = await getDocs(getReportsCollection());
+    return snapshot.docs.map(doc => ({ serialNumber: doc.data().serialNumber }));
+  } catch (error) {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: 'reports',
+      operation: 'list',
+    }));
+    return [];
+  }
 };
 
 /**
@@ -141,7 +183,13 @@ export const updateReport = async (
     lastModifiedAt: new Date().toISOString(),
   };
 
-  await updateDoc(reportDoc, payload);
+  updateDoc(reportDoc, payload).catch(async (err) => {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: reportDoc.path,
+      operation: 'update',
+      requestResourceData: payload,
+    }));
+  });
 };
 
 /**
@@ -150,5 +198,10 @@ export const updateReport = async (
 export const deleteReport = async (id: string): Promise<void> => {
   if (!id) return;
   const reportDoc = doc(getReportsCollection(), id);
-  await deleteDoc(reportDoc);
+  deleteDoc(reportDoc).catch(async (err) => {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: reportDoc.path,
+      operation: 'delete',
+    }));
+  });
 };

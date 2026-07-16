@@ -1,8 +1,9 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, orderBy, query, writeBatch } from 'firebase/firestore';
 import type { NoteItem } from '@/lib/types';
 import { subDays } from 'date-fns';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getNotesCollection = () => {
     const { db } = getFirebase();
@@ -28,14 +29,30 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): NoteItem 
 
 export const getNoteItems = async (): Promise<NoteItem[]> => {
     const q = query(getNotesCollection(), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(fromFirestore);
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(fromFirestore);
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'notes',
+            operation: 'list',
+        }));
+        throw error;
+    }
 };
 
 export const addNoteItem = async (item: Omit<NoteItem, 'id' | 'createdAt'>): Promise<string> => {
-    const docRef = await addDoc(getNotesCollection(), {
+    const payload = {
         ...item,
         createdAt: new Date().toISOString(),
+    };
+    const docRef = await addDoc(getNotesCollection(), payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'notes',
+            operation: 'create',
+            requestResourceData: payload,
+        }));
+        throw err;
     });
     return docRef.id;
 };
@@ -46,23 +63,38 @@ export const onNoteItemsUpdate = (callback: (items: NoteItem[]) => void): () => 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
-        (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Notes):", error.message, error);
+        async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'notes',
+                operation: 'list',
+            }));
         }
     );
 };
 
 export const updateNoteItem = async (id: string, item: Partial<Omit<NoteItem, 'id'>>): Promise<void> => {
     const itemDoc = doc(getNotesCollection(), id);
-    await updateDoc(itemDoc, {
+    const payload = {
         ...item,
         lastModifiedAt: new Date().toISOString(),
+    };
+    updateDoc(itemDoc, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: itemDoc.path,
+            operation: 'update',
+            requestResourceData: payload,
+        }));
     });
 };
 
 export const deleteNoteItem = async (id: string): Promise<void> => {
     const itemDoc = doc(getNotesCollection(), id);
-    await deleteDoc(itemDoc);
+    deleteDoc(itemDoc).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: itemDoc.path,
+            operation: 'delete',
+        }));
+    });
 };
 
 export const cleanupOldItems = async (): Promise<number> => {
@@ -100,7 +132,12 @@ export const cleanupOldItems = async (): Promise<number> => {
         batch.delete(docRef);
     });
 
-    await batch.commit();
+    await batch.commit().catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'notes_cleanup_batch',
+            operation: 'write',
+        }));
+    });
 
     return itemsToDelete.length;
 };

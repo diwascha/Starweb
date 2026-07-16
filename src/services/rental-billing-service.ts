@@ -4,6 +4,8 @@ import type { RentalBill, RentalAgreement, Transaction } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
 import { addTransaction } from './transaction-service';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getCollection = () => {
     const { db } = getFirebase();
@@ -39,7 +41,10 @@ export const onRentalBillsUpdate = (callback: (bills: RentalBill[]) => void): ()
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     }, (error) => {
-        logServiceError('onRentalBillsUpdate', error);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.RENTAL_BILLS,
+            operation: 'list',
+        }));
     });
 };
 
@@ -58,7 +63,6 @@ export const generateRentBill = async (agreement: RentalAgreement, month: number
     if (!existing.empty) throw new Error('Rent already billed for this period.');
 
     // 1. Create Ledger Transaction (Sales)
-    // Debit AR (Tenant), Credit Rental Income
     const txn: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
         date: now,
         type: 'Sales',
@@ -81,7 +85,7 @@ export const generateRentBill = async (agreement: RentalAgreement, month: number
     const txnId = await addTransaction(txn);
 
     // 2. Create Rental Bill Record
-    const bill: Omit<RentalBill, 'id' | 'createdAt'> = {
+    const billData: Omit<RentalBill, 'id' | 'createdAt'> = {
         agreementId: agreement.id,
         tenantId: agreement.tenantId,
         tenantName: agreement.tenantName || 'Tenant',
@@ -99,14 +103,29 @@ export const generateRentBill = async (agreement: RentalAgreement, month: number
         createdBy: generatedBy
     };
 
-    const docRef = await addDoc(getCollection(), {
-        ...bill,
+    const payload = {
+        ...billData,
         createdAt: now,
+    };
+
+    const docRef = await addDoc(getCollection(), payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.RENTAL_BILLS,
+            operation: 'create',
+            requestResourceData: payload,
+        }));
+        throw err;
     });
 
     return docRef.id;
 };
 
 export const deleteRentalBill = async (id: string): Promise<void> => {
-    await deleteDoc(doc(getCollection(), id));
+    const docRef = doc(getCollection(), id);
+    deleteDoc(docRef).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'delete',
+        }));
+    });
 };
