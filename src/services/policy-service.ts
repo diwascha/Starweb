@@ -1,15 +1,16 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
-import type { PolicyOrMembership } from '@/lib/types';
+import type { PolicyOrMembership, SecurityRuleContext } from '@/lib/types';
 import { addExpense } from './expense-service';
 import { logServiceError } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { COLLECTIONS } from '@/lib/constants';
 
 const getPoliciesCollection = () => {
     const { db } = getFirebase();
-    return collection(db, 'policies');
+    return collection(db, COLLECTIONS.POLICIES);
 }
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrMembership => {
@@ -35,19 +36,32 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
 }
 
 export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
-    const snapshot = await getDocs(getPoliciesCollection());
-    return snapshot.docs.map(fromFirestore);
+    const collectionRef = getPoliciesCollection();
+    try {
+        const snapshot = await getDocs(collectionRef);
+        return snapshot.docs.map(fromFirestore);
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: collectionRef.path,
+                operation: 'list',
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw error;
+    }
 }
 
 export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise<string> => {
+    const collectionRef = getPoliciesCollection();
     const payload = {
         ...policy,
         createdAt: new Date().toISOString(),
     };
-    const docRef = await addDoc(getPoliciesCollection(), payload).catch(async (error) => {
+    const docRef = await addDoc(collectionRef, payload).catch(async (error) => {
         if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
-                path: 'policies',
+                path: collectionRef.path,
                 operation: 'create',
                 requestResourceData: payload,
             } satisfies SecurityRuleContext);
