@@ -17,11 +17,13 @@ import {
   CalendarIcon,
   Check,
   ChevronDown,
-  FilterX
+  FilterX,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -118,12 +120,12 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
                             <CommandEmpty>No results found.</CommandEmpty>
                             <CommandGroup>
                                 <CommandItem value="All" onSelect={() => toggleItem('All')} className="text-xs">
-                                    <Check className={cn("mr-2 h-4 w-4", isAll ? "opacity-100" : "opacity-0")} />
+                                    <Check className={cn("mr-2 h-3.5 w-3.5", isAll ? "opacity-100" : "opacity-0")} />
                                     All {placeholder}s
                                 </CommandItem>
                                 {items.map((item: any) => (
                                     <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
-                                        <Check className={cn("mr-2 h-4 w-4", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
+                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
                                         {item.name}
                                     </CommandItem>
                                 ))}
@@ -139,6 +141,11 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
 export default function PurchaseOrdersListPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'poDate',
     direction: 'desc',
@@ -287,7 +294,7 @@ export default function PurchaseOrdersListPage() {
       filtered.sort((a, b) => {
         if (sortConfig.key === 'authorship') {
              const aDate = a.updatedAt || a.createdAt;
-             const bDate = b.updatedAt || b.createdAt;
+             const bDate = b.lastModifiedAt || b.createdAt;
              if (!aDate || !bDate) return 0;
              const res = aDate < bDate ? -1 : 1;
              return sortConfig.direction === 'asc' ? res : -res;
@@ -303,6 +310,17 @@ export default function PurchaseOrdersListPage() {
     }
     return filtered;
   }, [purchaseOrders, sortConfig, searchQuery, filterBsYears, filterBsMonths, filterCompanies, filterStatuses]);
+
+  const paginatedPOs = useMemo(() => {
+    if (itemsPerPage === -1) return filteredAndSortedPOs;
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedPOs.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedPOs, currentPage, itemsPerPage]);
+
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === -1) return 1;
+    return Math.ceil(filteredAndSortedPOs.length / itemsPerPage);
+  }, [filteredAndSortedPOs, itemsPerPage]);
 
   const isFiltered = useMemo(() => {
       return searchQuery !== '' || 
@@ -362,162 +380,219 @@ export default function PurchaseOrdersListPage() {
 
     return (
         <Card>
-            <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('poNumber')} className="text-xs">
-                    PO Number <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('poDate')} className="text-xs">
-                    Date <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('companyName')} className="text-xs">
-                    Company Name <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('status')} className="font-bold text-primary text-xs">
-                    Status <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('authorship')} className="text-xs">
-                        Authorship
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead className="text-right text-xs">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {filteredAndSortedPOs.length > 0 ? (
-                    filteredAndSortedPOs.map(purchaseOrder => (
-                    <TableRow key={purchaseOrder.id}>
-                        <TableCell className="font-medium text-xs">{purchaseOrder.poNumber}</TableCell>
-                        <TableCell className="text-xs">{toNepaliDate(purchaseOrder.poDate)}</TableCell>
-                        <TableCell className="text-xs">{purchaseOrder.companyName}</TableCell>
-                        <TableCell>
-                            {renderStatusBadge(purchaseOrder.status)}
-                        </TableCell>
-                        <TableCell>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-default uppercase font-bold">
-                                            {purchaseOrder.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                            <span>{purchaseOrder.lastModifiedBy || purchaseOrder.createdBy}</span>
-                                        </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p className="text-xs">Created by: {purchaseOrder.createdBy}{purchaseOrder.createdAt ? ` on ${format(new Date(purchaseOrder.createdAt), "PP")}` : ''}</p>
-                                        {purchaseOrder.lastModifiedBy && (
-                                          <p className="text-xs">Modified by: {purchaseOrder.lastModifiedBy}{purchaseOrder.updatedAt ? ` on ${format(new Date(purchaseOrder.updatedAt), "PP")}` : ''}</p>
-                                        )}
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </TableCell>
-                        <TableCell className="text-right">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                            {hasPermission('purchaseOrders', 'view') && (
-                                <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/view?id=${purchaseOrder.id}`)}>
-                                    <View className="mr-2 h-4 w-4" /> View
-                                </DropdownMenuItem>
-                            )}
-                            {hasPermission('purchaseOrders', 'edit') && (
-                                <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit?id=${purchaseOrder.id}`)} disabled={purchaseOrder.status === 'Delivered' || purchaseOrder.status === 'Canceled'}>
-                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                </DropdownMenuItem>
-                            )}
-                             {hasPermission('purchaseOrders', 'view') && (
-                                <DropdownMenuItem onSelect={() => handlePrint(purchaseOrder.id)}>
-                                    <Printer className="mr-2 h-4 w-4" /> Print
-                                </DropdownMenuItem>
-                            )}
-                            
-                            {(hasPermission('purchaseOrders', 'view') || hasPermission('purchaseOrders', 'edit')) &&
-                             (hasPermission('purchaseOrders', 'delete') || hasPermission('purchaseOrders', 'edit')) &&
-                             <DropdownMenuSeparator />
-                            }
+            <CardContent className="p-0">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestSort('poNumber')} className="text-xs">
+                        PO Number <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestSort('poDate')} className="text-xs">
+                        Date <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestSort('companyName')} className="text-xs">
+                        Company Name <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestSort('status')} className="font-bold text-primary text-xs">
+                        Status <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestSort('authorship')} className="text-xs">
+                            Authorship
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead className="text-right text-xs">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {paginatedPOs.length > 0 ? (
+                        paginatedPOs.map(purchaseOrder => (
+                        <TableRow key={purchaseOrder.id}>
+                            <TableCell className="font-medium text-xs">{purchaseOrder.poNumber}</TableCell>
+                            <TableCell className="text-xs">{toNepaliDate(purchaseOrder.poDate)}</TableCell>
+                            <TableCell className="text-xs">{purchaseOrder.companyName}</TableCell>
+                            <TableCell>
+                                {renderStatusBadge(purchaseOrder.status)}
+                            </TableCell>
+                            <TableCell>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-default uppercase font-bold">
+                                                {purchaseOrder.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                <span>{purchaseOrder.lastModifiedBy || purchaseOrder.createdBy}</span>
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p className="text-xs">Created by: {purchaseOrder.createdBy}{purchaseOrder.createdAt ? ` on ${format(new Date(purchaseOrder.createdAt), "PP")}` : ''}</p>
+                                            {purchaseOrder.lastModifiedBy && (
+                                              <p className="text-xs">Modified by: {purchaseOrder.lastModifiedBy}{purchaseOrder.updatedAt ? ` on ${format(new Date(purchaseOrder.updatedAt), "PP")}` : ''}</p>
+                                            )}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </TableCell>
+                            <TableCell className="text-right">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                {hasPermission('purchaseOrders', 'view') && (
+                                    <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/view?id=${purchaseOrder.id}`)}>
+                                        <View className="mr-2 h-4 w-4" /> View
+                                    </DropdownMenuItem>
+                                )}
+                                {hasPermission('purchaseOrders', 'edit') && (
+                                    <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit?id=${purchaseOrder.id}`)} disabled={purchaseOrder.status === 'Delivered' || purchaseOrder.status === 'Canceled'}>
+                                        <Edit className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                )}
+                                 {hasPermission('purchaseOrders', 'view') && (
+                                    <DropdownMenuItem onSelect={() => handlePrint(purchaseOrder.id)}>
+                                        <Printer className="mr-2 h-4 w-4" /> Print
+                                    </DropdownMenuItem>
+                                )}
+                                
+                                {(hasPermission('purchaseOrders', 'view') || hasPermission('purchaseOrders', 'edit')) &&
+                                 (hasPermission('purchaseOrders', 'delete') || hasPermission('purchaseOrders', 'edit')) &&
+                                 <DropdownMenuSeparator />
+                                }
 
-                            {hasPermission('purchaseOrders', 'edit') && (
-                                <>
-                                    {purchaseOrder.status !== 'Delivered' ? (
-                                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(purchaseOrder)} disabled={purchaseOrder.status === 'Canceled'}>
-                                            <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
-                                        </DropdownMenuItem>
-                                    ) : (
-                                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(purchaseOrder)}>
-                                            <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Date
-                                        </DropdownMenuItem>
-                                    )}
+                                {hasPermission('purchaseOrders', 'edit') && (
+                                    <>
+                                        {purchaseOrder.status !== 'Delivered' ? (
+                                            <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(purchaseOrder)} disabled={purchaseOrder.status === 'Canceled'}>
+                                                <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
+                                            </DropdownMenuItem>
+                                        ) : (
+                                            <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(purchaseOrder)}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Date
+                                            </DropdownMenuItem>
+                                        )}
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem onSelect={e => e.preventDefault()} disabled={purchaseOrder.status === 'Delivered' || purchaseOrder.status === 'Canceled'} className="text-destructive focus:text-destructive">
+                                                    <Ban className="mr-2 h-4 w-4" /> Cancel Order
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure you want to cancel this order?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This action will mark PO #{purchaseOrder.poNumber} as Canceled. This action cannot be reversed.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Go Back</AlertDialogCancel>
+                                                    <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => updatePurchaseOrderStatus(purchaseOrder.id, 'Canceled')}>Confirm Cancellation</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </>
+                                )}
+                                
+                                {hasPermission('purchaseOrders', 'delete') && hasPermission('purchaseOrders', 'edit') && <DropdownMenuSeparator />}
+                                
+                                {hasPermission('purchaseOrders', 'delete') && (
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={e => e.preventDefault()} disabled={purchaseOrder.status === 'Delivered' || purchaseOrder.status === 'Canceled'} className="text-destructive focus:text-destructive">
-                                                <Ban className="mr-2 h-4 w-4" /> Cancel Order
-                                            </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                            <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                            <span className="text-destructive">Delete</span>
+                                        </DropdownMenuItem>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you sure you want to cancel this order?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This action will mark PO #{purchaseOrder.poNumber} as Canceled. This action cannot be reversed.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Go Back</AlertDialogCancel>
-                                                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => updatePurchaseOrderStatus(purchaseOrder.id, 'Canceled')}>Confirm Cancellation</AlertDialogAction>
-                                            </AlertDialogFooter>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete the purchase order.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeletePurchaseOrder(purchaseOrder.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
-                                </>
-                            )}
-                            
-                            {hasPermission('purchaseOrders', 'delete') && hasPermission('purchaseOrders', 'edit') && <DropdownMenuSeparator />}
-                            
-                            {hasPermission('purchaseOrders', 'delete') && (
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                        <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                        <span className="text-destructive">Delete</span>
-                                    </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the purchase order.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeletePurchaseOrder(purchaseOrder.id)}>Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        </TableCell>
-                    </TableRow>
-                    ))
-                ) : (
-                    <TableRow>
-                        <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                            No orders found for the selected period and filters.
-                        </TableCell>
-                    </TableRow>
-                )}
-            </TableBody>
-            </Table>
+                                )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                                No orders found for the selected period and filters.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+                </Table>
+            </CardContent>
+            {(totalPages > 1 || itemsPerPage !== -1) && (
+                <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        {itemsPerPage === -1 ? (
+                            <>Showing all <span className="font-bold text-foreground">{filteredAndSortedPOs.length}</span> orders</>
+                        ) : (
+                            <>
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedPOs.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedPOs.length}</span> orders
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                setItemsPerPage(parseInt(v));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="-1">All</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {itemsPerPage !== -1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </CardFooter>
+            )}
         </Card>
     );
   };
