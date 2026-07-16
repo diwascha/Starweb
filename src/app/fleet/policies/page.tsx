@@ -668,7 +668,7 @@ export default function PoliciesPage() {
                                 <Label htmlFor="type">Type</Label>
                                  <Popover open={isTypePopoverOpen} onOpenChange={setIsTypePopoverOpen}>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" role="combobox" className="w-full justify-between">
+                                        <Button variant="outline" role="combobox" className="w-full justify-between h-10">
                                             {formState.type || "Select or type..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
@@ -703,7 +703,7 @@ export default function PoliciesPage() {
                                 <Label htmlFor="provider">Provider</Label>
                                  <Popover open={isProviderPopoverOpen} onOpenChange={setIsProviderPopoverOpen}>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" role="combobox" className="w-full justify-between">
+                                        <Button variant="outline" role="combobox" className="w-full justify-between h-10">
                                             {formState.provider || "Select or type..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
@@ -758,7 +758,8 @@ export default function PoliciesPage() {
                                         {formState.memberType === 'Vehicle' ? (
                                             vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
                                         ) : (
-                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -768,7 +769,7 @@ export default function PoliciesPage() {
                                 <Label htmlFor="startDate">Start Date</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.startDate && "text-muted-foreground")}>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal h-10", !formState.startDate && "text-muted-foreground")}>
                                         <CalendarIcon className="mr-2 h-4 w-4" />
                                         {formState.startDate ? `${toNepaliDate(formState.startDate)} BS (${format(new Date(formState.startDate), "PPP")})` : <span>Pick a date</span>}
                                         </Button>
@@ -782,7 +783,7 @@ export default function PoliciesPage() {
                                 <Label htmlFor="endDate">End Date</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.endDate && "text-muted-foreground")}>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal h-10", !formState.endDate && "text-muted-foreground")}>
                                         <CalendarIcon className="mr-2 h-4 w-4" />
                                         {formState.endDate ? `${toNepaliDate(formState.endDate)} BS (${format(new Date(formState.endDate), "PPP")})` : <span>Pick a date</span>}
                                         </Button>
