@@ -1,7 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
-import type { AppSetting, CostSetting, CostSettingHistoryEntry } from '@/lib/types';
+import type { AppSetting, CostSetting } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 

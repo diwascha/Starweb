@@ -1,9 +1,9 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, setDoc } from 'firebase/firestore';
 import type { Account, AccountType, AccountOwnership, BankAccountType } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getAccountsCollection = () => {
     const { db } = getFirebase();
@@ -95,5 +95,3 @@ export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () =>
         }
     );
 };
-
-import { setDoc } from 'firebase/firestore';

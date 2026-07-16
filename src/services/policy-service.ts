@@ -1,9 +1,9 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, setDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, setDoc, query, orderBy } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 import { COLLECTIONS } from '@/lib/constants';
 
 const getPoliciesCollection = () => {
@@ -63,14 +63,14 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
 };
 
 export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => void): () => void => {
-    const collectionRef = getPoliciesCollection();
-    return onSnapshot(collectionRef, 
+    const q = query(getPoliciesCollection(), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: collectionRef.path,
+                path: COLLECTIONS.POLICIES,
                 operation: 'list',
             }));
         }

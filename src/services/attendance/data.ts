@@ -1,3 +1,4 @@
+'use client';
 import { getFirebase } from '@/lib/firebase';
 import { 
     collection, 
@@ -88,7 +89,7 @@ export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () =
         callback(snapshot.docs.map(fromFirestoreLog));
     }, async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: collectionRef.path,
+            path: 'raw_machine_logs',
             operation: 'list'
         }));
     });
@@ -100,7 +101,7 @@ export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => vo
         callback(snapshot.docs.map(fromFirestoreRecord));
     }, async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: collectionRef.path,
+            path: COLLECTIONS.ATTENDANCE,
             operation: 'list'
         }));
     });
@@ -136,7 +137,7 @@ export const deleteRawLogsForMonth = async (year: number, month: number) => {
     const snap = await getDocs(q);
     const batch = writeBatch(db);
     snap.forEach(d => batch.delete(d.ref));
-    await batch.commit().catch(async (err) => {
+    batch.commit().catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'raw_machine_logs_batch_delete',
             operation: 'write'
@@ -160,7 +161,7 @@ export const deleteAttendanceForMonth = async (year: number, month: number) => {
     const snap = await getDocs(q);
     const batch = writeBatch(db);
     snap.forEach(d => batch.delete(d.ref));
-    await batch.commit().catch(async (err) => {
+    batch.commit().catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'attendance_batch_delete',
             operation: 'write'
@@ -174,7 +175,7 @@ export const deleteAllRawLogs = async (): Promise<void> => {
     if (snap.empty) return;
     const batch = writeBatch(db);
     snap.docs.forEach(d => batch.delete(d.ref));
-    await batch.commit().catch(async (err) => {
+    batch.commit().catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'raw_machine_logs_purge',
             operation: 'write'
@@ -192,7 +193,7 @@ export const deleteAllAttendance = async (): Promise<void> => {
     ]);
     const batch = writeBatch(db);
     snaps.forEach(snap => snap.forEach(d => batch.delete(d.ref)));
-    await batch.commit().catch(async (err) => {
+    batch.commit().catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'attendance_system_purge',
             operation: 'write'
