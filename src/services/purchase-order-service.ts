@@ -1,6 +1,6 @@
 /**
  * @fileOverview Purchase Order service.
- * Standardized with contextual error handling and non-blocking writes.
+ * Refactored for contextual error handling and non-blocking writes.
  */
 
 import { getFirebase } from '@/lib/firebase';
@@ -10,7 +10,7 @@ import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 import { logAudit } from './log-service';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getPurchaseOrdersCollection = () => {
     const { db } = getFirebase();
@@ -48,7 +48,10 @@ export const getPurchaseOrders = async (): Promise<PurchaseOrder[]> => {
         const snapshot = await getDocs(getPurchaseOrdersCollection());
         return snapshot.docs.map(fromFirestore);
     } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.PURCHASE_ORDERS, operation: 'list' }));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+            path: COLLECTIONS.PURCHASE_ORDERS, 
+            operation: 'list' 
+        } satisfies SecurityRuleContext));
         throw error;
     }
 };
@@ -64,6 +67,7 @@ export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<s
         updatedAt: now,
     };
 
+    // Non-blocking persistence
     setDoc(docRef, payload).then(() => {
         logAudit(`New Purchase Order Created: ${po.poNumber}`, 'Procurement', { status: po.status });
     }).catch(async (err) => {
@@ -71,7 +75,7 @@ export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<s
             path: docRef.path,
             operation: 'create',
             requestResourceData: payload,
-        }));
+        } satisfies SecurityRuleContext));
     });
 
     return id;
@@ -83,7 +87,10 @@ export const onPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.PURCHASE_ORDERS, operation: 'list' }));
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+                path: COLLECTIONS.PURCHASE_ORDERS, 
+                operation: 'list' 
+            } satisfies SecurityRuleContext));
         }
     );
 };
@@ -98,7 +105,10 @@ export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null
         }
         return null;
     } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: poDoc.path, operation: 'get' }));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+            path: poDoc.path, 
+            operation: 'get' 
+        } satisfies SecurityRuleContext));
         return null;
     }
 };
@@ -107,6 +117,7 @@ export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<Pur
     if (!id) return;
     const poDocRef = doc(getPurchaseOrdersCollection(), id);
     
+    // We fetch the current state once to build the version history
     getDoc(poDocRef).then(async (poSnap) => {
         if (poSnap.exists()) {
             const currentData = poSnap.data() as PurchaseOrder;
@@ -132,6 +143,7 @@ export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<Pur
             const updatedVersions = [...(currentData.versions || []), newVersion];
             const payload = { ...poUpdate, versions: updatedVersions, updatedAt: now };
 
+            // Non-blocking update
             updateDoc(poDocRef, payload).then(() => {
                 logAudit(`Purchase Order Modified: ${currentData.poNumber}`, 'Procurement', { id, isAmendment: !currentData.isDraft });
             }).catch(async (err) => {
@@ -139,7 +151,7 @@ export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<Pur
                     path: poDocRef.path,
                     operation: 'update',
                     requestResourceData: payload,
-                }));
+                } satisfies SecurityRuleContext));
             });
         }
     });
@@ -148,7 +160,12 @@ export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<Pur
 export const deletePurchaseOrder = async (id: string): Promise<void> => {
     if (!id) return;
     const poDoc = doc(getPurchaseOrdersCollection(), id);
+    
+    // Non-blocking delete
     deleteDoc(poDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: poDoc.path, operation: 'delete' }));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+            path: poDoc.path, 
+            operation: 'delete' 
+        } satisfies SecurityRuleContext));
     });
 };

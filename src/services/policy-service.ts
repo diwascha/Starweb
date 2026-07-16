@@ -3,7 +3,7 @@ import { getFirebase } from '@/lib/firebase';
 import { collection, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, setDoc, query, orderBy } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { COLLECTIONS } from '@/lib/constants';
 
 const getPoliciesCollection = () => {
@@ -15,16 +15,16 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
     const data = snapshot.data();
     return {
         id: snapshot.id,
-        type: data.type,
-        provider: data.provider,
-        policyNumber: data.policyNumber,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        cost: data.cost,
-        memberId: data.memberId,
-        memberType: data.memberType,
-        createdBy: data.createdBy,
-        createdAt: data.createdAt,
+        type: data.type || 'Insurance',
+        provider: data.provider || '',
+        policyNumber: data.policyNumber || '',
+        startDate: data.startDate || new Date().toISOString(),
+        endDate: data.endDate || new Date().toISOString(),
+        cost: Number(data.cost) || 0,
+        memberId: data.memberId || '',
+        memberType: data.memberType || 'Vehicle',
+        createdBy: data.createdBy || 'System',
+        createdAt: data.createdAt || new Date().toISOString(),
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
         status: data.status || 'Active',
@@ -47,17 +47,19 @@ export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
 }
 
 export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise<string> => {
+    const docRef = doc(getPoliciesCollection());
     const payload = {
         ...policy,
         createdAt: new Date().toISOString(),
     };
-    const docRef = doc(getPoliciesCollection());
+    
+    // Non-blocking write leveraging native offline persistence
     setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.POLICIES,
+            path: docRef.path,
             operation: 'create',
             requestResourceData: payload,
-        }));
+        } satisfies SecurityRuleContext));
     });
     return docRef.id;
 };
@@ -72,7 +74,7 @@ export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => v
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: COLLECTIONS.POLICIES,
                 operation: 'list',
-            }));
+            } satisfies SecurityRuleContext));
         }
     );
 };
@@ -83,21 +85,25 @@ export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMemb
         ...policy,
         lastModifiedAt: new Date().toISOString(),
     };
+    
+    // Non-blocking write
     updateDoc(policyDoc, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: policyDoc.path,
             operation: 'update',
             requestResourceData: payload,
-        }));
+        } satisfies SecurityRuleContext));
     });
 };
 
 export const deletePolicy = async (id: string): Promise<void> => {
     const policyDoc = doc(getPoliciesCollection(), id);
+    
+    // Non-blocking delete
     deleteDoc(policyDoc).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: policyDoc.path,
             operation: 'delete',
-        }));
+        } satisfies SecurityRuleContext));
     });
 };

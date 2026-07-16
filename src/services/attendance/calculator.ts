@@ -7,51 +7,27 @@ import {
     query, 
     where, 
 } from 'firebase/firestore';
-import { startOfDay, isEqual, isWithinInterval, format, roundToNearestMinutes, startOfWeek } from 'date-fns';
-import type { AttendanceRecord, HrConfig, HrShift } from '@/lib/types';
-import NepaliDate from 'nepali-date-converter';
+import { startOfDay, isEqual, isWithinInterval, format } from 'date-fns';
+import type { AttendanceRecord, HrConfig } from '@/lib/types';
 import { getEmployees } from '../employee-service';
 import { getHolidays, getLeaveRequests } from '../hr-admin-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 import { getSetting } from '../settings-service';
 import { getAttendanceCollection, getRawLogsCollection, fromFirestoreLog } from './data';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
-/**
- * Converts a time string (HH:mm:ss) into the total number of minutes from midnight.
- * 
- * @param time - Standard time string.
- * @returns Minutes as a number.
- */
 const timeToMinutes = (time: string): number => {
     const [h, m, s] = time.split(':').map(Number);
     return Math.round(((h || 0) * 3600 + (m || 0) * 60 + (s || 0)) / 60);
 };
 
-/**
- * Rounds a numeric value to the nearest multiple of a step.
- * Used for standardizing overtime hours to 0.5hr blocks.
- * 
- * @param value - Raw decimal value.
- * @param step - Rounding increment (e.g., 0.5).
- * @returns Rounded value.
- */
 const roundToNearest = (value: number, step: number): number => {
     if (step <= 0) return value;
     return Math.round(value / step) * step;
 };
 
-/**
- * Calculates paid duration by subtracting a fixed break period from a shift duration.
- * Ensures that breaks are only deducted if the shift crosses the break window and
- * exceeds a minimum duration threshold (4 hours).
- * 
- * @param startMins - Actual start time in minutes.
- * @param endMins - Actual end time in minutes.
- * @param breakStartMins - Configured break start.
- * @param breakEndMins - Configured break end.
- * @returns Paid hours as a decimal.
- */
 const applyFixedBreak = (startMins: number, endMins: number, breakStartMins: number, breakEndMins: number): number => {
     const duration = endMins - startMins;
     if (duration <= 0) return 0;
@@ -63,20 +39,6 @@ const applyFixedBreak = (startMins: number, endMins: number, breakStartMins: num
     return finalMins / 60;
 };
 
-/**
- * The core attendance logic engine. 
- * Transforms raw machine logs into validated work-hour records by applying:
- * 1. Grace Period & Late Penalties
- * 2. Overtime Calculation
- * 3. Holiday/Leave Exceptions
- * 4. Saturday Rules
- * 
- * @param year - Target BS Year.
- * @param month - Target BS Month (0-indexed).
- * @param calculatedBy - Username of the operator.
- * @returns Promise resolving to the number of records processed.
- * @throws Error if HR Operational Rules are missing.
- */
 export const runHourlyCalculation = async (year: number, month: number, calculatedBy: string): Promise<{ processed: number }> => {
     const { db } = getFirebase();
     const configSetting = await getSetting('hr_config');
@@ -87,14 +49,22 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const breakEndMins = config.hours.breakEnd ? timeToMinutes(config.hours.breakEnd) : 13 * 60;
 
     const qRaw = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
-    const rawSnap = await getDocs(qRaw);
+    const rawSnap = await getDocs(qRaw).catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'raw_machine_logs', operation: 'list' }));
+        throw err;
+    });
+    
     if (rawSnap.empty) throw new Error("No raw machine logs found for selected period.");
 
     const [employees, holidays, leaveRequests] = await Promise.all([getEmployees(), getHolidays(), getLeaveRequests()]);
     const employeeMap = new Map(employees.map(e => [e.name.toLowerCase().trim(), e]));
     
     const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
-    const processedSnap = await getDocs(qProcessed);
+    const processedSnap = await getDocs(qProcessed).catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ATTENDANCE, operation: 'list' }));
+        throw err;
+    });
+
     if (!processedSnap.empty) {
         const deleteBatch = writeBatch(db);
         processedSnap.forEach(d => deleteBatch.delete(d.ref));
@@ -144,7 +114,11 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     for (let i = 0; i < results.length; i += CHUNK) {
         const batch = writeBatch(db);
         results.slice(i, i + CHUNK).forEach(r => batch.set(doc(getAttendanceCollection()), r));
-        await batch.commit();
+        // Note: Batch commit is one of the few places we await to ensure sequential integrity in long tasks
+        await batch.commit().catch(err => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ATTENDANCE, operation: 'write' }));
+            throw err;
+        });
     }
     return { processed: results.length };
 };

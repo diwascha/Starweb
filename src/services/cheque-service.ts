@@ -1,9 +1,14 @@
 'use client';
+/**
+ * @fileOverview Cheque service.
+ * Refactored for contextual error handling and non-blocking writes.
+ */
+
 import { getFirebase } from '@/lib/firebase';
 import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, query, orderBy, updateDoc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getChequesCollection = () => {
     const { db } = getFirebase();
@@ -14,20 +19,20 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
     const data = snapshot.data();
     return {
         id: snapshot.id,
-        voucherNo: data.voucherNo,
+        voucherNo: String(data.voucherNo || ''),
         paymentDate: data.paymentDate,
         invoiceDate: data.invoiceDate,
         invoiceNumber: data.invoiceNumber,
-        partyName: data.partyName,
-        payeeName: data.payeeName,
-        amount: data.amount,
-        amountInWords: data.amountInWords,
+        partyName: String(data.partyName || ''),
+        payeeName: String(data.payeeName || ''),
+        amount: Number(data.amount) || 0,
+        amountInWords: String(data.amountInWords || ''),
         accountId: data.accountId,
         splits: (data.splits || []).map((split: any) => ({
             ...split,
             remarks: split.remarks || '',
         })),
-        createdBy: data.createdBy,
+        createdBy: String(data.createdBy || 'System'),
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
@@ -35,17 +40,19 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
 }
 
 export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promise<string> => {
+    const docRef = doc(getChequesCollection());
     const payload = {
         ...cheque,
         createdAt: new Date().toISOString(),
     };
-    const docRef = doc(getChequesCollection());
+    
+    // Non-blocking persistence
     setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'cheques',
             operation: 'create',
             requestResourceData: payload,
-        }));
+        } satisfies SecurityRuleContext));
     });
     return docRef.id;
 };
@@ -56,12 +63,14 @@ export const updateCheque = async (id: string, cheque: Partial<Omit<Cheque, 'id'
         ...cheque,
         lastModifiedAt: new Date().toISOString(),
     };
+    
+    // Non-blocking update
     updateDoc(chequeDoc, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: chequeDoc.path,
             operation: 'update',
             requestResourceData: payload,
-        }));
+        } satisfies SecurityRuleContext));
     });
 };
 
@@ -75,7 +84,7 @@ export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => vo
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'cheques',
                 operation: 'list',
-            }));
+            } satisfies SecurityRuleContext));
         }
     );
 };
@@ -89,17 +98,19 @@ export const getCheques = async (): Promise<Cheque[]> => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'cheques',
             operation: 'list',
-        }));
+        } satisfies SecurityRuleContext));
         throw error;
     }
 }
 
 export const deleteCheque = async (id: string): Promise<void> => {
     const chequeDoc = doc(getChequesCollection(), id);
+    
+    // Non-blocking delete
     deleteDoc(chequeDoc).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: chequeDoc.path,
             operation: 'delete',
-        }));
+        } satisfies SecurityRuleContext));
     });
 };
