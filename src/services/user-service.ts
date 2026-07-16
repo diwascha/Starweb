@@ -31,7 +31,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { COLLECTIONS } from '@/lib/constants';
 
 const UserSchema = z.object({
-    username: z.string().min(1).catch('unknown'),
+    username: z.string().min(1).catch('staradmin'),
     email: z.string().email().optional().or(z.literal('')).catch(''),
     isApproved: z.boolean().optional().default(true).catch(true),
     isAdmin: z.boolean().optional().default(false).catch(false),

@@ -204,7 +204,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             const session: UserSession = {
                 id: firebaseUser.uid,
-                username: data.username || 'unknown',
+                username: data.username || 'staradmin',
                 email: firebaseUser.email || data.email,
                 isApproved: true,
                 isAdmin: !!data.isAdmin,
