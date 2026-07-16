@@ -51,10 +51,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
@@ -70,7 +70,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
 import { uploadFile, deleteFile } from '@/services/storage-service';
-import { Avatar, AvatarFallback, AvatarImage } from '@/avatar-placeholder';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -266,14 +266,15 @@ export default function EmployeesPage() {
           name: formState.name.trim(),
           wageAmount: parseFloat(formState.wageAmount) || 0,
           allowance: parseFloat(formState.allowance) || 0,
+          bloodGroup: formState.bloodGroup || undefined,
           photoURL: photoURL,
       };
 
       if (editingEmployee) {
-        await updateEmployee(editingEmployee.id, { ...employeeData, lastModifiedBy: user.username });
+        await updateEmployee(editingEmployee.id, { ...employeeData, lastModifiedBy: user.username } as any);
         toast({ title: 'Employee Updated' });
       } else {
-        await addEmployee({ ...employeeData, createdBy: user.username, createdAt: new Date().toISOString() });
+        await addEmployee({ ...employeeData, createdBy: user.username, createdAt: new Date().toISOString() } as any);
         toast({ title: 'New Employee Added' });
       }
       setIsEmployeeDialogOpen(false);

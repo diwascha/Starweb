@@ -224,7 +224,7 @@ export default function HrOfficePage() {
         if (!employee) return;
         const totalDays = differenceInDays(new Date(leaveForm.endDate), new Date(leaveForm.startDate)) + 1;
         try {
-            await saveLeaveRequest({ ...leaveForm, employeeName: employee.name, totalDays, status: 'Pending', createdBy: user.username } as any);
+            await saveLeaveRequest({ ...leaveForm, employeeName: employee.name, totalDays, status: 'Pending', createdBy: user.username, createdAt: createTimestamp() } as any);
             toast({ title: 'Leave Request Logged' });
             setIsLeaveDialogOpen(false);
         } catch {
