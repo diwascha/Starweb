@@ -4,6 +4,8 @@ import { getFirebase } from '@/lib/firebase';
 import { collection, doc, setDoc, onSnapshot, increment, serverTimestamp, query, orderBy, getDocs, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { PageVisit } from '@/lib/types';
 import { getNormalizedPath } from '@/lib/utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getUsageCollection = () => {
     const { db } = getFirebase();
@@ -22,30 +24,45 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PageVisit
 
 export const trackPageVisit = async (path: string) => {
     const { db } = getFirebase();
-    
-    // Double-ensure normalization for storage consistency
     const normalizedPath = getNormalizedPath(path);
-    
-    // Use encoded path as ID to avoid issues with slashes, but keep path field readable
     const pathId = normalizedPath.replace(/\//g, '_') || 'home';
     const docRef = doc(getUsageCollection(), pathId);
     
-    await setDoc(docRef, {
+    setDoc(docRef, {
         path: normalizedPath,
         count: increment(1),
         lastVisited: serverTimestamp()
-    }, { merge: true });
+    }, { merge: true }).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'write',
+            requestResourceData: { path: normalizedPath }
+        }));
+    });
 };
 
 export const onPageVisitsUpdate = (callback: (visits: PageVisit[]) => void): () => void => {
     const q = query(getUsageCollection(), orderBy('count', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'pageVisits',
+            operation: 'list'
+        }));
     });
 };
 
 export const getPageVisits = async (): Promise<PageVisit[]> => {
     const q = query(getUsageCollection(), orderBy('count', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(fromFirestore);
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(fromFirestore);
+    } catch (err) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'pageVisits',
+            operation: 'list'
+        }));
+        throw err;
+    }
 };

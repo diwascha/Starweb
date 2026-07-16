@@ -1,12 +1,10 @@
 'use client';
-/**
- * @fileOverview Logging service for capturing system exceptions and telemetry.
- * Optimized to handle offline states gracefully by allowing Firestore to queue logs.
- */
 
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { COLLECTIONS } from '@/lib/constants';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export interface SystemLog {
     id: string;
@@ -37,28 +35,19 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): SystemLog
     };
 };
 
-/**
- * Logs an error to Firestore. 
- * Because persistent cache is enabled, this will save locally if offline
- * and sync to the cloud later.
- */
 export const logError = async (error: Error | any, moduleName: string, context?: any) => {
     try {
         const { db } = getFirebase();
-        
         let user = null;
         try {
             const userSession = typeof window !== 'undefined' ? localStorage.getItem('user_session') : null;
             user = userSession ? JSON.parse(userSession) : null;
-        } catch (e) {
-            // Silently fail session parsing
-        }
+        } catch (e) {}
 
         const errorMessage = error?.message || (typeof error === 'string' ? error : 'Unknown Error');
         const errorStack = error?.stack || null;
 
-        // addDoc will work offline and sync automatically
-        await addDoc(collection(db, COLLECTIONS.LOGS), {
+        const payload = {
             timestamp: new Date().toISOString(),
             level: 'error',
             module: moduleName || 'Unknown',
@@ -68,30 +57,28 @@ export const logError = async (error: Error | any, moduleName: string, context?:
             userId: user?.id || 'anonymous',
             context: context ?? null,
             createdAt: serverTimestamp()
+        };
+
+        addDoc(collection(db, COLLECTIONS.LOGS), payload).catch(async (err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.LOGS,
+                operation: 'create',
+                requestResourceData: payload
+            }));
         });
-    } catch (e) {
-        // Absolute fallback to prevent recursion in error handling
-        if (process.env.NODE_ENV === 'development') {
-            console.error("Critical: Logger Failure", e, "Original Error:", error);
-        }
-    }
+    } catch (e) {}
 };
 
-/**
- * Records an administrative or security audit log.
- * Provides forensic evidence of critical operations.
- */
 export const logAudit = async (action: string, moduleName: string, context?: any) => {
     try {
         const { db } = getFirebase();
-        
         let user = null;
         try {
             const userSession = typeof window !== 'undefined' ? localStorage.getItem('user_session') : null;
             user = userSession ? JSON.parse(userSession) : null;
         } catch (e) {}
 
-        await addDoc(collection(db, COLLECTIONS.LOGS), {
+        const payload = {
             timestamp: new Date().toISOString(),
             level: 'info',
             module: moduleName || 'Audit',
@@ -100,28 +87,27 @@ export const logAudit = async (action: string, moduleName: string, context?: any
             userId: user?.id || 'anonymous',
             context: context ?? null,
             createdAt: serverTimestamp()
+        };
+
+        addDoc(collection(db, COLLECTIONS.LOGS), payload).catch(async (err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.LOGS,
+                operation: 'create',
+                requestResourceData: payload
+            }));
         });
-    } catch (e) {
-        if (process.env.NODE_ENV === 'development') {
-            console.error("Critical: Audit Logger Failure", e);
-        }
-    }
+    } catch (e) {}
 };
 
-/**
- * Real-time listener for logs (for settings dashboard).
- */
 export const onLogsUpdate = (callback: (logs: SystemLog[]) => void) => {
-    try {
-        const { db } = getFirebase();
-        const q = query(collection(db, COLLECTIONS.LOGS), orderBy('createdAt', 'desc'), limit(50));
-        return onSnapshot(q, (snapshot) => {
-            callback(snapshot.docs.map(fromFirestore));
-        });
-    } catch (e) {
-        if (process.env.NODE_ENV === 'development') {
-            console.error("Failed to subscribe to logs", e);
-        }
-        return () => {};
-    }
+    const { db } = getFirebase();
+    const q = query(collection(db, COLLECTIONS.LOGS), orderBy('createdAt', 'desc'), limit(50));
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    }, async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.LOGS,
+            operation: 'list'
+        }));
+    });
 };

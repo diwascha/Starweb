@@ -15,7 +15,6 @@ import {
 } from 'firebase/firestore';
 import type { AttendanceRecord, RawMachineLog } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
-import { logServiceError, coerceNumber } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -86,27 +85,47 @@ export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () =
     const q = query(getRawLogsCollection(), orderBy('importedAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestoreLog));
-    }, (error) => {
-        logServiceError('onRawLogsUpdate', error);
+    }, async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'raw_machine_logs',
+            operation: 'list'
+        }));
     });
 };
 
 export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
     return onSnapshot(getAttendanceCollection(), (snapshot) => {
         callback(snapshot.docs.map(fromFirestoreRecord));
-    }, (error) => {
-        logServiceError('onAttendanceUpdate', error);
+    }, async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.ATTENDANCE,
+            operation: 'list'
+        }));
     });
 };
 
 export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<AttendanceRecord[]> => {
     const q = query(getAttendanceCollection(), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(fromFirestoreRecord);
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(fromFirestoreRecord);
+    } catch (err) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.ATTENDANCE,
+            operation: 'list'
+        }));
+        throw err;
+    }
 };
 
 export const deleteRawLog = async (id: string) => {
-    await deleteDoc(doc(getRawLogsCollection(), id));
+    const docRef = doc(getRawLogsCollection(), id);
+    deleteDoc(docRef).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'delete'
+        }));
+    });
 };
 
 export const deleteRawLogsForMonth = async (year: number, month: number) => {
@@ -115,11 +134,22 @@ export const deleteRawLogsForMonth = async (year: number, month: number) => {
     const snap = await getDocs(q);
     const batch = writeBatch(db);
     snap.forEach(d => batch.delete(d.ref));
-    await batch.commit();
+    await batch.commit().catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'raw_machine_logs_batch_delete',
+            operation: 'write'
+        }));
+    });
 };
 
 export const deleteAttendanceRecord = async (id: string) => {
-    await deleteDoc(doc(getAttendanceCollection(), id));
+    const docRef = doc(getAttendanceCollection(), id);
+    deleteDoc(docRef).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'delete'
+        }));
+    });
 };
 
 export const deleteAttendanceForMonth = async (year: number, month: number) => {
@@ -128,7 +158,12 @@ export const deleteAttendanceForMonth = async (year: number, month: number) => {
     const snap = await getDocs(q);
     const batch = writeBatch(db);
     snap.forEach(d => batch.delete(d.ref));
-    await batch.commit();
+    await batch.commit().catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'attendance_batch_delete',
+            operation: 'write'
+        }));
+    });
 };
 
 export const deleteAllRawLogs = async (): Promise<void> => {
@@ -137,7 +172,12 @@ export const deleteAllRawLogs = async (): Promise<void> => {
     if (snap.empty) return;
     const batch = writeBatch(db);
     snap.docs.forEach(d => batch.delete(d.ref));
-    await batch.commit();
+    await batch.commit().catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'raw_machine_logs_purge',
+            operation: 'write'
+        }));
+    });
 };
 
 export const deleteAllAttendance = async (): Promise<void> => {
@@ -150,7 +190,12 @@ export const deleteAllAttendance = async (): Promise<void> => {
     ]);
     const batch = writeBatch(db);
     snaps.forEach(snap => snap.forEach(d => batch.delete(d.ref)));
-    await batch.commit();
+    await batch.commit().catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'attendance_system_purge',
+            operation: 'write'
+        }));
+    });
 };
 
 export const getAttendanceYears = async (): Promise<number[]> => {
@@ -165,17 +210,28 @@ export const getAttendanceYears = async (): Promise<number[]> => {
         attSnap.docs.forEach(d => years.add(d.data().bsYear as number));
         blSnap.docs.forEach(d => years.add(d.data().bsYear as number));
         paySnap.docs.forEach(d => years.add(d.data().bsYear as number));
-    } catch (e) {
-        console.error("Failed to discover years", e);
-    }
+    } catch (e) {}
     return Array.from(years).sort((a, b) => b - a);
 };
 
 export const updateRawLog = async (id: string, updates: Partial<RawMachineLog>) => {
     const docRef = doc(getRawLogsCollection(), id);
-    await updateDoc(docRef, updates);
+    updateDoc(docRef, updates).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: updates
+        }));
+    });
 };
 
 export const updateAttendanceRecord = async (id: string, updates: Partial<AttendanceRecord>) => {
-    await updateDoc(doc(getAttendanceCollection(), id), updates);
+    const docRef = doc(getAttendanceCollection(), id);
+    updateDoc(docRef, updates).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: updates
+        }));
+    });
 };
