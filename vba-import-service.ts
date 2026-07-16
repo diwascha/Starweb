@@ -388,9 +388,13 @@ export async function importVbaReports(fileBuffer: Buffer, period: ImportPeriod)
       collection: 'enhanced_insights',
       anchorCol: 16, // Q
       colMap: {
-        'Employee': 'employeeName', 'Punctuality Trend': 'punctualityTrend', 'Absence Pattern': 'absencePattern',
-        'OT Impact': 'otImpact', 'Shift-End Behavior': 'shiftEndBehavior', 'Performance Insight': 'performanceInsight',
-      },
+        'Employee': 'employeeName', 
+        'Punctuality Trend': 'punctualityTrend', 
+        'Absence Pattern': 'absencePattern',
+        'OT Impact': 'otImpact', 
+        'Shift-End Behavior': 'shiftEndBehavior', 
+        'Performance Insight': 'performanceInsight',
+      } as Record<string, string>,
     },
   ];
 

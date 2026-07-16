@@ -19,11 +19,12 @@ import { useAuth } from '@/hooks/use-auth';
 interface ProductFormProps {
     productToEdit?: Product | null;
     onSaveSuccess: (data: any) => void;
+    initialName?: string;
 }
 
-export function ProductForm({ productToEdit, onSaveSuccess }: ProductFormProps) {
+export function ProductForm({ productToEdit, onSaveSuccess, initialName }: ProductFormProps) {
     const [form, setForm] = useState<any>({ 
-        name: '', materialCode: '', partyId: '', 
+        name: initialName || '', materialCode: '', partyId: '', 
         specification: { 
             ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', 
             topGsm: '120', flute1Gsm: '100', middleGsm: '', flute2Gsm: '', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', bottomGsm: '120', dimension: '',

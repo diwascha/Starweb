@@ -40,7 +40,8 @@ import {
   ChevronsUpDown,
   Calendar as CalendarIcon,
   X,
-  Loader2
+  Loader2,
+  ChevronDown
 } from 'lucide-react';
 import { 
   Table, 
@@ -83,8 +84,12 @@ const CostingTableRow = React.memo(({
     onAddAccessory, 
     onRemoveItem, 
     onTogglePrint, 
-    selectedForPrint
+    selectedForPrint,
+    onOpenQuickAddProduct
 }: any) => {
+    const [isProductPopoverOpen, setIsProductPopoverOpen] = useState(false);
+    const [quickProductSearch, setQuickProductSearch] = useState('');
+
     // Safety check for calculation values
     const calc = item.calculated || { paperCost: 0, transportCost: 0, totalGsm: 0, paperWeight: 0 };
     
@@ -116,16 +121,49 @@ const CostingTableRow = React.memo(({
                                 <DropdownMenuItem onSelect={() => onAddAccessory(index, 'Manual Entry')}>Manual Entry</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Select value={item.productId || ''} onValueChange={v => onItemChange(index, 'productId', v)}>
-                            <SelectTrigger className="h-8 text-[11px] w-full px-2">
-                                <SelectValue placeholder="Select product..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {products.map((p: Product) => (
-                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" role="combobox" className="h-8 text-[11px] w-full px-2 justify-between font-normal bg-white">
+                                    <span className="truncate">{item.productId ? products.find((p: Product) => p.id === item.productId)?.name : "Select product..."}</span>
+                                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0"/>
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0 w-[300px]">
+                                <Command>
+                                    <CommandInput placeholder="Search catalog..." onValueChange={setQuickProductSearch} />
+                                    <CommandList>
+                                        <CommandEmpty>
+                                            <Button 
+                                                variant="ghost" 
+                                                className="w-full justify-start text-[11px] text-primary font-bold" 
+                                                onClick={() => {
+                                                    onOpenQuickAddProduct(index, quickProductSearch);
+                                                    setIsProductPopoverOpen(false);
+                                                }}
+                                            >
+                                                <PlusCircle className="mr-2 h-3.5 w-3.5" /> Add "{quickProductSearch}" to catalog
+                                            </Button>
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                            {products.map((p: Product) => (
+                                                <CommandItem 
+                                                    key={p.id} 
+                                                    value={p.name} 
+                                                    onSelect={() => {
+                                                        onItemChange(index, 'productId', p.id);
+                                                        setIsProductPopoverOpen(false);
+                                                    }}
+                                                    className="text-[11px]"
+                                                >
+                                                    <Check className={cn("mr-2 h-3.5 w-3.5", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                                    {p.name}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
                 </TableCell>
                 <TableCell className="border-r p-0"><Input type="number" value={item.l ?? ''} onChange={e => onItemChange(index, 'l', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
@@ -278,6 +316,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
   const [partySearch, setPartySearch] = useState('');
   
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [quickProductSearch, setQuickProductSearch] = useState('');
+  const [activeRowIndexForProduct, setActiveRowIndexForProduct] = useState<number | null>(null);
   const [isBatchAddDialogOpen, setIsBatchAddDialogOpen] = useState(false);
   const [isManageTermsDialogOpen, setIsManageTermsDialogOpen] = useState(false);
   const [selectedBatchProductIds, setSelectedBatchProductIds] = useState<Set<string>>(new Set());
@@ -843,6 +883,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                         onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))} 
                                         onTogglePrint={handleTogglePrint} 
                                         selectedForPrint={selectedForPrint}
+                                        onOpenQuickAddProduct={(idx: number, search: string) => {
+                                            setActiveRowIndexForProduct(idx);
+                                            setQuickProductSearch(search);
+                                            setIsProductDialogOpen(true);
+                                        }}
                                     />
                                 ))}
                             </TableBody>
@@ -935,12 +980,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
             <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col p-0">
                 <DialogHeader className="p-6 pb-0"><DialogTitle>Quick Add Product</DialogTitle></DialogHeader>
                 <div className="flex-1 overflow-y-auto px-6 pb-6">
-                    <ProductForm onSaveSuccess={(data: any) => { 
-                        addProductService({...data, createdBy: user?.username, createdAt: new Date().toISOString()}).then(() => {
-                            setIsProductDialogOpen(false);
-                            toast({ title: 'Product Added' });
-                        }); 
-                    }} />
+                    <ProductForm 
+                        initialName={quickProductSearch}
+                        onSaveSuccess={(data: any) => { 
+                            addProductService({...data, createdBy: user?.username, createdAt: new Date().toISOString()}).then((newId) => {
+                                if (activeRowIndexForProduct !== null) {
+                                    handleItemChange(activeRowIndexForProduct, 'productId', newId);
+                                }
+                                setIsProductDialogOpen(false);
+                                setQuickProductSearch('');
+                                toast({ title: 'Product Added' });
+                            }); 
+                        }} 
+                    />
                 </div>
             </DialogContent>
         </Dialog>
