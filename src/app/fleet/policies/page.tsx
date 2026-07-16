@@ -44,6 +44,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/services/policy-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
+import { addTransaction } from '@/services/transaction-service';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
@@ -237,6 +238,31 @@ export default function PoliciesPage() {
                     createdAt: nowIso
                 };
                 const newPolicyId = await addPolicy(newData);
+
+                // Record the cost as an expense in the transaction ledger if it's for a vehicle
+                if (formState.memberType === 'Vehicle' && formState.cost > 0) {
+                    const vehicleName = vehicles.find(v => v.id === formState.memberId)?.name || 'Truck';
+                    await addTransaction({
+                        date: formState.startDate,
+                        type: 'Payment',
+                        category: formState.type,
+                        amount: formState.cost,
+                        billingType: 'Cash', // Default to cash for simple policy tracking
+                        invoiceType: 'Normal',
+                        vehicleId: formState.memberId,
+                        partyId: null, // Often paid to gov/agency not in main party list
+                        items: [{
+                            particular: `${formState.type} for ${vehicleName} (${formState.policyNumber})`,
+                            quantity: 1,
+                            rate: formState.cost
+                        }],
+                        remarks: `Auto-recorded from Policy Registry. Provider: ${formState.provider}`,
+                        referenceType: 'Policy Registry',
+                        referenceId: newPolicyId,
+                        createdBy: user.username
+                    });
+                }
+
                 if (isRenewal && formState.renewedFromId) {
                     await updatePolicy(formState.renewedFromId, {
                         status: 'Renewed',
@@ -732,8 +758,7 @@ export default function PoliciesPage() {
                                         {formState.memberType === 'Vehicle' ? (
                                             vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
                                         ) : (
-                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
-                                        )}
+                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
