@@ -38,7 +38,7 @@ service cloud.firestore {
 
     match /system_users/{userId} {
       allow read: if isAdmin() || request.auth.uid == userId;
-      allow create: if true; // Allow initial profile creation during registration
+      allow create: if true; 
       allow delete: if isAdmin();
       allow update: if isAdmin() || (
         request.auth.uid == userId &&
@@ -55,18 +55,13 @@ service cloud.firestore {
 
     // --- Application Data ---
 
-    match /pageVisits/{pathId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /logs/{logId} {
-      allow read: if isApproved();
-      allow create: if isAuthenticated();
-      allow delete: if isAdmin();
+    match /{collectionName}/{docId} {
+      // Approved users can access all application data
+      allow read, write: if isApproved();
     }
 
     match /{document=**} {
-      // General rule: Approved users can read/write data. 
+      // Catch-all safety for nested subcollections
       allow read, write: if isApproved();
     }
   }

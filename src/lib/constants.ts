@@ -32,6 +32,16 @@ export const COLLECTIONS = {
   RENTAL_UNITS: 'rentalUnits',
   RENTAL_AGREEMENTS: 'rentalAgreements',
   RENTAL_BILLS: 'rentalBills',
+  SYSTEM_USERS: 'system_users',
+  USERNAMES: 'usernames',
+  RAW_MACHINE_LOGS: 'raw_machine_logs',
+  BONUS_LEDGER: 'bonus_ledger',
+  BONUS_SUMMARIES: 'bonus_summaries',
+  BEHAVIOR_LEDGER: 'behavior_ledger',
+  BEHAVIOR_ANALYTICS: 'behavior_analytics',
+  ANALYTICS_REPORTS: 'analytics_reports',
+  HR_SHIFTS: 'hr_shifts',
+  LEAVE_REQUESTS: 'leave_requests',
 } as const;
 
 export const NEPALI_MONTHS = [

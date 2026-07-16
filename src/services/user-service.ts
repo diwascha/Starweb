@@ -27,9 +27,7 @@ import { z } from 'zod';
 import { logAudit } from './log-service';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-
-const USERS_COLLECTION = 'system_users';
-const USERNAMES_COLLECTION = 'usernames';
+import { COLLECTIONS } from '@/lib/constants';
 
 const UserSchema = z.object({
     username: z.string().min(1),
@@ -56,11 +54,13 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 
 export const onUsersUpdate = (callback: (users: User[]) => void) => {
     const { db } = getFirebase();
-    const q = query(collection(db, USERS_COLLECTION));
+    const q = query(collection(db, COLLECTIONS.SYSTEM_USERS));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     }, async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: USERS_COLLECTION, operation: 'list' }));
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.SYSTEM_USERS, operation: 'list' }));
+        }
     });
 };
 
@@ -68,24 +68,28 @@ export const saveUser = async (user: User) => {
     const { db } = getFirebase();
     if (!user?.id) throw new Error("Invalid user ID.");
 
-    const userRef = doc(db, USERS_COLLECTION, user.id);
+    const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, user.id);
     const payload = { ...user, updatedAt: serverTimestamp() };
     
-    setDoc(userRef, payload, { merge: true }).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: userRef.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
+    setDoc(userRef, payload, { merge: true }).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: payload,
+            }));
+        }
     });
 
     if (user.username && user.email) {
-        const usernameRef = doc(db, USERNAMES_COLLECTION, user.username.toLowerCase().trim());
+        const usernameRef = doc(db, COLLECTIONS.USERNAMES, user.username.toLowerCase().trim());
         setDoc(usernameRef, { 
             email: user.email.toLowerCase().trim(), 
             username: user.username.toLowerCase().trim() 
-        }, { merge: true }).catch(async (err) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'write' }));
+        }, { merge: true }).catch(async (err: any) => {
+             if (err.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'write' }));
+             }
         });
     }
 };
@@ -95,7 +99,7 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     const login = (username || '').toLowerCase().trim();
     if (!login) throw new Error("Username required.");
 
-    const usernameRef = doc(db, USERNAMES_COLLECTION, login);
+    const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
     const snap = await getDoc(usernameRef);
 
     if (snap.exists()) {
@@ -121,7 +125,7 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
 export const loginWithUsername = async (auth: Auth, username: string, password: string) => {
     const { db } = getFirebase();
     const login = (username || '').toLowerCase().trim();
-    const usernameRef = doc(db, USERNAMES_COLLECTION, login);
+    const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
     const snap = await getDoc(usernameRef);
 
     if (!snap.exists()) {
@@ -134,21 +138,23 @@ export const loginWithUsername = async (auth: Auth, username: string, password: 
 
 export const getUserById = async (uid: string): Promise<User | null> => {
     const { db } = getFirebase();
-    const userDocRef = doc(db, USERS_COLLECTION, uid);
+    const userDocRef = doc(db, COLLECTIONS.SYSTEM_USERS, uid);
     const snap = await getDoc(userDocRef);
     return snap.exists() ? fromFirestore(snap) : null;
 };
 
 export const deleteUser = async (userId: string, username?: string) => {
     const { db } = getFirebase();
-    const userRef = doc(db, USERS_COLLECTION, userId);
+    const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, userId);
     
     deleteDoc(userRef).catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userRef.path, operation: 'delete' }));
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userRef.path, operation: 'delete' }));
+        }
     });
 
     if (username) {
-        const usernameRef = doc(db, USERNAMES_COLLECTION, username.toLowerCase().trim());
+        const usernameRef = doc(db, COLLECTIONS.USERNAMES, username.toLowerCase().trim());
         deleteDoc(usernameRef);
     }
 };
@@ -156,7 +162,7 @@ export const deleteUser = async (userId: string, username?: string) => {
 export const getUserByLogin = async (loginString: string): Promise<User | null> => {
     const { db } = getFirebase();
     const login = (loginString || '').toLowerCase().trim();
-    const usernameRef = doc(db, USERNAMES_COLLECTION, login);
+    const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
     const usernameSnap = await getDoc(usernameRef);
     
     let email = login;
@@ -164,7 +170,7 @@ export const getUserByLogin = async (loginString: string): Promise<User | null> 
         email = usernameSnap.data()?.email || login;
     }
 
-    const qEmail = query(collection(db, USERS_COLLECTION), where("email", "==", email), limit(1));
+    const qEmail = query(collection(db, COLLECTIONS.SYSTEM_USERS), where("email", "==", email), limit(1));
     const snapEmail = await getDocs(qEmail);
     if (!snapEmail.empty) return fromFirestore(snapEmail.docs[0]);
 
@@ -181,10 +187,12 @@ export const validatePassword = (password: string, isRequired: boolean = true): 
 export const getUsers = async (): Promise<User[]> => {
     const { db } = getFirebase();
     try {
-        const snap = await getDocs(collection(db, USERS_COLLECTION));
+        const snap = await getDocs(collection(db, COLLECTIONS.SYSTEM_USERS));
         return snap.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: USERS_COLLECTION, operation: 'list' }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.SYSTEM_USERS, operation: 'list' }));
+        }
         throw error;
     }
 };
