@@ -28,9 +28,10 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Plus
+  Plus,
+  CalendarIcon
 } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
 import type { Cheque, ChequeSplit, ChequeStatus, PartialPayment, Account } from '@/lib/types';
@@ -50,6 +51,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { onAccountsUpdate } from '@/services/account-service';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DualCalendar } from '@/components/ui/dual-calendar';
 
 type SortKey = 'chequeDate' | 'payeeName' | 'amount' | 'chequeNumber' | 'status' | 'dueStatus';
 type SortDirection = 'asc' | 'desc';
@@ -153,6 +156,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [payingSplit, setPayingSplit] = useState<AugmentedChequeSplit | null>(null);
     const [newPaymentAmount, setNewPaymentAmount] = useState<number | ''>('');
     const [newPaymentRemark, setNewPaymentRemark] = useState('');
+    const [newPaymentDate, setNewPaymentDate] = useState<Date>(new Date());
 
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
@@ -252,7 +256,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             if (s.id === payingSplit.id) {
                 const newPayment: PartialPayment = {
                     id: generateId(),
-                    date: new Date().toISOString(),
+                    date: newPaymentDate.toISOString(),
                     amount: Number(newPaymentAmount),
                     remarks: newPaymentRemark.trim()
                 };
@@ -274,6 +278,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             toast({ title: 'Payment Recorded' });
             setNewPaymentAmount('');
             setNewPaymentRemark('');
+            setNewPaymentDate(new Date());
             setIsPaymentDialogOpen(false);
         } catch {
             toast({ title: 'Error', variant: 'destructive' });
@@ -409,7 +414,11 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                     <ChequeSplitRow 
                                         key={`${split.parentCheque.id}-${split.id}`}
                                         split={split}
-                                        onManagePayments={(s) => { setPayingSplit(s); setIsPaymentDialogOpen(true); }}
+                                        onManagePayments={(s) => { 
+                                            setPayingSplit(s); 
+                                            setNewPaymentDate(new Date());
+                                            setIsPaymentDialogOpen(true); 
+                                        }}
                                         onEditVoucher={onEdit}
                                         onPrintVoucher={(c) => { setChequeToPrint(c); setIsPrintPreviewOpen(true); }}
                                         onMarkAsPaid={(c, id) => { setSplitToPay({cheque: c, splitId: id}); setIsPaidDialogOpen(true); }}
@@ -485,7 +494,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             </Card>
 
             <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-                <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+                <DialogContent className="sm:max-w-4xl max-h-[95vh] flex flex-col p-0 shadow-2xl border-none">
                     <DialogHeader className="p-6 border-b bg-muted/10">
                         <DialogTitle className="text-xl font-bold uppercase tracking-tight">Payment Ledger: {payingSplit?.parentCheque.payeeName}</DialogTitle>
                         <DialogDescription className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -496,7 +505,21 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <div className="flex-1 overflow-hidden flex flex-col">
                         <div className="p-6 border-b bg-muted/5 space-y-4">
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">New Settlement Entry</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Payment Date</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-start text-left font-normal h-9 bg-white text-xs px-3">
+                                                <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                                                {newPaymentDate ? `${toNepaliDate(newPaymentDate.toISOString())} (${format(newPaymentDate, "PP")})` : <span>Pick date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <DualCalendar selected={newPaymentDate} onSelect={(d) => d && setNewPaymentDate(d)} />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
                                 <div className="space-y-1.5">
                                     <Label className="text-[10px] font-bold uppercase text-muted-foreground">Amount (रु)</Label>
                                     <Input 
@@ -538,7 +561,12 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                         {(payingSplit?.partialPayments || []).length > 0 ? (
                                             payingSplit?.partialPayments?.map((p) => (
                                                 <TableRow key={p.id} className="h-11">
-                                                    <TableCell className="pl-4 font-mono text-[10px] text-muted-foreground">{format(new Date(p.date), 'yyyy-MM-dd HH:mm')}</TableCell>
+                                                    <TableCell className="pl-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-blue-900">{toNepaliDate(p.date)}</span>
+                                                            <span className="text-[9px] text-muted-foreground">{format(new Date(p.date), 'yyyy-MM-dd')}</span>
+                                                        </div>
+                                                    </TableCell>
                                                     <TableCell className="font-black">Rs. {p.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                                                     <TableCell className="italic text-muted-foreground">{p.remarks || '—'}</TableCell>
                                                     <TableCell className="text-right pr-4">
