@@ -1,7 +1,9 @@
-
+'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Vehicle } from '@/lib/types';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getVehiclesCollection = () => {
     const { db } = getFirebase();
@@ -38,18 +40,32 @@ export const getVehicles = async (useCache = false): Promise<Vehicle[]> => {
         }
     }
     
-    const snapshot = await getDocs(getVehiclesCollection());
-    const vehicles = snapshot.docs.map(fromFirestore);
-    
-    vehicleCache.set('vehicles', { data: vehicles, timestamp: Date.now() });
-    
-    return vehicles;
+    try {
+        const snapshot = await getDocs(getVehiclesCollection());
+        const vehicles = snapshot.docs.map(fromFirestore);
+        vehicleCache.set('vehicles', { data: vehicles, timestamp: Date.now() });
+        return vehicles;
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'vehicles',
+            operation: 'list',
+        }));
+        throw error;
+    }
 };
 
 export const addVehicle = async (vehicle: Omit<Vehicle, 'id'>): Promise<string> => {
-    const docRef = await addDoc(getVehiclesCollection(), {
+    const payload = {
         ...vehicle,
         createdAt: new Date().toISOString(),
+    };
+    const docRef = await addDoc(getVehiclesCollection(), payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'vehicles',
+            operation: 'create',
+            requestResourceData: payload,
+        }));
+        throw err;
     });
     return docRef.id;
 };
@@ -61,8 +77,11 @@ export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () =>
             vehicleCache.set('vehicles', { data: vehicles, timestamp: Date.now() });
             callback(vehicles);
         },
-        (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Vehicles):", error.message, error);
+        async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'vehicles',
+                operation: 'list',
+            }));
         }
     );
 };
@@ -70,14 +89,26 @@ export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () =>
 export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, 'id'>>): Promise<void> => {
     if (!id) return;
     const vehicleDoc = doc(getVehiclesCollection(), id);
-    await updateDoc(vehicleDoc, {
+    const payload = {
         ...vehicle,
         lastModifiedAt: new Date().toISOString(),
+    };
+    updateDoc(vehicleDoc, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: vehicleDoc.path,
+            operation: 'update',
+            requestResourceData: payload,
+        }));
     });
 };
 
 export const deleteVehicle = async (id: string): Promise<void> => {
     if (!id) return;
     const vehicleDoc = doc(getVehiclesCollection(), id);
-    await deleteDoc(vehicleDoc);
+    deleteDoc(vehicleDoc).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: vehicleDoc.path,
+            operation: 'delete',
+        }));
+    });
 };

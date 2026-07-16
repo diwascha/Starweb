@@ -1,7 +1,10 @@
+'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { UnitOfMeasurement } from '@/lib/types';
 import { logServiceError } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getUomCollection = () => {
     const { db } = getFirebase();
@@ -22,14 +25,30 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): UnitOfMea
 }
 
 export const getUoms = async (): Promise<UnitOfMeasurement[]> => {
-    const snapshot = await getDocs(getUomCollection());
-    return snapshot.docs.map(fromFirestore);
+    try {
+        const snapshot = await getDocs(getUomCollection());
+        return snapshot.docs.map(fromFirestore);
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'uom',
+            operation: 'list',
+        }));
+        throw error;
+    }
 };
 
 export const addUom = async (uom: Omit<UnitOfMeasurement, 'id'>): Promise<string> => {
-    const docRef = await addDoc(getUomCollection(), {
+    const payload = {
         ...uom,
         createdAt: new Date().toISOString(),
+    };
+    const docRef = await addDoc(getUomCollection(), payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'uom',
+            operation: 'create',
+            requestResourceData: payload,
+        }));
+        throw err;
     });
     return docRef.id;
 };
@@ -39,8 +58,11 @@ export const onUomsUpdate = (callback: (uoms: UnitOfMeasurement[]) => void): () 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
-        (error) => {
-            logServiceError("onUomsUpdate", error);
+        async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'uom',
+                operation: 'list',
+            }));
         }
     );
 };
@@ -48,14 +70,26 @@ export const onUomsUpdate = (callback: (uoms: UnitOfMeasurement[]) => void): () 
 export const updateUom = async (id: string, uom: Partial<Omit<UnitOfMeasurement, 'id'>>): Promise<void> => {
     if (!id) return;
     const uomDoc = doc(getUomCollection(), id);
-    await updateDoc(uomDoc, {
+    const payload = {
         ...uom,
         lastModifiedAt: new Date().toISOString(),
+    };
+    updateDoc(uomDoc, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: uomDoc.path,
+            operation: 'update',
+            requestResourceData: payload,
+        }));
     });
 };
 
 export const deleteUom = async (id: string): Promise<void> => {
     if (!id) return;
     const uomDoc = doc(getUomCollection(), id);
-    await deleteDoc(uomDoc);
+    deleteDoc(uomDoc).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: uomDoc.path,
+            operation: 'delete',
+        }));
+    });
 };

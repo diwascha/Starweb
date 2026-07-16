@@ -1,8 +1,11 @@
+'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, onSnapshot, getDocs, query, orderBy, setDoc, updateDoc, deleteDoc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Transaction, TransactionType, InvoiceType, BillingType } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 export const transactionsCollection = () => {
     const { db } = getFirebase();
@@ -45,20 +48,46 @@ export const onTransactionsUpdate = (callback: (txns: Transaction[]) => void): (
     const q = query(transactionsCollection(), orderBy('date', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.TRANSACTIONS,
+            operation: 'list',
+        }));
     });
 };
 
 export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>): Promise<string> => {
     const docRef = doc(transactionsCollection());
     const now = createTimestamp();
-    await setDoc(docRef, { ...transaction, createdAt: now, lastModifiedAt: now });
+    const payload = { ...transaction, createdAt: now, lastModifiedAt: now };
+    setDoc(docRef, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'create',
+            requestResourceData: payload,
+        }));
+    });
     return docRef.id;
 };
 
 export const updateTransaction = async (id: string, updates: Partial<Transaction>): Promise<void> => {
-    await updateDoc(doc(transactionsCollection(), id), { ...updates, lastModifiedAt: createTimestamp() });
+    const docRef = doc(transactionsCollection(), id);
+    const payload = { ...updates, lastModifiedAt: createTimestamp() };
+    updateDoc(docRef, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: payload,
+        }));
+    });
 };
 
 export const deleteTransaction = async (id: string): Promise<void> => {
-    await deleteDoc(doc(transactionsCollection(), id));
+    const docRef = doc(transactionsCollection(), id);
+    deleteDoc(docRef).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'delete',
+        }));
+    });
 };
