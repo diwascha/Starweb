@@ -122,17 +122,32 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     }
 };
 
-export const loginWithUsername = async (auth: Auth, username: string, password: string) => {
+/**
+ * Robust login supporting direct email or registered username.
+ */
+export const loginWithUsername = async (auth: Auth, loginString: string, password: string) => {
     const { db } = getFirebase();
-    const login = (username || '').toLowerCase().trim();
-    const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
-    const snap = await getDoc(usernameRef);
+    const login = (loginString || '').toLowerCase().trim();
+    
+    let email = login;
 
-    if (!snap.exists()) {
-        throw new Error("User does not exist.");
+    // If the input doesn't look like an email, assume it's a username and try to resolve it.
+    if (!login.includes('@')) {
+        const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
+        const snap = await getDoc(usernameRef);
+        
+        if (snap.exists()) {
+            email = snap.data()?.email || login;
+        } else {
+            // Fallback: search system_users for this username directly if registry is missing
+            const q = query(collection(db, COLLECTIONS.SYSTEM_USERS), where("username", "==", login), limit(1));
+            const userSnap = await getDocs(q);
+            if (!userSnap.empty) {
+                email = userSnap.docs[0].data().email;
+            }
+        }
     }
 
-    const email = snap.data()?.email;
     return signInWithEmailAndPassword(auth, email, password);
 };
 

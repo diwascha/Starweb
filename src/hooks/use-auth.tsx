@@ -174,6 +174,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         unsubscribeFirestore = onSnapshot(userDocRef, (docSnap) => {
             if (!docSnap.exists()) {
+                // If user is logged into Auth but no Firestore doc exists,
+                // we'll try to sign them out or redirect to a profile setup.
+                // For an admin manually created, this doc MUST exist.
                 logout();
                 return;
             }
@@ -201,8 +204,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             const session: UserSession = {
                 id: firebaseUser.uid,
-                username: data.username,
-                email: data.email,
+                username: data.username || 'unknown',
+                email: firebaseUser.email || data.email,
                 isApproved: true,
                 isAdmin: !!data.isAdmin,
                 permissions: data.permissions || {},
@@ -213,7 +216,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
             setUser(session);
         }, (err) => {
-            console.error("User sync failure", err);
+            console.error("User sync failure:", err);
+            // Don't logout on intermittent connectivity issues
         });
 
       } else {
