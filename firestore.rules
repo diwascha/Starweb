@@ -64,6 +64,15 @@ service cloud.firestore {
     match /expenses/{id} { allow read, write: if isApproved(); }
     match /logs/{id} { allow read, write: if isApproved(); }
     match /files/{id} { allow read, write: if isApproved(); }
+    match /purchaseOrders/{id} { allow read, write: if isApproved(); }
+    match /rawMaterials/{id} { allow read, write: if isApproved(); }
+    match /rentalProperties/{id} { allow read, write: if isApproved(); }
+    match /rentalUnits/{id} { allow read, write: if isApproved(); }
+    match /rentalAgreements/{id} { allow read, write: if isApproved(); }
+    match /rentalBills/{id} { allow read, write: if isApproved(); }
+    match /hr_shifts/{id} { allow read, write: if isApproved(); }
+    match /public_holidays/{id} { allow read, write: if isApproved(); }
+    match /leave_requests/{id} { allow read, write: if isApproved(); }
 
     // Catch-all for subcollections or any other collections.
     // Requires at least a valid authenticated session.
