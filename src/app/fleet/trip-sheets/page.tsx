@@ -21,11 +21,13 @@ import {
   FilterX,
   Truck,
   Users,
-  CalendarIcon
+  CalendarIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import type { Trip, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -160,6 +162,10 @@ export default function TripSheetsPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   // Filtering & Sorting State
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -196,6 +202,10 @@ export default function TripSheetsPage() {
         unsubParties();
     };
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleId, filterPartyId, itemsPerPage]);
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
@@ -331,6 +341,17 @@ export default function TripSheetsPage() {
     return filtered;
   }, [augmentedTrips, sortConfig, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleId, filterPartyId]);
 
+  const paginatedTrips = useMemo(() => {
+    if (itemsPerPage === -1) return filteredAndSortedTrips;
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedTrips.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedTrips, currentPage, itemsPerPage]);
+
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === -1) return 1;
+    return Math.ceil(filteredAndSortedTrips.length / itemsPerPage);
+  }, [filteredAndSortedTrips, itemsPerPage]);
+
   const handleExportExcel = async () => {
     try {
         const XLSX = await import('xlsx');
@@ -435,104 +456,160 @@ export default function TripSheetsPage() {
     return (
         <Card className="border shadow-sm">
             <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-[11px]">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4 h-8 px-2 text-[11px]">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('customerName')} className="-ml-4 h-8 px-2 text-[11px]">Customer <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('finalDestination')} className="-ml-4 h-8 px-2 text-[11px]">Destination <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('netAmount')} className="-ml-4 h-8 px-2 text-[11px]">Net Bank Pay <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead className="text-[11px]">Authorship</TableHead>
-                <TableHead className="text-right text-[11px]">Actions</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-                {filteredAndSortedTrips.map(trip => (
-                <TableRow key={trip.id} className="hover:bg-muted/30">
-                    <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(trip.date)}</TableCell>
-                    <TableCell className="font-semibold text-[11px]">{trip.vehicleName}</TableCell>
-                    <TableCell className="text-[11px]">{trip.customerName}</TableCell>
-                    <TableCell className="text-[11px] uppercase text-muted-foreground">{trip.finalDestination}</TableCell>
-                    <TableCell>
-                        <Button variant="link" className="p-0 h-auto font-bold text-[11px]" onClick={() => openCalcDialog(trip)}>
-                            Rs. {trip.netAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
-                        </Button>
-                    </TableCell>
-                    <TableCell>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-default uppercase font-bold">
-                                        {trip.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                                        <span>{trip.lastModifiedBy || trip.createdBy}</span>
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p className="text-xs">Created by: {trip.createdBy}{trip.createdAt ? ` on ${format(new Date(trip.createdAt), "PP")}` : ''}</p>
-                                    {trip.lastModifiedBy && trip.lastModifiedAt && (
-                                        <p className="text-xs">Modified by: {trip.lastModifiedBy}{trip.lastModifiedAt ? ` on ${format(new Date(trip.lastModifiedAt), "PP")}` : ''}</p>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-[11px]">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4 h-8 px-2 text-[11px]">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('customerName')} className="-ml-4 h-8 px-2 text-[11px]">Customer <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('finalDestination')} className="-ml-4 h-8 px-2 text-[11px]">Destination <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('netAmount')} className="-ml-4 h-8 px-2 text-[11px]">Net Bank Pay <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                        <TableHead className="text-[11px]">Authorship</TableHead>
+                        <TableHead className="text-right text-[11px]">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {paginatedTrips.map(trip => (
+                    <TableRow key={trip.id} className="hover:bg-muted/30">
+                        <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(trip.date)}</TableCell>
+                        <TableCell className="font-semibold text-[11px]">{trip.vehicleName}</TableCell>
+                        <TableCell className="text-[11px]">{trip.customerName}</TableCell>
+                        <TableCell className="text-[11px] uppercase text-muted-foreground">{trip.finalDestination}</TableCell>
+                        <TableCell>
+                            <Button variant="link" className="p-0 h-auto font-bold text-[11px]" onClick={() => openCalcDialog(trip)}>
+                                Rs. {trip.netAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                            </Button>
+                        </TableCell>
+                        <TableCell>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-default uppercase font-bold">
+                                            {trip.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                                            <span>{trip.lastModifiedBy || trip.createdBy}</span>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="text-xs">Created by: {trip.createdBy}{trip.createdAt ? ` on ${format(new Date(trip.createdAt), "PP")}` : ''}</p>
+                                        {trip.lastModifiedBy && trip.lastModifiedAt && (
+                                            <p className="text-xs">Modified by: {trip.lastModifiedBy}{trip.lastModifiedAt ? ` on ${format(new Date(trip.lastModifiedAt), "PP")}` : ''}</p>
+                                        )}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <MoreHorizontal className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    {hasPermission('fleet', 'view') && (
+                                        <DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}>
+                                            <View className="mr-2 h-4 w-4" /> View
+                                        </DropdownMenuItem>
                                     )}
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </TableCell>
-                    <TableCell className="text-right">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreHorizontal className="ml-2 h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                {hasPermission('fleet', 'view') && (
-                                    <DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}>
-                                        <View className="mr-2 h-4 w-4" /> View
+                                    {hasPermission('fleet', 'edit') && (
+                                        <DropdownMenuItem onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)}>
+                                            <Edit className="mr-2 h-4 w-4" /> Edit
+                                        </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem onSelect={() => window.open(`/fleet/trip-sheets/view?id=${trip.id}`, '_blank')}>
+                                        <Printer className="mr-2 h-4 w-4" /> Print
                                     </DropdownMenuItem>
-                                )}
-                                {hasPermission('fleet', 'edit') && (
-                                    <DropdownMenuItem onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)}>
-                                        <Edit className="mr-2 h-4 w-4" /> Edit
-                                    </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onSelect={() => window.open(`/fleet/trip-sheets/view?id=${trip.id}`, '_blank')}>
-                                    <Printer className="mr-2 h-4 w-4" /> Print
-                                </DropdownMenuItem>
-                                {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
-                                {hasPermission('fleet', 'delete') && (
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                                <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                                <span className="text-destructive">Delete</span>
-                                            </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This action cannot be undone. This will permanently delete the trip sheet and associated transactions.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                </TableRow>
-                ))}
-            </TableBody>
-            <TableFooter>
-                <TableRow className="bg-muted/50 font-bold">
-                    <TableCell colSpan={4} className="text-right text-[11px]">Total for Filtered Period ({filteredAndSortedTrips.length} Trips)</TableCell>
-                    <TableCell className="text-[11px]">Rs. {filteredAndSortedTrips.reduce((sum, t) => sum + t.netAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell colSpan={2}></TableCell>
-                </TableRow>
-            </TableFooter>
+                                    {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
+                                    {hasPermission('fleet', 'delete') && (
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                                    <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                                    <span className="text-destructive">Delete</span>
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This action cannot be undone. This will permanently delete the trip sheet and associated transactions.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+                <TableFooter>
+                    <TableRow className="bg-muted/50 font-bold">
+                        <TableCell colSpan={4} className="text-right text-[11px]">Total for Filtered Period ({filteredAndSortedTrips.length} Trips)</TableCell>
+                        <TableCell className="text-[11px]">Rs. {filteredAndSortedTrips.reduce((sum, t) => sum + t.netAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell colSpan={2}></TableCell>
+                    </TableRow>
+                </TableFooter>
             </Table>
+            {(totalPages > 1 || itemsPerPage !== -1) && (
+                <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        {itemsPerPage === -1 ? (
+                            <>Showing all <span className="font-bold text-foreground">{filteredAndSortedTrips.length}</span> trips</>
+                        ) : (
+                            <>
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedTrips.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedTrips.length}</span> trips
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                setItemsPerPage(parseInt(v));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="-1">All</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {itemsPerPage !== -1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </CardFooter>
+            )}
         </Card>
     );
   };

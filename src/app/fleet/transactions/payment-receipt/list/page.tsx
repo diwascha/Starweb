@@ -21,11 +21,13 @@ import {
   History,
   Truck,
   Users,
-  Wallet
+  Wallet,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -136,6 +138,10 @@ export default function VoucherLogsPage() {
     const [parties, setParties] = useState<Party[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
@@ -160,6 +166,10 @@ export default function VoucherLogsPage() {
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
     }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterTypes, filterVehicleIds, filterPartyIds, filterBillingTypes, itemsPerPage]);
 
     const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a.bankName || a.name])), [accounts]);
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
@@ -277,6 +287,17 @@ export default function VoucherLogsPage() {
 
         return filtered;
     }, [vouchers, searchQuery, filterTypes, filterBillingTypes, filterVehicleIds, filterPartyIds, dateRange, filterBsYears, filterBsMonths]);
+
+    const paginatedVouchers = useMemo(() => {
+        if (itemsPerPage === -1) return filteredVouchers;
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredVouchers.slice(start, start + itemsPerPage);
+    }, [filteredVouchers, currentPage, itemsPerPage]);
+
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(filteredVouchers.length / itemsPerPage);
+    }, [filteredVouchers, itemsPerPage]);
 
     const handleDelete = async (voucherId: string) => {
         try {
@@ -439,7 +460,7 @@ export default function VoucherLogsPage() {
                     <TableBody>
                         {isLoading ? (
                             <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                        ) : filteredVouchers.map(v => (
+                        ) : paginatedVouchers.map(v => (
                             <TableRow key={v.voucherId} className="hover:bg-muted/30 h-14">
                                 <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(v.date)}</TableCell>
                                 <TableCell>
@@ -517,6 +538,61 @@ export default function VoucherLogsPage() {
                         {!isLoading && filteredVouchers.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground italic">No vouchers found.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
+                {(totalPages > 1 || itemsPerPage !== -1) && (
+                    <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            {itemsPerPage === -1 ? (
+                                <>Showing all <span className="font-bold text-foreground">{filteredVouchers.length}</span> vouchers</>
+                            ) : (
+                                <>
+                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredVouchers.length)}</span> of <span className="font-bold text-foreground">{filteredVouchers.length}</span> vouchers
+                                </>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                    setItemsPerPage(parseInt(v));
+                                    setCurrentPage(1);
+                                }}>
+                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="-1">All</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {itemsPerPage !== -1 && (
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
         </div>
     );

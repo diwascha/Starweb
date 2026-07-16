@@ -48,8 +48,6 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType';
 type SortDirection = 'asc' | 'desc';
 
-const ITEMS_PER_PAGE = 50;
-
 // Helper component for multi-select with "All" support
 const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
     const isAll = values.length === 0;
@@ -120,7 +118,10 @@ export default function ExpenseLogsPage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -147,7 +148,7 @@ export default function ExpenseLogsPage() {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds]);
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, itemsPerPage]);
 
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
@@ -219,11 +220,15 @@ export default function ExpenseLogsPage() {
     }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, sortConfig, vehiclesById]);
 
     const paginatedExpenses = useMemo(() => {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredAndSortedExpenses.slice(start, start + ITEMS_PER_PAGE);
-    }, [filteredAndSortedExpenses, currentPage]);
+        if (itemsPerPage === -1) return filteredAndSortedExpenses;
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredAndSortedExpenses.slice(start, start + itemsPerPage);
+    }, [filteredAndSortedExpenses, currentPage, itemsPerPage]);
 
-    const totalPages = Math.ceil(filteredAndSortedExpenses.length / ITEMS_PER_PAGE);
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(filteredAndSortedExpenses.length / itemsPerPage);
+    }, [filteredAndSortedExpenses, itemsPerPage]);
 
     const handleDelete = async (id: string) => {
         try {
@@ -401,31 +406,58 @@ export default function ExpenseLogsPage() {
                         </TableBody>
                     </Table>
                 </CardContent>
-                {totalPages > 1 && (
+                {(totalPages > 1 || itemsPerPage !== -1) && (
                     <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
                         <div className="text-xs text-muted-foreground font-medium">
-                            Showing <span className="font-bold text-foreground">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, filteredAndSortedExpenses.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span> entries
+                            {itemsPerPage === -1 ? (
+                                <>Showing all <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span> entries</>
+                            ) : (
+                                <>
+                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedExpenses.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span> entries
+                                </>
+                            )}
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                disabled={currentPage === 1}
-                                className="h-8 w-8 p-0"
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <div className="text-xs font-bold px-2">Page {currentPage} of {totalPages}</div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                disabled={currentPage === totalPages}
-                                className="h-8 w-8 p-0"
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                                    setItemsPerPage(parseInt(v));
+                                    setCurrentPage(1);
+                                }}>
+                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="-1">All</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {itemsPerPage !== -1 && (
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </CardFooter>
                 )}
