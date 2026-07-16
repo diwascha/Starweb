@@ -27,7 +27,8 @@ import {
   ShieldCheck, 
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Plus
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -40,7 +41,7 @@ import { format, differenceInDays, startOfToday } from 'date-fns';
 import { ChequeView } from './_components/cheque-view';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn, toNepaliDate, generateId } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,9 +49,7 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 import { Textarea } from '@/components/ui/textarea';
 import { onAccountsUpdate } from '@/services/account-service';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
+import { Separator } from '@/components/ui/separator';
 
 type SortKey = 'chequeDate' | 'payeeName' | 'amount' | 'chequeNumber' | 'status' | 'dueStatus';
 type SortDirection = 'asc' | 'desc';
@@ -152,6 +151,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [payingSplit, setPayingSplit] = useState<AugmentedChequeSplit | null>(null);
+    const [newPaymentAmount, setNewPaymentAmount] = useState<number | ''>('');
+    const [newPaymentRemark, setNewPaymentRemark] = useState('');
 
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
@@ -222,8 +223,14 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             if (s.id === splitId) {
                 const updated = { ...s, status: newStatus, cancellationReason: newStatus === 'Canceled' ? remark : null } as any;
                 if (newStatus === 'Paid') {
-                    const remaining = (Number(s.amount) || 0) - (s.partialPayments || []).reduce((sum, p) => sum + p.amount, 0);
-                    if (remaining > 0) updated.partialPayments = [...(s.partialPayments || []), { id: `m-${Date.now()}`, date: new Date().toISOString(), amount: remaining, remarks: remark || 'Paid manually' }];
+                    const totalAmount = Number(s.amount) || 0;
+                    const paid = (s.partialPayments || []).reduce((sum, p) => sum + p.amount, 0);
+                    const remaining = totalAmount - paid;
+                    if (remaining > 0) {
+                        updated.partialPayments = [...(s.partialPayments || []), { id: `m-${Date.now()}`, date: new Date().toISOString(), amount: remaining, remarks: remark || 'Paid manually' }];
+                    }
+                } else if (newStatus === 'Due') {
+                    updated.partialPayments = [];
                 }
                 return updated;
             }
@@ -233,11 +240,82 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         toast({ title: 'Status Updated', description: `Cheque marked as ${newStatus}.` });
     }, [user, toast]);
 
+    const handleAddPartialPayment = async () => {
+        if (!user || !payingSplit || newPaymentAmount === '' || newPaymentAmount <= 0) return;
+        
+        if (newPaymentAmount > payingSplit.remainingAmount) {
+            toast({ title: 'Invalid Amount', description: 'Payment cannot exceed remaining balance.', variant: 'destructive' });
+            return;
+        }
+
+        const updatedSplits = payingSplit.parentCheque.splits.map(s => {
+            if (s.id === payingSplit.id) {
+                const newPayment: PartialPayment = {
+                    id: generateId(),
+                    date: new Date().toISOString(),
+                    amount: Number(newPaymentAmount),
+                    remarks: newPaymentRemark.trim()
+                };
+                const partialPayments = [...(s.partialPayments || []), newPayment];
+                const totalPaid = partialPayments.reduce((sum, p) => sum + p.amount, 0);
+                const chequeAmount = Number(s.amount) || 0;
+                
+                return { 
+                    ...s, 
+                    partialPayments, 
+                    status: totalPaid >= chequeAmount ? 'Paid' : 'Partially Paid' 
+                };
+            }
+            return s;
+        });
+
+        try {
+            await updateCheque(payingSplit.parentCheque.id, { splits: updatedSplits as any, lastModifiedBy: user.username });
+            toast({ title: 'Payment Recorded' });
+            setNewPaymentAmount('');
+            setNewPaymentRemark('');
+            setIsPaymentDialogOpen(false);
+        } catch {
+            toast({ title: 'Error', variant: 'destructive' });
+        }
+    };
+
+    const handleDeletePartialPayment = async (splitId: string, paymentId: string) => {
+        if (!user || !payingSplit) return;
+
+        const updatedSplits = payingSplit.parentCheque.splits.map(s => {
+            if (s.id === splitId) {
+                const partialPayments = (s.partialPayments || []).filter(p => p.id !== paymentId);
+                const totalPaid = partialPayments.reduce((sum, p) => sum + p.amount, 0);
+                
+                return { 
+                    ...s, 
+                    partialPayments, 
+                    status: totalPaid > 0 ? 'Partially Paid' : 'Due' 
+                };
+            }
+            return s;
+        });
+
+        try {
+            await updateCheque(payingSplit.parentCheque.id, { splits: updatedSplits as any, lastModifiedBy: user.username });
+            toast({ title: 'Payment Removed' });
+        } catch {
+            toast({ title: 'Error', variant: 'destructive' });
+        }
+    };
+
     const requestSort = (key: SortKey) => {
         setSortConfig(prev => ({
             key,
             direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
         }));
+    };
+
+    const handleClearFilters = () => {
+        setSearchQuery('');
+        setFilterParty('All');
+        setFilterStatus('All');
     };
 
     const isFiltered = filterParty !== 'All' || filterStatus !== 'All' || searchQuery !== '';
@@ -405,6 +483,106 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     </CardFooter>
                 )}
             </Card>
+
+            <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+                    <DialogHeader className="p-6 border-b bg-muted/10">
+                        <DialogTitle className="text-xl font-bold uppercase tracking-tight">Payment Ledger: {payingSplit?.parentCheque.payeeName}</DialogTitle>
+                        <DialogDescription className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                            Cheque {payingSplit?.chequeNumber || 'N/A'} &middot; Total Rs. {Number(payingSplit?.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                        <div className="p-6 border-b bg-muted/5 space-y-4">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">New Settlement Entry</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Amount (रु)</Label>
+                                    <Input 
+                                        type="number" 
+                                        value={newPaymentAmount} 
+                                        onChange={e => setNewPaymentAmount(e.target.value === '' ? '' : parseFloat(e.target.value))} 
+                                        className="h-9 font-black"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Note / Remark</Label>
+                                    <Input 
+                                        value={newPaymentRemark} 
+                                        onChange={e => setNewPaymentRemark(e.target.value)} 
+                                        className="h-9 text-xs"
+                                        placeholder="e.g. Paid via eSewa"
+                                    />
+                                </div>
+                                <Button onClick={handleAddPartialPayment} disabled={!newPaymentAmount || Number(newPaymentAmount) <= 0} className="h-9 font-bold uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20">
+                                    <Plus className="mr-1.5 h-3.5 w-3.5" /> Post Payment
+                                </Button>
+                            </div>
+                        </div>
+
+                        <ScrollArea className="flex-1">
+                            <div className="p-6">
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-4">Payment History</h4>
+                                <Table className="text-xs border rounded-lg overflow-hidden">
+                                    <TableHeader className="bg-muted/50">
+                                        <TableRow className="h-10 hover:bg-transparent">
+                                            <TableHead className="pl-4 font-bold">Date</TableHead>
+                                            <TableHead className="font-bold">Amount</TableHead>
+                                            <TableHead className="font-bold">Remarks</TableHead>
+                                            <TableHead className="text-right pr-4 font-bold"></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {(payingSplit?.partialPayments || []).length > 0 ? (
+                                            payingSplit?.partialPayments?.map((p) => (
+                                                <TableRow key={p.id} className="h-11">
+                                                    <TableCell className="pl-4 font-mono text-[10px] text-muted-foreground">{format(new Date(p.date), 'yyyy-MM-dd HH:mm')}</TableCell>
+                                                    <TableCell className="font-black">Rs. {p.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                                    <TableCell className="italic text-muted-foreground">{p.remarks || '—'}</TableCell>
+                                                    <TableCell className="text-right pr-4">
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-7 w-7 text-destructive hover:bg-red-50" 
+                                                            onClick={() => handleDeletePartialPayment(payingSplit!.id, p.id)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground italic">No payments recorded yet.</TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                    {(payingSplit?.partialPayments || []).length > 0 && (
+                                        <TableFooter className="bg-muted/30">
+                                            <TableRow className="h-11 font-black">
+                                                <TableCell className="pl-4 text-right">Total Settled</TableCell>
+                                                <TableCell className="text-emerald-700">Rs. {payingSplit?.paidAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                                <TableCell colSpan={2}></TableCell>
+                                            </TableRow>
+                                            <TableRow className="h-11 font-black bg-red-50/50">
+                                                <TableCell className="pl-4 text-right">Balance Due</TableCell>
+                                                <TableCell className="text-red-700">Rs. {payingSplit?.remainingAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                                <TableCell colSpan={2}></TableCell>
+                                            </TableRow>
+                                        </TableFooter>
+                                    )}
+                                </Table>
+                            </div>
+                        </ScrollArea>
+                    </div>
+                    
+                    <DialogFooter className="p-6 border-t bg-white shrink-0">
+                        <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)} className="w-full font-bold uppercase text-[10px] tracking-widest h-10">Close Ledger</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={isPaidDialogOpen} onOpenChange={setIsPaidDialogOpen}>
                 <DialogContent className="sm:max-w-md">
