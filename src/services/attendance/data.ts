@@ -82,23 +82,25 @@ export const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData
 };
 
 export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () => void => {
-    const q = query(getRawLogsCollection(), orderBy('importedAt', 'desc'));
+    const collectionRef = getRawLogsCollection();
+    const q = query(collectionRef, orderBy('importedAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestoreLog));
     }, async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'raw_machine_logs',
+            path: collectionRef.path,
             operation: 'list'
         }));
     });
 };
 
 export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
-    return onSnapshot(getAttendanceCollection(), (snapshot) => {
+    const collectionRef = getAttendanceCollection();
+    return onSnapshot(collectionRef, (snapshot) => {
         callback(snapshot.docs.map(fromFirestoreRecord));
     }, async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.ATTENDANCE,
+            path: collectionRef.path,
             operation: 'list'
         }));
     });

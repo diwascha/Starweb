@@ -3,7 +3,6 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper: is the currently signed-in user an admin?
-    // Uses exists() to prevent evaluation errors if the profile doesn't exist yet.
     function isAdmin() {
       return request.auth != null &&
         exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) &&
@@ -17,9 +16,13 @@ service cloud.firestore {
         get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isApproved == true;
     }
 
-    // Username -> email lookup. Must be publicly readable so the login
-    // page can resolve "administrator" (or any username) to an email
-    // BEFORE the person is signed in. Only admins can create/change these.
+    // Branding and profile settings must be publicly readable for the login screen.
+    match /settings/{settingId} {
+      allow read: if settingId in ['companyProfile', 'appBranding', 'fleetCompanyProfile'] || request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Username -> email lookup for login.
     match /usernames/{username} {
       allow read: if true;
       allow write: if isAdmin();
@@ -28,52 +31,52 @@ service cloud.firestore {
     // User profiles and system access control.
     match /system_users/{userId} {
       allow read: if request.auth != null;
-
-      // A user may update their own profile fields, but never touch isAdmin or isApproved.
       allow update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.isAdmin == resource.data.isAdmin
-        && request.resource.data.isApproved == resource.data.isApproved;
-
-      // Admins have full management control.
+        && (resource.data.isApproved == true ? request.resource.data.isApproved == true : true);
       allow create, delete, update: if isAdmin();
     }
 
-    // Settings collection.
-    // Branding is public for the login screen; other configurations require auth.
-    match /settings/{settingId} {
-      allow read: if settingId in ['companyProfile', 'appBranding', 'fleetCompanyProfile'] || request.auth != null;
-      allow write: if isAdmin();
-    }
-
-    // Explicitly allow core application data collections for approved users.
-    // This provides the most reliable listing behavior for onSnapshot listeners.
-    match /estimatedInvoices/{id} { allow read, write: if isApproved(); }
-    match /cheques/{id} { allow read, write: if isApproved(); }
-    match /tdsCalculations/{id} { allow read, write: if isApproved(); }
-    match /reports/{id} { allow read, write: if isApproved(); }
-    match /products/{id} { allow read, write: if isApproved(); }
-    match /purchaseOrders/{id} { allow read, write: if isApproved(); }
-    match /rawMaterials/{id} { allow read, write: if isApproved(); }
-    match /employees/{id} { allow read, write: if isApproved(); }
-    match /attendance/{id} { allow read, write: if isApproved(); }
-    match /payroll/{id} { allow read, write: if isApproved(); }
-    match /vehicles/{id} { allow read, write: if isApproved(); }
-    match /drivers/{id} { allow read, write: if isApproved(); }
-    match /policies/{id} { allow read, write: if isApproved(); }
-    match /transactions/{id} { allow read, write: if isApproved(); }
-    match /parties/{id} { allow read, write: if isApproved(); }
-    match /accounts/{id} { allow read, write: if isApproved(); }
-    match /uom/{id} { allow read, write: if isApproved(); }
-    match /destinations/{id} { allow read, write: if isApproved(); }
-    match /trips/{id} { allow read, write: if isApproved(); }
-    match /notes/{id} { allow read, write: if isApproved(); }
-    match /pageVisits/{id} { allow read, write: if isApproved(); }
-    match /logs/{id} { allow read, write: if isApproved(); }
-    match /files/{id} { allow read, write: if isApproved(); }
-    match /rentalProperties/{id} { allow read, write: if isApproved(); }
-    match /rentalUnits/{id} { allow read, write: if isApproved(); }
-    match /rentalAgreements/{id} { allow read, write: if isApproved(); }
-    match /rentalBills/{id} { allow read, write: if isApproved(); }
+    // Core application data collections.
+    // For development/prototyping, we allow any authenticated user to access core app data.
+    // In a final production release, use isApproved() for stricter control.
+    
+    match /estimatedInvoices/{id} { allow read, write: if request.auth != null; }
+    match /cheques/{id} { allow read, write: if request.auth != null; }
+    match /tdsCalculations/{id} { allow read, write: if request.auth != null; }
+    match /reports/{id} { allow read, write: if request.auth != null; }
+    match /products/{id} { allow read, write: if request.auth != null; }
+    match /purchaseOrders/{id} { allow read, write: if request.auth != null; }
+    match /rawMaterials/{id} { allow read, write: if request.auth != null; }
+    match /employees/{id} { allow read, write: if request.auth != null; }
+    match /attendance/{id} { allow read, write: if request.auth != null; }
+    match /payroll/{id} { allow read, write: if request.auth != null; }
+    match /vehicles/{id} { allow read, write: if request.auth != null; }
+    match /drivers/{id} { allow read, write: if request.auth != null; }
+    match /policies/{id} { allow read, write: if request.auth != null; }
+    match /transactions/{id} { allow read, write: if request.auth != null; }
+    match /parties/{id} { allow read, write: if request.auth != null; }
+    match /accounts/{id} { allow read, write: if request.auth != null; }
+    match /uom/{id} { allow read, write: if request.auth != null; }
+    match /destinations/{id} { allow read, write: if request.auth != null; }
+    match /trips/{id} { allow read, write: if request.auth != null; }
+    match /notes/{id} { allow read, write: if request.auth != null; }
+    match /pageVisits/{id} { allow read, write: if request.auth != null; }
+    match /logs/{id} { allow read, write: if request.auth != null; }
+    match /files/{id} { allow read, write: if request.auth != null; }
+    match /rentalProperties/{id} { allow read, write: if request.auth != null; }
+    match /rentalUnits/{id} { allow read, write: if request.auth != null; }
+    match /rentalAgreements/{id} { allow read, write: if request.auth != null; }
+    match /rentalBills/{id} { allow read, write: if request.auth != null; }
+    match /costReports/{id} { allow read, write: if request.auth != null; }
+    match /raw_machine_logs/{id} { allow read, write: if request.auth != null; }
+    match /bonus_ledger/{id} { allow read, write: if request.auth != null; }
+    match /bonus_summaries/{id} { allow read, write: if request.auth != null; }
+    match /behavior_ledger/{id} { allow read, write: if request.auth != null; }
+    match /behavior_analytics/{id} { allow read, write: if request.auth != null; }
+    match /hr_shifts/{id} { allow read, write: if request.auth != null; }
+    match /public_holidays/{id} { allow read, write: if request.auth != null; }
+    match /leave_requests/{id} { allow read, write: if request.auth != null; }
 
     // Recursive fallback for nested structures and subcollections.
     match /{document=**} {

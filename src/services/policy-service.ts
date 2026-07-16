@@ -3,7 +3,7 @@ import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, setDoc } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { COLLECTIONS } from '@/lib/constants';
 
 const getPoliciesCollection = () => {
@@ -52,7 +52,7 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
         createdAt: new Date().toISOString(),
     };
     const docRef = doc(getPoliciesCollection());
-    setDoc(docRef, payload).catch(async (error) => {
+    setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: COLLECTIONS.POLICIES,
             operation: 'create',
@@ -63,13 +63,14 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
 };
 
 export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => void): () => void => {
-    return onSnapshot(getPoliciesCollection(), 
+    const collectionRef = getPoliciesCollection();
+    return onSnapshot(collectionRef, 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.POLICIES,
+                path: collectionRef.path,
                 operation: 'list',
             }));
         }
@@ -82,7 +83,7 @@ export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMemb
         ...policy,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(policyDoc, payload).catch(async (error) => {
+    updateDoc(policyDoc, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: policyDoc.path,
             operation: 'update',
@@ -93,7 +94,7 @@ export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMemb
 
 export const deletePolicy = async (id: string): Promise<void> => {
     const policyDoc = doc(getPoliciesCollection(), id);
-    deleteDoc(policyDoc).catch(async (error) => {
+    deleteDoc(policyDoc).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: policyDoc.path,
             operation: 'delete',
