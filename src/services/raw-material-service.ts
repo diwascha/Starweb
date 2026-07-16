@@ -123,7 +123,7 @@ export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMa
         getUoms().then(async (existingUoms) => {
             const existingAbbrs = new Set(existingUoms.map(u => u.abbreviation.toLowerCase()));
             for (const unit of material.units!) {
-                if (!existingAbbrs.has(unit.toLowerCase())) {
+                if (unit && !existingAbbrs.has(unit.toLowerCase())) {
                     await addUom({ 
                         name: unit, 
                         abbreviation: unit, 

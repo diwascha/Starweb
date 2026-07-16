@@ -20,6 +20,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         kraftPaperCosts: data.kraftPaperCosts,
         virginPaperCost: data.virginPaperCost,
         conversionCost: data.conversionCost,
+        accessoryConversionCost: Number(data.accessoryConversionCost) || 0,
         transportCost: data.transportCost,
         transportCostType: data.transportCostType,
         items: data.items,

@@ -47,7 +47,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getParties = async (): Promise<Party[]> => {
+export const getParties = async (useCache = false): Promise<Party[]> => {
     try {
         const snapshot = await getDocs(getPartiesCollection());
         return snapshot.docs.map(fromFirestore);

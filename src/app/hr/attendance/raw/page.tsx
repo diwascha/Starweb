@@ -281,7 +281,7 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
         const from = bulkDateRange?.from;
         const to = bulkDateRange?.to || from; 
         
-        if (!user || !from || bulkEmployeeNames.length === 0) {
+        if (!user || !from || !to || bulkEmployeeNames.length === 0) {
             toast({ title: 'Validation Error', description: 'Please select target period and at least one employee.', variant: 'destructive' });
             return;
         }
@@ -395,7 +395,7 @@ export default function RawMachineLogsPage(props: { params: Promise<any>, search
     const bulkTotalLogs = useMemo(() => {
         const from = bulkDateRange?.from;
         const to = bulkDateRange?.to || from; 
-        if (!from || bulkEmployeeNames.length === 0) return 0;
+        if (!from || !to || bulkEmployeeNames.length === 0) return 0;
         const days = differenceInDays(to, from) + 1;
         return days * bulkEmployeeNames.length;
     }, [bulkDateRange, bulkEmployeeNames]);
