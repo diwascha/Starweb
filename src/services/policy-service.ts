@@ -1,8 +1,11 @@
+'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 import { addExpense } from './expense-service';
 import { logServiceError } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getPoliciesCollection = () => {
     const { db } = getFirebase();
@@ -37,12 +40,24 @@ export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
 }
 
 export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise<string> => {
-    const docRef = await addDoc(getPoliciesCollection(), {
+    const payload = {
         ...policy,
         createdAt: new Date().toISOString(),
+    };
+    const docRef = await addDoc(getPoliciesCollection(), payload).catch(async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: 'policies',
+                operation: 'create',
+                requestResourceData: payload,
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            logServiceError("addPolicy", error);
+        }
+        throw error;
     });
 
-    // Automatically record an expense if there is a cost associated with this policy/membership
     if (policy.cost > 0) {
         try {
             await addExpense({
@@ -72,26 +87,57 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
 };
 
 export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => void): () => void => {
-    return onSnapshot(getPoliciesCollection(), 
+    const collectionRef = getPoliciesCollection();
+    return onSnapshot(collectionRef, 
         (snapshot) => {
             const policies = snapshot.docs.map(fromFirestore);
             callback(policies);
         },
-        (error) => {
-            logServiceError("onPoliciesUpdate", error);
+        async (error) => {
+            if (error.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: collectionRef.path,
+                    operation: 'list',
+                } satisfies SecurityRuleContext);
+                errorEmitter.emit('permission-error', permissionError);
+            } else {
+                logServiceError("onPoliciesUpdate", error);
+            }
         }
     );
 };
 
 export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMembership, 'id'>>): Promise<void> => {
     const policyDoc = doc(getPoliciesCollection(), id);
-    await updateDoc(policyDoc, {
+    const payload = {
         ...policy,
         lastModifiedAt: new Date().toISOString(),
+    };
+    await updateDoc(policyDoc, payload).catch(async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: policyDoc.path,
+                operation: 'update',
+                requestResourceData: payload,
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            logServiceError("updatePolicy", error);
+        }
     });
 };
 
 export const deletePolicy = async (id: string): Promise<void> => {
     const policyDoc = doc(getPoliciesCollection(), id);
-    await deleteDoc(policyDoc);
+    await deleteDoc(policyDoc).catch(async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: policyDoc.path,
+                operation: 'delete',
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            logServiceError("deletePolicy", error);
+        }
+    });
 };

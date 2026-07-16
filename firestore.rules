@@ -8,6 +8,11 @@ service cloud.firestore {
         get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isAdmin == true;
     }
 
+    // Publicly readable branding and profile settings
+    match /settings/{settingId} {
+      allow read: if settingId in ['appBranding', 'companyProfile', 'fleetCompanyProfile'];
+    }
+
     // Username -> email lookup. Must be publicly readable so the login
     // page can resolve "administrator" (or any username) to an email
     // BEFORE the person is signed in. Only admins can create/change these,

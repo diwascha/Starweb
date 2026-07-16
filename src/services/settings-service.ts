@@ -1,7 +1,10 @@
+'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { AppSetting, CostSetting, CostSettingHistoryEntry } from '@/lib/types';
 import { logServiceError } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const getSettingsCollection = () => {
     const { db } = getFirebase();
@@ -10,26 +13,36 @@ const getSettingsCollection = () => {
 
 export const getSetting = async (id: string): Promise<AppSetting | null> => {
     if (!id || typeof id !== 'string') {
-        logServiceError("getSetting", new Error("Invalid ID: " + id));
         return null;
     }
     const docRef = doc(getSettingsCollection(), id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        return { 
-            id: docSnap.id, 
-            value: data.value 
-        };
+    try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            return { 
+                id: docSnap.id, 
+                value: data.value 
+            };
+        }
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'get',
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            logServiceError("getSetting", error);
+        }
     }
     return null;
 };
 
 export const onSettingUpdate = (id: string, callback: (setting: AppSetting | null) => void): () => void => {
     if (!id || typeof id !== 'string') {
-        logServiceError("onSettingUpdate", new Error("Invalid ID: " + id));
         callback(null);
-        return () => {}; // Return a no-op unsubscribe function
+        return () => {}; 
     }
     const docRef = doc(getSettingsCollection(), id);
     return onSnapshot(docRef, 
@@ -41,8 +54,16 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
                 callback(null);
             }
         },
-        (error) => {
-            logServiceError("onSettingUpdate", error);
+        async (error) => {
+            if (error.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'get',
+                } satisfies SecurityRuleContext);
+                errorEmitter.emit('permission-error', permissionError);
+            } else {
+                logServiceError("onSettingUpdate", error);
+            }
             callback(null);
         }
     );
@@ -51,21 +72,31 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
 export const setSetting = async (id: string, value: any): Promise<void> => {
     if (!id) return;
     const docRef = doc(getSettingsCollection(), id);
-    await setDoc(docRef, { value });
+    setDoc(docRef, { value }).catch(async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'write',
+                requestResourceData: { value },
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            logServiceError("setSetting", error);
+        }
+    });
 };
 
 export const updateCostSettings = async (newCosts: Partial<CostSetting>, updatedBy: string): Promise<void> => {
     const docRef = doc(getSettingsCollection(), 'costing');
-    const docSnap = await getDoc(docRef);
+    const docSnap = await getDoc(docRef).catch(() => null);
     const now = new Date().toISOString();
 
-    if (docSnap.exists()) {
+    if (docSnap && docSnap.exists()) {
         const currentData = docSnap.data().value as CostSetting;
         const newHistory: CostSettingHistoryEntry[] = currentData.history || [];
         
         let changed = false;
 
-        // Check Kraft Paper Costs
         if (newCosts.kraftPaperCosts) {
             for (const bf in newCosts.kraftPaperCosts) {
                 if (newCosts.kraftPaperCosts[bf] !== (currentData.kraftPaperCosts?.[bf] || 0)) {
@@ -88,13 +119,12 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
             changed = true;
         }
         
-        // Terms & Conditions don't need history for now as per user request focus
         if (newCosts.termsAndConditions) {
             changed = true;
         }
 
         if (changed) {
-            await updateDoc(docRef, {
+            const payload = {
                 value: {
                     ...currentData,
                     ...newCosts,
@@ -102,11 +132,22 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
                     lastModifiedBy: updatedBy,
                     lastModifiedAt: now
                 }
+            };
+            updateDoc(docRef, payload).catch(async (error) => {
+                if (error.code === 'permission-denied') {
+                    const permissionError = new FirestorePermissionError({
+                        path: docRef.path,
+                        operation: 'update',
+                        requestResourceData: payload,
+                    } satisfies SecurityRuleContext);
+                    errorEmitter.emit('permission-error', permissionError);
+                } else {
+                    logServiceError("updateCostSettings", error);
+                }
             });
         }
 
     } else {
-        // Create it for the first time
          const newHistory: CostSettingHistoryEntry[] = [];
          if (newCosts.kraftPaperCosts) {
             for (const bf in newCosts.kraftPaperCosts) {
@@ -117,7 +158,7 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
          if (newCosts.conversionCost) newHistory.push({ costType: 'conversionCost', oldValue: 0, newValue: newCosts.conversionCost, date: now, setBy: updatedBy });
          if (newCosts.accessoryConversionCost) newHistory.push({ costType: 'accessoryConversionCost', oldValue: 0, newValue: newCosts.accessoryConversionCost, date: now, setBy: updatedBy });
 
-        await setDoc(docRef, {
+        const payload = {
             value: {
                 kraftPaperCosts: newCosts.kraftPaperCosts || {},
                 virginPaperCost: newCosts.virginPaperCost || 0,
@@ -127,6 +168,18 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
                 history: newHistory,
                 createdBy: updatedBy,
                 createdAt: now,
+            }
+        };
+        setDoc(docRef, payload).catch(async (error) => {
+            if (error.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'create',
+                    requestResourceData: payload,
+                } satisfies SecurityRuleContext);
+                errorEmitter.emit('permission-error', permissionError);
+            } else {
+                logServiceError("createCostSettings", error);
             }
         });
     }
