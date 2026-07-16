@@ -1,7 +1,8 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { CostReport } from '@/lib/types';
-import { logServiceError } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getCostReportsCollection = () => {
     const { db } = getFirebase();
@@ -31,8 +32,16 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 
 export const getCostReports = async (): Promise<CostReport[]> => {
     const q = query(getCostReportsCollection(), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(fromFirestore);
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(fromFirestore);
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'costReports',
+            operation: 'list',
+        }));
+        throw error;
+    }
 };
 
 export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): () => void => {
@@ -41,8 +50,11 @@ export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
-        (error) => {
-            logServiceError("onCostReportsUpdate", error);
+        async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'costReports',
+                operation: 'list',
+            }));
         }
     );
 };
@@ -50,17 +62,33 @@ export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): 
 export const getCostReport = async (id: string): Promise<CostReport | null> => {
     if (!id || typeof id !== 'string') return null;
     const docRef = doc(getCostReportsCollection(), id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-        return fromFirestore(docSnap as QueryDocumentSnapshot<DocumentData>);
+    try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return fromFirestore(docSnap as QueryDocumentSnapshot<DocumentData>);
+        }
+        return null;
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'get',
+        }));
+        return null;
     }
-    return null;
 }
 
 export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>): Promise<string> => {
-    const docRef = await addDoc(getCostReportsCollection(), {
+    const payload = {
         ...report,
         createdAt: new Date().toISOString(),
+    };
+    const docRef = doc(getCostReportsCollection());
+    addDoc(getCostReportsCollection(), payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'costReports',
+            operation: 'create',
+            requestResourceData: payload,
+        }));
     });
     return docRef.id;
 };
@@ -68,9 +96,16 @@ export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>
 export const updateCostReport = async (id: string, report: Partial<Omit<CostReport, 'id'>>): Promise<void> => {
     if (!id) return;
     const reportDoc = doc(getCostReportsCollection(), id);
-    await updateDoc(reportDoc, {
+    const payload = {
         ...report,
         lastModifiedAt: new Date().toISOString(),
+    };
+    updateDoc(reportDoc, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: reportDoc.path,
+            operation: 'update',
+            requestResourceData: payload,
+        }));
     });
 };
 
@@ -78,7 +113,12 @@ export const updateCostReport = async (id: string, report: Partial<Omit<CostRepo
 export const deleteCostReport = async (id: string): Promise<void> => {
     if (!id) return;
     const reportDoc = doc(getCostReportsCollection(), id);
-    await deleteDoc(reportDoc);
+    deleteDoc(reportDoc).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: reportDoc.path,
+            operation: 'delete',
+        }));
+    });
 };
 
 export const generateNextCostReportNumber = async (reports: Pick<CostReport, 'reportNumber'>[]): Promise<string> => {

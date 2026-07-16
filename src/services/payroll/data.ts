@@ -14,7 +14,9 @@ import {
 } from 'firebase/firestore';
 import type { Payroll } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
-import { logServiceError, coerceNumber } from '@/lib/service-utils';
+import { coerceNumber } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export const getPayrollCollection = () => {
     const { db } = getFirebase();
@@ -57,20 +59,20 @@ export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | Do
 };
 
 export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => void => {
-    return onSnapshot(getPayrollCollection(), (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        logServiceError('onPayrollUpdate', error);
-    });
+    return onSnapshot(getPayrollCollection(), 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.PAYROLL,
+                operation: 'list',
+            }));
+        }
+    );
 };
 
-/**
- * Scans the payroll registry to discover all unique years for which financial records exist.
- * 
- * @returns Promise resolving to a sorted array of BS years (descending).
- */
 export const getPayrollYears = async (): Promise<number[]> => {
-    const { db } = getFirebase();
     const years = new Set<number>();
     try {
         const snapshot = await getDocs(getPayrollCollection());
@@ -81,28 +83,53 @@ export const getPayrollYears = async (): Promise<number[]> => {
             }
         });
     } catch (error) {
-        logServiceError('getPayrollYears', error);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.PAYROLL,
+            operation: 'list',
+        }));
     }
     return Array.from(years).sort((a, b) => b - a);
 };
 
 export const getPayrollForEmployee = async (employeeId: string, bsYear: number, bsMonth: number): Promise<Payroll | null> => {
     const q = query(getPayrollCollection(), where("employeeId", "==", employeeId), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth), limit(1));
-    const docSnap = await getDocs(q);
-    return docSnap.empty ? null : fromFirestore(docSnap.docs[0]);
+    try {
+        const docSnap = await getDocs(q);
+        return docSnap.empty ? null : fromFirestore(docSnap.docs[0]);
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.PAYROLL,
+            operation: 'list',
+        }));
+        return null;
+    }
 };
 
 export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
     const { db } = getFirebase();
     const year = Number(bsYear); const month = Number(bsMonth);
     const collections = [COLLECTIONS.PAYROLL, 'bonus_ledger', 'behavior_ledger', 'behavior_analytics'];
-    await deleteDoc(doc(db, 'analytics_reports', `${year}-${month}`));
+    
+    deleteDoc(doc(db, 'analytics_reports', `${year}-${month}`)).catch(async (err) => {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'analytics_reports',
+            operation: 'delete',
+        }));
+    });
+
     for (const collName of collections) {
-        const snap = await getDocs(query(collection(db, collName), where("bsYear", "==", year), where("bsMonth", "==", month)));
-        if (!snap.empty) {
-            const batch = writeBatch(db);
-            snap.docs.forEach(d => batch.delete(d.ref));
-            await batch.commit();
-        }
+        const q = query(collection(db, collName), where("bsYear", "==", year), where("bsMonth", "==", month));
+        getDocs(q).then(async (snap) => {
+            if (!snap.empty) {
+                const batch = writeBatch(db);
+                snap.docs.forEach(d => batch.delete(d.ref));
+                await batch.commit();
+            }
+        }).catch(async (err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: collName,
+                operation: 'write',
+            }));
+        });
     }
 };

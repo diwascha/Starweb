@@ -1,7 +1,8 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, setDoc } from 'firebase/firestore';
 import type { Destination } from '@/lib/types';
-import { logServiceError } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getDestinationsCollection = () => {
     const { db } = getFirebase();
@@ -23,14 +24,30 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Destinati
 }
 
 export const getDestinations = async (): Promise<Destination[]> => {
-    const snapshot = await getDocs(getDestinationsCollection());
-    return snapshot.docs.map(fromFirestore);
+    try {
+        const snapshot = await getDocs(getDestinationsCollection());
+        return snapshot.docs.map(fromFirestore);
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'destinations',
+            operation: 'list',
+        }));
+        throw error;
+    }
 }
 
 export const addDestination = async (destination: Omit<Destination, 'id'>): Promise<string> => {
-    const docRef = await addDoc(getDestinationsCollection(), {
+    const payload = {
         ...destination,
         createdAt: new Date().toISOString(),
+    };
+    const docRef = doc(getDestinationsCollection());
+    setDoc(docRef, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'destinations',
+            operation: 'create',
+            requestResourceData: payload,
+        }));
     });
     return docRef.id;
 };
@@ -40,21 +57,36 @@ export const onDestinationsUpdate = (callback: (destinations: Destination[]) => 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
-        (error) => {
-            logServiceError("onDestinationsUpdate", error);
+        async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'destinations',
+                operation: 'list',
+            }));
         }
     );
 };
 
 export const updateDestination = async (id: string, destination: Partial<Omit<Destination, 'id'>>): Promise<void> => {
     const destDoc = doc(getDestinationsCollection(), id);
-    await updateDoc(destDoc, {
+    const payload = {
         ...destination,
         lastModifiedAt: new Date().toISOString(),
+    };
+    updateDoc(destDoc, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: destDoc.path,
+            operation: 'update',
+            requestResourceData: payload,
+        }));
     });
 };
 
 export const deleteDestination = async (id: string): Promise<void> => {
     const destDoc = doc(getDestinationsCollection(), id);
-    await deleteDoc(destDoc);
+    deleteDoc(destDoc).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: destDoc.path,
+            operation: 'delete',
+        }));
+    });
 };

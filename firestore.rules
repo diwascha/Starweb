@@ -10,10 +10,16 @@ service cloud.firestore {
         get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isAdmin == true;
     }
 
+    // Helper: is the currently signed-in user an approved business user?
+    function isApproved() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isApproved == true;
+    }
+
     // Username -> email lookup. Must be publicly readable so the login
     // page can resolve "administrator" (or any username) to an email
-    // BEFORE the person is signed in. Only admins can create/change these,
-    // since only admins create accounts in this app.
+    // BEFORE the person is signed in. Only admins can create/change these.
     match /usernames/{username} {
       allow read: if true;
       allow write: if isAdmin();
@@ -39,14 +45,37 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Explicitly allow pageVisits for authenticated users.
-    match /pageVisits/{pathId} {
-      allow read, write: if request.auth != null;
-    }
+    // Explicitly allow core application data collections for approved users.
+    // This provides the most reliable listing behavior for onSnapshot listeners.
+    match /estimatedInvoices/{id} { allow read, write: if isApproved(); }
+    match /cheques/{id} { allow read, write: if isApproved(); }
+    match /tdsCalculations/{id} { allow read, write: if isApproved(); }
+    match /reports/{id} { allow read, write: if isApproved(); }
+    match /products/{id} { allow read, write: if isApproved(); }
+    match /purchaseOrders/{id} { allow read, write: if isApproved(); }
+    match /rawMaterials/{id} { allow read, write: if isApproved(); }
+    match /employees/{id} { allow read, write: if isApproved(); }
+    match /attendance/{id} { allow read, write: if isApproved(); }
+    match /payroll/{id} { allow read, write: if isApproved(); }
+    match /vehicles/{id} { allow read, write: if isApproved(); }
+    match /drivers/{id} { allow read, write: if isApproved(); }
+    match /policies/{id} { allow read, write: if isApproved(); }
+    match /transactions/{id} { allow read, write: if isApproved(); }
+    match /parties/{id} { allow read, write: if isApproved(); }
+    match /accounts/{id} { allow read, write: if isApproved(); }
+    match /uom/{id} { allow read, write: if isApproved(); }
+    match /destinations/{id} { allow read, write: if isApproved(); }
+    match /trips/{id} { allow read, write: if isApproved(); }
+    match /notes/{id} { allow read, write: if isApproved(); }
+    match /pageVisits/{id} { allow read, write: if isApproved(); }
+    match /logs/{id} { allow read, write: if isApproved(); }
+    match /files/{id} { allow read, write: if isApproved(); }
+    match /rentalProperties/{id} { allow read, write: if isApproved(); }
+    match /rentalUnits/{id} { allow read, write: if isApproved(); }
+    match /rentalAgreements/{id} { allow read, write: if isApproved(); }
+    match /rentalBills/{id} { allow read, write: if isApproved(); }
 
-    // Main application data (Cheques, Fleet, HR, CRM, Finance, etc.)
-    // Any authenticated user can read/write to these collections. 
-    // Finer-grained module permissions are handled in the UI shell.
+    // Recursive fallback for nested structures and subcollections.
     match /{document=**} {
       allow read, write: if request.auth != null;
     }

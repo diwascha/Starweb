@@ -1,4 +1,3 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { 
     collection, 
@@ -12,12 +11,15 @@ import {
     QueryDocumentSnapshot,
     query,
     where,
-    writeBatch
+    writeBatch,
+    setDoc
 } from 'firebase/firestore';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { getUoms, addUom } from './uom-service';
 import { COLLECTIONS } from '@/lib/constants';
-import { createTimestamp, logServiceError } from '@/lib/service-utils';
+import { createTimestamp } from '@/lib/service-utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getRawMaterialsCollection = () => {
     const { db } = getFirebase();
@@ -46,15 +48,31 @@ export const getRawMaterials = async (): Promise<RawMaterial[]> => {
         const snapshot = await getDocs(getRawMaterialsCollection());
         return snapshot.docs.map(fromFirestore);
     } catch (error) {
-        logServiceError('getRawMaterials', error);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.RAW_MATERIALS,
+            operation: 'list',
+        }));
         throw error;
     }
 };
 
 export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise<string> => {
-    try {
-        if (material.units) {
-            const existingUoms = await getUoms();
+    const docRef = doc(getRawMaterialsCollection());
+    const payload = {
+        ...material,
+        createdAt: createTimestamp(),
+    };
+
+    setDoc(docRef, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.RAW_MATERIALS,
+            operation: 'create',
+            requestResourceData: payload,
+        }));
+    });
+
+    if (material.units) {
+        getUoms().then(async (existingUoms) => {
             const existingAbbrs = new Set(existingUoms.map(u => u.abbreviation.toLowerCase()));
             for (const unit of material.units) {
                 if (!existingAbbrs.has(unit.toLowerCase())) {
@@ -66,13 +84,10 @@ export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise
                     });
                 }
             }
-        }
-        const docRef = await addDoc(getRawMaterialsCollection(), material);
-        return docRef.id;
-    } catch (error) {
-        logServiceError('addRawMaterial', error);
-        throw error;
+        });
     }
+
+    return docRef.id;
 };
 
 export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => void): () => void => {
@@ -80,60 +95,65 @@ export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => voi
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
-        (error) => {
-            logServiceError('onRawMaterialsUpdate', error);
+        async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.RAW_MATERIALS,
+                operation: 'list',
+            }));
         }
     );
 };
 
 export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMaterial, 'id'>>): Promise<void> => {
-    try {
-        if (material.units && material.lastModifiedBy) {
-            const existingUoms = await getUoms();
+    const materialDoc = doc(getRawMaterialsCollection(), id);
+    const payload = {
+        ...material,
+        lastModifiedAt: createTimestamp()
+    };
+
+    updateDoc(materialDoc, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: materialDoc.path,
+            operation: 'update',
+            requestResourceData: payload,
+        }));
+    });
+
+    if (material.units && material.lastModifiedBy) {
+        getUoms().then(async (existingUoms) => {
             const existingAbbrs = new Set(existingUoms.map(u => u.abbreviation.toLowerCase()));
             for (const unit of material.units) {
                 if (!existingAbbrs.has(unit.toLowerCase())) {
                     await addUom({ 
                         name: unit, 
                         abbreviation: unit, 
-                        createdBy: material.lastModifiedBy, 
+                        createdBy: material.lastModifiedBy!, 
                         createdAt: createTimestamp() 
                     });
                 }
             }
-        }
-        const materialDoc = doc(getRawMaterialsCollection(), id);
-        await updateDoc(materialDoc, {
-            ...material,
-            lastModifiedAt: createTimestamp()
         });
-    } catch (error) {
-        logServiceError('updateRawMaterial', error);
-        throw error;
     }
 };
 
 export const deleteRawMaterial = async (id: string): Promise<void> => {
-    try {
-        const materialDoc = doc(getRawMaterialsCollection(), id);
-        await deleteDoc(materialDoc);
-    } catch (error) {
-        logServiceError('deleteRawMaterial', error);
-        throw error;
-    }
+    const materialDoc = doc(getRawMaterialsCollection(), id);
+    deleteDoc(materialDoc).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: materialDoc.path,
+            operation: 'delete',
+        }));
+    });
 };
 
 export const renameCategory = async (oldName: string, newName: string, modifiedBy: string): Promise<void> => {
     const { db } = getFirebase();
-    try {
-        const q = query(getRawMaterialsCollection(), where("type", "==", oldName));
-        const snapshot = await getDocs(q);
-        
+    const q = query(getRawMaterialsCollection(), where("type", "==", oldName));
+    
+    getDocs(q).then(async (snapshot) => {
         if (snapshot.empty) return;
-
         const batch = writeBatch(db);
         const now = createTimestamp();
-
         snapshot.docs.forEach(docSnap => {
             batch.update(docSnap.ref, {
                 type: newName,
@@ -141,30 +161,30 @@ export const renameCategory = async (oldName: string, newName: string, modifiedB
                 lastModifiedAt: now
             });
         });
-
         await batch.commit();
-    } catch (error) {
-        logServiceError('renameCategory', error);
-        throw error;
-    }
+    }).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'rawMaterials_rename_batch',
+            operation: 'write',
+        }));
+    });
 };
 
 export const deleteCategory = async (name: string): Promise<void> => {
     const { db } = getFirebase();
-    try {
-        const q = query(getRawMaterialsCollection(), where("type", "==", name));
-        const snapshot = await getDocs(q);
-        
+    const q = query(getRawMaterialsCollection(), where("type", "==", name));
+    
+    getDocs(q).then(async (snapshot) => {
         if (snapshot.empty) return;
-
         const batch = writeBatch(db);
         snapshot.docs.forEach(docSnap => {
             batch.delete(docSnap.ref);
         });
-
         await batch.commit();
-    } catch (error) {
-        logServiceError('deleteCategory', error);
-        throw error;
-    }
+    }).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'rawMaterials_delete_batch',
+            operation: 'write',
+        }));
+    });
 };

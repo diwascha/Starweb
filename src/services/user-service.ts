@@ -25,6 +25,8 @@ import { firebaseConfig } from '@/firebase/config';
 import type { User, Permissions } from '@/lib/types';
 import { z } from 'zod';
 import { logAudit } from './log-service';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const USERS_COLLECTION = 'system_users';
 const USERNAMES_COLLECTION = 'usernames';
@@ -38,10 +40,6 @@ const defaultAdminCreds = {
 
 // --- Schema Validation ---
 
-/**
- * Zod schema for validating User data from Firestore.
- * Ensures data integrity and provides safe defaults.
- */
 const UserSchema = z.object({
     username: z.string().min(1),
     email: z.string().email().optional().or(z.literal('')),
@@ -50,9 +48,6 @@ const UserSchema = z.object({
     passwordLastUpdated: z.string().optional(),
 });
 
-/**
- * Maps a Firestore document to a User object with strict validation.
- */
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): User => {
     const data = snapshot.data();
     const validated = UserSchema.parse(data);
@@ -68,66 +63,57 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 
 // --- Cloud User Service ---
 
-/**
- * Sets up a real-time listener for the cloud user registry.
- * 
- * @param callback - Function called with the array of active system users.
- * @returns An unsubscribe function to stop the listener.
- */
 export const onUsersUpdate = (callback: (users: User[]) => void) => {
     const { db } = getFirebase();
     const q = query(collection(db, USERS_COLLECTION));
     return onSnapshot(q, (snapshot) => {
         const users = snapshot.docs.map(fromFirestore);
         callback(users);
+    }, async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: USERS_COLLECTION,
+            operation: 'list',
+        }));
     });
 };
 
-/**
- * Persists a user profile and synchronizes the username-to-email mapping.
- * 
- * @param user - The complete user object to save.
- * @throws Will throw an error if the Firestore write is denied.
- */
 export const saveUser = async (user: User) => {
     const { db } = getFirebase();
     if (!user?.id) throw new Error("Invalid user ID for save.");
 
     const userRef = doc(db, USERS_COLLECTION, user.id);
-    
-    // Save the main user record
-    await setDoc(userRef, {
+    const payload = {
         ...user,
         updatedAt: serverTimestamp()
-    }, { merge: true });
-
-    // Log the action for security auditing
-    logAudit(`Permissions/Status Updated for User: ${user.username}`, 'Security', {
-        isApproved: user.isApproved,
-        permissionMatrix: user.permissions
+    };
+    
+    setDoc(userRef, payload, { merge: true }).then(() => {
+        logAudit(`Permissions/Status Updated for User: ${user.username}`, 'Security', {
+            isApproved: user.isApproved,
+            permissionMatrix: user.permissions
+        });
+    }).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'update',
+            requestResourceData: payload,
+        }));
     });
 
-    // Ensure mapping is in sync
     if (user.username && user.email) {
         const usernameRef = doc(db, USERNAMES_COLLECTION, user.username.toLowerCase().trim());
-        await setDoc(usernameRef, { 
+        setDoc(usernameRef, { 
             email: user.email.toLowerCase().trim(), 
             username: user.username.toLowerCase().trim() 
-        }, { merge: true });
+        }, { merge: true }).catch(async (err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: usernameRef.path,
+                operation: 'write',
+            }));
+        });
     }
 };
 
-/**
- * Securely creates a new user account without disrupting the administrator's active session.
- * This is achieved by initializing a temporary secondary Firebase App instance.
- * 
- * @param auth - The primary Auth instance.
- * @param username - Unique system username.
- * @param email - Primary account email.
- * @param password - Initial secure password.
- * @returns The created Firebase Auth User object.
- * @throws Error if username is taken or password doesn't meet requirements.
- */
 export const adminCreateUserWithUsername = async (auth: Auth, username: string, email: string, password: string) => {
     const { db } = getFirebase();
     const login = (username || '').toLowerCase().trim();
@@ -136,7 +122,11 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     const usernameRef = doc(db, USERNAMES_COLLECTION, login);
     
     // 1. Check uniqueness
-    const snap = await getDoc(usernameRef);
+    const snap = await getDoc(usernameRef).catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'get' }));
+        throw err;
+    });
+
     if (snap.exists()) {
         throw new Error("Username already taken. Please choose another.");
     }
@@ -145,6 +135,9 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     await setDoc(usernameRef, { 
         email: email.toLowerCase().trim(), 
         username: login 
+    }).catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'write' }));
+        throw err;
     });
 
     // 3. Create Auth Account using a secondary app instance
@@ -164,15 +157,6 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     }
 };
 
-/**
- * Resolves a username to an email address and authenticates the user.
- * 
- * @param auth - The Auth instance.
- * @param username - The login username provided by the user.
- * @param password - The login password.
- * @returns A promise resolving to the Firebase UserCredential.
- * @throws Error if the username does not exist.
- */
 export const loginWithUsername = async (auth: Auth, username: string, password: string) => {
     const { db } = getFirebase();
     const login = (username || '').toLowerCase().trim();
@@ -180,8 +164,11 @@ export const loginWithUsername = async (auth: Auth, username: string, password: 
 
     const usernameRef = doc(db, USERNAMES_COLLECTION, login);
     
-    // 1. Look up email
-    const snap = await getDoc(usernameRef);
+    const snap = await getDoc(usernameRef).catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'get' }));
+        throw err;
+    });
+
     if (!snap.exists()) {
         throw new Error("Username does not exist in our system.");
     }
@@ -189,81 +176,65 @@ export const loginWithUsername = async (auth: Auth, username: string, password: 
     const email = snap.data()?.email;
     if (!email) throw new Error("Account data corrupted. Please contact administrator.");
     
-    // 2. Sign in with the resolved email
     return signInWithEmailAndPassword(auth, email, password);
 };
 
-/**
- * Removes a user profile and their associated username mapping.
- * 
- * @param userId - The unique identifier of the user record.
- * @param username - The username to remove from the mapping collection.
- */
 export const deleteUser = async (userId: string, username?: string) => {
     const { db } = getFirebase();
-    await deleteDoc(doc(db, USERS_COLLECTION, userId));
+    const userRef = doc(db, USERS_COLLECTION, userId);
+    
+    deleteDoc(userRef).catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userRef.path, operation: 'delete' }));
+    });
+
     if (username) {
-        await deleteDoc(doc(db, USERNAMES_COLLECTION, username.toLowerCase().trim()));
+        const usernameRef = doc(db, USERNAMES_COLLECTION, username.toLowerCase().trim());
+        deleteDoc(usernameRef).catch(err => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'delete' }));
+        });
         logAudit(`User Permanently Deleted: ${username}`, 'Security', { userId });
     }
 };
 
-/**
- * Look up a user record by either their username or email address.
- * 
- * @param loginString - The username or email address.
- * @returns The User object or null if no match found.
- */
 export const getUserByLogin = async (loginString: string): Promise<User | null> => {
     const { db } = getFirebase();
     const login = (loginString || '').toLowerCase().trim();
     if (!login) return null;
 
-    // Check mapping first
     const usernameRef = doc(db, USERNAMES_COLLECTION, login);
-    const usernameSnap = await getDoc(usernameRef);
+    const usernameSnap = await getDoc(usernameRef).catch(() => null);
     
     let email = login;
-    if (usernameSnap.exists()) {
+    if (usernameSnap?.exists()) {
         email = usernameSnap.data()?.email || login;
     }
 
-    // Now find the full user record in system_users by email
     const qEmail = query(collection(db, USERS_COLLECTION), where("email", "==", email), limit(1));
-    const snapEmail = await getDocs(qEmail);
-    if (!snapEmail.empty) return fromFirestore(snapEmail.docs[0]);
+    const snapEmail = await getDocs(qEmail).catch(() => null);
+    if (snapEmail && !snapEmail.empty) return fromFirestore(snapEmail.docs[0]);
 
-    // Fallback search by username in system_users directly
     const qUsername = query(collection(db, USERS_COLLECTION), where("username", "==", login), limit(1));
-    const snapUsername = await getDocs(qUsername);
-    if (!snapUsername.empty) return fromFirestore(snapUsername.docs[0]);
+    const snapUsername = await getDocs(qUsername).catch(() => null);
+    if (snapUsername && !snapUsername.empty) return fromFirestore(snapUsername.docs[0]);
 
     return null;
 };
-
-// --- Password & Validation ---
 
 export const getAdminCredentials = () => defaultAdminCreds;
 
 export const setAdminPassword = async (password: string, date: string) => {
     const { db } = getFirebase();
     const adminRef = doc(db, 'settings', 'admin_config');
-    await setDoc(adminRef, { 
+    setDoc(adminRef, { 
         password, 
         passwordLastUpdated: date 
-    }, { merge: true });
-    
-    logAudit('Master Administrator Password Updated', 'Security');
+    }, { merge: true }).then(() => {
+        logAudit('Master Administrator Password Updated', 'Security');
+    }).catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: adminRef.path, operation: 'update' }));
+    });
 };
 
-/**
- * Validates a password against system complexity requirements.
- * Requirements: Min 12 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char.
- * 
- * @param password - The raw password string.
- * @param isRequired - Whether an empty string is allowed (useful for optional updates).
- * @returns Object indicating validity and specific error message.
- */
 export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean, error?: string } => {
     if (!isRequired && !password) return { isValid: true };
     if (isRequired && !password) return { isValid: false, error: 'Password is required.' };
@@ -281,6 +252,14 @@ export const validatePassword = (password: string, isRequired: boolean = true): 
 
 export const getUsers = async (): Promise<User[]> => {
     const { db } = getFirebase();
-    const snap = await getDocs(collection(db, USERS_COLLECTION));
-    return snap.docs.map(fromFirestore);
+    try {
+        const snap = await getDocs(collection(db, USERS_COLLECTION));
+        return snap.docs.map(fromFirestore);
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: USERS_COLLECTION,
+            operation: 'list',
+        }));
+        throw error;
+    }
 };
