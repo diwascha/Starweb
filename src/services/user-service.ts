@@ -31,7 +31,7 @@ const USERNAMES_COLLECTION = 'usernames';
 
 const defaultAdminCreds = { 
   username: 'Administrator', 
-  password: 'Admin@123',
+  password: 'StarSutra@Secure#2025',
   isApproved: true,
   permissions: {} as Permissions
 };
@@ -258,7 +258,7 @@ export const setAdminPassword = async (password: string, date: string) => {
 
 /**
  * Validates a password against system complexity requirements.
- * Requirements: Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char.
+ * Requirements: Min 12 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char.
  * 
  * @param password - The raw password string.
  * @param isRequired - Whether an empty string is allowed (useful for optional updates).
@@ -267,7 +267,11 @@ export const setAdminPassword = async (password: string, date: string) => {
 export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean, error?: string } => {
     if (!isRequired && !password) return { isValid: true };
     if (isRequired && !password) return { isValid: false, error: 'Password is required.' };
-    if ((password?.length || 0) < 8) return { isValid: false, error: 'Password must be at least 8 characters long.' };
+    if ((password?.length || 0) < 12) return { isValid: false, error: 'Password must be at least 12 characters long.' };
+    
+    const blacklist = ['password123', 'admin@123', 'starsutra123'];
+    if (blacklist.includes(password.toLowerCase())) return { isValid: false, error: 'This password is too common and easily guessed.' };
+
     if (!/[a-z]/.test(password)) return { isValid: false, error: 'Password must contain a lowercase letter.' };
     if (!/[A-Z]/.test(password)) return { isValid: false, error: 'Password must contain an uppercase letter.' };
     if (!/[0-9]/.test(password)) return { isValid: false, error: 'Password must contain a number.' };
