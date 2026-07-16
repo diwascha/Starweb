@@ -1,10 +1,9 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc, getDocs, setDoc } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
-import { logServiceError } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getChequesCollection = () => {
     const { db } = getFirebase();
@@ -26,7 +25,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
         accountId: data.accountId,
         splits: (data.splits || []).map((split: any) => ({
             ...split,
-            remarks: split.remarks || '', // Ensure remarks field exists
+            remarks: split.remarks || '',
         })),
         createdBy: data.createdBy,
         createdAt: data.createdAt,
@@ -40,13 +39,13 @@ export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promi
         ...cheque,
         createdAt: new Date().toISOString(),
     };
-    const docRef = await addDoc(getChequesCollection(), payload).catch(async (err) => {
+    const docRef = doc(getChequesCollection());
+    setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'cheques',
             operation: 'create',
             requestResourceData: payload,
         }));
-        throw err;
     });
     return docRef.id;
 };

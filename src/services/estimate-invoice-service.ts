@@ -1,8 +1,9 @@
+'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy, getDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy, getDoc, setDoc } from 'firebase/firestore';
 import type { EstimatedInvoice } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getInvoicesCollection = () => {
     const { db } = getFirebase();
@@ -65,13 +66,13 @@ export const addEstimatedInvoice = async (invoice: Omit<EstimatedInvoice, 'id'>)
         ...invoice,
         createdAt: new Date().toISOString(),
     };
-    const docRef = await addDoc(getInvoicesCollection(), payload).catch(async (err) => {
+    const docRef = doc(getInvoicesCollection());
+    setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'estimatedInvoices',
             operation: 'create',
             requestResourceData: payload,
         }));
-        throw err;
     });
     return docRef.id;
 };

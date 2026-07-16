@@ -2,7 +2,6 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Account, AccountType, AccountOwnership, BankAccountType } from '@/lib/types';
-import { logServiceError } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
@@ -30,23 +29,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
 }
 
 export const getAccounts = async (useCache = false): Promise<Account[]> => {
-    if (useCache && typeof window !== 'undefined') {
-        const cached = sessionStorage.getItem('accounts');
-        if (cached) {
-            try {
-                return JSON.parse(cached);
-            } catch (e) {
-                sessionStorage.removeItem('accounts');
-            }
-        }
-    }
     try {
         const snapshot = await getDocs(getAccountsCollection());
-        const accounts = snapshot.docs.map(fromFirestore);
-        if (typeof window !== 'undefined') {
-            sessionStorage.setItem('accounts', JSON.stringify(accounts));
-        }
-        return accounts;
+        return snapshot.docs.map(fromFirestore);
     } catch (error) {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'accounts',
@@ -61,13 +46,13 @@ export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> 
         ...account,
         createdAt: new Date().toISOString(),
     };
-    const docRef = await addDoc(getAccountsCollection(), payload).catch(async (err) => {
+    const docRef = doc(getAccountsCollection());
+    setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'accounts',
             operation: 'create',
             requestResourceData: payload,
         }));
-        throw err;
     });
     return docRef.id;
 };
@@ -100,11 +85,7 @@ export const deleteAccount = async (id: string): Promise<void> => {
 export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () => void => {
     return onSnapshot(getAccountsCollection(), 
         (snapshot) => {
-            const accounts = snapshot.docs.map(fromFirestore);
-            if (typeof window !== 'undefined') {
-                sessionStorage.setItem('accounts', JSON.stringify(accounts));
-            }
-            callback(accounts);
+            callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -114,3 +95,5 @@ export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () =>
         }
     );
 };
+
+import { setDoc } from 'firebase/firestore';

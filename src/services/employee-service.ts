@@ -1,3 +1,4 @@
+'use client';
 /**
  * @fileOverview Employee service.
  * Refactored for non-blocking offline writes and enhanced noise filtering.
@@ -29,8 +30,7 @@ const getEmployeesCollection = () => {
 }
 
 /**
- * Enhanced name validation to prevent "noise" rows (analytics, trends, headers) 
- * from the Consolidated Ledger being incorrectly saved or shown as employees.
+ * Enhanced name validation to prevent "noise" rows.
  */
 export const isValidEmployeeName = (name: string): boolean => {
     if (!name || typeof name !== 'string') return false;
@@ -38,34 +38,15 @@ export const isValidEmployeeName = (name: string): boolean => {
     if (n.length < 2) return false;
     
     const lower = n.toLowerCase();
-    
-    // Explicitly block analysis metrics and spreadsheet UI strings
     const noisePatterns = [
-        'trend:', 
-        'absenteeism:', 
-        'arrivals:', 
-        'utilization:', 
-        'absences (', 
-        'shift-start', 
-        'hotspots:',
-        'employee', 
-        'total',
-        'behavioral patterns',
-        'enhanced employee',
-        'pattern insights',
-        'day of week patterns',
-        'month-to-month'
+        'trend:', 'absenteeism:', 'arrivals:', 'utilization:', 'absences (', 
+        'shift-start', 'hotspots:', 'employee', 'total', 'behavioral patterns',
+        'enhanced employee', 'pattern insights', 'day of week patterns', 'month-to-month'
     ];
 
     if (noisePatterns.some(pattern => lower.includes(pattern))) return false;
-
-    // Block common date/time formats often found in error rows
     if (/^\d+$/.test(n)) return false;
     if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(n)) return false; 
-    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(n)) return false; 
-    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(n)) return false; 
-    if (lower.includes('gmt')) return false; 
-
     return true;
 };
 
@@ -97,21 +78,37 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getEmployees = async (): Promise<Employee[]> => {
-    const snapshot = await getDocs(getEmployeesCollection());
-    return snapshot.docs
-        .map(fromFirestore)
-        .filter(emp => isValidEmployeeName(emp.name));
+    try {
+        const snapshot = await getDocs(getEmployeesCollection());
+        return snapshot.docs
+            .map(fromFirestore)
+            .filter(emp => isValidEmployeeName(emp.name));
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.EMPLOYEES,
+            operation: 'list',
+        }));
+        throw error;
+    }
 };
 
 export const getEmployee = async (id: string): Promise<Employee | null> => {
     if (!id || typeof id !== 'string') return null;
     const employeeDoc = doc(getEmployeesCollection(), id);
-    const docSnap = await getDoc(employeeDoc);
-    if (docSnap.exists()) {
-        const employee = fromFirestore(docSnap);
-        return isValidEmployeeName(employee.name) ? employee : null;
+    try {
+        const docSnap = await getDoc(employeeDoc);
+        if (docSnap.exists()) {
+            const employee = fromFirestore(docSnap);
+            return isValidEmployeeName(employee.name) ? employee : null;
+        }
+        return null;
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: employeeDoc.path,
+            operation: 'get',
+        }));
+        return null;
     }
-    return null;
 };
 
 export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<string> => {
@@ -127,12 +124,11 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
     setDoc(docRef, payload).then(() => {
         logAudit(`New Employee Onboarded: ${employee.name}`, 'HR', { id });
     }).catch(async (err) => {
-        const permissionError = new FirestorePermissionError({
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: docRef.path,
             operation: 'create',
             requestResourceData: payload,
-        } satisfies SecurityRuleContext);
-        errorEmitter.emit('permission-error', permissionError);
+        }));
     });
 
     return id;
@@ -154,35 +150,22 @@ export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): ()
 
 export const updateEmployee = async (id: string, employee: Partial<Omit<Employee, 'id'>>): Promise<void> => {
     const employeeDoc = doc(getEmployeesCollection(), id);
-    
-    // Fetch old data for audit trail
-    const snap = await getDoc(employeeDoc);
-    const oldData = snap.exists() ? snap.data() : null;
-
     const payload = {
         ...employee,
         lastModifiedAt: new Date().toISOString(),
     };
 
-    updateDoc(employeeDoc, payload).then(() => {
-        logAudit(`Employee Profile Updated: ${oldData?.name || id}`, 'HR', {
-            id,
-            changes: employee
-        });
-    }).catch(async (err) => {
-        const permissionError = new FirestorePermissionError({
+    updateDoc(employeeDoc, payload).catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: employeeDoc.path,
             operation: 'update',
             requestResourceData: payload,
-        } satisfies SecurityRuleContext);
-        errorEmitter.emit('permission-error', permissionError);
+        }));
     });
 };
 
 export const deleteEmployee = async (id: string, photoURL?: string): Promise<void> => {
     const employeeDoc = doc(getEmployeesCollection(), id);
-    const snap = await getDoc(employeeDoc);
-    const name = snap.exists() ? snap.data().name : id;
 
     if (photoURL) {
         try {
@@ -192,9 +175,7 @@ export const deleteEmployee = async (id: string, photoURL?: string): Promise<voi
         }
     }
 
-    deleteDoc(employeeDoc).then(() => {
-        logAudit(`Employee Record Permanently Deleted: ${name}`, 'HR', { id });
-    }).catch(async (err) => {
+    deleteDoc(employeeDoc).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: employeeDoc.path, operation: 'delete' }));
     });
 };

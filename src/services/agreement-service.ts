@@ -1,3 +1,4 @@
+'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, orderBy, writeBatch } from 'firebase/firestore';
 import type { RentalAgreement } from '@/lib/types';
@@ -71,7 +72,7 @@ export const activateAgreement = async (agreement: Omit<RentalAgreement, 'id' | 
     };
     batch.update(unitRef, unitPayload);
 
-    await batch.commit().catch(err => {
+    batch.commit().catch(err => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'activate_agreement_batch',
             operation: 'write',
@@ -99,7 +100,7 @@ export const terminateAgreement = async (id: string, unitId: string, terminatedB
         lastModifiedAt: now,
     });
 
-    await batch.commit().catch(err => {
+    batch.commit().catch(err => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'terminate_agreement_batch',
             operation: 'write',

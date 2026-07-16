@@ -1,10 +1,10 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, setDoc } from 'firebase/firestore';
 import type { Driver } from '@/lib/types';
 import { deleteFile } from './storage-service';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getDriversCollection = () => {
     const { db } = getFirebase();
@@ -46,13 +46,13 @@ export const addDriver = async (driver: Omit<Driver, 'id'>): Promise<string> => 
         ...driver,
         createdAt: new Date().toISOString(),
     };
-    const docRef = await addDoc(getDriversCollection(), payload).catch(async (err) => {
+    const docRef = doc(getDriversCollection());
+    setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'drivers',
             operation: 'create',
             requestResourceData: payload,
         }));
-        throw err;
     });
     return docRef.id;
 };

@@ -1,3 +1,4 @@
+'use client';
 /**
  * @fileOverview Expense service for recording truck-related costs.
  * Optimized for deterministic ledger tracking and non-blocking offline writes.
@@ -21,9 +22,9 @@ import {
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
 import type { Transaction, TransactionItem } from '@/lib/types';
-import { createTimestamp, logServiceError } from '@/lib/service-utils';
+import { createTimestamp } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getExpensesCollection = () => {
     const { db } = getFirebase();
@@ -71,11 +72,6 @@ export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () =>
     );
 };
 
-/**
- * Generates deterministic transactions for a given expense.
- * Using deterministic IDs based on voucherNo allows us to update ledger entries
- * without first querying for existing ones.
- */
 const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, createdAt: string): Transaction[] => {
     const transactions: Transaction[] = [];
     const baseNarrative = `${expense.voucherNo}: ${expense.expenseType}${expense.destination ? ` to ${expense.destination}` : ''}`;
@@ -85,7 +81,7 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
         const items: TransactionItem[] = [{ particular: `${baseNarrative} (${suffix})`, quantity: 1, rate: amt }];
         
         return {
-            id: `ledger-${expense.voucherNo}-${mode.toLowerCase()}`, // Deterministic ID
+            id: `ledger-${expense.voucherNo}-${mode.toLowerCase()}`, 
             date: expense.date,
             vehicleId: expense.vehicleId || null,
             type: 'Payment' as const,
@@ -105,7 +101,7 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
             lastModifiedAt: now,
             invoiceNumber: null,
             invoiceDate: null,
-            chequeNumber: expense.paymentMode === 'Bank' ? null : null, // Handle cheque details if needed
+            chequeNumber: null,
             chequeDate: null,
             dueDate: null,
             tripId: null,
@@ -162,10 +158,8 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
 export const updateExpense = async (id: string, updates: Partial<Expense>, modifiedBy: string): Promise<void> => {
     const { db } = getFirebase();
     const expenseRef = doc(getExpensesCollection(), id);
-    
-    // We attempt a read, but since persistence is on, this will pull from cache if offline.
     const snap = await getDoc(expenseRef);
-    if (!snap.exists()) throw new Error("Original expense record not found.");
+    if (!snap.exists()) return;
     
     const oldData = snap.data() as Expense;
     const newData = { ...oldData, ...updates };
@@ -174,9 +168,6 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
     const batch = writeBatch(db);
     batch.update(expenseRef, { ...updates, lastModifiedBy: modifiedBy, lastModifiedAt: now });
 
-    // Deterministic IDs allow us to simply overwrite the old ledger entries.
-    // If the payment mode changed from Bank to Cash, the old 'ledger-Voucher-bank' will remain.
-    // To handle this perfectly offline without a query, we'd need to clear possible siblings.
     ['cash', 'bank'].forEach(mode => {
         batch.delete(doc(getTransactionsCollection(), `ledger-${oldData.voucherNo}-${mode}`));
     });
@@ -217,11 +208,6 @@ export const getExpense = async (id: string): Promise<Expense | null> => {
         const snap = await getDoc(docRef);
         return snap.exists() ? fromFirestore(snap as QueryDocumentSnapshot<DocumentData>) : null;
     } catch {
-        try {
-            const cacheSnap = await getDocFromCache(docRef);
-            return cacheSnap.exists() ? fromFirestore(cacheSnap as QueryDocumentSnapshot<DocumentData>) : null;
-        } catch {
-            return null;
-        }
+        return null;
     }
 };
