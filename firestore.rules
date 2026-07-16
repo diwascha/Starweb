@@ -71,10 +71,8 @@ service cloud.firestore {
     match /logs/{id} { allow read, write: if request.auth != null; }
     match /files/{id} { allow read, write: if request.auth != null; }
 
-    // Everything else in the app — any signed-in,
-    // approved user can read/write. Your app's own hasPermission() checks
-    // in the UI handle the finer-grained module permissions; this rule
-    // is the baseline "must be logged in" gate.
+    // Everything else in the app — any signed-in user can read/write.
+    // Finer-grained module permissions are handled in the UI via hasPermission().
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
