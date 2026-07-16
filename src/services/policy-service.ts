@@ -3,7 +3,7 @@ import { getFirebase } from '@/lib/firebase';
 import { collection, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, setDoc, query, orderBy } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 import { COLLECTIONS } from '@/lib/constants';
 
 const getPoliciesCollection = () => {
@@ -38,27 +38,21 @@ export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
         const snapshot = await getDocs(getPoliciesCollection());
         return snapshot.docs.map(fromFirestore);
     } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.POLICIES,
-            operation: 'list',
-        }));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.POLICIES, operation: 'list' }));
         throw error;
     }
 }
 
 export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise<string> => {
     const docRef = doc(getPoliciesCollection());
-    const payload = {
-        ...policy,
-        createdAt: new Date().toISOString(),
-    };
+    const payload = { ...policy, createdAt: new Date().toISOString() };
     
     setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
+            path: COLLECTIONS.POLICIES,
             operation: 'create',
             requestResourceData: payload,
-        } satisfies SecurityRuleContext));
+        }));
     });
     return docRef.id;
 };
@@ -70,37 +64,27 @@ export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => v
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.POLICIES,
-                operation: 'list',
-            } satisfies SecurityRuleContext));
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.POLICIES, operation: 'list' }));
         }
     );
 };
 
 export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMembership, 'id'>>): Promise<void> => {
     const policyDoc = doc(getPoliciesCollection(), id);
-    const payload = {
-        ...policy,
-        lastModifiedAt: new Date().toISOString(),
-    };
+    const payload = { ...policy, lastModifiedAt: new Date().toISOString() };
     
     updateDoc(policyDoc, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: policyDoc.path,
+            path: COLLECTIONS.POLICIES,
             operation: 'update',
             requestResourceData: payload,
-        } satisfies SecurityRuleContext));
+        }));
     });
 };
 
 export const deletePolicy = async (id: string): Promise<void> => {
     const policyDoc = doc(getPoliciesCollection(), id);
-    
     deleteDoc(policyDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: policyDoc.path,
-            operation: 'delete',
-        } satisfies SecurityRuleContext));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.POLICIES, operation: 'delete' }));
     });
 };

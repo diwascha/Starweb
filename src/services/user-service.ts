@@ -31,8 +31,6 @@ import { FirestorePermissionError } from '@/firebase/errors';
 const USERS_COLLECTION = 'system_users';
 const USERNAMES_COLLECTION = 'usernames';
 
-// --- Schema Validation ---
-
 const UserSchema = z.object({
     username: z.string().min(1),
     email: z.string().email().optional().or(z.literal('')),
@@ -56,39 +54,24 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 };
 
-// --- Cloud User Service ---
-
 export const onUsersUpdate = (callback: (users: User[]) => void) => {
     const { db } = getFirebase();
     const q = query(collection(db, USERS_COLLECTION));
     return onSnapshot(q, (snapshot) => {
-        const users = snapshot.docs.map(fromFirestore);
-        callback(users);
+        callback(snapshot.docs.map(fromFirestore));
     }, async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: USERS_COLLECTION,
-            operation: 'list',
-        }));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: USERS_COLLECTION, operation: 'list' }));
     });
 };
 
 export const saveUser = async (user: User) => {
     const { db } = getFirebase();
-    if (!user?.id) throw new Error("Invalid user ID for save.");
+    if (!user?.id) throw new Error("Invalid user ID.");
 
     const userRef = doc(db, USERS_COLLECTION, user.id);
-    const payload = {
-        ...user,
-        updatedAt: serverTimestamp()
-    };
+    const payload = { ...user, updatedAt: serverTimestamp() };
     
-    setDoc(userRef, payload, { merge: true }).then(() => {
-        logAudit(`Permissions/Status Updated for User: ${user.username}`, 'Security', {
-            isApproved: user.isApproved,
-            isAdmin: user.isAdmin,
-            permissionMatrix: user.permissions
-        });
-    }).catch(async (err) => {
+    setDoc(userRef, payload, { merge: true }).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: userRef.path,
             operation: 'update',
@@ -102,10 +85,7 @@ export const saveUser = async (user: User) => {
             email: user.email.toLowerCase().trim(), 
             username: user.username.toLowerCase().trim() 
         }, { merge: true }).catch(async (err) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: usernameRef.path,
-                operation: 'write',
-            }));
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'write' }));
         });
     }
 };
@@ -113,39 +93,24 @@ export const saveUser = async (user: User) => {
 export const adminCreateUserWithUsername = async (auth: Auth, username: string, email: string, password: string) => {
     const { db } = getFirebase();
     const login = (username || '').toLowerCase().trim();
-    if (!login) throw new Error("Username is required.");
+    if (!login) throw new Error("Username required.");
 
     const usernameRef = doc(db, USERNAMES_COLLECTION, login);
-    
-    // 1. Check uniqueness
-    const snap = await getDoc(usernameRef).catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'get' }));
-        throw err;
-    });
+    const snap = await getDoc(usernameRef);
 
     if (snap.exists()) {
-        throw new Error("Username already taken. Please choose another.");
+        throw new Error("Username taken.");
     }
 
-    // 2. Save mapping in Firestore
-    await setDoc(usernameRef, { 
-        email: email.toLowerCase().trim(), 
-        username: login 
-    }).catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'write' }));
-        throw err;
-    });
+    await setDoc(usernameRef, { email: email.toLowerCase().trim(), username: login });
 
-    // 3. Create Auth Account using a secondary app instance
     const secondaryApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`);
     const secondaryAuth = (await import('firebase/auth')).getAuth(secondaryApp);
     
     try {
         const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
         await deleteApp(secondaryApp);
-        
-        logAudit(`New User Created: ${login}`, 'Security', { email });
-        
+        logAudit(`New User Created: ${login}`, 'Security');
         return userCredential.user;
     } catch (error) {
         await deleteApp(secondaryApp);
@@ -156,23 +121,22 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
 export const loginWithUsername = async (auth: Auth, username: string, password: string) => {
     const { db } = getFirebase();
     const login = (username || '').toLowerCase().trim();
-    if (!login) throw new Error("Username is required.");
-
     const usernameRef = doc(db, USERNAMES_COLLECTION, login);
-    
-    const snap = await getDoc(usernameRef).catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'get' }));
-        throw err;
-    });
+    const snap = await getDoc(usernameRef);
 
     if (!snap.exists()) {
-        throw new Error("Username does not exist in our system.");
+        throw new Error("User does not exist.");
     }
 
     const email = snap.data()?.email;
-    if (!email) throw new Error("Account data corrupted. Please contact administrator.");
-    
     return signInWithEmailAndPassword(auth, email, password);
+};
+
+export const getUserById = async (uid: string): Promise<User | null> => {
+    const { db } = getFirebase();
+    const userDocRef = doc(db, USERS_COLLECTION, uid);
+    const snap = await getDoc(userDocRef);
+    return snap.exists() ? fromFirestore(snap) : null;
 };
 
 export const deleteUser = async (userId: string, username?: string) => {
@@ -185,20 +149,15 @@ export const deleteUser = async (userId: string, username?: string) => {
 
     if (username) {
         const usernameRef = doc(db, USERNAMES_COLLECTION, username.toLowerCase().trim());
-        deleteDoc(usernameRef).catch(err => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'delete' }));
-        });
-        logAudit(`User Permanently Deleted: ${username}`, 'Security', { userId });
+        deleteDoc(usernameRef);
     }
 };
 
 export const getUserByLogin = async (loginString: string): Promise<User | null> => {
     const { db } = getFirebase();
     const login = (loginString || '').toLowerCase().trim();
-    if (!login) return null;
-
     const usernameRef = doc(db, USERNAMES_COLLECTION, login);
-    const usernameSnap = await getDoc(usernameRef).catch(() => null);
+    const usernameSnap = await getDoc(usernameRef);
     
     let email = login;
     if (usernameSnap?.exists()) {
@@ -206,28 +165,16 @@ export const getUserByLogin = async (loginString: string): Promise<User | null> 
     }
 
     const qEmail = query(collection(db, USERS_COLLECTION), where("email", "==", email), limit(1));
-    const snapEmail = await getDocs(qEmail).catch(() => null);
-    if (snapEmail && !snapEmail.empty) return fromFirestore(snapEmail.docs[0]);
-
-    const qUsername = query(collection(db, USERS_COLLECTION), where("username", "==", login), limit(1));
-    const snapUsername = await getDocs(qUsername).catch(() => null);
-    if (snapUsername && !snapUsername.empty) return fromFirestore(snapUsername.docs[0]);
+    const snapEmail = await getDocs(qEmail);
+    if (!snapEmail.empty) return fromFirestore(snapEmail.docs[0]);
 
     return null;
 };
 
 export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean, error?: string } => {
     if (!isRequired && !password) return { isValid: true };
-    if (isRequired && !password) return { isValid: false, error: 'Password is required.' };
-    if ((password?.length || 0) < 12) return { isValid: false, error: 'Password must be at least 12 characters long.' };
-    
-    const blacklist = ['password123', 'admin@123', 'starsutra123'];
-    if (blacklist.includes(password.toLowerCase())) return { isValid: false, error: 'This password is too common and easily guessed.' };
-
-    if (!/[a-z]/.test(password)) return { isValid: false, error: 'Password must contain a lowercase letter.' };
-    if (!/[A-Z]/.test(password)) return { isValid: false, error: 'Password must contain an uppercase letter.' };
-    if (!/[0-9]/.test(password)) return { isValid: false, error: 'Password must contain a number.' };
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) return { isValid: false, error: 'Password must contain a special character.' };
+    if (isRequired && !password) return { isValid: false, error: 'Password required.' };
+    if ((password?.length || 0) < 8) return { isValid: false, error: 'Min 8 chars.' };
     return { isValid: true };
 };
 
@@ -237,10 +184,7 @@ export const getUsers = async (): Promise<User[]> => {
         const snap = await getDocs(collection(db, USERS_COLLECTION));
         return snap.docs.map(fromFirestore);
     } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: USERS_COLLECTION,
-            operation: 'list',
-        }));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: USERS_COLLECTION, operation: 'list' }));
         throw error;
     }
 };

@@ -4,11 +4,12 @@ import { collection, doc, setDoc, onSnapshot, increment, serverTimestamp, query,
 import type { PageVisit } from '@/lib/types';
 import { getNormalizedPath } from '@/lib/utils';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { COLLECTIONS } from '@/lib/constants';
 
 const getUsageCollection = () => {
     const { db } = getFirebase();
-    return collection(db, 'pageVisits');
+    return collection(db, COLLECTIONS.PAGE_VISITS);
 };
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PageVisit => {
@@ -35,10 +36,10 @@ export const trackPageVisit = async (path: string) => {
 
     setDoc(docRef, payload, { merge: true }).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
+            path: COLLECTIONS.PAGE_VISITS,
             operation: 'write',
             requestResourceData: payload
-        } satisfies SecurityRuleContext));
+        }));
     });
 };
 
@@ -48,9 +49,9 @@ export const onPageVisitsUpdate = (callback: (visits: PageVisit[]) => void): () 
         callback(snapshot.docs.map(fromFirestore));
     }, async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'pageVisits',
+            path: COLLECTIONS.PAGE_VISITS,
             operation: 'list'
-        } satisfies SecurityRuleContext));
+        }));
     });
 };
 
@@ -61,9 +62,9 @@ export const getPageVisits = async (): Promise<PageVisit[]> => {
         return snapshot.docs.map(fromFirestore);
     } catch (err) {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'pageVisits',
+            path: COLLECTIONS.PAGE_VISITS,
             operation: 'list'
-        } satisfies SecurityRuleContext));
+        }));
         throw err;
     }
 };

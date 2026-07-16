@@ -1,13 +1,14 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { AppSetting, CostSetting } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { COLLECTIONS } from '@/lib/constants';
 
 const getSettingsCollection = () => {
     const { db } = getFirebase();
-    return collection(db, 'settings');
+    return collection(db, COLLECTIONS.SETTINGS);
 };
 
 export const getSetting = async (id: string): Promise<AppSetting | null> => {
@@ -20,10 +21,7 @@ export const getSetting = async (id: string): Promise<AppSetting | null> => {
             return { id: docSnap.id, value: data.value };
         }
     } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'get',
-        } satisfies SecurityRuleContext));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'get' }));
     }
     return null;
 };
@@ -44,10 +42,7 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
             }
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'get',
-            } satisfies SecurityRuleContext));
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'get' }));
             callback(null);
         }
     );
@@ -61,7 +56,7 @@ export const setSetting = async (id: string, value: any): Promise<void> => {
             path: docRef.path,
             operation: 'write',
             requestResourceData: { value },
-        } satisfies SecurityRuleContext));
+        }));
     });
 };
 
@@ -75,6 +70,6 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
             path: docRef.path,
             operation: 'update',
             requestResourceData: payload,
-        } satisfies SecurityRuleContext));
+        }));
     });
 };

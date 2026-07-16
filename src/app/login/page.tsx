@@ -14,7 +14,7 @@ import { Loader2, ShieldCheck, Lock, User as UserIcon, RefreshCw } from 'lucide-
 import { useAuth } from '@/hooks/use-auth';
 import { AuthErrorCodes } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
-import { getUserByLogin, loginWithUsername } from '@/services/user-service';
+import { getUserById, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { logAudit } from '@/services/log-service';
 import type { AppBranding } from '@/lib/types';
@@ -24,7 +24,6 @@ import { cn } from '@/lib/utils';
 const loginSchema = z.object({
   loginString: z.string().min(1, { message: 'Username or Email is required' }),
   password: z.string().min(1, { message: 'Password is required' }),
-  // Honeypot field to catch automated bots
   hp_field: z.string().max(0).optional(),
 });
 
@@ -38,7 +37,6 @@ export default function LoginPage() {
   const auth = useAuthService();
   const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
 
-  // Brute force protection state
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [captchaChallenge, setCaptchaChallenge] = useState({ a: 0, b: 0 });
@@ -72,7 +70,6 @@ export default function LoginPage() {
     return () => unsubBranding();
   }, []);
 
-  // Initialize CAPTCHA when threshold is reached
   useEffect(() => {
     if (failedAttempts === 3) {
       generateCaptcha();
@@ -80,20 +77,14 @@ export default function LoginPage() {
   }, [failedAttempts]);
 
   const onSubmit = async (data: LoginFormValues) => {
-    // 0. Honeypot check (bots often fill all fields)
     if (data.hp_field) return;
 
     setIsSubmitting(true);
     
-    // 1. Interactive Challenge Verification (Triggers after 3 failed attempts)
     if (failedAttempts >= 3) {
       const expected = captchaChallenge.a + captchaChallenge.b;
       if (parseInt(captchaAnswer) !== expected) {
-        toast({ 
-            title: 'Verification Failed', 
-            description: 'Incorrect answer to the security challenge. Please try again.', 
-            variant: 'destructive' 
-        });
+        toast({ title: 'Verification Failed', description: 'Incorrect answer. Please try again.', variant: 'destructive' });
         generateCaptcha();
         setIsSubmitting(false);
         return;
@@ -101,51 +92,39 @@ export default function LoginPage() {
     }
     
     try {
-      // 2. Resolve username and authenticate
-      await loginWithUsername(auth, data.loginString, data.password);
+      const userCredential = await loginWithUsername(auth, data.loginString, data.password);
+      const firebaseUser = userCredential.user;
       
-      // 3. Fetch User Record from Firestore
-      const cloudUser = await getUserByLogin(data.loginString);
+      const cloudUser = await getUserById(firebaseUser.uid);
       
       if (!cloudUser) {
         await auth.signOut();
-        toast({ title: 'Authentication Error', description: 'Invalid username or password.', variant: 'destructive' });
+        toast({ title: 'Authentication Error', description: 'Profile not found.', variant: 'destructive' });
         return;
       }
 
-      // 4. Verify Approval Status
       if (cloudUser.isApproved === false) {
         await auth.signOut();
-        logAudit(`Blocked Login Attempt (Unapproved Account): ${cloudUser.username}`, 'Security');
-        toast({ 
-            title: 'Account Pending', 
-            description: 'Your account is pending administrator approval.', 
-            variant: 'destructive' 
-        });
+        logAudit(`Blocked Login: ${cloudUser.username}`, 'Security');
+        toast({ title: 'Account Pending', description: 'Account pending approval.', variant: 'destructive' });
         return;
       }
 
-      // 5. Establish local session tracking
       await login(cloudUser, false);
       logAudit(`Successful Login: ${cloudUser.username}`, 'Security');
       toast({ title: 'Welcome', description: `Signed in as ${cloudUser.username}` });
-      setFailedAttempts(0); // Reset on success
+      setFailedAttempts(0);
       
     } catch (error: any) {
       setFailedAttempts(prev => prev + 1);
-      logAudit(`Failed Login Attempt: ${data.loginString}`, 'Security', { code: error.code, message: error.message });
+      logAudit(`Failed Login: ${data.loginString}`, 'Security', { code: error.code });
       
       let errorMessage = 'Invalid username or password.';
-      
       if (error.code === AuthErrorCodes.TOO_MANY_ATTEMPTS_TRY_LATER) {
           errorMessage = 'Too many attempts. Locked for security.';
       }
       
-      toast({
-        title: 'Authentication Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
+      toast({ title: 'Authentication Error', description: errorMessage, variant: 'destructive' });
     } finally {
         setIsSubmitting(false);
     }
@@ -156,13 +135,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
          <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
             <div className="w-24 h-24 rounded-3xl bg-white shadow-2xl flex items-center justify-center overflow-hidden border-2 border-primary/20 p-2">
-                <img 
-                    src={logo.src} 
-                    width="80" 
-                    height="80" 
-                    alt="App Logo"
-                    className="object-contain"
-                />
+                <img src={logo.src} width="80" height="80" alt="App Logo" className="object-contain" />
             </div>
             <div className="space-y-1">
                 <h1 className="text-3xl font-black tracking-tight text-gray-900">{appBranding.appName}</h1>
@@ -181,7 +154,6 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 mt-4">
-              {/* Honeypot field (hidden from users) */}
               <div className="hidden" aria-hidden="true">
                 <input {...register('hp_field')} tabIndex={-1} autoComplete="off" />
               </div>
@@ -190,71 +162,41 @@ export default function LoginPage() {
                 <Label htmlFor="loginString" className="text-xs font-bold uppercase text-muted-foreground">Username or Email</Label>
                 <div className="relative">
                     <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input
-                        id="loginString"
-                        type="text"
-                        placeholder="Username or email"
-                        {...register('loginString')}
-                        disabled={isSubmitting}
-                        className="flex h-11 w-full rounded-lg border-2 border-muted bg-background pl-10 pr-3 py-2 text-sm font-semibold transition-all focus:border-primary focus:ring-0 outline-none"
-                    />
+                    <input id="loginString" type="text" {...register('loginString')} disabled={isSubmitting} className="flex h-11 w-full rounded-lg border-2 border-muted bg-background pl-10 pr-3 py-2 text-sm font-semibold transition-all focus:border-primary focus:ring-0 outline-none" />
                 </div>
                 {errors.loginString && <p className="text-[10px] text-destructive font-black uppercase">{errors.loginString.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password" title="Enter your secure password" className="text-xs font-bold uppercase text-muted-foreground">Secure Password</Label>
+                <Label htmlFor="password" className="text-xs font-bold uppercase text-muted-foreground">Secure Password</Label>
                 <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input 
-                    id="password" 
-                    type="password" 
-                    placeholder="••••••••"
-                    {...register('password')} 
-                    disabled={isSubmitting}
-                    className="flex h-11 w-full rounded-lg border-2 border-muted bg-background pl-10 pr-3 py-2 text-sm font-semibold transition-all focus:border-primary focus:ring-0 outline-none"
-                    />
+                    <input id="password" type="password" placeholder="••••••••" {...register('password')} disabled={isSubmitting} className="flex h-11 w-full rounded-lg border-2 border-muted bg-background pl-10 pr-3 py-2 text-sm font-semibold transition-all focus:border-primary focus:ring-0 outline-none" />
                 </div>
                 {errors.password && <p className="text-[10px] text-destructive font-black uppercase">{errors.password.message}</p>}
               </div>
 
-              {/* Anti-Brute Force Challenge */}
               {failedAttempts >= 3 && (
                 <div className="space-y-3 p-4 bg-amber-50 rounded-xl border-2 border-amber-200 animate-in slide-in-from-top-2">
                     <div className="flex items-center justify-between">
-                        <Label className="text-[10px] font-black uppercase text-amber-800 tracking-widest">Security Challenge</Label>
-                        <Button type="button" variant="ghost" size="icon" className="h-3 w-3 text-amber-700" onClick={generateCaptcha}>
-                            <RefreshCw className="h-3 w-3" />
-                        </Button>
+                        <Label className="text-[10px] font-black uppercase text-amber-800 tracking-widest">Challenge</Label>
+                        <Button type="button" variant="ghost" size="icon" className="h-3 w-3 text-amber-700" onClick={generateCaptcha}><RefreshCw className="h-3 w-3" /></Button>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="flex-1 bg-white border-2 border-amber-200 rounded-lg h-10 flex items-center justify-center font-black text-amber-900 text-lg tabular-nums">
                             {captchaChallenge.a} + {captchaChallenge.b} = ?
                         </div>
-                        <Input 
-                            value={captchaAnswer} 
-                            onChange={e => setCaptchaAnswer(e.target.value)}
-                            placeholder="Answer"
-                            className="w-24 h-10 border-amber-200 bg-white font-black text-center"
-                            autoComplete="off"
-                        />
+                        <Input value={captchaAnswer} onChange={e => setCaptchaAnswer(e.target.value)} className="w-24 h-10 border-amber-200 bg-white font-black text-center" autoComplete="off" />
                     </div>
-                    <p className="text-[9px] text-amber-700 font-bold uppercase leading-tight">
-                        Multiple failed attempts detected. Please solve the math to prove you are human.
-                    </p>
                 </div>
               )}
 
               <Button type="submit" className="w-full h-11 text-sm font-black uppercase tracking-widest shadow-lg shadow-primary/20" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSubmitting ? 'Verifying...' : 'Authorize Login'}
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Authorize Login'}
               </Button>
             </form>
           </CardContent>
         </Card>
-        
-        <p className="mt-8 text-center text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
-            StarSutra Integrated Enterprise Suite
-        </p>
+        <p className="mt-8 text-center text-[10px] text-muted-foreground font-medium uppercase tracking-widest">StarSutra Integrated Enterprise Suite</p>
       </div>
     </div>
   );

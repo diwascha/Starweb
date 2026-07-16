@@ -6,9 +6,8 @@ import type { User, Permissions, Module, Action } from '@/lib/types';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 import { toast } from '@/hooks/use-toast';
-import { getUserByLogin } from '@/services/user-service';
 import { getFirebase } from '@/lib/firebase';
-import { collection, query, where, limit, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { logAudit } from '@/services/log-service';
 
 interface UserSession {
@@ -145,7 +144,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [auth]);
 
   useEffect(() => {
-    // 1. Initial Load & Expiry Verification
     const sessionJson = localStorage.getItem(USER_SESSION_KEY);
     if (sessionJson) {
       try {
@@ -164,9 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     let unsubscribeFirestore: (() => void) | null = null;
 
-    // 2. Real-time Cloud Synchronization
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      // Cleanup previous listener
       if (unsubscribeFirestore) {
           unsubscribeFirestore();
           unsubscribeFirestore = null;
@@ -174,24 +170,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (firebaseUser) {
         const { db } = getFirebase();
-        const q = query(collection(db, 'system_users'), where("email", "==", firebaseUser.email), limit(1));
+        const userDocRef = doc(db, 'system_users', firebaseUser.uid);
         
-        unsubscribeFirestore = onSnapshot(q, (snapshot) => {
-            if (snapshot.empty) {
+        unsubscribeFirestore = onSnapshot(userDocRef, (docSnap) => {
+            if (!docSnap.exists()) {
                 logout();
                 return;
             }
             
-            const data = snapshot.docs[0].data();
+            const data = docSnap.data();
             
-            // Security Check: Administrative Approval
             if (data.isApproved === false) {
                 toast({ title: 'Access Revoked', description: 'Account pending approval.', variant: 'destructive' });
                 logout();
                 return;
             }
 
-            // Security Check: Password Invalidation
             const currentSessionJson = localStorage.getItem(USER_SESSION_KEY);
             if (currentSessionJson) {
                 try {
@@ -202,12 +196,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                         logout();
                         return;
                     }
-                } catch {
-                    // Ignore parse errors here
-                }
+                } catch { }
             }
 
-            // Sync local session with cloud permissions and metadata
             const session: UserSession = {
                 id: firebaseUser.uid,
                 username: data.username,
@@ -216,7 +207,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 isAdmin: !!data.isAdmin,
                 permissions: data.permissions || {},
                 passwordLastUpdated: data.passwordLastUpdated,
-                sessionCreatedAt: Date.now() // Treat as last verified timestamp
+                sessionCreatedAt: Date.now()
             };
             
             localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
@@ -230,7 +221,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (currentSessionJson) {
             try {
                 const currentSession = JSON.parse(currentSessionJson);
-                // Keep local admin session but clear standard user sessions if Auth is gone
                 if (currentSession && !currentSession.isAdmin) {
                     localStorage.removeItem(USER_SESSION_KEY);
                     setUser(null);
@@ -254,31 +244,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!userToLogin) return;
     
     const now = Date.now();
-    if (isLocalAdmin) {
-        const session: UserSession = {
-            id: 'admin_user',
-            username: userToLogin.username,
-            isApproved: true,
-            isAdmin: true,
-            permissions: {},
-            sessionCreatedAt: now
-        };
-        localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
-        setUser(session);
-    } else {
-         const session: UserSession = {
-            id: userToLogin.id,
-            username: userToLogin.username,
-            email: userToLogin.email,
-            isApproved: true,
-            isAdmin: !!userToLogin.isAdmin,
-            permissions: userToLogin.permissions || {},
-            passwordLastUpdated: userToLogin.passwordLastUpdated,
-            sessionCreatedAt: now
-        };
-        localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
-        setUser(session);
-    }
+    const session: UserSession = {
+        id: userToLogin.id,
+        username: userToLogin.username,
+        email: userToLogin.email,
+        isApproved: true,
+        isAdmin: !!userToLogin.isAdmin,
+        permissions: userToLogin.permissions || {},
+        passwordLastUpdated: userToLogin.passwordLastUpdated,
+        sessionCreatedAt: now
+    };
+    localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
+    setUser(session);
   }, []);
 
   const hasPermission = useCallback((module: string, action: Action | 'create'): boolean => {
