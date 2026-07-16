@@ -3,44 +3,43 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper: is the currently signed-in user an admin?
+    // Uses exists() to prevent evaluation errors if the profile doesn't exist yet.
     function isAdmin() {
       return request.auth != null &&
         exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Username -> email lookup. Must be publicly readable so the login
-    // page can resolve "administrator" (or any username) to an email
-    // BEFORE the person is signed in. Only admins can create/change these.
+    // Username -> email lookup. 
+    // Must be publicly readable so the login screen can resolve usernames.
     match /usernames/{username} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // User profiles and system user management.
+    // User profiles and system access control.
     match /system_users/{userId} {
       allow read: if request.auth != null;
 
-      // A user may update their own document, but never touch isAdmin
-      // or isApproved themselves.
+      // Standard users can update their own profile fields, but never isAdmin or isApproved.
       allow update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.isAdmin == resource.data.isAdmin
         && request.resource.data.isApproved == resource.data.isApproved;
 
-      // Admins have full control over user documents.
-      allow read, write: if isAdmin();
+      // Admins have full management control.
+      allow create, delete, update: if isAdmin();
     }
 
     // Settings collection.
-    // Branding and profile info must be publicly readable for the login screen.
+    // Branding is public for the login screen; other configurations require auth.
     match /settings/{settingId} {
       allow read: if settingId in ['companyProfile', 'appBranding', 'fleetCompanyProfile'] || request.auth != null;
       allow write: if isAdmin();
     }
 
-    // Main application data (Reports, Fleet, HR, Finance, pageVisits, etc.)
+    // Main application data (Cheques, Fleet, HR, CRM, Finance, etc.)
     // Any authenticated user can read/write to these collections. 
-    // Finer-grained module permissions are handled in the UI via hasPermission().
+    // Finer-grained module permissions are handled in the UI shell.
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
