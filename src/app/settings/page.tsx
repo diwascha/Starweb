@@ -77,6 +77,7 @@ import {
   PlusCircle,
   Pencil,
   AlertTriangle,
+  Zap
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -1117,138 +1118,169 @@ export default function SettingsPage() {
                                 {passwordError && <p className="text-[9px] text-red-600 font-black uppercase mt-1">{passwordError}</p>}
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 pt-2">
-                             <Switch 
-                                id="user-approved" 
-                                checked={userForm.isApproved} 
-                                disabled={editingUser?.id === user?.id}
-                                onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} 
-                             />
-                             <Label htmlFor="user-approved" className="text-xs font-bold uppercase text-gray-700">Administrator Approved (Enable cloud login)</Label>
+                        <div className="flex flex-col gap-4 pt-2">
+                             <div className="flex items-center gap-2">
+                                <Switch 
+                                    id="user-approved" 
+                                    checked={userForm.isApproved} 
+                                    disabled={editingUser?.id === user?.id}
+                                    onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} 
+                                />
+                                <Label htmlFor="user-approved" className="text-xs font-bold uppercase text-gray-700">Administrator Approved (Enable cloud login)</Label>
+                             </div>
+                             <div className="flex items-center gap-2">
+                                <Switch 
+                                    id="user-admin" 
+                                    checked={userForm.isAdmin} 
+                                    disabled={editingUser?.id === user?.id}
+                                    onCheckedChange={v => setUserForm(p => ({...p, isAdmin: v}))} 
+                                />
+                                <Label htmlFor="user-admin" className="text-xs font-bold uppercase text-gray-700">Global Administrator (Full System Access)</Label>
+                             </div>
                         </div>
                     </section>
 
-                    <section className="space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-2">
-                            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em]">Module-Based Access Control</h3>
-                            <div className="flex items-center gap-2">
-                                <div className="relative">
-                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground"/>
-                                    <Input 
-                                        placeholder="Search modules..." 
-                                        value={moduleSearch} 
-                                        onChange={e => setModuleSearch(e.target.value)} 
-                                        className="h-8 w-48 text-[10px] pl-7 bg-white"
-                                    />
+                    {!userForm.isAdmin ? (
+                        <section className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-2">
+                                <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em]">Module-Based Access Control</h3>
+                                <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground"/>
+                                        <Input 
+                                            placeholder="Search modules..." 
+                                            value={moduleSearch} 
+                                            onChange={e => setModuleSearch(e.target.value)} 
+                                            className="h-8 w-48 text-[10px] pl-7 bg-white"
+                                        />
+                                    </div>
+                                    <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest px-4" onClick={() => {
+                                        const freshPermissions: Permissions = {};
+                                        modules.forEach(m => freshPermissions[m] = []);
+                                        setUserForm(p => ({...p, permissions: freshPermissions}))
+                                    }}>Clear All</Button>
                                 </div>
-                                <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest px-4" onClick={() => {
-                                    const freshPermissions: Permissions = {};
-                                    modules.forEach(m => freshPermissions[m] = []);
-                                    setUserForm(p => ({...p, permissions: freshPermissions}))
-                                }}>Clear All</Button>
                             </div>
-                        </div>
 
-                        <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
-                            <Table className="text-[11px]">
-                                <TableHeader className="bg-muted/30">
-                                    <TableRow className="hover:bg-transparent">
-                                        <TableHead className="w-[300px] font-black uppercase text-gray-900">Module</TableHead>
-                                        <TableHead className="text-center w-[120px] font-black uppercase text-blue-600">
-                                            <div className="flex flex-col items-center gap-1">
-                                                <Crown className="h-3 w-3"/>
-                                                <span>Full Access</span>
-                                            </div>
-                                        </TableHead>
-                                        <TableHead className="text-center w-[80px] font-black uppercase">
-                                            <div className="flex flex-col items-center gap-1">
-                                                <Eye className="h-3 w-3 opacity-60"/>
-                                                <span>View</span>
-                                            </div>
-                                        </TableHead>
-                                        <TableHead className="text-center w-[80px] font-black uppercase">
-                                            <div className="flex flex-col items-center gap-1">
-                                                <PlusCircle className="h-3 w-3 opacity-60"/>
-                                                <span>Add</span>
-                                            </div>
-                                        </TableHead>
-                                        <TableHead className="text-center w-[80px] font-black uppercase">
-                                            <div className="flex flex-col items-center gap-1">
-                                                <Pencil className="h-3 w-3 opacity-60"/>
-                                                <span>Edit</span>
-                                            </div>
-                                        </TableHead>
-                                        <TableHead className="text-center w-[80px] font-black uppercase">
-                                            <div className="flex flex-col items-center gap-1">
-                                                <Trash2 className="h-3 w-3 opacity-60"/>
-                                                <span>Delete</span>
-                                            </div>
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {MODULE_GROUPS.map((group) => {
-                                        const visibleModules = group.modules.filter(m => getModuleDisplayName(m).toLowerCase().includes(moduleSearch.toLowerCase()));
-                                        if (visibleModules.length === 0) return null;
+                            <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
+                                <Table className="text-[11px]">
+                                    <TableHeader className="bg-muted/30">
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableHead className="w-[300px] font-black uppercase text-gray-900">Module</TableHead>
+                                            <TableHead className="text-center w-[120px] font-black uppercase text-blue-600">
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <Crown className="h-3 w-3"/>
+                                                    <span>Full Access</span>
+                                                </div>
+                                            </TableHead>
+                                            <TableHead className="text-center w-[80px] font-black uppercase">
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <Eye className="h-3 w-3 opacity-60"/>
+                                                    <span>View</span>
+                                                </div>
+                                            </TableHead>
+                                            <TableHead className="text-center w-[80px] font-black uppercase">
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <PlusCircle className="h-3 w-3 opacity-60"/>
+                                                    <span>Add</span>
+                                                </div>
+                                            </TableHead>
+                                            <TableHead className="text-center w-[80px] font-black uppercase">
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <Pencil className="h-3 w-3 opacity-60"/>
+                                                    <span>Edit</span>
+                                                </div>
+                                            </TableHead>
+                                            <TableHead className="text-center w-[80px] font-black uppercase">
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <Trash2 className="h-3 w-3 opacity-60"/>
+                                                    <span>Delete</span>
+                                                </div>
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {MODULE_GROUPS.map((group) => {
+                                            const visibleModules = group.modules.filter(m => getModuleDisplayName(m).toLowerCase().includes(moduleSearch.toLowerCase()));
+                                            if (visibleModules.length === 0) return null;
 
-                                        return (
-                                            <React.Fragment key={group.name}>
-                                                <TableRow className="bg-muted/10 hover:bg-muted/10 border-b-2">
-                                                    <TableCell colSpan={6} className="py-2.5 px-4">
-                                                        <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-widest">
-                                                            <ChevronDown className="h-3.5 w-3.5"/>
-                                                            {group.name}
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                                {visibleModules.map(m => {
-                                                    const currentPerms = userForm.permissions[m] || [];
-                                                    const isAll = currentPerms.includes('all');
-                                                    
-                                                    return (
-                                                        <TableRow key={m} className={cn("group h-12 transition-colors", isAll && "bg-blue-50/20")}>
-                                                            <TableCell className="pl-6">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="p-1.5 bg-gray-50 rounded-lg group-hover:bg-white transition-colors">
-                                                                        {getModuleIcon(m)}
+                                            return (
+                                                <React.Fragment key={group.name}>
+                                                    <TableRow className="bg-muted/10 hover:bg-muted/10 border-b-2">
+                                                        <TableCell colSpan={6} className="py-2.5 px-4">
+                                                            <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-widest">
+                                                                <ChevronDown className="h-3.5 w-3.5"/>
+                                                                {group.name}
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                    {visibleModules.map(m => {
+                                                        const currentPerms = userForm.permissions[m] || [];
+                                                        const isAll = currentPerms.includes('all');
+                                                        
+                                                        return (
+                                                            <TableRow key={m} className={cn("group h-12 transition-colors", isAll && "bg-blue-50/20")}>
+                                                                <TableCell className="pl-6">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="p-1.5 bg-gray-50 rounded-lg group-hover:bg-white transition-colors">
+                                                                            {getModuleIcon(m)}
+                                                                        </div>
+                                                                        <span className="font-bold text-gray-900">{getModuleDisplayName(m)}</span>
                                                                     </div>
-                                                                    <span className="font-bold text-gray-900">{getModuleDisplayName(m)}</span>
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell className="text-center">
-                                                                <div className="flex justify-center">
-                                                                    <Checkbox 
-                                                                        checked={isAll} 
-                                                                        onCheckedChange={v => handlePermissionChange(m, 'all', !!v)}
-                                                                        className="h-5 w-5 rounded border-2 border-primary/30"
-                                                                    />
-                                                                </div>
-                                                            </TableCell>
-                                                            {['view', 'add', 'edit', 'delete'].map((act) => (
-                                                                <TableCell key={act} className="text-center">
+                                                                </TableCell>
+                                                                <TableCell className="text-center">
                                                                     <div className="flex justify-center">
                                                                         <Checkbox 
-                                                                            disabled={isAll}
-                                                                            checked={isAll || currentPerms.includes(act as any)} 
-                                                                            onCheckedChange={v => handlePermissionChange(m, act as any, !!v)}
-                                                                            className={cn(
-                                                                                "h-4 w-4 rounded",
-                                                                                isAll && "opacity-30 cursor-not-allowed"
-                                                                            )}
+                                                                            checked={isAll} 
+                                                                            onCheckedChange={v => handlePermissionChange(m, 'all', !!v)}
+                                                                            className="h-5 w-5 rounded border-2 border-primary/30"
                                                                         />
                                                                     </div>
                                                                 </TableCell>
-                                                            ))}
-                                                        </TableRow>
-                                                    );
-                                                })}
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </section>
+                                                                {['view', 'add', 'edit', 'delete'].map((act) => (
+                                                                    <TableCell key={act} className="text-center">
+                                                                        <div className="flex justify-center">
+                                                                            <Checkbox 
+                                                                                disabled={isAll}
+                                                                                checked={isAll || currentPerms.includes(act as any)} 
+                                                                                onCheckedChange={v => handlePermissionChange(m, act as any, !!v)}
+                                                                                className={cn(
+                                                                                    "h-4 w-4 rounded",
+                                                                                    isAll && "opacity-30 cursor-not-allowed"
+                                                                                )}
+                                                                            />
+                                                                        </div>
+                                                                    </TableCell>
+                                                                ))}
+                                                            </TableRow>
+                                                        );
+                                                    })}
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </section>
+                    ) : (
+                        <section className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                             <div className="flex items-center gap-4 p-8 bg-blue-50 border-2 border-blue-100 rounded-3xl">
+                                <div className="p-4 bg-white rounded-2xl shadow-sm">
+                                    <ShieldCheck className="h-10 w-10 text-blue-600" />
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-black uppercase text-blue-900 tracking-tight flex items-center gap-2">
+                                        Full System Authorization
+                                        <Zap className="h-4 w-4 fill-blue-600 text-blue-600" />
+                                    </h3>
+                                    <p className="text-xs text-blue-800 font-medium max-w-xl leading-relaxed">
+                                        As a Global Administrator, this user has unrestricted access to all Shivam Manufacturing, Sijan Logistics, and Rental modules. 
+                                        Manual permissions are superseded by administrative status.
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                    )}
                 </div>
             </ScrollArea>
 
