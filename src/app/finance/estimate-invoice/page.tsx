@@ -5,7 +5,24 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, History, Printer, Save, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  Search, 
+  ArrowUpDown, 
+  MoreHorizontal, 
+  View, 
+  Edit, 
+  Trash2, 
+  History, 
+  Printer, 
+  Save, 
+  Image as ImageIcon, 
+  Loader2, 
+  ChevronLeft, 
+  ChevronRight,
+  FilterX,
+  Users,
+  CalendarIcon
+} from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
@@ -18,15 +35,18 @@ import { useRouter } from 'next/navigation';
 import { onProductsUpdate, updateProduct } from '@/services/product-service';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
-import { toNepaliDate } from '@/lib/utils';
+import { toNepaliDate, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { InvoiceView } from './_components/invoice-view';
 import { onPartiesUpdate } from '@/services/party-service';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
-import { format } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import type { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 
 function FormSkeleton() {
@@ -58,6 +78,8 @@ type SortDirection = 'asc' | 'desc';
 function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => void }) {
     const [invoices, setInvoices] = useState<EstimatedInvoice[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterParty, setFilterParty] = useState('All');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
     
@@ -83,9 +105,14 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, itemsPerPage]);
+    }, [searchQuery, filterParty, dateRange, itemsPerPage]);
     
     const partiesById = useMemo(() => new Map(parties.map(p => [p.name, p])), [parties]);
+
+    const uniqueParties = useMemo(() => {
+        const pNames = new Set(invoices.map(inv => inv.partyName));
+        return Array.from(pNames).sort();
+    }, [invoices]);
 
     const requestSort = (key: SortKey) => {
         let direction: SortDirection = 'asc';
@@ -104,6 +131,20 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                 inv.partyName.toLowerCase().includes(lowercasedQuery)
             );
         }
+
+        if (filterParty !== 'All') {
+            filtered = filtered.filter(inv => inv.partyName === filterParty);
+        }
+
+        if (dateRange?.from) {
+            const start = startOfDay(dateRange.from);
+            const end = endOfDay(dateRange.to || dateRange.from);
+            filtered = filtered.filter(inv => {
+                const invDate = new Date(inv.date);
+                return isWithinInterval(invDate, { start, end });
+            });
+        }
+
         filtered.sort((a, b) => {
             const aVal = a[sortConfig.key];
             const bVal = b[sortConfig.key];
@@ -112,7 +153,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
             return 0;
         });
         return filtered;
-    }, [invoices, searchQuery, sortConfig]);
+    }, [invoices, searchQuery, filterParty, dateRange, sortConfig]);
 
     const paginatedInvoices = useMemo(() => {
         if (itemsPerPage === -1) return sortedAndFilteredInvoices;
@@ -278,23 +319,77 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
         }, 100);
     };
 
+    const isFiltered = filterParty !== 'All' || !!dateRange || searchQuery !== '';
+
     return (
         <>
         <Card>
            <CardHeader>
-             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <CardTitle>Saved Estimate Invoices</CardTitle>
-                    <CardDescription>A log of all saved estimate and pro-forma invoices.</CardDescription>
+             <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <CardTitle>Saved Estimate Invoices</CardTitle>
+                        <CardDescription>A log of all saved estimate and pro-forma invoices.</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                            <Input
+                                placeholder="Search invoice # or party..."
+                                className="pl-8 h-9 text-xs w-full sm:w-[250px]"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                    </div>
                 </div>
-                <div className="relative w-full sm:w-auto">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search by invoice # or party..."
-                        className="pl-8 w-full sm:w-[250px]"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                
+                <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-dashed">
+                    <div className="space-y-1.5 flex-1 min-w-[160px]">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Filter by Party</Label>
+                        <Select value={filterParty} onValueChange={setFilterParty}>
+                            <SelectTrigger className="h-9 bg-white text-xs">
+                                <div className="flex items-center gap-2">
+                                    <Users className="h-3 w-3 text-muted-foreground" />
+                                    <SelectValue placeholder="All Parties" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Parties</SelectItem>
+                                {uniqueParties.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-1.5 flex-1 min-w-[200px]">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Date Range (AD)</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                    <span className="truncate">
+                                        {dateRange?.from ? (
+                                            dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")
+                                        ) : 'Pick date range'}
+                                    </span>
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+
+                    {isFiltered && (
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => { setFilterParty('All'); setDateRange(undefined); setSearchQuery(''); }} 
+                            className="h-9 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
+                        >
+                            <FilterX className="mr-1.5 h-3.5 w-3.5" /> Reset
+                        </Button>
+                    )}
                 </div>
              </div>
            </CardHeader>
