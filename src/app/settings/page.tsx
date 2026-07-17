@@ -325,6 +325,9 @@ export default function SettingsPage() {
 
   const [ownershipCategories, setOwnershipCategories] = useState<string[]>(['Sijan', 'Shivam', 'Rental', 'Both']);
   const [newOwnershipName, setNewOwnershipName] = useState('');
+  const [isEditOwnershipDialogOpen, setIsEditOwnershipDialogOpen] = useState(false);
+  const [oldOwnershipName, setOldOwnershipName] = useState('');
+  const [updatedOwnershipName, setUpdatedOwnershipName] = useState('');
 
   useEffect(() => {
     setIsLoading(true);
@@ -411,6 +414,27 @@ export default function SettingsPage() {
         await setSetting('ownership_categories', next);
         setNewOwnershipName('');
         toast({ title: 'Category Added' });
+    } catch {
+        toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateOwnership = async () => {
+    if (!updatedOwnershipName.trim() || !oldOwnershipName) return;
+    if (updatedOwnershipName === oldOwnershipName) {
+        setIsEditOwnershipDialogOpen(false);
+        return;
+    }
+    if (ownershipCategories.includes(updatedOwnershipName.trim())) {
+        toast({ title: 'Duplicate Category', variant: 'destructive' });
+        return;
+    }
+    
+    const next = ownershipCategories.map(c => c === oldOwnershipName ? updatedOwnershipName.trim() : c);
+    try {
+        await setSetting('ownership_categories', next);
+        toast({ title: 'Category Updated' });
+        setIsEditOwnershipDialogOpen(false);
     } catch {
         toast({ title: 'Error', variant: 'destructive' });
     }
@@ -1058,7 +1082,20 @@ export default function SettingsPage() {
                                 {ownershipCategories.map(cat => (
                                     <TableRow key={cat} className="h-12 border-b-gray-100 group hover:bg-muted/30 transition-colors">
                                         <TableCell className="font-bold pl-6 text-gray-900">{cat}</TableCell>
-                                        <TableCell className="text-right pr-6">
+                                        <TableCell className="text-right pr-6 space-x-1">
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-7 w-7 text-primary opacity-0 group-hover:opacity-100 transition-opacity" 
+                                                disabled={['Sijan', 'Shivam', 'Rental', 'Both'].includes(cat)}
+                                                onClick={() => {
+                                                    setOldOwnershipName(cat);
+                                                    setUpdatedOwnershipName(cat);
+                                                    setIsEditOwnershipDialogOpen(true);
+                                                }}
+                                            >
+                                                <Edit className="h-3.5 w-3.5" />
+                                            </Button>
                                             <Button 
                                                 variant="ghost" 
                                                 size="icon" 
@@ -1514,6 +1551,31 @@ export default function SettingsPage() {
                     <div className="space-y-2"><Label>Code / Abbreviation</Label><Input value={uomForm.abbreviation} onChange={e => setUomForm({...uomForm, abbreviation: e.target.value})} /></div>
                 </div>
                 <DialogFooter><Button onClick={handleUomSubmit}>Save Unit</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={isEditOwnershipDialogOpen} onOpenChange={setIsEditOwnershipDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Edit Ownership Category</DialogTitle>
+                    <DialogDescription>
+                        Renaming this category will update the label. Note: This does not automatically update references in parties or accounts.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label>Category Name</Label>
+                        <Input 
+                            value={updatedOwnershipName} 
+                            onChange={e => setUpdatedOwnershipName(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleUpdateOwnership()}
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsEditOwnershipDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleUpdateOwnership}>Update Name</Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     </div>
