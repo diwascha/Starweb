@@ -1,4 +1,9 @@
 'use client';
+/**
+ * @fileOverview Cheque service for managing post-dated and issued cheques.
+ * Restored to fix parsing errors causing build failures.
+ */
+
 import { getFirebase } from '@/lib/firebase';
 import { 
     collection, 

@@ -150,16 +150,16 @@ export default function FinanceSettingsPage() {
   const [bsYears, setBsYears] = useState<number[]>([]);
   const [selectedLockYear, setSelectedLockYear] = useState<string>('');
   const [selectedLockMonth, setSelectedLockMonth] = useState<string>('');
-  const [ownershipCategories, setOwnershipCategories] = useState<string[]>(['Sijan', 'Shivam', 'Rental', 'Both']);
+  const [ownershipCategories, setOwnershipCategories] = useState<any[]>([]);
 
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
-  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: ''});
+  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Vendor', ownership: '', address: '', panNumber: ''});
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
 
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [accountForm, setAccountForm] = useState({ name: '', type: 'Cash' as AccountType, ownership: 'Both' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType | undefined });
+  const [accountForm, setAccountForm] = useState({ name: '', type: 'Cash' as AccountType, ownership: '' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType | undefined });
 
   useEffect(() => {
     const unsubs = [
@@ -222,6 +222,10 @@ export default function FinanceSettingsPage() {
 
   const isCurrentPeriodLocked = payrollLocks[`${selectedLockYear}-${selectedLockMonth}`] || false;
 
+  const ownershipNames = useMemo(() => {
+    return ownershipCategories.map(c => typeof c === 'string' ? c : c.name);
+  }, [ownershipCategories]);
+
   return (
     <div className="flex flex-col gap-8">
         <header>
@@ -242,7 +246,7 @@ export default function FinanceSettingsPage() {
                         <CardTitle className="text-base font-black uppercase">Partner Registry</CardTitle>
                         <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => setIsMergeDialogOpen(true)} className="h-8 uppercase font-black text-[10px] tracking-widest"><GitMerge className="mr-2 h-3.5 w-3.5"/> Merge Duplicates</Button>
-                            <Button size="sm" onClick={() => { setEditingParty(null); setPartyForm({name:'', type:'Vendor', ownership:'Both'}); setIsPartyDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Partner</Button>
+                            <Button size="sm" onClick={() => { setEditingParty(null); setPartyForm({name:'', type:'Vendor', ownership:''}); setIsPartyDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Partner</Button>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -273,10 +277,10 @@ export default function FinanceSettingsPage() {
             </TabsContent>
 
             <TabsContent value="accounts" className="animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 bg-white">
+                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Financial Accounts</CardTitle>
-                        <Button size="sm" onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership:'Both', accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
+                        <Button size="sm" onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership:'', accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs">
@@ -289,7 +293,7 @@ export default function FinanceSettingsPage() {
                                     <TableCell className="text-muted-foreground">{acc.bankName || '-'}</TableCell>
                                     <TableCell className="text-right pr-6 space-x-1">
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingAccount(acc); setAccountForm(acc as any); setIsAccountDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteAccount(acc.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteAccount(acc.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
                                     </TableCell>
                                 </TableRow>
                             ))}</TableBody>
@@ -329,7 +333,7 @@ export default function FinanceSettingsPage() {
               <div className="space-y-2"><Label>Full Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Category</Label><Select value={partyForm.type} onValueChange={(v: any) => setPartyForm({...partyForm, type: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2"><Label>Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{ownershipCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2"><Label>Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{ownershipNames.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
               </div>
             </div>
             <DialogFooter><Button onClick={handlePartySubmit} className="w-full">Save Partner</Button></DialogFooter>
@@ -343,7 +347,7 @@ export default function FinanceSettingsPage() {
                     <div className="space-y-2"><Label>Account Name</Label><Input value={accountForm.name} onChange={e => setAccountForm({...accountForm, name: e.target.value})} /></div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2"><Label>Type</Label><Select value={accountForm.type} onValueChange={(v: any) => setAccountForm({...accountForm, type: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select></div>
-                        <div className="space-y-2"><Label>Ownership</Label><Select value={accountForm.ownership} onValueChange={(v: any) => setAccountForm({...accountForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{ownershipCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="space-y-2"><Label>Ownership</Label><Select value={accountForm.ownership} onValueChange={(v: any) => setAccountForm({...accountForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{ownershipNames.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
                     </div>
                 </div>
                 <DialogFooter><Button onClick={handleAccountSubmit} className="w-full">Save Account</Button></DialogFooter>

@@ -106,7 +106,7 @@ const getModuleDisplayName = (m: Module): string => {
 
 const getModuleIcon = (m: Module) => {
     switch (m) {
-        case 'reports': return <FileText className="h-4 w-4" />;
+        case 'reports': return <ShoppingCart className="h-4 w-4" />;
         case 'purchaseOrders': return <ShoppingCart className="h-4 w-4" />;
         case 'settings': return <SettingsIcon className="h-4 w-4" />;
         case 'hr': return <Building2 className="h-4 w-4" />;
@@ -128,7 +128,7 @@ export default function SystemSettingsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
   const [logs, setLogs] = useState<SystemLog[]>([]);
-  const [ownershipCategories, setOwnershipCategories] = useState<string[]>(['Sijan', 'Shivam', 'Rental', 'Both']);
+  const [ownershipCategories, setOwnershipCategories] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
@@ -340,12 +340,24 @@ export default function SystemSettingsPage() {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex justify-center gap-3">
-                                                    {ownershipCategories.map(scope => (
-                                                        <div key={scope} className="flex flex-col items-center gap-1">
-                                                            <Checkbox checked={curr.ownerships.includes(scope)} onCheckedChange={v => handleOwnershipChange(m, scope, !!v)} />
-                                                            <span className="text-[8px] uppercase">{scope}</span>
-                                                        </div>
-                                                    ))}
+                                                    {ownershipCategories
+                                                        .filter(cat => {
+                                                            if (typeof cat === 'string') return true;
+                                                            return cat.modules?.includes(m);
+                                                        })
+                                                        .map(cat => {
+                                                            const scope = typeof cat === 'string' ? cat : cat.name;
+                                                            return (
+                                                                <div key={scope} className="flex flex-col items-center gap-1">
+                                                                    <Checkbox 
+                                                                        checked={curr.ownerships.includes(scope)} 
+                                                                        onCheckedChange={v => handleOwnershipChange(m, scope, !!v)} 
+                                                                    />
+                                                                    <span className="text-[8px] uppercase">{scope}</span>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    }
                                                 </div>
                                             </TableCell>
                                         </TableRow>

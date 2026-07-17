@@ -5,7 +5,8 @@ import type {
   UnitOfMeasurement, 
   DocumentPrefixes, 
   CompanyProfile,
-  AppBranding
+  AppBranding,
+  Module
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +29,8 @@ import {
   Building2,
   Settings2,
   PlusCircle,
+  CheckCircle2,
+  Check,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -39,24 +42,38 @@ import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-servi
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { 
     documentTypes, 
-    getDocumentName 
+    getDocumentName,
+    modules 
 } from '@/lib/types';
 import { DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { 
-    AlertDialog, 
-    AlertDialogAction, 
-    AlertDialogCancel, 
-    AlertDialogContent, 
-    AlertDialogDescription, 
-    AlertDialogFooter, 
-    AlertDialogHeader, 
-    AlertDialogTitle, 
-    AlertDialogTrigger 
-} from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+
+interface OwnershipCategory {
+    name: string;
+    modules: string[];
+}
+
+const getModuleDisplayName = (m: string): string => {
+    switch (m) {
+        case 'dashboard': return 'Dashboard';
+        case 'finance': return 'Finance';
+        case 'reports': return 'Test Reports';
+        case 'purchaseOrders': return 'Procurement';
+        case 'crm': return 'CRM';
+        case 'hr': return 'HRMS';
+        case 'fleet': return 'Fleet Ops';
+        case 'rental': return 'Real Estate';
+        case 'notes': return 'Notes';
+        case 'settings': return 'System Control';
+        default: return m;
+    }
+};
 
 export default function GeneralSettingsPage() {
-  const { user, hasPermission } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   
   const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
@@ -71,11 +88,10 @@ export default function GeneralSettingsPage() {
   const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
   const [isSavingBranding, setIsSavingBranding] = useState(false);
   
-  const [ownershipCategories, setOwnershipCategories] = useState<string[]>(['Sijan', 'Shivam', 'Rental', 'Both']);
-  const [newOwnershipName, setNewOwnershipName] = useState('');
-  const [isEditOwnershipDialogOpen, setIsEditOwnershipDialogOpen] = useState(false);
-  const [oldOwnershipName, setOldOwnershipName] = useState('');
-  const [updatedOwnershipName, setUpdatedOwnershipName] = useState('');
+  const [ownershipCategories, setOwnershipCategories] = useState<OwnershipCategory[]>([]);
+  const [isOwnershipDialogOpen, setIsOwnershipDialogOpen] = useState(false);
+  const [editingOwnership, setEditingOwnership] = useState<OwnershipCategory | null>(null);
+  const [ownershipForm, setOwnershipForm] = useState<OwnershipCategory>({ name: '', modules: [] });
 
   const [isUomDialogOpen, setIsUomDialogOpen] = useState(false);
   const [editingUom, setEditingUom] = useState<UnitOfMeasurement | null>(null);
@@ -89,7 +105,18 @@ export default function GeneralSettingsPage() {
         onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE)),
         onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE)),
         onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '' })),
-        onSettingUpdate('ownership_categories', (s) => { if (s?.value) setOwnershipCategories(s.value); }),
+        onSettingUpdate('ownership_categories', (s) => { 
+            if (s?.value) {
+                const raw = s.value;
+                if (Array.isArray(raw)) {
+                    const normalized = raw.map(item => {
+                        if (typeof item === 'string') return { name: item, modules: Array.from(modules) };
+                        return item as OwnershipCategory;
+                    });
+                    setOwnershipCategories(normalized);
+                }
+            }
+        }),
     ];
     setIsLoading(false);
     return () => unsubs.forEach(u => u());
@@ -134,32 +161,42 @@ export default function GeneralSettingsPage() {
     }
   };
 
-  const handleAddOwnership = async () => {
-    if (!newOwnershipName.trim()) return;
-    const next = [...ownershipCategories, newOwnershipName.trim()];
-    try {
-        await setSetting('ownership_categories', next);
-        setNewOwnershipName('');
-        toast({ title: 'Category Added' });
-    } catch {
-        toast({ title: 'Error', variant: 'destructive' });
+  const openOwnershipDialog = (cat: OwnershipCategory | null = null) => {
+    if (cat) {
+        setEditingOwnership(cat);
+        setOwnershipForm({ ...cat });
+    } else {
+        setEditingOwnership(null);
+        setOwnershipForm({ name: '', modules: Array.from(modules) });
     }
+    setIsOwnershipDialogOpen(true);
   };
 
-  const handleUpdateOwnership = async () => {
-    if (!updatedOwnershipName.trim() || !oldOwnershipName) return;
-    const next = ownershipCategories.map(c => c === oldOwnershipName ? updatedOwnershipName.trim() : c);
+  const handleSaveOwnership = async () => {
+    if (!ownershipForm.name.trim()) return;
+    
+    let next;
+    if (editingOwnership) {
+        next = ownershipCategories.map(c => c.name === editingOwnership.name ? ownershipForm : c);
+    } else {
+        if (ownershipCategories.some(c => c.name.toLowerCase() === ownershipForm.name.toLowerCase())) {
+            toast({ title: 'Name Conflict', description: 'Ownership category already exists.', variant: 'destructive' });
+            return;
+        }
+        next = [...ownershipCategories, ownershipForm];
+    }
+
     try {
         await setSetting('ownership_categories', next);
-        setIsEditOwnershipDialogOpen(false);
-        toast({ title: 'Category Renamed' });
+        setIsOwnershipDialogOpen(false);
+        toast({ title: editingOwnership ? 'Category Updated' : 'Category Added' });
     } catch {
         toast({ title: 'Error', variant: 'destructive' });
     }
   };
 
   const handleRemoveOwnership = async (name: string) => {
-    const next = ownershipCategories.filter(c => c !== name);
+    const next = ownershipCategories.filter(c => c.name !== name);
     try {
         await setSetting('ownership_categories', next);
         toast({ title: 'Category Removed' });
@@ -269,25 +306,41 @@ export default function GeneralSettingsPage() {
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b bg-muted/5">
                         <div>
                             <CardTitle className="text-base font-black uppercase">Ownership Categories</CardTitle>
+                            <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Manage organizational units and their module scope.</CardDescription>
                         </div>
-                        <div className="flex gap-2">
-                            <Input placeholder="New..." className="h-9 w-40 text-xs" value={newOwnershipName} onChange={e => setNewOwnershipName(e.target.value)} />
-                            <Button size="sm" onClick={handleAddOwnership} className="h-9 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add</Button>
-                        </div>
+                        <Button size="sm" onClick={() => openOwnershipDialog()} className="h-9 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Category</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs">
-                            <TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6 font-bold uppercase text-[10px]">Category Name</TableHead><TableHead className="text-right pr-6 font-bold uppercase text-[10px]">Actions</TableHead></TableRow></TableHeader>
+                            <TableHeader className="bg-muted/50">
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="pl-6 font-bold uppercase text-[10px]">Category Name</TableHead>
+                                    <TableHead className="font-bold uppercase text-[10px]">Associated Modules</TableHead>
+                                    <TableHead className="text-right pr-6 font-bold uppercase text-[10px]">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
                             <TableBody>
                                 {ownershipCategories.map(cat => (
-                                    <TableRow key={cat} className="h-12 border-b group">
-                                        <TableCell className="font-bold pl-6">{cat}</TableCell>
+                                    <TableRow key={cat.name} className="h-14 border-b group">
+                                        <TableCell className="font-black pl-6 text-gray-900 uppercase tracking-tighter">{cat.name}</TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-wrap gap-1 max-w-md">
+                                                {cat.modules?.length === modules.length ? (
+                                                    <Badge variant="outline" className="text-[8px] uppercase bg-primary/5 text-primary border-primary/20">All System Modules</Badge>
+                                                ) : (
+                                                    cat.modules?.map(m => (
+                                                        <Badge key={m} variant="secondary" className="text-[8px] uppercase">{getModuleDisplayName(m)}</Badge>
+                                                    ))
+                                                )}
+                                                {(!cat.modules || cat.modules.length === 0) && (
+                                                    <span className="text-muted-foreground italic text-[10px]">No modules assigned</span>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="text-right pr-6 space-x-1">
-                                            {!['Sijan', 'Shivam', 'Rental', 'Both'].includes(cat) && (
-                                                <>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => { setOldOwnershipName(cat); setUpdatedOwnershipName(cat); setIsEditOwnershipDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemoveOwnership(cat)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                                                </>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => openOwnershipDialog(cat)}><Edit className="h-4 w-4" /></Button>
+                                            {!['Sijan', 'Shivam', 'Rental', 'Both'].includes(cat.name) && (
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveOwnership(cat.name)}><Trash2 className="h-4 w-4" /></Button>
                                             )}
                                         </TableCell>
                                     </TableRow>
@@ -310,7 +363,7 @@ export default function GeneralSettingsPage() {
                         {uoms.map(u => (
                             <TableRow key={u.id} className="h-12 border-b"><TableCell className="font-bold pl-6">{u.name}</TableCell><TableCell className="font-black text-primary">{u.abbreviation}</TableCell><TableCell className="text-right pr-6 space-x-1">
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingUom(u); setUomForm({name:u.name, abbreviation:u.abbreviation}); setIsUomDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteUom(u.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteUom(u.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
                             </TableCell></TableRow>
                         ))}</TableBody></Table>
                     </CardContent>
@@ -360,16 +413,59 @@ export default function GeneralSettingsPage() {
             </DialogContent>
         </Dialog>
 
-        <Dialog open={isEditOwnershipDialogOpen} onOpenChange={setIsEditOwnershipDialogOpen}>
+        <Dialog open={isOwnershipDialogOpen} onOpenChange={setIsOwnershipDialogOpen}>
             <DialogContent className="sm:max-w-md">
-                <DialogHeader><DialogTitle>Rename Category</DialogTitle></DialogHeader>
-                <div className="py-4 space-y-4">
-                    <div className="space-y-2">
-                        <Label>Category Name</Label>
-                        <Input value={updatedOwnershipName} onChange={e => setUpdatedOwnershipName(e.target.value)} />
+                <DialogHeader>
+                    <DialogTitle>{editingOwnership ? 'Edit Category' : 'Add Ownership Category'}</DialogTitle>
+                    <DialogDescription>Define a category and associate it with specific system modules.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-5 py-4">
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Category Name</Label>
+                        <Input 
+                            value={ownershipForm.name} 
+                            onChange={e => setOwnershipForm({...ownershipForm, name: e.target.value})} 
+                            placeholder="e.g. Sijan Dhuwani" 
+                            className="h-10 font-bold"
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <div className="flex items-center justify-between px-1">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Module Association</Label>
+                            <div className="flex gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: Array.from(modules)})} className="h-5 px-1.5 text-[8px] uppercase font-black">All</Button>
+                                <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: []})} className="h-5 px-1.5 text-[8px] uppercase font-black">None</Button>
+                            </div>
+                        </div>
+                        <ScrollArea className="h-[250px] border rounded-lg bg-gray-50/30 p-2">
+                            <div className="grid grid-cols-1 gap-1">
+                                {modules.map(m => (
+                                    <div key={m} className={cn(
+                                        "flex items-center space-x-3 p-2 rounded-md transition-colors",
+                                        ownershipForm.modules.includes(m) ? "bg-primary/5" : "hover:bg-muted/50"
+                                    )}>
+                                        <Checkbox 
+                                            id={`check-${m}`} 
+                                            checked={ownershipForm.modules.includes(m)} 
+                                            onCheckedChange={(v) => {
+                                                const next = !!v 
+                                                    ? [...ownershipForm.modules, m]
+                                                    : ownershipForm.modules.filter(x => x !== m);
+                                                setOwnershipForm({...ownershipForm, modules: next});
+                                            }}
+                                        />
+                                        <Label htmlFor={`check-${m}`} className="text-xs font-medium cursor-pointer flex-1">{getModuleDisplayName(m)}</Label>
+                                    </div>
+                                ))}
+                            </div>
+                            <ScrollBar orientation="vertical" />
+                        </ScrollArea>
                     </div>
                 </div>
-                <DialogFooter><Button onClick={handleUpdateOwnership} className="w-full">Save Changes</Button></DialogFooter>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsOwnershipDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
+                    <Button onClick={handleSaveOwnership} className="font-black text-xs uppercase h-11 px-8 shadow-lg shadow-primary/20">Commit Category</Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     </div>
