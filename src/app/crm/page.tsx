@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Calculator, FileText } from 'lucide-react';
+import { Calculator, FileSpreadsheet, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function CrmDashboardPage() {
@@ -13,28 +13,50 @@ export default function CrmDashboardPage() {
         </div>
       </header>
        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <CardTitle>Cost Report Generator</CardTitle>
-              <CardDescription>Calculate product costs and generate quotations.</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Calculator className="h-5 w-5 text-primary" />
+                New Costing
+              </CardTitle>
+              <CardDescription>Launch the technical costing engine for a new client requirement.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Button asChild>
-                    <Link href="/crm/cost-report">
-                        <Calculator className="mr-2 h-4 w-4" /> Go to Cost Report
+                <Button asChild className="w-full">
+                    <Link href="/crm/cost-report/calculator">
+                        Start Calculator
                     </Link>
                 </Button>
             </CardContent>
          </Card>
-          <Card>
+         <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <CardTitle>PackSpec</CardTitle>
-              <CardDescription>Manage packaging specifications.</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-primary" />
+                Saved Reports
+              </CardTitle>
+              <CardDescription>View, search, and manage historical manufacturing estimates.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Button asChild>
+                <Button asChild variant="outline" className="w-full">
+                    <Link href="/crm/cost-report">
+                        View History
+                    </Link>
+                </Button>
+            </CardContent>
+         </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                PackSpec
+              </CardTitle>
+              <CardDescription>Manage the comprehensive packaging specification catalog.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild variant="secondary" className="w-full">
                     <Link href="/crm/pack-spec">
-                        <FileText className="mr-2 h-4 w-4" /> Go to PackSpec
+                        Go to PackSpec
                     </Link>
                 </Button>
             </CardContent>
