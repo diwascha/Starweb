@@ -18,6 +18,17 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
@@ -330,7 +341,23 @@ export default function GeneralSettingsPage() {
                                         <TableCell className="text-right pr-6 space-x-1">
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => openOwnershipDialog(cat)}><Edit className="h-4 w-4" /></Button>
                                             {!['Sijan', 'Shivam', 'Rental', 'Both'].includes(cat.name) && (
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveOwnership(cat.name)}><Trash2 className="h-4 w-4" /></Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Delete Ownership Category?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This will remove the "{cat.name}" category from the system. Existing records using this category will remain, but you will not be able to select it for new entries or permissions.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleRemoveOwnership(cat.name)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
                                             )}
                                         </TableCell>
                                     </TableRow>
@@ -353,7 +380,23 @@ export default function GeneralSettingsPage() {
                         {uoms.map(u => (
                             <TableRow key={u.id} className="h-12 border-b"><TableCell className="font-bold pl-6">{u.name}</TableCell><TableCell className="font-black text-primary">{u.abbreviation}</TableCell><TableCell className="text-right pr-6 space-x-1">
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingUom(u); setUomForm({name:u.name, abbreviation:u.abbreviation}); setIsUomDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteUom(u.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Unit of Measurement?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will remove "{u.name}" ({u.abbreviation}) from the registry. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => deleteUom(u.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </TableCell></TableRow>
                         ))}</TableBody></Table>
                     </CardContent>

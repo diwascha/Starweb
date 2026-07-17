@@ -254,7 +254,23 @@ export default function FinanceSettingsPage() {
                                     <TableCell><Badge variant="outline" className="text-[9px] uppercase">{party.ownership}</Badge></TableCell>
                                     <TableCell className="text-right pr-6 space-x-1">
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingParty(party); setPartyForm(party as any); setIsPartyDialogOpen(true); }}><Edit className="h-3.5 w-3.5"/></Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteParty(party.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Delete Partner Record?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will permanently remove "{party.name}" from the system. Associated transaction history will remain but the partner reference will be orphaned.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => deleteParty(party.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </TableCell>
                                 </TableRow>
                             ))}</TableBody>
@@ -280,7 +296,23 @@ export default function FinanceSettingsPage() {
                                     <TableCell className="text-muted-foreground">{acc.bankName || '-'}</TableCell>
                                     <TableCell className="text-right pr-6 space-x-1">
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingAccount(acc); setAccountForm(acc as any); setIsAccountDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteAccount(acc.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Remove Financial Account?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will delete the account record for "{acc.name}". Ensure all balances are zeroed or reassigned.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => deleteAccount(acc.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </TableCell>
                                 </TableRow>
                             ))}</TableBody>
