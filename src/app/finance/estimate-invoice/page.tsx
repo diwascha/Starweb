@@ -541,6 +541,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 function SavedRatesList() {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterPartyId, setFilterPartyId] = useState('All');
     
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -561,7 +562,16 @@ function SavedRatesList() {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, itemsPerPage]);
+    }, [searchQuery, filterPartyId, itemsPerPage]);
+
+    const uniqueParties = useMemo(() => {
+        const pIds = new Set(products.map(p => p.partyId).filter(Boolean));
+        return products
+            .filter(p => p.partyId && pIds.has(p.partyId))
+            .map(p => ({ id: p.partyId!, name: p.partyName! }))
+            .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [products]);
 
     const handleOpenRateDialog = (product: Product) => {
         setEditingProduct(product);
@@ -592,8 +602,19 @@ function SavedRatesList() {
     };
 
     const filteredProducts = useMemo(() => {
-        return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.partyName || '').toLowerCase().includes(searchQuery.toLowerCase()));
-    }, [products, searchQuery]);
+        let filtered = [...products];
+
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || (p.partyName || '').toLowerCase().includes(q));
+        }
+
+        if (filterPartyId !== 'All') {
+            filtered = filtered.filter(p => p.partyId === filterPartyId);
+        }
+
+        return filtered;
+    }, [products, searchQuery, filterPartyId]);
 
     const paginatedProducts = useMemo(() => {
         if (itemsPerPage === -1) return filteredProducts;
@@ -606,23 +627,52 @@ function SavedRatesList() {
         return Math.ceil(filteredProducts.length / itemsPerPage);
     }, [filteredProducts, itemsPerPage]);
 
+    const isFiltered = filterPartyId !== 'All' || searchQuery !== '';
+
     return (
         <>
         <Card>
-           <CardHeader>
-             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+           <CardHeader className="py-4">
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <CardTitle>Product Rates</CardTitle>
                     <CardDescription>Manage the rates for each product.</CardDescription>
                 </div>
-                <div className="relative w-full sm:w-auto">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search products..."
-                        className="pl-8 w-full sm:w-[250px]"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                            placeholder="Search products..."
+                            className="pl-8 h-8 text-xs w-[180px] bg-white border-gray-200 shadow-none"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+
+                    <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                        <SelectTrigger className="h-8 w-[150px] bg-white text-xs border-gray-200 shadow-none">
+                            <div className="flex items-center gap-2">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                                <SelectValue placeholder="All Parties" />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Parties</SelectItem>
+                            {uniqueParties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+
+                    {isFiltered && (
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => { setFilterPartyId('All'); setSearchQuery(''); }} 
+                            className="h-8 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
+                        >
+                            <FilterX className="h-3.5 w-3.5" />
+                        </Button>
+                    )}
                 </div>
              </div>
            </CardHeader>
