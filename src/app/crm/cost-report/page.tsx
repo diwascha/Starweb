@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -57,7 +58,7 @@ import { cn, toNepaliDate, normalizeBF, generateId } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/tabs";
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
@@ -265,13 +266,13 @@ const CostingTableRow = React.memo(({
                         {maxPly >= 7 && (
                             <>
                                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner2Gsm ?? ''} onChange={e => onItemChange(index, 'liner2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => onItemChange(index, 'flute3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
                             </>
                         )}
                         {maxPly >= 9 && (
                             <>
                                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
                             </>
                         )}
                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => onItemChange(index, 'acc_bottomGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
@@ -628,7 +629,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
             accessoryConversionCost: Number(accessoryConversionCost) || 0,
         }, user.username);
 
-        // Batch update product specs
+        // Batch update product specs AND SYNC GENERATED RATE
         const updatePromises: any[] = [];
         items.forEach(item => {
             if (!item.productId) return;
@@ -652,8 +653,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                 bottomGsm: item.bottomGsm,
                 wastagePercent: item.wastagePercent,
             };
+
+            // Calculate the generated rate (piece rate) to sync to Master Rate
+            const itemRate = (item.calculated?.paperCost || 0) + 
+                             (item.calculated?.transportCost || 0) + 
+                             (item.accessories?.reduce((sum, a) => sum + (a.calculated?.paperCost || 0), 0) || 0);
             
             updatePromises.push(updateProduct(item.productId, { 
+                rate: parseFloat(itemRate.toFixed(2)),
                 specification: updatedSpec, 
                 accessories: item.accessories?.map(({ calculated, ...rest }: any) => rest),
                 lastModifiedBy: user.username 
@@ -661,7 +668,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         });
         
         await Promise.all(updatePromises);
-        toast({ title: 'Success', description: 'Report saved and specifications updated.' });
+        toast({ title: 'Success', description: 'Report saved and product rates synchronized.' });
         onSaveSuccess();
     } catch (error) {
         console.error("Save error:", error);
