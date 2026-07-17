@@ -41,7 +41,6 @@ import {
   Settings2,
   CalendarIcon,
   Hash,
-  History,
   RefreshCcw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -221,11 +220,12 @@ export default function GeneralSettingsPage() {
 
   const openNumberingDialog = (key: DocumentType) => {
     setActiveNumberingKey(key);
-    const rules = prefixes[key] || [];
+    const rawRules = prefixes[key];
+    const rules = Array.isArray(rawRules) ? rawRules : [];
     const active = rules.find(r => r.status === 'Active');
     
     setNumberingForm({
-        prefix: active?.prefix || '',
+        prefix: active?.prefix || (typeof rawRules === 'string' ? rawRules : ''),
         effectiveFrom: new Date().toISOString().split('T')[0],
         startingNumber: active ? active.startingNumber : 1
     });
@@ -235,7 +235,8 @@ export default function GeneralSettingsPage() {
   const handleSaveNumbering = async () => {
     if (!activeNumberingKey || !numberingForm.prefix) return;
     
-    const rules = [...(prefixes[activeNumberingKey] || [])];
+    const rawRules = prefixes[activeNumberingKey];
+    const rules = Array.isArray(rawRules) ? [...rawRules] : [];
     const activeIndex = rules.findIndex(r => r.status === 'Active');
     
     const newFromDate = new Date(numberingForm.effectiveFrom);
@@ -383,7 +384,7 @@ export default function GeneralSettingsPage() {
                                                     <Badge variant="outline" className="text-[8px] uppercase bg-primary/5 text-primary border-primary/20">All System Modules</Badge>
                                                 ) : (
                                                     cat.modules?.map(m => (
-                                                        <Badge key={m} variant="secondary" className="text-[8px] uppercase">{getModuleDisplayName(m)}</Badge>
+                                                        <Badge key={m} variant="secondary" className="text-[8px] uppercase">{getModuleDisplayName(m as Module)}</Badge>
                                                     ))
                                                 )}
                                                 {(!cat.modules || cat.modules.length === 0) && (
@@ -476,13 +477,14 @@ export default function GeneralSettingsPage() {
                             </TableHeader>
                             <TableBody>
                                 {documentTypes.map(t => {
-                                    const rules = prefixes[t] || [];
+                                    const rawRules = prefixes[t];
+                                    const rules = Array.isArray(rawRules) ? rawRules : [];
                                     const active = rules.find(r => r.status === 'Active');
                                     
                                     return (
                                         <TableRow key={t} className="h-14 border-b">
                                             <TableCell className="font-black pl-6 text-gray-900 uppercase tracking-tighter">{getDocumentName(t)}</TableCell>
-                                            <TableCell className="font-mono text-blue-600 font-black">{active?.prefix || '(System Default)'}</TableCell>
+                                            <TableCell className="font-mono text-blue-600 font-black">{active?.prefix || (typeof rawRules === 'string' ? rawRules : '(System Default)')}</TableCell>
                                             <TableCell className="text-center font-bold">{active?.startingNumber.toString().padStart(3, '0') || '001'}</TableCell>
                                             <TableCell className="text-muted-foreground italic">{active ? toNepaliDate(active.effectiveFrom) : 'N/A'}</TableCell>
                                             <TableCell className="text-right pr-6">
@@ -616,7 +618,7 @@ export default function GeneralSettingsPage() {
                                                 setOwnershipForm({...ownershipForm, modules: next});
                                             }}
                                         />
-                                        <Label htmlFor={`check-${m}`} className="text-xs font-medium cursor-pointer flex-1">{getModuleDisplayName(m)}</Label>
+                                        <Label htmlFor={`check-${m}`} className="text-xs font-medium cursor-pointer flex-1">{getModuleDisplayName(m as Module)}</Label>
                                     </div>
                                 ))}
                             </div>

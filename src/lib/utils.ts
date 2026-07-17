@@ -84,10 +84,15 @@ export const generateNextNumber = async (
 ): Promise<string> => {
   const numberingSetting = await getSetting('documentPrefixes');
   const numberingConfig = numberingSetting?.value as DocumentPrefixes || {};
-  const rules = numberingConfig[settingKey] || [];
+  const rawRules = numberingConfig[settingKey];
+  
+  // Robust check for legacy string data vs new array data
+  const rules = Array.isArray(rawRules) ? rawRules : [];
   const activeRule = rules.find(r => r.status === 'Active');
   
-  const prefix = activeRule?.prefix || defaultPrefix;
+  // If legacy data exists as a string, use it as prefix. 
+  // Otherwise use the rule's prefix or the system default.
+  const prefix = activeRule?.prefix || (typeof rawRules === 'string' ? rawRules : defaultPrefix);
   const startNum = activeRule?.startingNumber || 1;
   
   const numberStrings = items.map(item => item[fieldName]);

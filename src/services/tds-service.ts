@@ -31,9 +31,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): TdsCalcul
 export const getTdsPrefix = async (): Promise<string> => {
     const prefixSetting = await getSetting('documentPrefixes');
     const numberingConfig = prefixSetting?.value as DocumentPrefixes || {};
-    const rules = numberingConfig.tdsVoucher || [];
+    const rawRules = numberingConfig.tdsVoucher;
+    
+    const rules = Array.isArray(rawRules) ? rawRules : [];
     const activeRule = rules.find(r => r.status === 'Active');
-    return activeRule?.prefix || 'TDS-';
+    
+    return activeRule?.prefix || (typeof rawRules === 'string' ? rawRules : 'TDS-');
 }
 
 export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' | 'createdAt'>): Promise<string> => {
@@ -107,7 +110,7 @@ export const deleteTdsCalculation = async (id: string): Promise<void> => {
     deleteDoc(calcDoc).catch(async (err: any) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: calcDoc.path,
+                path: 'tdsCalculations',
                 operation: 'delete',
             }));
         }
