@@ -294,7 +294,7 @@ export default function PurchaseOrdersListPage() {
       filtered.sort((a, b) => {
         if (sortConfig.key === 'authorship') {
              const aDate = a.updatedAt || a.createdAt;
-             const bDate = b.lastModifiedAt || b.createdAt;
+             const bDate = b.updatedAt || b.createdAt;
              if (!aDate || !bDate) return 0;
              const res = aDate < bDate ? -1 : 1;
              return sortConfig.direction === 'asc' ? res : -res;

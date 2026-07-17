@@ -14,7 +14,7 @@ import { createTimestamp, logServiceError } from '@/lib/service-utils';
 import { processAttendanceImport } from '@/lib/attendance';
 import { getEmployees } from '../employee-service';
 import { getRawLogsCollection, fromFirestoreLog } from './data';
-import { format } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';

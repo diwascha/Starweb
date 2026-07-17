@@ -17,7 +17,8 @@ import {
   Plus,
   Edit,
   Trash2,
-  MoreHorizontal
+  MoreHorizontal,
+  Eye
 } from 'lucide-react';
 import type { Product, ProductSpecification } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct, deleteProduct } from '@/services/product-service';
