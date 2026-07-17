@@ -124,7 +124,7 @@ export default function GeneralSettingsPage() {
             if (s?.value) {
                 const raw = s.value;
                 if (Array.isArray(raw)) {
-                    const normalized = raw.map(item => {
+                    const normalized = raw.map((item: any) => {
                         if (typeof item === 'string') return { name: item, modules: Array.from(modules) };
                         return item as OwnershipCategory;
                     });
@@ -190,7 +190,6 @@ export default function GeneralSettingsPage() {
   const handleSaveOwnership = async () => {
     if (!ownershipForm.name.trim()) return;
     
-    // Final check to ensure core modules are present
     const finalModules = Array.from(new Set([...ownershipForm.modules, ...CORE_MODULES]));
     const updatedForm = { ...ownershipForm, modules: finalModules };
 
@@ -399,25 +398,25 @@ export default function GeneralSettingsPage() {
                                         </TableCell>
                                         <TableCell className="text-right pr-6 space-x-1">
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => openOwnershipDialog(cat)}><Edit className="h-4 w-4" /></Button>
-                                            {!['Sijan', 'Shivam', 'Rental', 'Both'].includes(cat.name) && (
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Delete Ownership Category?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                This will remove the "{cat.name}" category from the system. Existing records using this category will remain.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleRemoveOwnership(cat.name)} className="bg-destructive text-white">Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            )}
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Delete Ownership Category?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This will remove the "{cat.name}" category from the system. 
+                                                            Existing records using this category will remain, but this category 
+                                                            will no longer be available for selection in forms or filters.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleRemoveOwnership(cat.name)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </TableCell>
                                     </TableRow>
                                 ))}
