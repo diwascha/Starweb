@@ -26,7 +26,6 @@ import {
   Save, 
   Loader2,
   Settings2,
-  CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -51,14 +50,15 @@ const getModuleDisplayName = (m: string): string => {
     switch (m) {
         case 'dashboard': return 'Dashboard';
         case 'finance': return 'Finance';
-        case 'reports': return 'Test Reports';
-        case 'purchaseOrders': return 'Procurement';
+        case 'reports': return 'Test Report Management';
+        case 'purchaseOrders': return 'Purchase Order Management';
         case 'crm': return 'CRM';
         case 'hr': return 'HRMS';
-        case 'fleet': return 'Fleet Ops';
-        case 'rental': return 'Real Estate';
-        case 'notes': return 'Notes';
-        case 'settings': return 'System Control';
+        case 'fleet': return 'Fleet Management';
+        case 'rental': return 'Rental Management';
+        case 'filesystem': return 'File Manager';
+        case 'notes': return 'Notes & Todos';
+        case 'settings': return 'Settings';
         default: return m;
     }
 };

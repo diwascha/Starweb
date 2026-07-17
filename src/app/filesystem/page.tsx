@@ -35,7 +35,7 @@ import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 
 /**
- * Security Constants for File Upload (Remediates FINDING-026)
+ * Security Constants for File Upload
  */
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 const ALLOWED_MIME_TYPES = [
@@ -56,7 +56,7 @@ export default function FileSystemPage() {
     const [categoryFilter, setCategoryFilter] = useState('All');
     const [isUploading, setIsSubmitting] = useState(false);
     
-    const { user } = useAuth();
+    const { user, hasPermission } = useAuth();
     const { toast } = useToast();
 
     useEffect(() => {
@@ -79,6 +79,11 @@ export default function FileSystemPage() {
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !user) return;
+        
+        if (!hasPermission('filesystem', 'add')) {
+            toast({ title: 'Access Denied', description: 'You do not have permission to upload files.', variant: 'destructive' });
+            return;
+        }
 
         // 1. File Size Validation
         if (file.size > MAX_FILE_SIZE) {
@@ -130,6 +135,10 @@ export default function FileSystemPage() {
     };
 
     const handleDelete = async (file: FileRecord) => {
+        if (!hasPermission('filesystem', 'delete')) {
+            toast({ title: 'Access Denied', description: 'You do not have permission to delete files.', variant: 'destructive' });
+            return;
+        }
         try {
             await deleteFile(file.url);
             await removeFileRecord(file.id);
@@ -154,29 +163,35 @@ export default function FileSystemPage() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
+    if (!hasPermission('filesystem', 'view')) {
+        return <div className="p-8 text-center text-muted-foreground italic">You do not have permission to access the File Manager.</div>;
+    }
+
     return (
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">File Manager</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-gray-900 uppercase">File Manager</h1>
                     <p className="text-muted-foreground">Secure document storage and organization for the enterprise.</p>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
-                    <label className="flex-1 md:flex-none">
-                        <Input 
-                            type="file" 
-                            className="hidden" 
-                            onChange={handleFileUpload} 
-                            disabled={isUploading}
-                            accept=".jpg,.jpeg,.png,.pdf,.xlsx,.xls,.docx,.doc,.csv" 
-                        />
-                        <Button asChild disabled={isUploading} className="w-full h-10 font-bold uppercase text-xs tracking-widest shadow-lg">
-                            <span>
-                                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
-                                Upload Document
-                            </span>
-                        </Button>
-                    </label>
+                    {hasPermission('filesystem', 'add') && (
+                        <label className="flex-1 md:flex-none">
+                            <Input 
+                                type="file" 
+                                className="hidden" 
+                                onChange={handleFileUpload} 
+                                disabled={isUploading}
+                                accept=".jpg,.jpeg,.png,.pdf,.xlsx,.xls,.docx,.doc,.csv" 
+                            />
+                            <Button asChild disabled={isUploading} className="w-full h-10 font-bold uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
+                                <span>
+                                    {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
+                                    Upload Document
+                                </span>
+                            </Button>
+                        </label>
+                    )}
                 </div>
             </header>
 
@@ -244,7 +259,7 @@ export default function FileSystemPage() {
                             <div className="space-y-1.5">
                                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Category</Label>
                                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                    <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
+                                    <SelectTrigger className="h-9 text-xs bg-white"><SelectValue/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="All">All Documents</SelectItem>
                                         <SelectItem value="HR">HR Documents</SelectItem>
@@ -282,21 +297,21 @@ export default function FileSystemPage() {
                     </Card>
                 </div>
 
-                <Card className="md:col-span-3 shadow-sm border-gray-200">
+                <Card className="md:col-span-3 shadow-sm border-gray-200 bg-white">
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader className="bg-muted/50">
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead className="pl-6 font-bold text-xs">File Name</TableHead>
-                                    <TableHead className="font-bold text-xs">Category</TableHead>
-                                    <TableHead className="font-bold text-xs">Size</TableHead>
-                                    <TableHead className="font-bold text-xs">Uploaded By</TableHead>
-                                    <TableHead className="text-right pr-6 font-bold text-xs">Actions</TableHead>
+                                    <TableHead className="pl-6 font-bold text-xs uppercase tracking-wider">File Name</TableHead>
+                                    <TableHead className="font-bold text-xs uppercase tracking-wider">Category</TableHead>
+                                    <TableHead className="font-bold text-xs uppercase tracking-wider">Size</TableHead>
+                                    <TableHead className="font-bold text-xs uppercase tracking-wider">Uploaded By</TableHead>
+                                    <TableHead className="text-right pr-6 font-bold text-xs uppercase tracking-wider">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow><TableCell colSpan={5} className="text-center py-20"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground"/></TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={5} className="text-center py-20"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground opacity-20"/></TableCell></TableRow>
                                 ) : filteredFiles.map(file => (
                                     <TableRow key={file.id} className="group hover:bg-muted/30 transition-colors h-14">
                                         <TableCell className="pl-6">
@@ -314,15 +329,17 @@ export default function FileSystemPage() {
                                         <TableCell className="text-[11px] text-muted-foreground tabular-nums">{formatSize(file.size)}</TableCell>
                                         <TableCell className="text-[11px] font-bold text-gray-700 uppercase tracking-tighter">{file.uploadedBy}</TableCell>
                                         <TableCell className="text-right pr-6">
-                                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" asChild>
                                                     <a href={file.url} target="_blank" rel="noopener noreferrer">
                                                         <Download className="h-4 w-4" />
                                                     </a>
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-red-50" onClick={() => handleDelete(file)}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                {hasPermission('filesystem', 'delete') && (
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-red-50" onClick={() => handleDelete(file)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>

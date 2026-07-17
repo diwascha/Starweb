@@ -22,6 +22,11 @@ export interface ProductSpecification {
   topGsm?: string;
   flute1Gsm?: string;
   middleGsm?: string;
+  view?: string;
+  edit?: string;
+  delete?: string;
+  add?: string;
+  all?: string;
   flute2Gsm?: string;
   bottomGsm?: string;
   liner2Gsm?: string;
@@ -712,13 +717,12 @@ export const modules = [
     'dashboard', 
     'finance', 
     'reports', 
-    'products',
     'purchaseOrders', 
-    'rawMaterials', 
     'crm', 
     'hr', 
     'fleet', 
     'rental', 
+    'filesystem',
     'notes', 
     'settings'
 ] as const;

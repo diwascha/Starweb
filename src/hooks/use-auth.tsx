@@ -47,6 +47,7 @@ const MASTER_ADMIN_UID = '0B9q71lXTDRnEjaTuwivIpIkiW42';
 const moduleToPath = (module: Module): string => {
     if (module === 'dashboard') return '/dashboard';
     if (module === 'purchaseOrders') return '/purchase-orders';
+    if (module === 'filesystem') return '/filesystem';
     return `/${module}`;
 };
 
@@ -63,6 +64,7 @@ const routeToCoreModule = (segment: string): Module | null => {
         'hr': 'hr',
         'fleet': 'fleet',
         'rental': 'rental',
+        'filesystem': 'filesystem',
         'notes': 'notes',
         'settings': 'settings'
     };
@@ -99,7 +101,7 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
             
             if (currentModule) {
                 if (!hasPermission(currentModule, 'view')) {
-                    const pageOrder: Module[] = ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr', 'fleet', 'rental', 'notes', 'settings'];
+                    const pageOrder: Module[] = ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr', 'fleet', 'rental', 'filesystem', 'notes', 'settings'];
                     const firstAllowed = pageOrder.find(m => hasPermission(m, 'view'));
                     
                     if (firstAllowed) {
@@ -299,6 +301,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         primaryKey = 'notes';
     } else if (m === 'settings') {
         primaryKey = 'settings';
+    } else if (m === 'filesystem') {
+        primaryKey = 'filesystem';
     }
 
     if (!primaryKey) return false;

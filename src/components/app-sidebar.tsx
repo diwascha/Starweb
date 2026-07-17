@@ -229,9 +229,9 @@ export function AppSidebar() {
                     <SidebarSeparator />
                     <SidebarMenuItem>
                         <CollapsibleTrigger asChild>
-                            <SidebarMenuButton tooltip="Test Report Mgmt" isActive={getIsActive('/reports')}>
+                            <SidebarMenuButton tooltip="Test Report Management" isActive={getIsActive('/reports')}>
                                 <FileText />
-                                <span>Test Report Mgmt</span>
+                                <span>Test Report Management</span>
                                 <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                             </SidebarMenuButton>
                         </CollapsibleTrigger>
@@ -268,9 +268,9 @@ export function AppSidebar() {
                     <SidebarSeparator />
                     <SidebarMenuItem>
                         <CollapsibleTrigger asChild>
-                            <SidebarMenuButton tooltip="Purchase Order Mgmt" isActive={getIsActive('/purchase-orders')}>
+                            <SidebarMenuButton tooltip="Purchase Order Management" isActive={getIsActive('/purchase-orders')}>
                                 <ShoppingCart />
-                                <span>Purchase Order Mgmt</span>
+                                <span>Purchase Order Management</span>
                                 <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                             </SidebarMenuButton>
                         </CollapsibleTrigger>
@@ -453,9 +453,11 @@ export function AppSidebar() {
         
         <SidebarMenu>
             <SidebarSeparator />
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/filesystem')} tooltip="File Manager"><Link href="/filesystem" className="flex items-center gap-2"><HardDrive /><span>File Manager</span></Link></SidebarMenuButton>
-            </SidebarMenuItem>
+            {hasPermission('filesystem', 'view') && (
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/filesystem')} tooltip="File Manager"><Link href="/filesystem" className="flex items-center gap-2"><HardDrive /><span>File Manager</span></Link></SidebarMenuButton>
+                </SidebarMenuItem>
+            )}
             {hasPermission('notes', 'view') && (
             <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={getIsActive('/notes')} tooltip="Notes & Todos"><Link href="/notes" className="flex items-center gap-2"><Notebook /><span>Notes & Todos</span></Link></SidebarMenuButton>
