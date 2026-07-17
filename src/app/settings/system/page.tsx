@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -391,7 +392,7 @@ export default function SystemSettingsPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Abort</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleRestoreFileChange} className="bg-destructive text-white hover:bg-destructive/90">Yes, Restore System</AlertDialogAction>
+                                    <AlertDialogAction onClick={handleConfirmRestore} className="bg-destructive text-white hover:bg-destructive/90">Yes, Restore System</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
