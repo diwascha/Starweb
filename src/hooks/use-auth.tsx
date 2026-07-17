@@ -2,7 +2,7 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User, Permissions, Module, Action } from '@/lib/types';
+import type { User, Permissions, Module, Action, AccountOwnership, ModulePermission } from '@/lib/types';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 import { toast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ interface AuthContextType {
   login: (user: User, isLocalAdmin?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (module: string, action: Action | 'create') => boolean;
+  getAllowedOwnerships: (module: Module) => AccountOwnership[];
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -36,6 +37,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: async () => {},
   hasPermission: () => false,
+  getAllowedOwnerships: () => [],
 });
 
 const USER_SESSION_KEY = 'user_session';
@@ -90,7 +92,7 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
             return;
         }
 
-        if (user && !isAuthPage && !user.isAdmin) {
+        if (user && !isAuthSegment(normalizedPath) && !user.isAdmin) {
             const pathSegments = pathname.split('/').filter(Boolean);
             const firstSegment = pathSegments[0] || 'dashboard';
             const currentModule = routeToCoreModule(firstSegment);
@@ -114,8 +116,10 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
         }
     }, [user, loading, pathname, router, hasPermission, logout]);
 
+    const isAuthSegment = (path: string) => path === '/login' || path === '/signup';
+
     const normalizedPath = getNormalizedPath(pathname);
-    if (loading || (!user && normalizedPath !== '/login')) {
+    if (loading || (!user && !isAuthSegment(normalizedPath))) {
         return (
             <div className="flex h-screen items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-3">
@@ -271,7 +275,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (user.isApproved === false) return false;
     
     const act = action === 'create' ? 'add' : action;
-    const m = String(module || '');
+    const m = String(module || '') as Module;
 
     let primaryKey: Module | null = null;
 
@@ -300,13 +304,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!primaryKey) return false;
 
     const perms = user.permissions[primaryKey];
-    if (!perms || !Array.isArray(perms)) return false;
+    if (!perms) return false;
 
-    return perms.includes('all') || perms.includes(act as any);
+    // Handle structured permissions vs legacy array-based permissions
+    if (Array.isArray(perms)) {
+      return perms.includes('all') || perms.includes(act as any);
+    } else if (typeof perms === 'object' && perms.actions) {
+      return perms.actions.includes('all') || perms.actions.includes(act as any);
+    }
+
+    return false;
+  }, [user]);
+
+  const getAllowedOwnerships = useCallback((module: Module): AccountOwnership[] => {
+      if (!user) return [];
+      if (user.isAdmin) return ['Sijan', 'Shivam', 'Rental', 'Both'];
+      
+      const perms = user.permissions[module];
+      if (!perms || Array.isArray(perms)) return []; // Legacy users have no specific ownership assigned
+      
+      return perms.ownerships || [];
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, hasPermission, getAllowedOwnerships }}>
       {children}
     </AuthContext.Provider>
   );

@@ -722,8 +722,13 @@ export type Module = typeof modules[number];
 export const actions = ['view', 'add', 'edit', 'delete', 'all'] as const;
 export type Action = typeof actions[number];
 
+export interface ModulePermission {
+  actions: Action[];
+  ownerships: AccountOwnership[];
+}
+
 export type Permissions = {
-  [key in Module]?: Action[];
+  [key in Module]?: ModulePermission;
 };
 
 export interface User {

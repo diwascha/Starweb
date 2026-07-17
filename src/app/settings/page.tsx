@@ -16,7 +16,8 @@ import type {
   PageVisit, 
   CompanyProfile,
   AccountOwnership,
-  AppBranding
+  AppBranding,
+  ModulePermission
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -77,7 +78,9 @@ import {
   PlusCircle,
   Pencil,
   AlertTriangle,
-  Zap
+  Zap,
+  Lock,
+  LockOpen
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -612,7 +615,16 @@ export default function SettingsPage() {
   const openUserDialog = (userToEdit: User | null = null) => {
     const freshPermissions: Permissions = {};
     modules.forEach(m => {
-        freshPermissions[m] = userToEdit?.permissions?.[m] ? [...userToEdit.permissions[m]!] : [];
+        const existing = userToEdit?.permissions?.[m];
+        if (existing) {
+            if (Array.isArray(existing)) {
+                freshPermissions[m] = { actions: [...existing], ownerships: [] };
+            } else {
+                freshPermissions[m] = { actions: [...existing.actions], ownerships: [...existing.ownerships] };
+            }
+        } else {
+            freshPermissions[m] = { actions: [], ownerships: [] };
+        }
     });
 
     if (userToEdit) {
@@ -636,12 +648,33 @@ export default function SettingsPage() {
   const handlePermissionChange = (module: Module, action: Action, checked: boolean) => {
     setUserForm(prev => {
         const newPermissions = { ...prev.permissions };
-        const currentModulePerms = newPermissions[module] ? [...newPermissions[module]!] : [];
+        const current = newPermissions[module] || { actions: [], ownerships: [] };
+        
+        let newActions = [...current.actions];
         if (checked) {
-            newPermissions[module] = Array.from(new Set([...currentModulePerms, action]));
+            newActions = Array.from(new Set([...newActions, action]));
         } else {
-            newPermissions[module] = currentModulePerms.filter(a => a !== action);
+            newActions = newActions.filter(a => a !== action);
         }
+        
+        newPermissions[module] = { ...current, actions: newActions };
+        return { ...prev, permissions: newPermissions };
+    });
+  };
+
+  const handleOwnershipChange = (module: Module, ownership: AccountOwnership, checked: boolean) => {
+    setUserForm(prev => {
+        const newPermissions = { ...prev.permissions };
+        const current = newPermissions[module] || { actions: [], ownerships: [] };
+        
+        let newOwnerships = [...current.ownerships];
+        if (checked) {
+            newOwnerships = Array.from(new Set([...newOwnerships, ownership]));
+        } else {
+            newOwnerships = newOwnerships.filter(o => o !== ownership);
+        }
+        
+        newPermissions[module] = { ...current, ownerships: newOwnerships };
         return { ...prev, permissions: newPermissions };
     });
   };
@@ -1091,7 +1124,7 @@ export default function SettingsPage() {
         </Tabs>
         
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-          <DialogContent className="sm:max-w-5xl h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+          <DialogContent className="sm:max-w-6xl h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
             <DialogHeader className="p-6 pb-2 border-b bg-muted/5 shrink-0">
                 <div className="flex items-center gap-3">
                     <UserIcon className="h-6 w-6 text-primary"/>
@@ -1156,7 +1189,7 @@ export default function SettingsPage() {
                                     </div>
                                     <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest px-4" onClick={() => {
                                         const freshPermissions: Permissions = {};
-                                        modules.forEach(m => freshPermissions[m] = []);
+                                        modules.forEach(m => freshPermissions[m] = { actions: [], ownerships: [] });
                                         setUserForm(p => ({...p, permissions: freshPermissions}))
                                     }}>Clear All</Button>
                                 </div>
@@ -1166,37 +1199,9 @@ export default function SettingsPage() {
                                 <Table className="text-[11px]">
                                     <TableHeader className="bg-muted/30">
                                         <TableRow className="hover:bg-transparent">
-                                            <TableHead className="w-[300px] font-black uppercase text-gray-900">Module</TableHead>
-                                            <TableHead className="text-center w-[120px] font-black uppercase text-blue-600">
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <Crown className="h-3 w-3"/>
-                                                    <span>Full Access</span>
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="text-center w-[80px] font-black uppercase">
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <Eye className="h-3 w-3 opacity-60"/>
-                                                    <span>View</span>
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="text-center w-[80px] font-black uppercase">
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <PlusCircle className="h-3 w-3 opacity-60"/>
-                                                    <span>Add</span>
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="text-center w-[80px] font-black uppercase">
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <Pencil className="h-3 w-3 opacity-60"/>
-                                                    <span>Edit</span>
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="text-center w-[80px] font-black uppercase">
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <Trash2 className="h-3 w-3 opacity-60"/>
-                                                    <span>Delete</span>
-                                                </div>
-                                            </TableHead>
+                                            <TableHead className="w-[200px] font-black uppercase text-gray-900">Module</TableHead>
+                                            <TableHead className="text-center font-black uppercase border-x border-dashed">Operations / Actions</TableHead>
+                                            <TableHead className="text-center font-black uppercase">Data Access Scope (Ownership)</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -1207,7 +1212,7 @@ export default function SettingsPage() {
                                             return (
                                                 <React.Fragment key={group.name}>
                                                     <TableRow className="bg-muted/10 hover:bg-muted/10 border-b-2">
-                                                        <TableCell colSpan={6} className="py-2.5 px-4">
+                                                        <TableCell colSpan={3} className="py-2.5 px-4">
                                                             <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-widest">
                                                                 <ChevronDown className="h-3.5 w-3.5"/>
                                                                 {group.name}
@@ -1215,12 +1220,12 @@ export default function SettingsPage() {
                                                         </TableCell>
                                                     </TableRow>
                                                     {visibleModules.map(m => {
-                                                        const currentPerms = userForm.permissions[m] || [];
-                                                        const isAll = currentPerms.includes('all');
+                                                        const current = userForm.permissions[m] || { actions: [], ownerships: [] };
+                                                        const isAllActions = current.actions.includes('all');
                                                         
                                                         return (
-                                                            <TableRow key={m} className={cn("group h-12 transition-colors", isAll && "bg-blue-50/20")}>
-                                                                <TableCell className="pl-6">
+                                                            <TableRow key={m} className={cn("group h-12 transition-colors border-b")}>
+                                                                <TableCell className="pl-6 border-r">
                                                                     <div className="flex items-center gap-3">
                                                                         <div className="p-1.5 bg-gray-50 rounded-lg group-hover:bg-white transition-colors">
                                                                             {getModuleIcon(m)}
@@ -1228,30 +1233,48 @@ export default function SettingsPage() {
                                                                         <span className="font-bold text-gray-900">{getModuleDisplayName(m)}</span>
                                                                     </div>
                                                                 </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    <div className="flex justify-center">
-                                                                        <Checkbox 
-                                                                            checked={isAll} 
-                                                                            onCheckedChange={v => handlePermissionChange(m, 'all', !!v)}
-                                                                            className="h-5 w-5 rounded border-2 border-primary/30"
-                                                                        />
+                                                                
+                                                                {/* Operations Cell */}
+                                                                <TableCell className="p-0 border-r">
+                                                                    <div className="flex justify-center gap-6 p-2">
+                                                                        <div className="flex flex-col items-center gap-1.5">
+                                                                            <Checkbox checked={isAllActions} onCheckedChange={v => handlePermissionChange(m, 'all', !!v)} className="h-5 w-5 rounded border-2 border-primary/30" />
+                                                                            <span className="text-[8px] font-black uppercase text-blue-600">Full</span>
+                                                                        </div>
+                                                                        {['view', 'add', 'edit', 'delete'].map((act) => (
+                                                                            <div key={act} className="flex flex-col items-center gap-1.5">
+                                                                                <Checkbox 
+                                                                                    disabled={isAllActions}
+                                                                                    checked={isAllActions || current.actions.includes(act as any)} 
+                                                                                    onCheckedChange={v => handlePermissionChange(m, act as any, !!v)}
+                                                                                    className={cn("h-4 w-4 rounded", isAllActions && "opacity-30 cursor-not-allowed")}
+                                                                                />
+                                                                                <span className="text-[8px] font-bold text-muted-foreground uppercase">{act}</span>
+                                                                            </div>
+                                                                        ))}
                                                                     </div>
                                                                 </TableCell>
-                                                                {['view', 'add', 'edit', 'delete'].map((act) => (
-                                                                    <TableCell key={act} className="text-center">
-                                                                        <div className="flex justify-center">
-                                                                            <Checkbox 
-                                                                                disabled={isAll}
-                                                                                checked={isAll || currentPerms.includes(act as any)} 
-                                                                                onCheckedChange={v => handlePermissionChange(m, act as any, !!v)}
-                                                                                className={cn(
-                                                                                    "h-4 w-4 rounded",
-                                                                                    isAll && "opacity-30 cursor-not-allowed"
-                                                                                )}
-                                                                            />
-                                                                        </div>
-                                                                    </TableCell>
-                                                                ))}
+
+                                                                {/* Ownership Cell */}
+                                                                <TableCell className="p-0">
+                                                                    <div className="flex justify-center gap-8 p-2">
+                                                                        {[
+                                                                            { id: 'Sijan', color: 'text-blue-600' },
+                                                                            { id: 'Shivam', color: 'text-amber-600' },
+                                                                            { id: 'Rental', color: 'text-emerald-600' },
+                                                                            { id: 'Both', color: 'text-purple-600' }
+                                                                        ].map((scope) => (
+                                                                            <div key={scope.id} className="flex flex-col items-center gap-1.5">
+                                                                                <Checkbox 
+                                                                                    checked={current.ownerships.includes(scope.id as any)} 
+                                                                                    onCheckedChange={v => handleOwnershipChange(m, scope.id as any, !!v)}
+                                                                                    className="h-4 w-4 rounded"
+                                                                                />
+                                                                                <span className={cn("text-[8px] font-black uppercase tracking-tighter", scope.color)}>{scope.id}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </TableCell>
                                                             </TableRow>
                                                         );
                                                     })}
@@ -1274,8 +1297,8 @@ export default function SettingsPage() {
                                         <Zap className="h-4 w-4 fill-blue-600 text-blue-600" />
                                     </h3>
                                     <p className="text-xs text-blue-800 font-medium max-w-xl leading-relaxed">
-                                        As a Global Administrator, this user has unrestricted access to all Shivam Manufacturing, Sijan Logistics, and Rental modules. 
-                                        Manual permissions are superseded by administrative status.
+                                        As a Global Administrator, this user has unrestricted access to all modules and all data ownership scopes. 
+                                        Manual permissions and data filters are superseded by administrative status.
                                     </p>
                                 </div>
                             </div>
