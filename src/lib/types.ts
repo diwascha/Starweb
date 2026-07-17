@@ -722,7 +722,6 @@ export const modules = [
     'hr', 
     'fleet', 
     'rental', 
-    'filesystem',
     'notes', 
     'settings'
 ] as const;

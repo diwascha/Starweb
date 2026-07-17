@@ -453,11 +453,6 @@ export function AppSidebar() {
         
         <SidebarMenu>
             <SidebarSeparator />
-            {hasPermission('filesystem', 'view') && (
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/filesystem')} tooltip="File Manager"><Link href="/filesystem" className="flex items-center gap-2"><HardDrive /><span>File Manager</span></Link></SidebarMenuButton>
-                </SidebarMenuItem>
-            )}
             {hasPermission('notes', 'view') && (
             <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={getIsActive('/notes')} tooltip="Notes & Todos"><Link href="/notes" className="flex items-center gap-2"><Notebook /><span>Notes & Todos</span></Link></SidebarMenuButton>

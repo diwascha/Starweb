@@ -56,7 +56,6 @@ const getModuleDisplayName = (m: string): string => {
         case 'hr': return 'HRMS';
         case 'fleet': return 'Fleet Management';
         case 'rental': return 'Rental Management';
-        case 'filesystem': return 'File Manager';
         case 'notes': return 'Notes & Todos';
         case 'settings': return 'Settings';
         default: return m;
