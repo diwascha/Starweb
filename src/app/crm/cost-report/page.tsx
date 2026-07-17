@@ -15,7 +15,7 @@ import type {
   CompanyProfile,
   AccountOwnership
 } from '@/lib/types';
-import { onProductsUpdate, addProduct as addProductService, updateProduct, deleteProduct } from '@/services/product-service';
+import { onProductsUpdate, addProduct as addProductService, updateProduct } from '@/services/product-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { 
   onCostReportsUpdate, 
@@ -68,7 +68,6 @@ import { DEFAULT_COMPANY_PROFILE, PLY_OPTIONS, BF_OPTIONS } from '@/lib/constant
 
 // Internal Components
 import { ProductForm } from './_components/product-form';
-import { ProductsList } from './_components/products-list';
 import { SavedReportsList } from './_components/reports-list';
 
 // Externalized heavy UI components
@@ -1026,8 +1025,6 @@ function SafeTableHeaderCell({ children, ...props }: any) {
 export default function CostReportPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
-    const [productToEdit, setProductToEdit] = useState<Product | null>(null);
-    const [isProductEditorOpen, setIsProductEditorOpen] = useState(false);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [previewData, setPreviewData] = useState<any>(null);
     const [products, setProducts] = useState<Product[]>([]);
@@ -1043,20 +1040,6 @@ export default function CostReportPage() {
             unsubProfile();
         };
     }, []);
-
-    const handleProductEdit = (product: Product) => {
-        setProductToEdit(product);
-        setIsProductEditorOpen(true);
-    };
-
-    const handleDeleteProduct = async (id: string) => {
-        try {
-            await deleteProduct(id);
-            toast({ title: 'Product Deleted' });
-        } catch {
-            toast({ title: 'Error', variant: 'destructive' });
-        }
-    };
 
     const handlePreviewFromList = (report: CostReport) => {
         const kCosts = report.kraftPaperCosts || {};
@@ -1140,7 +1123,6 @@ export default function CostReportPage() {
                 <TabsList className="mb-4">
                     <TabsTrigger value="calculator">Calculator</TabsTrigger>
                     <TabsTrigger value="saved">Saved Reports History</TabsTrigger>
-                    <TabsTrigger value="products">Product Catalog</TabsTrigger>
                 </TabsList>
                 <TabsContent value="calculator" className="pt-0">
                     <CostReportCalculator 
@@ -1158,33 +1140,7 @@ export default function CostReportPage() {
                         onDelete={handleDeleteReport}
                     />
                 </TabsContent>
-                <TabsContent value="products" className="pt-0">
-                    <ProductsList products={products} onEdit={handleProductEdit} onDelete={handleDeleteProduct} />
-                </TabsContent>
             </Tabs>
-
-            <Dialog open={isProductEditorOpen} onOpenChange={isProductEditorOpen ? () => setIsProductEditorOpen(false) : undefined}>
-                <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col p-0">
-                    <DialogHeader className="p-6 pb-0">
-                        <DialogTitle>Edit Product Record</DialogTitle>
-                        <DialogDescription>Update the technical specifications for this product.</DialogDescription>
-                    </DialogHeader>
-                    <div className="flex-1 overflow-y-auto px-6 pb-6">
-                        <ProductForm 
-                            productToEdit={productToEdit} 
-                            onSaveSuccess={(data: any) => {
-                                if (productToEdit) {
-                                    updateProduct(productToEdit.id, { ...data, lastModifiedBy: user?.username }).then(() => {
-                                        setIsProductEditorOpen(false);
-                                        setProductToEdit(null);
-                                        toast({ title: 'Product Updated' });
-                                    });
-                                }
-                            }} 
-                        />
-                    </div>
-                </DialogContent>
-            </Dialog>
 
             <React.Suspense fallback={<Loader2 className="animate-spin" />}>
                 <QuotationPreviewDialog 

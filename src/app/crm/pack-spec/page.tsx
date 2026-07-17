@@ -13,17 +13,20 @@ import {
   Info,
   ChevronRight,
   ChevronLeft,
-  Loader2
+  Loader2,
+  Plus,
+  Edit,
+  Trash2,
+  MoreHorizontal
 } from 'lucide-react';
 import type { Product, ProductSpecification } from '@/lib/types';
-import { onProductsUpdate } from '@/services/product-service';
+import { onProductsUpdate, addProduct as addProductService, updateProduct, deleteProduct } from '@/services/product-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Dialog, 
   DialogContent, 
@@ -34,25 +37,36 @@ import {
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { ProductForm } from '../cost-report/_components/product-form';
 
 const formatLabel = (key: string) => {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 };
 
 const gsmFields: (keyof ProductSpecification)[] = [
-  'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'metric2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm'
+  'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'liner2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm'
 ];
 
 export default function PackSpecPage() {
+  const { user, hasPermission } = useAuth();
+  const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Management State
+  const [productToEdit, setProductToEdit] = useState<Product | null>(null);
+  const [isProductEditorOpen, setIsProductEditorOpen] = useState(false);
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(12); // Grid layout usually looks better with multiples of 3 or 4
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   useEffect(() => {
     const unsub = onProductsUpdate((data) => {
@@ -86,6 +100,20 @@ export default function PackSpecPage() {
     setIsPreviewOpen(true);
   };
 
+  const handleProductEdit = (product: Product) => {
+    setProductToEdit(product);
+    setIsProductEditorOpen(true);
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    try {
+        await deleteProduct(id);
+        toast({ title: 'Product Removed' });
+    } catch {
+        toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -97,14 +125,21 @@ export default function PackSpecPage() {
           <h1 className="text-3xl font-bold tracking-tight">PackSpec Catalog</h1>
           <p className="text-muted-foreground">Technical Specification Data Sheets for client products.</p>
         </div>
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search by product or client..." 
-            className="pl-8 h-10 bg-white" 
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-          />
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:w-80">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search catalog..." 
+              className="pl-8 h-10 bg-white" 
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+            />
+          </div>
+          {hasPermission('crm', 'add') && (
+            <Button onClick={() => { setProductToEdit(null); setIsProductEditorOpen(true); }} className="h-10">
+              <Plus className="mr-2 h-4 w-4" /> Add Product
+            </Button>
+          )}
         </div>
       </header>
 
@@ -119,25 +154,49 @@ export default function PackSpecPage() {
                 <Card key={product.id} className="hover:shadow-md transition-shadow group h-full flex flex-col">
                 <CardHeader className="pb-3 shrink-0">
                     <div className="flex justify-between items-start">
-                    <Badge variant="outline" className="mb-2">{product.materialCode || 'No Code'}</Badge>
-                    <Package className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Badge variant="outline" className="mb-2">{product.materialCode || 'No Code'}</Badge>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => handleViewSpec(product)}><Eye className="mr-2 h-4 w-4"/> View Spec</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleProductEdit(product)}><Edit className="mr-2 h-4 w-4"/> Edit Specs</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete this product?</AlertDialogTitle>
+                                            <AlertDialogDescription>This will permanently remove the product and its specification from the catalog.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>Confirm Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                     <CardTitle className="text-lg line-clamp-1">{product.name}</CardTitle>
                     <CardDescription className="line-clamp-1">{product.partyName || 'Unassigned Client'}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-0 flex-1">
                     <div className="grid grid-cols-2 text-xs gap-2 border-t pt-3">
-                    <div className="flex flex-col">
-                        <span className="text-muted-foreground uppercase font-semibold text-[9px] tracking-widest">Dimension</span>
-                        <span className="font-bold">{product.specification?.dimension || 'N/A'}</span>
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-muted-foreground uppercase font-semibold text-[9px] tracking-widest">Ply</span>
-                        <span className="font-bold">{product.specification?.ply || 'N/A'} Ply</span>
-                    </div>
+                        <div className="flex flex-col">
+                            <span className="text-muted-foreground uppercase font-semibold text-[9px] tracking-widest">Dimension</span>
+                            <span className="font-bold">{product.specification?.dimension || 'N/A'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-muted-foreground uppercase font-semibold text-[9px] tracking-widest">Ply</span>
+                            <span className="font-bold">{product.specification?.ply || 'N/A'} Ply</span>
+                        </div>
                     </div>
                     <Button variant="secondary" size="sm" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors mt-auto" onClick={() => handleViewSpec(product)}>
-                    View Full Spec <ChevronRight className="ml-2 h-4 w-4" />
+                    Technical Sheet <ChevronRight className="ml-2 h-4 w-4" />
                     </Button>
                 </CardContent>
                 </Card>
@@ -202,6 +261,35 @@ export default function PackSpecPage() {
         </>
       )}
 
+      {/* Product Editor Dialog */}
+      <Dialog open={isProductEditorOpen} onOpenChange={setIsProductEditorOpen}>
+        <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col p-0">
+            <DialogHeader className="p-6 pb-0">
+                <DialogTitle>{productToEdit ? 'Edit Product Catalog Entry' : 'New Catalog Entry'}</DialogTitle>
+                <DialogDescription>Define board composition layers and technical specs for the CRM catalog.</DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto px-6 pb-6">
+                <ProductForm 
+                    productToEdit={productToEdit} 
+                    onSaveSuccess={(data: any) => {
+                        if (productToEdit) {
+                            updateProduct(productToEdit.id, { ...data, lastModifiedBy: user?.username }).then(() => {
+                                setIsProductEditorOpen(false);
+                                toast({ title: 'Product Updated' });
+                            });
+                        } else {
+                            addProductService({ ...data, createdBy: user?.username, createdAt: new Date().toISOString() }).then(() => {
+                                setIsProductEditorOpen(false);
+                                toast({ title: 'Product Added to Catalog' });
+                            });
+                        }
+                    }} 
+                />
+            </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* TDS Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto p-0">
           {selectedProduct && (
