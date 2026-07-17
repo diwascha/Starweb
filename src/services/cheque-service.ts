@@ -1,6 +1,18 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, query, orderBy, updateDoc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
+import { 
+    collection, 
+    onSnapshot, 
+    DocumentData, 
+    QueryDocumentSnapshot, 
+    doc, 
+    updateDoc, 
+    deleteDoc, 
+    getDocs, 
+    query, 
+    orderBy, 
+    setDoc 
+} from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -15,7 +27,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
     const data = snapshot.data();
     return {
         id: snapshot.id,
-        voucherNo: String(data.voucherNo || ''),
+        voucherNo: data.voucherNo || 'PDC-LEGACY',
         paymentDate: data.paymentDate,
         invoiceDate: data.invoiceDate,
         invoiceNumber: data.invoiceNumber,
@@ -33,35 +45,82 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
     };
-}
+};
 
+/**
+ * Retrieves all cheque records from Firestore.
+ */
+export const getCheques = async (): Promise<Cheque[]> => {
+    const q = query(getChequesCollection(), orderBy('createdAt', 'desc'));
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(fromFirestore);
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+                path: COLLECTIONS.CHEQUES, 
+                operation: 'list' 
+            }));
+        }
+        throw error;
+    }
+};
+
+/**
+ * Persists a new cheque voucher record.
+ */
 export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promise<string> => {
     const docRef = doc(getChequesCollection());
     const payload = { ...cheque, createdAt: new Date().toISOString() };
     
-    setDoc(docRef, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.CHEQUES,
-            operation: 'create',
-            requestResourceData: payload,
-        }));
+    setDoc(docRef, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.CHEQUES,
+                operation: 'create',
+                requestResourceData: payload,
+            }));
+        }
     });
     return docRef.id;
 };
 
+/**
+ * Updates an existing cheque voucher or its individual splits.
+ */
 export const updateCheque = async (id: string, cheque: Partial<Omit<Cheque, 'id'>>): Promise<void> => {
     const chequeDoc = doc(getChequesCollection(), id);
     const payload = { ...cheque, lastModifiedAt: new Date().toISOString() };
     
-    updateDoc(chequeDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.CHEQUES,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
+    updateDoc(chequeDoc, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.CHEQUES,
+                operation: 'update',
+                requestResourceData: payload,
+            }));
+        }
     });
 };
 
+/**
+ * Deletes an entire cheque voucher record.
+ */
+export const deleteCheque = async (id: string): Promise<void> => {
+    const chequeDoc = doc(getChequesCollection(), id);
+    deleteDoc(chequeDoc).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+                path: COLLECTIONS.CHEQUES, 
+                operation: 'delete' 
+            }));
+        }
+    });
+};
+
+/**
+ * Subscribes to real-time updates for the cheque registry.
+ */
 export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => void => {
     const q = query(getChequesCollection(), orderBy('createdAt', 'desc'));
     return onSnapshot(q, 
@@ -69,25 +128,12 @@ export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => vo
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.CHEQUES, operation: 'list' }));
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+                    path: COLLECTIONS.CHEQUES, 
+                    operation: 'list' 
+                }));
+            }
         }
     );
-};
-
-export const getCheques = async (): Promise<Cheque[]> => {
-    const q = query(getChequesCollection(), orderBy('createdAt', 'desc'));
-    try {
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.CHEQUES, operation: 'list' }));
-        throw error;
-    }
-}
-
-export const deleteCheque = async (id: string): Promise<void> => {
-    const chequeDoc = doc(getChequesCollection(), id);
-    deleteDoc(chequeDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.CHEQUES, operation: 'delete' }));
-    });
 };

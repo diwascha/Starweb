@@ -34,8 +34,10 @@ export const getEstimatedInvoices = async (): Promise<EstimatedInvoice[]> => {
     try {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'list' }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'list' }));
+        }
         throw error;
     }
 };
@@ -49,8 +51,10 @@ export const getEstimatedInvoice = async (id: string): Promise<EstimatedInvoice 
             return fromFirestore(docSnap);
         }
         return null;
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'get' }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'get' }));
+        }
         return null;
     }
 };
@@ -59,12 +63,14 @@ export const addEstimatedInvoice = async (invoice: Omit<EstimatedInvoice, 'id'>)
     const docRef = doc(getInvoicesCollection());
     const payload = { ...invoice, createdAt: new Date().toISOString() };
     
-    setDoc(docRef, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.ESTIMATED_INVOICES,
-            operation: 'create',
-            requestResourceData: payload,
-        }));
+    setDoc(docRef, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.ESTIMATED_INVOICES,
+                operation: 'create',
+                requestResourceData: payload,
+            }));
+        }
     });
     return docRef.id;
 };
@@ -73,12 +79,14 @@ export const updateEstimatedInvoice = async (id: string, invoice: Partial<Omit<E
     const invoiceDoc = doc(getInvoicesCollection(), id);
     const payload = { ...invoice, lastModifiedAt: new Date().toISOString() };
     
-    updateDoc(invoiceDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.ESTIMATED_INVOICES,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
+    updateDoc(invoiceDoc, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.ESTIMATED_INVOICES,
+                operation: 'update',
+                requestResourceData: payload,
+            }));
+        }
     });
 };
 
@@ -89,14 +97,18 @@ export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'list' }));
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'list' }));
+            }
         }
     );
 };
 
 export const deleteEstimatedInvoice = async (id: string): Promise<void> => {
     const invoiceDoc = doc(getInvoicesCollection(), id);
-    deleteDoc(invoiceDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'delete' }));
+    deleteDoc(invoiceDoc).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'delete' }));
+        }
     });
 };

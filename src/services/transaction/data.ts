@@ -62,11 +62,13 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
     try {
         const snap = await getDoc(docRef);
         return snap.exists() ? fromFirestore(snap) : null;
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'get',
-        }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'get',
+            }));
+        }
         return null;
     }
 };
@@ -76,11 +78,13 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     try {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.TRANSACTIONS,
-            operation: 'list',
-        }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.TRANSACTIONS,
+                operation: 'list',
+            }));
+        }
         throw error;
     }
 };
@@ -90,10 +94,12 @@ export const onTransactionsUpdate = (callback: (txns: Transaction[]) => void): (
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     }, async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.TRANSACTIONS,
-            operation: 'list',
-        }));
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.TRANSACTIONS,
+                operation: 'list',
+            }));
+        }
     });
 };
 
@@ -101,12 +107,14 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'crea
     const docRef = doc(transactionsCollection());
     const now = createTimestamp();
     const payload = { ...transaction, createdAt: now, lastModifiedAt: now };
-    setDoc(docRef, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'create',
-            requestResourceData: payload,
-        }));
+    setDoc(docRef, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'create',
+                requestResourceData: payload,
+            }));
+        }
     });
     return docRef.id;
 };
@@ -114,21 +122,25 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'crea
 export const updateTransaction = async (id: string, updates: Partial<Transaction>): Promise<void> => {
     const docRef = doc(transactionsCollection(), id);
     const payload = { ...updates, lastModifiedAt: createTimestamp() };
-    updateDoc(docRef, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
+    updateDoc(docRef, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'update',
+                requestResourceData: payload,
+            }));
+        }
     });
 };
 
 export const deleteTransaction = async (id: string): Promise<void> => {
     const docRef = doc(transactionsCollection(), id);
-    deleteDoc(docRef).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'delete',
-        }));
+    deleteDoc(docRef).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete',
+            }));
+        }
     });
 };

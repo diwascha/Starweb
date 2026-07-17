@@ -1,6 +1,6 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, orderBy, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, query, orderBy, writeBatch } from 'firebase/firestore';
 import type { RentalAgreement } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
@@ -41,10 +41,12 @@ export const onAgreementsUpdate = (callback: (agreements: RentalAgreement[]) => 
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     }, (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.RENTAL_AGREEMENTS,
-            operation: 'list',
-        }));
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.RENTAL_AGREEMENTS,
+                operation: 'list',
+            }));
+        }
     });
 };
 
@@ -53,7 +55,6 @@ export const activateAgreement = async (agreement: Omit<RentalAgreement, 'id' | 
     const batch = writeBatch(db);
     const now = createTimestamp();
     
-    // 1. Create Agreement
     const agreementRef = doc(getCollection());
     const agreementPayload = {
         ...agreement,
@@ -62,7 +63,6 @@ export const activateAgreement = async (agreement: Omit<RentalAgreement, 'id' | 
     };
     batch.set(agreementRef, agreementPayload);
 
-    // 2. Update Unit Status
     const unitRef = doc(db, COLLECTIONS.RENTAL_UNITS, agreement.unitId);
     const unitPayload = {
         status: 'Occupied',
@@ -73,11 +73,13 @@ export const activateAgreement = async (agreement: Omit<RentalAgreement, 'id' | 
     batch.update(unitRef, unitPayload);
 
     batch.commit().catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'activate_agreement_batch',
-            operation: 'write',
-            requestResourceData: { agreement: agreementPayload, unit: unitPayload }
-        }));
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'activate_agreement_batch',
+                operation: 'write',
+                requestResourceData: { agreement: agreementPayload, unit: unitPayload }
+            }));
+        }
     });
     return agreementRef.id;
 };
@@ -101,19 +103,23 @@ export const terminateAgreement = async (id: string, unitId: string, terminatedB
     });
 
     batch.commit().catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'terminate_agreement_batch',
-            operation: 'write',
-        }));
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'terminate_agreement_batch',
+                operation: 'write',
+            }));
+        }
     });
 };
 
 export const deleteAgreement = async (id: string): Promise<void> => {
     const docRef = doc(getCollection(), id);
-    deleteDoc(docRef).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'delete',
-        }));
+    deleteDoc(docRef).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete',
+            }));
+        }
     });
 };

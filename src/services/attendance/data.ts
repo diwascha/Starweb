@@ -88,10 +88,12 @@ export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () =
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestoreLog));
     }, async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'raw_machine_logs',
-            operation: 'list'
-        }));
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'raw_machine_logs',
+                operation: 'list'
+            }));
+        }
     });
 };
 
@@ -100,10 +102,12 @@ export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => vo
     return onSnapshot(collectionRef, (snapshot) => {
         callback(snapshot.docs.map(fromFirestoreRecord));
     }, async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.ATTENDANCE,
-            operation: 'list'
-        }));
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.ATTENDANCE,
+                operation: 'list'
+            }));
+        }
     });
 };
 
@@ -112,22 +116,26 @@ export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Pr
     try {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(fromFirestoreRecord);
-    } catch (err) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.ATTENDANCE,
-            operation: 'list'
-        }));
+    } catch (err: any) {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.ATTENDANCE,
+                operation: 'list'
+            }));
+        }
         throw err;
     }
 };
 
 export const deleteRawLog = async (id: string) => {
     const docRef = doc(getRawLogsCollection(), id);
-    deleteDoc(docRef).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'delete'
-        }));
+    deleteDoc(docRef).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete'
+            }));
+        }
     });
 };
 
@@ -137,21 +145,25 @@ export const deleteRawLogsForMonth = async (year: number, month: number) => {
     const snap = await getDocs(q);
     const batch = writeBatch(db);
     snap.forEach(d => batch.delete(d.ref));
-    batch.commit().catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'raw_machine_logs_batch_delete',
-            operation: 'write'
-        }));
+    batch.commit().catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'raw_machine_logs_batch_delete',
+                operation: 'write'
+            }));
+        }
     });
 };
 
 export const deleteAttendanceRecord = async (id: string) => {
     const docRef = doc(getAttendanceCollection(), id);
-    deleteDoc(docRef).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'delete'
-        }));
+    deleteDoc(docRef).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete'
+            }));
+        }
     });
 };
 
@@ -161,11 +173,13 @@ export const deleteAttendanceForMonth = async (year: number, month: number) => {
     const snap = await getDocs(q);
     const batch = writeBatch(db);
     snap.forEach(d => batch.delete(d.ref));
-    batch.commit().catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'attendance_batch_delete',
-            operation: 'write'
-        }));
+    batch.commit().catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'attendance_batch_delete',
+                operation: 'write'
+            }));
+        }
     });
 };
 
@@ -175,11 +189,13 @@ export const deleteAllRawLogs = async (): Promise<void> => {
     if (snap.empty) return;
     const batch = writeBatch(db);
     snap.docs.forEach(d => batch.delete(d.ref));
-    batch.commit().catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'raw_machine_logs_purge',
-            operation: 'write'
-        }));
+    batch.commit().catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'raw_machine_logs_purge',
+                operation: 'write'
+            }));
+        }
     });
 };
 
@@ -193,11 +209,13 @@ export const deleteAllAttendance = async (): Promise<void> => {
     ]);
     const batch = writeBatch(db);
     snaps.forEach(snap => snap.forEach(d => batch.delete(d.ref)));
-    batch.commit().catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'attendance_system_purge',
-            operation: 'write'
-        }));
+    batch.commit().catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'attendance_system_purge',
+                operation: 'write'
+            }));
+        }
     });
 };
 
@@ -219,22 +237,26 @@ export const getAttendanceYears = async (): Promise<number[]> => {
 
 export const updateRawLog = async (id: string, updates: Partial<RawMachineLog>) => {
     const docRef = doc(getRawLogsCollection(), id);
-    updateDoc(docRef, updates).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-            requestResourceData: updates
-        }));
+    updateDoc(docRef, updates).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'update',
+                requestResourceData: updates
+            }));
+        }
     });
 };
 
 export const updateAttendanceRecord = async (id: string, updates: Partial<AttendanceRecord>) => {
     const docRef = doc(getAttendanceCollection(), id);
-    updateDoc(docRef, updates).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-            requestResourceData: updates
-        }));
+    updateDoc(docRef, updates).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'update',
+                requestResourceData: updates
+            }));
+        }
     });
 };

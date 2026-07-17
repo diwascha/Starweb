@@ -50,7 +50,9 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
 
     const qRaw = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const rawSnap = await getDocs(qRaw).catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'raw_machine_logs', operation: 'list' }));
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'raw_machine_logs', operation: 'list' }));
+        }
         throw err;
     });
     
@@ -61,7 +63,9 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     
     const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const processedSnap = await getDocs(qProcessed).catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ATTENDANCE, operation: 'list' }));
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ATTENDANCE, operation: 'list' }));
+        }
         throw err;
     });
 
@@ -114,9 +118,10 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     for (let i = 0; i < results.length; i += CHUNK) {
         const batch = writeBatch(db);
         results.slice(i, i + CHUNK).forEach(r => batch.set(doc(getAttendanceCollection()), r));
-        // Note: Batch commit is one of the few places we await to ensure sequential integrity in long tasks
         await batch.commit().catch(err => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ATTENDANCE, operation: 'write' }));
+            if (err.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ATTENDANCE, operation: 'write' }));
+            }
             throw err;
         });
     }

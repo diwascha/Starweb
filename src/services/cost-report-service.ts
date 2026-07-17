@@ -36,11 +36,13 @@ export const getCostReports = async (): Promise<CostReport[]> => {
     try {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'costReports',
-            operation: 'list',
-        }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'costReports',
+                operation: 'list',
+            }));
+        }
         throw error;
     }
 };
@@ -52,10 +54,12 @@ export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): 
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'costReports',
-                operation: 'list',
-            }));
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: 'costReports',
+                    operation: 'list',
+                }));
+            }
         }
     );
 };
@@ -69,11 +73,13 @@ export const getCostReport = async (id: string): Promise<CostReport | null> => {
             return fromFirestore(docSnap as QueryDocumentSnapshot<DocumentData>);
         }
         return null;
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'get',
-        }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'get',
+            }));
+        }
         return null;
     }
 }
@@ -84,12 +90,14 @@ export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>
         createdAt: new Date().toISOString(),
     };
     const docRef = doc(getCostReportsCollection());
-    addDoc(getCostReportsCollection(), payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'costReports',
-            operation: 'create',
-            requestResourceData: payload,
-        }));
+    addDoc(getCostReportsCollection(), payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'costReports',
+                operation: 'create',
+                requestResourceData: payload,
+            }));
+        }
     });
     return docRef.id;
 };
@@ -101,12 +109,14 @@ export const updateCostReport = async (id: string, report: Partial<Omit<CostRepo
         ...report,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(reportDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: reportDoc.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
+    updateDoc(reportDoc, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: reportDoc.path,
+                operation: 'update',
+                requestResourceData: payload,
+            }));
+        }
     });
 };
 
@@ -114,11 +124,13 @@ export const updateCostReport = async (id: string, report: Partial<Omit<CostRepo
 export const deleteCostReport = async (id: string): Promise<void> => {
     if (!id) return;
     const reportDoc = doc(getCostReportsCollection(), id);
-    deleteDoc(reportDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: reportDoc.path,
-            operation: 'delete',
-        }));
+    deleteDoc(reportDoc).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: reportDoc.path,
+                operation: 'delete',
+            }));
+        }
     });
 };
 

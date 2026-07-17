@@ -32,11 +32,13 @@ export const getAccounts = async (useCache = false): Promise<Account[]> => {
     try {
         const snapshot = await getDocs(getAccountsCollection());
         return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'accounts',
-            operation: 'list',
-        }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'accounts',
+                operation: 'list',
+            }));
+        }
         throw error;
     }
 };
@@ -47,12 +49,14 @@ export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> 
         createdAt: new Date().toISOString(),
     };
     const docRef = doc(getAccountsCollection());
-    setDoc(docRef, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'accounts',
-            operation: 'create',
-            requestResourceData: payload,
-        }));
+    setDoc(docRef, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'accounts',
+                operation: 'create',
+                requestResourceData: payload,
+            }));
+        }
     });
     return docRef.id;
 };
@@ -63,22 +67,26 @@ export const updateAccount = async (id: string, account: Partial<Omit<Account, '
         ...account,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(accountDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: accountDoc.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
+    updateDoc(accountDoc, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: accountDoc.path,
+                operation: 'update',
+                requestResourceData: payload,
+            }));
+        }
     });
 };
 
 export const deleteAccount = async (id: string): Promise<void> => {
     const accountDoc = doc(getAccountsCollection(), id);
-    deleteDoc(accountDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: accountDoc.path,
-            operation: 'delete',
-        }));
+    deleteDoc(accountDoc).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: accountDoc.path,
+                operation: 'delete',
+            }));
+        }
     });
 };
 
@@ -88,10 +96,12 @@ export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () =>
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'accounts',
-                operation: 'list',
-            }));
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: 'accounts',
+                    operation: 'list',
+                }));
+            }
         }
     );
 };

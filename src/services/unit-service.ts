@@ -37,10 +37,12 @@ export const onUnitsUpdate = (callback: (units: RentalUnit[]) => void): () => vo
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     }, (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.RENTAL_UNITS,
-            operation: 'list',
-        }));
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.RENTAL_UNITS,
+                operation: 'list',
+            }));
+        }
     });
 };
 
@@ -49,11 +51,13 @@ export const getUnitsByProperty = async (propertyId: string): Promise<RentalUnit
     try {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.RENTAL_UNITS,
-            operation: 'list',
-        }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.RENTAL_UNITS,
+                operation: 'list',
+            }));
+        }
         return [];
     }
 };
@@ -64,12 +68,14 @@ export const addUnit = async (unit: Omit<RentalUnit, 'id' | 'createdAt'>): Promi
         ...unit,
         createdAt: now,
     };
-    const docRef = await addDoc(getCollection(), payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.RENTAL_UNITS,
-            operation: 'create',
-            requestResourceData: payload,
-        }));
+    const docRef = await addDoc(getCollection(), payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.RENTAL_UNITS,
+                operation: 'create',
+                requestResourceData: payload,
+            }));
+        }
         throw err;
     });
     return docRef.id;
@@ -81,21 +87,25 @@ export const updateUnit = async (id: string, updates: Partial<RentalUnit>): Prom
         ...updates,
         lastModifiedAt: createTimestamp(),
     };
-    updateDoc(docRef, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
+    updateDoc(docRef, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'update',
+                requestResourceData: payload,
+            }));
+        }
     });
 };
 
 export const deleteUnit = async (id: string): Promise<void> => {
     const docRef = doc(getCollection(), id);
-    deleteDoc(docRef).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'delete',
-        }));
+    deleteDoc(docRef).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete',
+            }));
+        }
     });
 };

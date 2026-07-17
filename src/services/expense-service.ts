@@ -67,7 +67,9 @@ export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () =>
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.EXPENSES, operation: 'list' }));
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.EXPENSES, operation: 'list' }));
+            }
         }
     );
 };
@@ -145,11 +147,13 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     });
 
     batch.commit().catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: `expenses/${expenseId}`,
-            operation: 'write',
-            requestResourceData: expenseRecord,
-        }));
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: `expenses/${expenseId}`,
+                operation: 'write',
+                requestResourceData: expenseRecord,
+            }));
+        }
     });
 
     return expenseId;
@@ -179,7 +183,9 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
     });
 
     batch.commit().catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: expenseRef.path, operation: 'update' }));
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: expenseRef.path, operation: 'update' }));
+        }
     });
 };
 
@@ -198,7 +204,9 @@ export const deleteExpense = async (id: string): Promise<void> => {
     });
 
     batch.commit().catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: expenseRef.path, operation: 'delete' }));
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: expenseRef.path, operation: 'delete' }));
+        }
     });
 };
 

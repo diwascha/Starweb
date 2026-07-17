@@ -14,7 +14,7 @@ import { createTimestamp, logServiceError } from '@/lib/service-utils';
 import { processAttendanceImport } from '@/lib/attendance';
 import { getEmployees } from '../employee-service';
 import { getRawLogsCollection, fromFirestoreLog } from './data';
-import { format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -99,7 +99,13 @@ export const addRawMachineLogs = async (
             onProgress(i + chunk.length, operations.length);
         }
         return { createdCount, updatedCount, skippedCount, newEmployeesCount };
-    } catch (error) {
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'raw_machine_logs_import',
+                operation: 'write'
+            }));
+        }
         logServiceError('addRawMachineLogs', error);
         throw error;
     }
@@ -139,7 +145,14 @@ export const addBulkManualLogs = async (
         const chunk = operations.slice(i, i + CHUNK_SIZE);
         const batch = writeBatch(db);
         chunk.forEach(o => batch.set(o.ref, o.data, { merge: true }));
-        await batch.commit();
+        await batch.commit().catch(err => {
+            if (err.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: 'raw_machine_logs_bulk',
+                    operation: 'write'
+                }));
+            }
+        });
     }
     return operations.length;
 };

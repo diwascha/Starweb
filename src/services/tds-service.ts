@@ -1,6 +1,6 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, getDocs, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, getDocs, updateDoc, setDoc } from 'firebase/firestore';
 import type { TdsCalculation, DocumentPrefixes } from '@/lib/types';
 import { getSetting } from './settings-service';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -39,13 +39,15 @@ export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' |
         ...calculation,
         createdAt: new Date().toISOString(),
     };
-    const docRef = await addDoc(getTdsCollection(), payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'tdsCalculations',
-            operation: 'create',
-            requestResourceData: payload,
-        }));
-        throw err;
+    const docRef = doc(getTdsCollection());
+    setDoc(docRef, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'tdsCalculations',
+                operation: 'create',
+                requestResourceData: payload,
+            }));
+        }
     });
     return docRef.id;
 };
@@ -56,12 +58,14 @@ export const updateTdsCalculation = async (id: string, calculation: Partial<Omit
         ...calculation,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(calcDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: calcDoc.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
+    updateDoc(calcDoc, payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: calcDoc.path,
+                operation: 'update',
+                requestResourceData: payload,
+            }));
+        }
     });
 };
 
@@ -69,11 +73,13 @@ export const getTdsCalculations = async (): Promise<TdsCalculation[]> => {
     try {
         const snapshot = await getDocs(getTdsCollection());
         return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'tdsCalculations',
-            operation: 'list',
-        }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'tdsCalculations',
+                operation: 'list',
+            }));
+        }
         throw error;
     }
 }
@@ -84,20 +90,24 @@ export const onTdsCalculationsUpdate = (callback: (calculations: TdsCalculation[
             callback(snapshot.docs.map(fromFirestore));
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'tdsCalculations',
-                operation: 'list',
-            }));
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: 'tdsCalculations',
+                    operation: 'list',
+                }));
+            }
         }
     );
 };
 
 export const deleteTdsCalculation = async (id: string): Promise<void> => {
     const calcDoc = doc(getTdsCollection(), id);
-    deleteDoc(calcDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: calcDoc.path,
-            operation: 'delete',
-        }));
+    deleteDoc(calcDoc).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: calcDoc.path,
+                operation: 'delete',
+            }));
+        }
     });
 };

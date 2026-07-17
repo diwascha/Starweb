@@ -41,10 +41,12 @@ export const onRentalBillsUpdate = (callback: (bills: RentalBill[]) => void): ()
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     }, (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.RENTAL_BILLS,
-            operation: 'list',
-        }));
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.RENTAL_BILLS,
+                operation: 'list',
+            }));
+        }
     });
 };
 
@@ -52,16 +54,6 @@ export const generateRentBill = async (agreement: RentalAgreement, month: number
     const { db } = getFirebase();
     const now = createTimestamp();
     
-    // Check if bill already exists
-    const q = query(getCollection(), 
-        where('agreementId', '==', agreement.id),
-        where('billingMonth', '==', month),
-        where('billingYear', '==', year),
-        where('type', '==', 'Rent')
-    );
-    const existing = await getDocs(q);
-    if (!existing.empty) throw new Error('Rent already billed for this period.');
-
     // 1. Create Ledger Transaction (Sales)
     const txn: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
         date: now,
@@ -108,12 +100,14 @@ export const generateRentBill = async (agreement: RentalAgreement, month: number
         createdAt: now,
     };
 
-    const docRef = await addDoc(getCollection(), payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.RENTAL_BILLS,
-            operation: 'create',
-            requestResourceData: payload,
-        }));
+    const docRef = await addDoc(getCollection(), payload).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.RENTAL_BILLS,
+                operation: 'create',
+                requestResourceData: payload,
+            }));
+        }
         throw err;
     });
 
@@ -122,10 +116,12 @@ export const generateRentBill = async (agreement: RentalAgreement, month: number
 
 export const deleteRentalBill = async (id: string): Promise<void> => {
     const docRef = doc(getCollection(), id);
-    deleteDoc(docRef).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'delete',
-        }));
+    deleteDoc(docRef).catch(async (err: any) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete',
+            }));
+        }
     });
 };
