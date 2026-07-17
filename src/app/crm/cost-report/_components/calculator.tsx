@@ -966,6 +966,17 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                 <DialogHeader><DialogTitle>Quick Add Party</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label>Party Name</Label><Input value={partyForm.name ?? ''} onChange={e => setPartyForm({...partyForm, name: e.target.value})} /></div>
+                    <div className="space-y-2">
+                        <Label>Ownership</Label>
+                        <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                <SelectItem value="Both">Both</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div className="space-y-2"><Label>PAN Number</Label><Input value={partyForm.panNumber ?? ''} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} /></div>
                     <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address ?? ''} onChange={e => setPartyForm({...partyForm, address: e.target.value})} /></div>
                 </div>
