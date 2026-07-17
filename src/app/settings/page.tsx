@@ -323,6 +323,9 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
 
+  const [ownershipCategories, setOwnershipCategories] = useState<string[]>(['Sijan', 'Shivam', 'Rental', 'Both']);
+  const [newOwnershipName, setNewOwnershipName] = useState('');
+
   useEffect(() => {
     setIsLoading(true);
     const unsubs = [
@@ -335,6 +338,7 @@ export default function SettingsPage() {
         onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE)),
         onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE)),
         onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '' })),
+        onSettingUpdate('ownership_categories', (s) => { if (s?.value) setOwnershipCategories(s.value); }),
         onPageVisitsUpdate(setPageVisits),
         onLogsUpdate(setLogs),
     ];
@@ -393,6 +397,32 @@ export default function SettingsPage() {
         toast({ title: 'Error', description: 'Failed to update branding.', variant: 'destructive' });
     } finally {
         setIsSavingBranding(false);
+    }
+  };
+
+  const handleAddOwnership = async () => {
+    if (!newOwnershipName.trim()) return;
+    if (ownershipCategories.includes(newOwnershipName.trim())) {
+        toast({ title: 'Duplicate Category', variant: 'destructive' });
+        return;
+    }
+    const next = [...ownershipCategories, newOwnershipName.trim()];
+    try {
+        await setSetting('ownership_categories', next);
+        setNewOwnershipName('');
+        toast({ title: 'Category Added' });
+    } catch {
+        toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
+  const handleRemoveOwnership = async (name: string) => {
+    const next = ownershipCategories.filter(c => c !== name);
+    try {
+        await setSetting('ownership_categories', next);
+        toast({ title: 'Category Removed' });
+    } catch {
+        toast({ title: 'Error', variant: 'destructive' });
     }
   };
 
@@ -534,7 +564,7 @@ export default function SettingsPage() {
         setAccountForm({ name: account.name, type: account.type, ownership: account.ownership || 'Both', accountNumber: account.accountNumber || '', bankName: account.bankName || '', branch: account.branch || '', bankAccountType: account.bankAccountType || 'Saving' });
     } else {
         setEditingAccount(null);
-        setAccountForm({ name: '', type: 'Cash' as AccountType, ownership: 'Both', accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' });
+        setAccountForm({ name: '', type: 'Cash' as AccountType, ownership: 'Both' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' });
     }
     setIsAccountDialogOpen(true);
   };
@@ -752,6 +782,7 @@ export default function SettingsPage() {
   const otherTabs = [
     { value: "app-branding", label: "App Customization" },
     { value: "company-details", label: "Company Profile" },
+    { value: "ownership-categories", label: "Ownership Categories" },
     { value: "parties", label: "Vendors & Suppliers" },
     { value: "accounts", label: "Accounts" },
     { value: "uom", label: "Units of Measurement" },
@@ -775,7 +806,7 @@ export default function SettingsPage() {
                 <p className="text-muted-foreground text-sm font-medium">Manage your application's master data and cloud security.</p>
             </div>
             <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input type="search" placeholder="Filter settings..." className="pl-8 sm:w-[300px] h-10 border-gray-300" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
         </header>
@@ -994,6 +1025,60 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
+
+            <TabsContent value="ownership-categories" className="mt-6">
+                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between py-4 border-b bg-muted/5">
+                        <div>
+                            <CardTitle className="text-base font-black uppercase">Ownership Categories</CardTitle>
+                            <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Manage the entities that can own accounts and records.</CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                            <Input 
+                                placeholder="New ownership..." 
+                                className="h-9 w-48 text-xs bg-white"
+                                value={newOwnershipName}
+                                onChange={e => setNewOwnershipName(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleAddOwnership()}
+                            />
+                            <Button size="sm" onClick={handleAddOwnership} className="h-9 uppercase font-black text-[10px] tracking-widest shadow-sm">
+                                <Plus className="mr-2 h-4 w-4" /> Add
+                            </Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table className="text-xs">
+                            <TableHeader className="bg-muted/50">
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="pl-6 font-bold uppercase text-[10px] tracking-widest">Category Name</TableHead>
+                                    <TableHead className="text-right pr-6 font-bold uppercase text-[10px] tracking-widest">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {ownershipCategories.map(cat => (
+                                    <TableRow key={cat} className="h-12 border-b-gray-100 group hover:bg-muted/30 transition-colors">
+                                        <TableCell className="font-bold pl-6 text-gray-900">{cat}</TableCell>
+                                        <TableCell className="text-right pr-6">
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" 
+                                                disabled={['Sijan', 'Shivam', 'Rental', 'Both'].includes(cat)}
+                                                onClick={() => handleRemoveOwnership(cat)}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {ownershipCategories.length === 0 && (
+                                    <TableRow><TableCell colSpan={2} className="h-32 text-center text-muted-foreground italic">No categories defined.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
             
             <TabsContent value="parties">
                 <Card className="shadow-sm border-gray-100 bg-white">
@@ -1010,7 +1095,20 @@ export default function SettingsPage() {
                                 <TableRow className="hover:bg-transparent">
                                     <TableHead className="pl-6">Entity Name</TableHead>
                                     <TableHead>Category</TableHead>
-                                    <TableHead>Ownership</TableHead>
+                                    <TableHead>
+                                        <div className="flex items-center gap-2">
+                                            Ownership
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-6 w-6 text-primary hover:bg-primary/10" 
+                                                onClick={() => setActiveTab('ownership-categories')}
+                                                title="Create/Manage Ownership Categories"
+                                            >
+                                                <PlusCircle className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    </TableHead>
                                     <TableHead className="text-right pr-6">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -1257,22 +1355,26 @@ export default function SettingsPage() {
 
                                                                 {/* Ownership Cell */}
                                                                 <TableCell className="p-0">
-                                                                    <div className="flex justify-center gap-8 p-2">
-                                                                        {[
-                                                                            { id: 'Sijan', color: 'text-blue-600' },
-                                                                            { id: 'Shivam', color: 'text-amber-600' },
-                                                                            { id: 'Rental', color: 'text-emerald-600' },
-                                                                            { id: 'Both', color: 'text-purple-600' }
-                                                                        ].map((scope) => (
-                                                                            <div key={scope.id} className="flex flex-col items-center gap-1.5">
-                                                                                <Checkbox 
-                                                                                    checked={current.ownerships.includes(scope.id as any)} 
-                                                                                    onCheckedChange={v => handleOwnershipChange(m, scope.id as any, !!v)}
-                                                                                    className="h-4 w-4 rounded"
-                                                                                />
-                                                                                <span className={cn("text-[8px] font-black uppercase tracking-tighter", scope.color)}>{scope.id}</span>
-                                                                            </div>
-                                                                        ))}
+                                                                    <div className="flex justify-center flex-wrap gap-4 p-2">
+                                                                        {ownershipCategories.map((scope) => {
+                                                                            const colors: Record<string, string> = {
+                                                                                'Sijan': 'text-blue-600',
+                                                                                'Shivam': 'text-amber-600',
+                                                                                'Rental': 'text-emerald-600',
+                                                                                'Both': 'text-purple-600'
+                                                                            };
+                                                                            const colorClass = colors[scope] || 'text-gray-600';
+                                                                            return (
+                                                                                <div key={scope} className="flex flex-col items-center gap-1.5">
+                                                                                    <Checkbox 
+                                                                                        checked={current.ownerships.includes(scope as any)} 
+                                                                                        onCheckedChange={v => handleOwnershipChange(m, scope as any, !!v)}
+                                                                                        className="h-4 w-4 rounded"
+                                                                                    />
+                                                                                    <span className={cn("text-[8px] font-black uppercase tracking-tighter", colorClass)}>{scope}</span>
+                                                                                </div>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 </TableCell>
                                                             </TableRow>
@@ -1370,10 +1472,9 @@ export default function SettingsPage() {
                   <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Sijan">Sijan</SelectItem>
-                      <SelectItem value="Shivam">Shivam</SelectItem>
-                      <SelectItem value="Rental">Rental</SelectItem>
-                      <SelectItem value="Both">Both</SelectItem>
+                        {ownershipCategories.map(cat => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1393,7 +1494,11 @@ export default function SettingsPage() {
                             <Select value={accountForm.type} onValueChange={(v: any) => setAccountForm({...accountForm, type: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select>
                         </div>
                         <div className="space-y-2"><Label>Ownership</Label>
-                            <Select value={accountForm.ownership} onValueChange={(v: any) => setAccountForm({...accountForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Rental">Rental</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select>
+                            <Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm({...accountForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>
+                                {ownershipCategories.map(cat => (
+                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                ))}
+                            </SelectContent></Select>
                         </div>
                     </div>
                 </div>

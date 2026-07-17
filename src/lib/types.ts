@@ -559,7 +559,7 @@ export type PartyType = 'Supplier' | 'Customer' | 'Vendor' | 'Tenant' | 'Both';
 
 export type AccountType = 'Cash' | 'Bank';
 export type BankAccountType = 'Saving' | 'Current' | 'Over Draft';
-export type AccountOwnership = 'Sijan' | 'Shivam' | 'Rental' | 'Both';
+export type AccountOwnership = string;
 
 export interface Party {
     id: string;
