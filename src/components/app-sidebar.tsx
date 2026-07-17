@@ -178,20 +178,13 @@ export function AppSidebar() {
         <SidebarMenu>
             {hasPermission('dashboard', 'view') && (
             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/dashboard', true)}><Link href="/dashboard" className="flex items-center gap-2"><LayoutDashboard /><span>Dashboard</span></Link></SidebarMenuButton>
+                <SidebarMenuButton asChild isActive={getIsActive('/dashboard', true)} tooltip="Dashboard">
+                    <Link href="/dashboard" className="flex items-center gap-2">
+                        <LayoutDashboard />
+                        <span>Dashboard</span>
+                    </Link>
+                </SidebarMenuButton>
             </SidebarMenuItem>
-            )}
-
-            {/* Quick Access Actions (Promoted to Top Level) */}
-            {hasPermission('purchaseOrders', 'create') && (
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders/new')} tooltip="New PO">
-                        <Link href="/purchase-orders/new" className="flex items-center gap-2">
-                            <PlusCircle className="h-4 w-4 text-amber-600" />
-                            <span>New PO</span>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
             )}
         </SidebarMenu>
         
@@ -284,6 +277,16 @@ export function AppSidebar() {
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/purchase-orders', true)}><Link href="/purchase-orders" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
+                                {hasPermission('purchaseOrders', 'create') && (
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild isActive={getIsActive('/purchase-orders/new')}>
+                                            <Link href="/purchase-orders/new" className="flex items-center gap-2">
+                                                <PlusCircle className="h-4 w-4 text-amber-600" />
+                                                <span>New PO</span>
+                                            </Link>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                )}
                                 {hasPermission('purchaseOrders', 'view') && (
                                     <SidebarMenuSubItem>
                                         <SidebarMenuSubButton asChild isActive={getIsActive('/purchase-orders/list')}><Link href="/purchase-orders/list" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>Purchase Orders</span></Link></SidebarMenuSubButton>
