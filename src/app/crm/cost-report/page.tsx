@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -58,7 +57,7 @@ import { cn, toNepaliDate, normalizeBF, generateId } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
@@ -265,14 +264,14 @@ const CostingTableRow = React.memo(({
                         )}
                         {maxPly >= 7 && (
                             <>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner2Gsm ?? ''} onChange={e => onItemChange(index, 'liner2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => onItemChange(index, 'flute3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner2Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
                             </>
                         )}
                         {maxPly >= 9 && (
                             <>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
                             </>
                         )}
                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => onItemChange(index, 'acc_bottomGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
@@ -846,35 +845,35 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                         <Table className="text-[11px] border border-collapse min-w-[2200px]">
                             <TableHeader className="bg-muted/80">
                                 <TableRow>
-                                    <TableHead rowSpan={2} className="w-10 px-2"></TableHead>
-                                    <TableHead rowSpan={2} className="min-w-[280px] font-bold text-black border-r">Item Name / Product</TableHead>
-                                    <TableHead colSpan={3} className="text-center border-x font-bold text-black bg-blue-50/50">Size (mm)</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[80px] border-r">Pcs</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[80px] border-r">Ply</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[150px] border-r">Type (K/V/M)</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[130px] border-r">Paper BF</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[100px] border-r">Waste %</TableHead>
-                                    <TableHead colSpan={maxPly} className="text-center border-x font-bold text-black bg-orange-50/50">GSM Composition</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[90px] border-r bg-muted/20">T.GSM</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[100px] border-r bg-muted/20">Weight (g)</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Gross</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Transport</TableHead>
-                                    <TableHead rowSpan={2} className="text-right min-w-[140px] pr-6 bg-primary/10 font-bold">Total NPR</TableHead>
-                                    <TableHead rowSpan={2} className="w-20"></TableHead>
+                                    <SafeTableHeaderCell rowSpan={2} className="w-10 px-2"></SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="min-w-[280px] font-bold text-black border-r">Item Name / Product</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell colSpan={3} className="text-center border-x font-bold text-black bg-blue-50/50">Size (mm)</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="text-center min-w-[80px] border-r">Pcs</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="text-center min-w-[80px] border-r">Ply</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="text-center min-w-[150px] border-r">Type (K/V/M)</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="text-center min-w-[130px] border-r">Paper BF</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="text-center min-w-[100px] border-r">Waste %</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell colSpan={maxPly} className="text-center border-x font-bold text-black bg-orange-50/50">GSM Composition</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="text-center min-w-[90px] border-r bg-muted/20">T.GSM</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="text-center min-w-[100px] border-r bg-muted/20">Weight (g)</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Gross</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Transport</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="text-right min-w-[140px] pr-6 bg-primary/10 font-bold">Total NPR</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell rowSpan={2} className="w-20"></SafeTableHeaderCell>
                                 </TableRow>
                                 <TableRow>
-                                    <TableHead className="text-center border-l min-w-[110px] bg-blue-50/30">L</TableHead>
-                                    <TableHead className="text-center min-w-[110px] bg-blue-50/30">B</TableHead>
-                                    <TableHead className="text-center border-r min-w-[110px] bg-blue-50/30">H</TableHead>
-                                    <TableHead className="text-center border-l min-w-[100px] bg-orange-50/30">Top</TableHead>
-                                    <TableHead className="text-center min-w-[100px] bg-orange-50/30">F1</TableHead>
-                                    {maxPly >= 5 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">Mid1</TableHead>}
-                                    {maxPly >= 5 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">F2</TableHead>}
-                                    {maxPly >= 7 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">Mid2</TableHead>}
-                                    {maxPly >= 7 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">F3</TableHead>}
-                                    {maxPly >= 9 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">Mid3</TableHead>}
-                                    {maxPly >= 9 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">F4</TableHead>}
-                                    <TableHead className="text-center border-r min-w-[100px] bg-orange-50/30">Bot</TableHead>
+                                    <SafeTableHeaderCell className="text-center border-l min-w-[110px] bg-blue-50/30">L</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell className="text-center min-w-[110px] bg-blue-50/30">B</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell className="text-center border-r min-w-[110px] bg-blue-50/30">H</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell className="text-center border-l min-w-[100px] bg-orange-50/30">Top</SafeTableHeaderCell>
+                                    <SafeTableHeaderCell className="text-center min-w-[100px] bg-orange-50/30">F1</SafeTableHeaderCell>
+                                    {maxPly >= 5 && <SafeTableHeaderCell className="text-center min-w-[100px] bg-orange-50/30">Mid1</SafeTableHeaderCell>}
+                                    {maxPly >= 5 && <SafeTableHeaderCell className="text-center min-w-[100px] bg-orange-50/30">F2</SafeTableHeaderCell>}
+                                    {maxPly >= 7 && <SafeTableHeaderCell className="text-center min-w-[100px] bg-orange-50/30">Mid2</SafeTableHeaderCell>}
+                                    {maxPly >= 7 && <SafeTableHeaderCell className="text-center min-w-[100px] bg-orange-50/30">F3</SafeTableHeaderCell>}
+                                    {maxPly >= 9 && <SafeTableHeaderCell className="text-center min-w-[100px] bg-orange-50/30">Mid3</SafeTableHeaderCell>}
+                                    {maxPly >= 9 && <SafeTableHeaderCell className="text-center min-w-[100px] bg-orange-50/30">F4</SafeTableHeaderCell>}
+                                    <SafeTableHeaderCell className="text-center border-r min-w-[100px] bg-orange-50/30">Bot</SafeTableHeaderCell>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -927,9 +926,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-12"></TableHead>
-                                <TableHead>Product Name</TableHead>
-                                <TableHead>Specs</TableHead>
+                                <SafeTableHeaderCell className="w-12"></SafeTableHeaderCell>
+                                <SafeTableHeaderCell>Product Name</SafeTableHeaderCell>
+                                <SafeTableHeaderCell>Specs</SafeTableHeaderCell>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1014,6 +1013,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         </React.Suspense>
     </div>
   );
+}
+
+/**
+ * Helper to prevent React from complaining about nested table headers
+ * with rowSpan/colSpan in ShadCN Table component.
+ */
+function SafeTableHeaderCell({ children, ...props }: any) {
+  return <th {...props}>{children}</th>;
 }
 
 export default function CostReportPage() {
