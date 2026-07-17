@@ -26,10 +26,11 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader as AlertDialogHead,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import jsPDF from 'jspdf';
@@ -46,6 +47,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 const DEFAULT_COMPANY_PROFILE_LOCAL: CompanyProfile = {
   nameEn: "GENERIC ENTERPRISE PVT LTD.",
@@ -744,6 +746,23 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
          toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
     }
   };
+
+  const doActualPrint = () => {
+    if (!printRef.current) return;
+    const printWindow = window.open('', '', 'height=800,width=800');
+    printWindow?.document.write('<html><head><title>Print Voucher</title>');
+    printWindow?.document.write('<style>@media print{@page{size: A5;margin:0;}body{margin: 1cm;}}</style>');
+    printWindow?.document.write('</head><body>');
+    printWindow?.document.write(printRef.current.innerHTML);
+    printWindow?.document.write('</body></html>');
+    printWindow?.document.close();
+    printWindow?.focus();
+    setTimeout(() => {
+        printWindow?.print();
+        printWindow?.close();
+    }, 250);
+  };
+
     return (
         <div className="flex flex-col gap-8">
             <header className="print:hidden flex flex-col md:flex-row md:justify-between md:items-start gap-4">
