@@ -769,16 +769,16 @@ export interface AppSetting {
 export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense', 'rentalBill'] as const;
 export type DocumentType = typeof documentTypes[number];
 
+export interface NumberingRule {
+    prefix: string;
+    effectiveFrom: string; // ISO string
+    effectiveTo?: string | null; // ISO string
+    startingNumber: number;
+    status: 'Active' | 'Archived';
+}
+
 export interface DocumentPrefixes {
-    report?: string;
-    purchaseOrder?: string;
-    sales?: string;
-    purchase?: string;
-    paymentReceipt?: string;
-    tdsVoucher?: string;
-    estimateInvoice?: string;
-    expense?: string;
-    rentalBill?: string;
+    [key: string]: NumberingRule[];
 }
 
 export const getDocumentName = (type: DocumentType): string => {

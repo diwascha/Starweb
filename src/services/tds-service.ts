@@ -30,8 +30,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): TdsCalcul
 
 export const getTdsPrefix = async (): Promise<string> => {
     const prefixSetting = await getSetting('documentPrefixes');
-    const prefixes = prefixSetting?.value as DocumentPrefixes || {};
-    return prefixes.tdsVoucher || 'TDS-';
+    const numberingConfig = prefixSetting?.value as DocumentPrefixes || {};
+    const rules = numberingConfig.tdsVoucher || [];
+    const activeRule = rules.find(r => r.status === 'Active');
+    return activeRule?.prefix || 'TDS-';
 }
 
 export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' | 'createdAt'>): Promise<string> => {
@@ -52,7 +54,7 @@ export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' |
     return docRef.id;
 };
 
-export const updateTdsCalculation = async (id: string, calculation: Partial<Omit<TdsCalculation, 'id'>>): Promise<void> => {
+export const updateTdsCalculation = async (id: string, calculation: Partial<TdsCalculation>): Promise<void> => {
     const calcDoc = doc(getTdsCollection(), id);
     const payload = {
         ...calculation,

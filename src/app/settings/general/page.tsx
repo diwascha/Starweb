@@ -7,7 +7,9 @@ import type {
   CompanyProfile,
   AppBranding,
   Module,
-  OwnershipCategory
+  OwnershipCategory,
+  DocumentType,
+  NumberingRule
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +39,9 @@ import {
   Save, 
   Loader2,
   Settings2,
+  CalendarIcon,
+  Hash,
+  History
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -52,7 +57,7 @@ import {
     modules 
 } from '@/lib/types';
 import { DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
-import { cn } from '@/lib/utils';
+import { cn, toNepaliDate } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -80,8 +85,15 @@ export default function GeneralSettingsPage() {
   const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [prefixes, setPrefixes] = useState<DocumentPrefixes>({});
-  const [isPrefixDialogOpen, setIsPrefixDialogOpen] = useState(false);
-  const [editingPrefix, setEditingPrefix] = useState<{ key: keyof DocumentPrefixes; value: string } | null>(null);
+  
+  const [isNumberingDialogOpen, setIsNumberingDialogOpen] = useState(false);
+  const [activeNumberingKey, setActiveNumberingKey] = useState<DocumentType | null>(null);
+  const [numberingForm, setNumberingForm] = useState({
+      prefix: '',
+      effectiveFrom: new Date().toISOString().split('T')[0],
+      startingNumber: 1
+  });
+
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
@@ -206,13 +218,53 @@ export default function GeneralSettingsPage() {
     }
   };
 
-  const handleSavePrefix = async () => {
-    if (!editingPrefix) return;
-    const newPrefixes = { ...prefixes, [editingPrefix.key]: editingPrefix.value };
+  const openNumberingDialog = (key: DocumentType) => {
+    setActiveNumberingKey(key);
+    const rules = prefixes[key] || [];
+    const active = rules.find(r => r.status === 'Active');
+    
+    setNumberingForm({
+        prefix: active?.prefix || '',
+        effectiveFrom: new Date().toISOString().split('T')[0],
+        startingNumber: active ? active.startingNumber : 1
+    });
+    setIsNumberingDialogOpen(true);
+  };
+
+  const handleSaveNumbering = async () => {
+    if (!activeNumberingKey || !numberingForm.prefix) return;
+    
+    const rules = [...(prefixes[activeNumberingKey] || [])];
+    const activeIndex = rules.findIndex(r => r.status === 'Active');
+    
+    const newFromDate = new Date(numberingForm.effectiveFrom);
+    
+    if (activeIndex !== -1) {
+        const oldRule = { ...rules[activeIndex] };
+        oldRule.status = 'Archived';
+        // Set its "Effective To" date to one day before the new rule starts
+        const toDate = new Date(newFromDate);
+        toDate.setDate(toDate.getDate() - 1);
+        oldRule.effectiveTo = toDate.toISOString();
+        rules[activeIndex] = oldRule;
+    }
+    
+    const newRule: NumberingRule = {
+        prefix: numberingForm.prefix,
+        effectiveFrom: newFromDate.toISOString(),
+        startingNumber: Number(numberingForm.startingNumber) || 1,
+        status: 'Active',
+        effectiveTo: null
+    };
+    
+    rules.push(newRule);
+    
+    const newConfig = { ...prefixes, [activeNumberingKey]: rules };
+    
     try {
-        await setSetting('documentPrefixes', newPrefixes);
-        setIsPrefixDialogOpen(false);
-        toast({ title: 'Prefix Saved' });
+        await setSetting('documentPrefixes', newConfig);
+        setIsNumberingDialogOpen(false);
+        toast({ title: 'Numbering Rule Updated' });
     } catch {
         toast({ title: 'Error', variant: 'destructive' });
     }
@@ -254,7 +306,7 @@ export default function GeneralSettingsPage() {
                             <CardDescription className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Application naming and persona.</CardDescription>
                         </div>
                         <Button onClick={handleSaveAppBranding} disabled={isSavingBranding} className="h-10 px-8 font-black text-[10px] uppercase tracking-widest shadow-lg">
-                            {isSavingBranding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            {isSavingBranding ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
                             Apply Branding
                         </Button>
                     </CardHeader>
@@ -405,17 +457,49 @@ export default function GeneralSettingsPage() {
 
             <TabsContent value="numbering" className="animate-in fade-in slide-in-from-left-2">
                 <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
-                    <CardHeader className="bg-muted/10 border-b py-4 px-6"><CardTitle className="text-sm font-black uppercase">Prefix Configuration</CardTitle></CardHeader>
+                    <CardHeader className="bg-muted/10 border-b py-4 px-6">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm font-black uppercase">Master Document Numbering</CardTitle>
+                        </div>
+                    </CardHeader>
                     <CardContent className="p-0">
-                        <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Document Class</TableHead><TableHead>Prefix</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                        {documentTypes.map(t => (
-                            <TableRow key={t} className="h-12 border-b">
-                                <TableCell className="font-bold pl-6">{getDocumentName(t)}</TableCell>
-                                <TableCell className="font-mono text-blue-600 font-bold">{prefixes[t] || '(Default)'}</TableCell>
-                                <TableCell className="text-right pr-6"><Button variant="outline" size="sm" className="h-7 text-[10px] font-black uppercase" onClick={() => { setEditingPrefix({key:t, value:prefixes[t]||''}); setIsPrefixDialogOpen(true); }}>Edit</Button></TableCell>
-                            </TableRow>
-                        ))}</TableBody></Table>
+                        <Table className="text-xs">
+                            <TableHeader className="bg-muted/50">
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="pl-6 font-bold uppercase">Document Class</TableHead>
+                                    <TableHead className="font-bold uppercase">Active Prefix</TableHead>
+                                    <TableHead className="font-bold uppercase text-center">Starting At</TableHead>
+                                    <TableHead className="font-bold uppercase">Effective From</TableHead>
+                                    <TableHead className="text-right pr-6 font-bold uppercase">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {documentTypes.map(t => {
+                                    const rules = prefixes[t] || [];
+                                    const active = rules.find(r => r.status === 'Active');
+                                    
+                                    return (
+                                        <TableRow key={t} className="h-14 border-b">
+                                            <TableCell className="font-black pl-6 text-gray-900 uppercase tracking-tighter">{getDocumentName(t)}</TableCell>
+                                            <TableCell className="font-mono text-blue-600 font-black">{active?.prefix || '(System Default)'}</TableCell>
+                                            <TableCell className="text-center font-bold">{active?.startingNumber.toString().padStart(3, '0') || '001'}</TableCell>
+                                            <TableCell className="text-muted-foreground italic">{active ? toNepaliDate(active.effectiveFrom) : 'N/A'}</TableCell>
+                                            <TableCell className="text-right pr-6">
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    className="h-8 text-[10px] font-black uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5" 
+                                                    onClick={() => openNumberingDialog(t)}
+                                                >
+                                                    <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
+                                                    Change Numbering
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -433,16 +517,60 @@ export default function GeneralSettingsPage() {
             </DialogContent>
         </Dialog>
 
-        <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}>
+        <Dialog open={isNumberingDialogOpen} onOpenChange={setIsNumberingDialogOpen}>
             <DialogContent className="sm:max-w-md">
-                <DialogHeader><DialogTitle>Update Numbering Prefix</DialogTitle></DialogHeader>
-                <div className="py-4 space-y-4">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Update Numbering Rule</DialogTitle>
+                    <DialogDescription className="text-xs uppercase font-bold text-muted-foreground">Change the sequence rule for {activeNumberingKey ? getDocumentName(activeNumberingKey) : 'document'}.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
                     <div className="space-y-2">
-                        <Label className="text-xs uppercase font-bold text-muted-foreground">New Prefix</Label>
-                        <Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} className="h-10 font-mono text-blue-600 font-black" />
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">New Prefix</Label>
+                        <Input 
+                            value={numberingForm.prefix} 
+                            onChange={e => setNumberingForm(p => ({...p, prefix: e.target.value}))} 
+                            className="h-10 font-mono text-blue-600 font-black border-2" 
+                            placeholder="e.g. SPI-2024-"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Effective From Date</Label>
+                            <div className="relative">
+                                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <Input 
+                                    type="date" 
+                                    value={numberingForm.effectiveFrom} 
+                                    onChange={e => setNumberingForm(p => ({...p, effectiveFrom: e.target.value}))} 
+                                    className="h-10 pl-9 font-bold text-xs"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Starting Number</Label>
+                            <div className="relative">
+                                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <Input 
+                                    type="number" 
+                                    value={numberingForm.startingNumber} 
+                                    onChange={e => setNumberingForm(p => ({...p, startingNumber: parseInt(e.target.value) || 1}))} 
+                                    className="h-10 pl-9 font-black text-sm"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 flex gap-4">
+                        <Settings2 className="h-5 w-5 text-amber-600 shrink-0" />
+                        <p className="text-[10px] text-amber-800 leading-relaxed font-medium italic">
+                            <b>Automation Notice:</b> Saving this will archive the current rule. If the new rule begins in the future, the sequence will remain under the current rule until the effective date.
+                        </p>
                     </div>
                 </div>
-                <DialogFooter><Button onClick={handleSavePrefix} className="w-full">Update System Rule</Button></DialogFooter>
+                <DialogFooter className="border-t pt-4">
+                    <Button variant="outline" onClick={() => setIsNumberingDialogOpen(false)} className="h-11 font-bold text-xs uppercase tracking-widest">Cancel</Button>
+                    <Button onClick={handleSaveNumbering} className="h-11 px-8 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">Apply New Sequence</Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
 

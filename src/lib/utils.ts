@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip, TdsCalculation, EstimatedInvoice } from './types';
+import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip, TdsCalculation, EstimatedInvoice, DocumentType } from './types';
 import type { Expense } from './expense-types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
@@ -58,9 +58,10 @@ export const normalizeBF = (val: any): string => {
 
 export const calculateNextSequence = (
   numbers: (string | undefined | null)[],
-  prefix: string
+  prefix: string,
+  startingAt: number = 1
 ): string => {
-  let maxNumber = 0;
+  let maxNumber = startingAt - 1;
   
   numbers.forEach(num => {
     if (num && typeof num === 'string' && num.startsWith(prefix)) {
@@ -78,15 +79,19 @@ export const calculateNextSequence = (
 export const generateNextNumber = async (
   items: any[],
   fieldName: string,
-  settingKey: keyof DocumentPrefixes,
+  settingKey: DocumentType,
   defaultPrefix: string
 ): Promise<string> => {
-  const prefixSetting = await getSetting('documentPrefixes');
-  const prefixes = prefixSetting?.value as DocumentPrefixes || {};
-  const prefix = prefixes[settingKey] || defaultPrefix;
+  const numberingSetting = await getSetting('documentPrefixes');
+  const numberingConfig = numberingSetting?.value as DocumentPrefixes || {};
+  const rules = numberingConfig[settingKey] || [];
+  const activeRule = rules.find(r => r.status === 'Active');
+  
+  const prefix = activeRule?.prefix || defaultPrefix;
+  const startNum = activeRule?.startingNumber || 1;
   
   const numberStrings = items.map(item => item[fieldName]);
-  return calculateNextSequence(numberStrings, prefix);
+  return calculateNextSequence(numberStrings, prefix, startNum);
 };
 
 export const generateNextSerialNumber = (reports: Pick<Report, 'serialNumber'>[]) =>
