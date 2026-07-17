@@ -8,7 +8,6 @@ import type {
   AccountType, 
   BankAccountType, 
   AccountOwnership,
-  HrConfig
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,30 +34,21 @@ import {
   Plus, 
   Edit, 
   Trash2, 
-  MoreHorizontal, 
-  Save, 
   GitMerge, 
-  Check, 
   Loader2,
-  Calculator,
-  Briefcase,
   ShieldAlert,
-  ChevronDown,
-  PlusCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPartiesUpdate, addParty, updateParty, deleteParty, mergeParties } from '@/services/party-service';
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
 
@@ -67,9 +57,6 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
     const [destinationId, setDestinationId] = useState<string>('');
     const [isMerging, setIsMerging] = useState(false);
     
-    const sourceParty = parties.find(p => p.id === sourceId);
-    const destinationParty = parties.find(p => p.id === destinationId);
-
     const handleMergeClick = async () => {
         setIsMerging(true);
         try {

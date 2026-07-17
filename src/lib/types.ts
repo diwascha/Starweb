@@ -561,6 +561,11 @@ export type AccountType = 'Cash' | 'Bank';
 export type BankAccountType = 'Saving' | 'Current' | 'Over Draft';
 export type AccountOwnership = string;
 
+export interface OwnershipCategory {
+    name: string;
+    modules: string[];
+}
+
 export interface Party {
     id: string;
     name: string;

@@ -6,7 +6,8 @@ import type {
   DocumentPrefixes, 
   CompanyProfile,
   AppBranding,
-  Module
+  Module,
+  OwnershipCategory
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,14 +24,9 @@ import {
   Edit, 
   Trash2, 
   Save, 
-  Settings as SettingsIcon,
   Loader2,
-  FileText,
-  Building2,
   Settings2,
-  PlusCircle,
   CheckCircle2,
-  Check,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -50,11 +46,6 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-
-interface OwnershipCategory {
-    name: string;
-    modules: string[];
-}
 
 const getModuleDisplayName = (m: string): string => {
     switch (m) {

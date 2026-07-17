@@ -7,7 +7,8 @@ import type {
   Module, 
   Action, 
   AccountOwnership,
-  PageVisit
+  PageVisit,
+  OwnershipCategory
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,25 +36,20 @@ import {
   Trash2, 
   MoreHorizontal, 
   Search, 
-  Save, 
   KeyRound, 
   Loader2,
   ShieldCheck,
-  UserCheck,
-  UserX,
   History,
   Terminal,
-  User as UserIcon,
-  Briefcase,
+  ShoppingCart,
+  Settings as SettingsIcon,
   Building2,
   Truck,
+  Calculator,
+  Briefcase,
   Home,
   LayoutDashboard,
-  Settings as SettingsIcon,
-  ShoppingCart,
-  StickyNote,
-  ChevronDown,
-  Zap,
+  StickyNote
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -104,22 +100,6 @@ const getModuleDisplayName = (m: Module): string => {
     }
 };
 
-const getModuleIcon = (m: Module) => {
-    switch (m) {
-        case 'reports': return <ShoppingCart className="h-4 w-4" />;
-        case 'purchaseOrders': return <ShoppingCart className="h-4 w-4" />;
-        case 'settings': return <SettingsIcon className="h-4 w-4" />;
-        case 'hr': return <Building2 className="h-4 w-4" />;
-        case 'fleet': return <Truck className="h-4 w-4" />;
-        case 'finance': return <Calculator className="h-4 w-4" />;
-        case 'crm': return <Briefcase className="h-4 w-4" />;
-        case 'rental': return <Home className="h-4 w-4" />;
-        case 'dashboard': return <LayoutDashboard className="h-4 w-4" />;
-        case 'notes': return <StickyNote className="h-4 w-4" />;
-        default: return <Terminal className="h-4 w-4" />;
-    }
-};
-
 export default function SystemSettingsPage() {
   const { user, logout } = useAuth();
   const auth = useAuthService();
@@ -128,7 +108,7 @@ export default function SystemSettingsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
   const [logs, setLogs] = useState<SystemLog[]>([]);
-  const [ownershipCategories, setOwnershipCategories] = useState<any[]>([]);
+  const [ownershipCategories, setOwnershipCategories] = useState<OwnershipCategory[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
@@ -147,7 +127,15 @@ export default function SystemSettingsPage() {
         onUsersUpdate(setUsers),
         onPageVisitsUpdate(setPageVisits),
         onLogsUpdate(setLogs),
-        onSettingUpdate('ownership_categories', (s) => { if (s?.value) setOwnershipCategories(s.value); }),
+        onSettingUpdate('ownership_categories', (s) => { 
+            if (s?.value) {
+                const normalized = s.value.map((cat: any) => {
+                    if (typeof cat === 'string') return { name: cat, modules: Array.from(modules) };
+                    return cat as OwnershipCategory;
+                });
+                setOwnershipCategories(normalized);
+            }
+        }),
     ];
     return () => unsubs.forEach(u => u());
   }, []);
@@ -341,22 +329,16 @@ export default function SystemSettingsPage() {
                                             <TableCell>
                                                 <div className="flex justify-center gap-3">
                                                     {ownershipCategories
-                                                        .filter(cat => {
-                                                            if (typeof cat === 'string') return true;
-                                                            return cat.modules?.includes(m);
-                                                        })
-                                                        .map(cat => {
-                                                            const scope = typeof cat === 'string' ? cat : cat.name;
-                                                            return (
-                                                                <div key={scope} className="flex flex-col items-center gap-1">
-                                                                    <Checkbox 
-                                                                        checked={curr.ownerships.includes(scope)} 
-                                                                        onCheckedChange={v => handleOwnershipChange(m, scope, !!v)} 
-                                                                    />
-                                                                    <span className="text-[8px] uppercase">{scope}</span>
-                                                                </div>
-                                                            );
-                                                        })
+                                                        .filter(cat => cat.modules?.includes(m))
+                                                        .map(cat => (
+                                                            <div key={cat.name} className="flex flex-col items-center gap-1">
+                                                                <Checkbox 
+                                                                    checked={curr.ownerships.includes(cat.name)} 
+                                                                    onCheckedChange={v => handleOwnershipChange(m, cat.name, !!v)} 
+                                                                />
+                                                                <span className="text-[8px] uppercase">{cat.name}</span>
+                                                            </div>
+                                                        ))
                                                     }
                                                 </div>
                                             </TableCell>
