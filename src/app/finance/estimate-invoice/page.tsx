@@ -324,70 +324,61 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     return (
         <>
         <Card>
-           <CardHeader>
-             <div className="flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <CardTitle>Saved Estimate Invoices</CardTitle>
-                        <CardDescription>A log of all saved estimate and pro-forma invoices.</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                            <Input
-                                placeholder="Search invoice # or party..."
-                                className="pl-8 h-9 text-xs w-full sm:w-[250px]"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                    </div>
+           <CardHeader className="py-4">
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <CardTitle className="text-lg font-bold">Saved Estimate Invoices</CardTitle>
+                    <CardDescription className="text-xs">Manufacturing estimates log.</CardDescription>
                 </div>
                 
-                <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-dashed">
-                    <div className="space-y-1.5 flex-1 min-w-[160px]">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Filter by Party</Label>
-                        <Select value={filterParty} onValueChange={setFilterParty}>
-                            <SelectTrigger className="h-9 bg-white text-xs">
-                                <div className="flex items-center gap-2">
-                                    <Users className="h-3 w-3 text-muted-foreground" />
-                                    <SelectValue placeholder="All Parties" />
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="All">All Parties</SelectItem>
-                                {uniqueParties.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                            placeholder="Search..."
+                            className="pl-8 h-8 text-xs w-[180px] bg-white border-gray-200 shadow-none"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
 
-                    <div className="space-y-1.5 flex-1 min-w-[200px]">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Date Range (AD)</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                    <span className="truncate">
-                                        {dateRange?.from ? (
-                                            dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")
-                                        ) : 'Pick date range'}
-                                    </span>
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
+                    <Select value={filterParty} onValueChange={setFilterParty}>
+                        <SelectTrigger className="h-8 w-[150px] bg-white text-xs border-gray-200 shadow-none">
+                            <div className="flex items-center gap-2">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                                <SelectValue placeholder="All Parties" />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Parties</SelectItem>
+                            {uniqueParties.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("h-8 w-[180px] justify-start text-left font-normal bg-white text-xs px-2 border-gray-200", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-1.5 h-3 w-3" />
+                                <span className="truncate">
+                                    {dateRange?.from ? (
+                                        dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")
+                                    ) : 'Date Range'}
+                                </span>
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                            <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
+                        </PopoverContent>
+                    </Popover>
 
                     {isFiltered && (
                         <Button 
                             variant="ghost" 
                             size="sm" 
                             onClick={() => { setFilterParty('All'); setDateRange(undefined); setSearchQuery(''); }} 
-                            className="h-9 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
+                            className="h-8 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
                         >
-                            <FilterX className="mr-1.5 h-3.5 w-3.5" /> Reset
+                            <FilterX className="h-3.5 w-3.5" />
                         </Button>
                     )}
                 </div>
