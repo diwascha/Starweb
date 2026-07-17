@@ -538,6 +538,9 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     );
 }
 
+type RatesSortKey = 'name' | 'partyName' | 'rate';
+type RatesSortDirection = 'asc' | 'desc';
+
 function SavedRatesList() {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -546,6 +549,12 @@ function SavedRatesList() {
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    // Sorting State
+    const [sortConfig, setSortConfig] = useState<{ key: RatesSortKey; direction: RatesSortDirection }>({
+        key: 'name',
+        direction: 'asc'
+    });
     
     const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
     const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
@@ -601,7 +610,14 @@ function SavedRatesList() {
         setIsHistoryDialogOpen(true);
     };
 
-    const filteredProducts = useMemo(() => {
+    const requestSort = (key: RatesSortKey) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const filteredAndSortedProducts = useMemo(() => {
         let filtered = [...products];
 
         if (searchQuery) {
@@ -613,19 +629,31 @@ function SavedRatesList() {
             filtered = filtered.filter(p => p.partyId === filterPartyId);
         }
 
+        filtered.sort((a, b) => {
+            let aVal: any = a[sortConfig.key] ?? '';
+            let bVal: any = b[sortConfig.key] ?? '';
+
+            if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+            if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
         return filtered;
-    }, [products, searchQuery, filterPartyId]);
+    }, [products, searchQuery, filterPartyId, sortConfig]);
 
     const paginatedProducts = useMemo(() => {
-        if (itemsPerPage === -1) return filteredProducts;
+        if (itemsPerPage === -1) return filteredAndSortedProducts;
         const start = (currentPage - 1) * itemsPerPage;
-        return filteredProducts.slice(start, start + itemsPerPage);
-    }, [filteredProducts, currentPage, itemsPerPage]);
+        return filteredAndSortedProducts.slice(start, start + itemsPerPage);
+    }, [filteredAndSortedProducts, currentPage, itemsPerPage]);
 
     const totalPages = useMemo(() => {
         if (itemsPerPage === -1) return 1;
-        return Math.ceil(filteredProducts.length / itemsPerPage);
-    }, [filteredProducts, itemsPerPage]);
+        return Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
+    }, [filteredAndSortedProducts, itemsPerPage]);
 
     const isFiltered = filterPartyId !== 'All' || searchQuery !== '';
 
@@ -641,7 +669,7 @@ function SavedRatesList() {
                 
                 <div className="flex flex-wrap items-center gap-2">
                     <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search products..."
                             className="pl-8 h-8 text-xs w-[180px] bg-white border-gray-200 shadow-none"
@@ -680,10 +708,22 @@ function SavedRatesList() {
                <Table>
                    <TableHeader className="bg-muted/50">
                        <TableRow className="hover:bg-transparent">
-                           <TableHead className="pl-6 font-bold">Product Name</TableHead>
-                           <TableHead className="font-bold">Delivered To</TableHead>
-                           <TableHead className="font-bold">Current Rate (NPR)</TableHead>
-                           <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
+                           <TableHead className="pl-6">
+                               <Button variant="ghost" onClick={() => requestSort('name')} className="-ml-4 h-8 px-2 text-xs font-bold uppercase tracking-widest text-foreground hover:bg-transparent">
+                                    Product Name <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === 'name' ? "opacity-100 text-primary" : "opacity-30")} />
+                               </Button>
+                           </TableHead>
+                           <TableHead>
+                               <Button variant="ghost" onClick={() => requestSort('partyName')} className="-ml-4 h-8 px-2 text-xs font-bold uppercase tracking-widest text-foreground hover:bg-transparent">
+                                    Delivered To <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === 'partyName' ? "opacity-100 text-primary" : "opacity-30")} />
+                               </Button>
+                           </TableHead>
+                           <TableHead>
+                               <Button variant="ghost" onClick={() => requestSort('rate')} className="-ml-4 h-8 px-2 text-xs font-bold uppercase tracking-widest text-foreground hover:bg-transparent">
+                                    Current Rate <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === 'rate' ? "opacity-100 text-primary" : "opacity-30")} />
+                               </Button>
+                           </TableHead>
+                           <TableHead className="text-right pr-6 font-bold text-xs uppercase tracking-widest">Actions</TableHead>
                        </TableRow>
                    </TableHeader>
                    <TableBody>
@@ -715,10 +755,10 @@ function SavedRatesList() {
                 <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
                     <div className="text-xs text-muted-foreground font-medium">
                         {itemsPerPage === -1 ? (
-                            <>Showing all <span className="font-bold text-foreground">{filteredProducts.length}</span> products</>
+                            <>Showing all <span className="font-bold text-foreground">{filteredAndSortedProducts.length}</span> products</>
                         ) : (
                             <>
-                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredProducts.length)}</span> of <span className="font-bold text-foreground">{filteredProducts.length}</span> products
+                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedProducts.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedProducts.length}</span> products
                             </>
                         )}
                     </div>
