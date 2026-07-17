@@ -78,6 +78,8 @@ const getModuleDisplayName = (m: string): string => {
     }
 };
 
+const CORE_MODULES: string[] = ['dashboard', 'settings', 'notes'];
+
 export default function GeneralSettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -180,7 +182,7 @@ export default function GeneralSettingsPage() {
         setOwnershipForm({ ...cat });
     } else {
         setEditingOwnership(null);
-        setOwnershipForm({ name: '', modules: Array.from(modules) });
+        setOwnershipForm({ name: '', modules: [...CORE_MODULES] });
     }
     setIsOwnershipDialogOpen(true);
   };
@@ -188,15 +190,19 @@ export default function GeneralSettingsPage() {
   const handleSaveOwnership = async () => {
     if (!ownershipForm.name.trim()) return;
     
+    // Final check to ensure core modules are present
+    const finalModules = Array.from(new Set([...ownershipForm.modules, ...CORE_MODULES]));
+    const updatedForm = { ...ownershipForm, modules: finalModules };
+
     let next;
     if (editingOwnership) {
-        next = ownershipCategories.map(c => c.name === editingOwnership.name ? ownershipForm : c);
+        next = ownershipCategories.map(c => c.name === editingOwnership.name ? updatedForm : c);
     } else {
-        if (ownershipCategories.some(c => c.name.toLowerCase() === ownershipForm.name.toLowerCase())) {
+        if (ownershipCategories.some(c => c.name.toLowerCase() === updatedForm.name.toLowerCase())) {
             toast({ title: 'Name Conflict', description: 'Ownership category already exists.', variant: 'destructive' });
             return;
         }
-        next = [...ownershipCategories, ownershipForm];
+        next = [...ownershipCategories, updatedForm];
     }
 
     try {
@@ -244,7 +250,6 @@ export default function GeneralSettingsPage() {
     if (activeIndex !== -1) {
         const oldRule = { ...rules[activeIndex] };
         oldRule.status = 'Archived';
-        // Set its "Effective To" date to one day before the new rule starts
         const toDate = new Date(newFromDate);
         toDate.setDate(toDate.getDate() - 1);
         oldRule.effectiveTo = toDate.toISOString();
@@ -330,7 +335,7 @@ export default function GeneralSettingsPage() {
                     <CardHeader className="flex flex-row items-center justify-between bg-primary/5 py-4 px-6 border-b">
                         <CardTitle className="text-lg font-black tracking-tight">Main Manufacturing Profile</CardTitle>
                         <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">
-                            {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-3.5" />}
                             Update
                         </Button>
                     </CardHeader>
@@ -403,7 +408,7 @@ export default function GeneralSettingsPage() {
                                                         <AlertDialogHeader>
                                                             <AlertDialogTitle>Delete Ownership Category?</AlertDialogTitle>
                                                             <AlertDialogDescription>
-                                                                This will remove the "{cat.name}" category from the system. Existing records using this category will remain, but you will not be able to select it for new entries or permissions.
+                                                                This will remove the "{cat.name}" category from the system. Existing records using this category will remain.
                                                             </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
@@ -442,7 +447,7 @@ export default function GeneralSettingsPage() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Delete Unit of Measurement?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                This will remove "{u.name}" ({u.abbreviation}) from the registry. This action cannot be undone.
+                                                This will remove "{u.name}" ({u.abbreviation}) from the registry.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -478,8 +483,8 @@ export default function GeneralSettingsPage() {
                             <TableBody>
                                 {documentTypes.map(t => {
                                     const rawRules = prefixes[t];
-                                    const rules = Array.isArray(rawRules) ? rawRules : [];
-                                    const active = rules.find(r => r.status === 'Active');
+                                    const rules = Array.isArray(rawRules) ? (rawRules as any) : [];
+                                    const active = rules.find((r: any) => r.status === 'Active');
                                     
                                     return (
                                         <TableRow key={t} className="h-14 border-b">
@@ -562,13 +567,6 @@ export default function GeneralSettingsPage() {
                             </div>
                         </div>
                     </div>
-
-                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 flex gap-4">
-                        <Settings2 className="h-5 w-5 text-amber-600 shrink-0" />
-                        <p className="text-[10px] text-amber-800 leading-relaxed font-medium italic">
-                            <b>Automation Notice:</b> Saving this will archive the current rule. If the new rule begins in the future, the sequence will remain under the current rule until the effective date.
-                        </p>
-                    </div>
                 </div>
                 <DialogFooter className="border-t pt-4">
                     <Button variant="outline" onClick={() => setIsNumberingDialogOpen(false)} className="h-11 font-bold text-xs uppercase tracking-widest">Cancel</Button>
@@ -598,29 +596,37 @@ export default function GeneralSettingsPage() {
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">Module Association</Label>
                             <div className="flex gap-2">
                                 <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: Array.from(modules)})} className="h-5 px-1.5 text-[8px] uppercase font-black">All</Button>
-                                <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: []})} className="h-5 px-1.5 text-[8px] uppercase font-black">None</Button>
+                                <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: [...CORE_MODULES]})} className="h-5 px-1.5 text-[8px] uppercase font-black">Clear Functional</Button>
                             </div>
                         </div>
                         <ScrollArea className="h-[250px] border rounded-lg bg-gray-50/30 p-2">
                             <div className="grid grid-cols-1 gap-1">
-                                {modules.map(m => (
-                                    <div key={m} className={cn(
-                                        "flex items-center space-x-3 p-2 rounded-md transition-colors",
-                                        ownershipForm.modules.includes(m) ? "bg-primary/5" : "hover:bg-muted/50"
-                                    )}>
-                                        <Checkbox 
-                                            id={`check-${m}`} 
-                                            checked={ownershipForm.modules.includes(m)} 
-                                            onCheckedChange={(v) => {
-                                                const next = !!v 
-                                                    ? [...ownershipForm.modules, m]
-                                                    : ownershipForm.modules.filter(x => x !== m);
-                                                setOwnershipForm({...ownershipForm, modules: next});
-                                            }}
-                                        />
-                                        <Label htmlFor={`check-${m}`} className="text-xs font-medium cursor-pointer flex-1">{getModuleDisplayName(m as Module)}</Label>
-                                    </div>
-                                ))}
+                                {modules.map(m => {
+                                    const isCore = CORE_MODULES.includes(m);
+                                    return (
+                                        <div key={m} className={cn(
+                                            "flex items-center space-x-3 p-2 rounded-md transition-colors",
+                                            (isCore || ownershipForm.modules.includes(m)) ? "bg-primary/5" : "hover:bg-muted/50",
+                                            isCore && "opacity-60"
+                                        )}>
+                                            <Checkbox 
+                                                id={`check-${m}`} 
+                                                checked={isCore || ownershipForm.modules.includes(m)} 
+                                                disabled={isCore}
+                                                onCheckedChange={(v) => {
+                                                    if (isCore) return;
+                                                    const next = !!v 
+                                                        ? [...ownershipForm.modules, m]
+                                                        : ownershipForm.modules.filter(x => x !== m);
+                                                    setOwnershipForm({...ownershipForm, modules: next});
+                                                }}
+                                            />
+                                            <Label htmlFor={`check-${m}`} className="text-xs font-medium cursor-pointer flex-1">
+                                                {getModuleDisplayName(m as Module)} {isCore && <span className="text-[8px] font-black text-primary ml-2">(SYSTEM CORE)</span>}
+                                            </Label>
+                                        </div>
+                                    )
+                                })}
                             </div>
                             <ScrollBar orientation="vertical" />
                         </ScrollArea>
