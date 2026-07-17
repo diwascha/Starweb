@@ -17,6 +17,7 @@ import { useAuthService } from '@/firebase';
 import { getUserById, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { logAudit } from '@/services/log-service';
+import { exportData } from '@/services/backup-service';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
 import { cn } from '@/lib/utils';
@@ -111,6 +112,23 @@ export default function LoginPage() {
       }
 
       await login(cloudUser, false);
+
+      // Trigger automatic backup download on login
+      try {
+        const backupData = await exportData();
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `starsutra-autobackup-${cloudUser.username}-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch (backupError) {
+        console.error("Auto-backup download failed:", backupError);
+      }
+
       logAudit(`Successful Login: ${cloudUser.username}`, 'Security');
       toast({ title: 'Welcome', description: `Signed in as ${cloudUser.username}` });
       setFailedAttempts(0);

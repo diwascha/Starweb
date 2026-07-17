@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { 
   User, 
   Permissions, 
@@ -41,6 +41,8 @@ import {
   ShieldCheck,
   History,
   Terminal,
+  Download,
+  RefreshCcw,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -74,6 +76,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
 import { onSettingUpdate } from '@/services/settings-service';
+import { exportData, importData } from '@/services/backup-service';
 
 const getModuleDisplayName = (m: Module): string => {
     switch (m) {
@@ -112,6 +115,11 @@ export default function SystemSettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
+
+  const [isExporting, setIsExporting] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsubs = [
@@ -204,6 +212,58 @@ export default function SystemSettingsPage() {
     } catch(e: any) { setChangePasswordError(e.message); }
   };
 
+  const handleManualBackup = async () => {
+    setIsExporting(true);
+    try {
+        const data = await exportData();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `starsutra-manual-backup-${new Date().toISOString()}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        toast({ title: 'Success', description: 'Backup file generated.' });
+    } catch {
+        toast({ title: 'Backup Failed', variant: 'destructive' });
+    } finally {
+        setIsExporting(false);
+    }
+  };
+
+  const handleRestoreFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setRestoreFile(file);
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restoreFile || !user) return;
+    setIsRestoring(true);
+    try {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const content = e.target?.result as string;
+                const data = JSON.parse(content);
+                await importData(data);
+                toast({ title: 'Restore Complete', description: 'The database has been updated.' });
+                setRestoreFile(null);
+                if (restoreInputRef.current) restoreInputRef.current.value = '';
+            } catch (err) {
+                toast({ title: 'Restore Failed', description: 'Invalid backup file format.', variant: 'destructive' });
+            } finally {
+                setIsRestoring(false);
+            }
+        };
+        reader.readAsText(restoreFile);
+    } catch {
+        setIsRestoring(false);
+        toast({ title: 'Error', description: 'Could not read restore file.', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8">
         <header className="flex items-center justify-between">
@@ -221,6 +281,7 @@ export default function SystemSettingsPage() {
                 <TabsTrigger value="users" className="px-6 text-[10px] uppercase font-bold tracking-widest">Access Control</TabsTrigger>
                 <TabsTrigger value="usage" className="px-6 text-[10px] uppercase font-bold tracking-widest">Usage Stats</TabsTrigger>
                 <TabsTrigger value="logs" className="px-6 text-[10px] uppercase font-bold tracking-widest">Audit Logs</TabsTrigger>
+                <TabsTrigger value="backup" className="px-6 text-[10px] uppercase font-bold tracking-widest">Backup & Recovery</TabsTrigger>
             </TabsList>
 
             <TabsContent value="users" className="space-y-6 animate-in fade-in slide-in-from-left-2">
@@ -279,6 +340,61 @@ export default function SystemSettingsPage() {
                                 <TableCell className="font-medium">{log.message}</TableCell>
                             </TableRow>
                         ))}</TableBody></Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+            <TabsContent value="backup" className="space-y-6 animate-in fade-in slide-in-from-left-2">
+                <Card className="border-dashed border-primary/20 bg-primary/[0.02]">
+                    <CardHeader>
+                        <CardTitle className="text-sm font-black uppercase flex items-center gap-2">
+                            <Download className="h-4 w-4 text-primary" />
+                            Data Preservation
+                        </CardTitle>
+                        <CardDescription>Download a full snapshot of the system database for local archiving.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button onClick={handleManualBackup} disabled={isExporting} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
+                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                            Download System Snapshot
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-destructive/20 bg-destructive/[0.02]">
+                    <CardHeader>
+                        <CardTitle className="text-sm font-black uppercase flex items-center gap-2 text-destructive">
+                            <RefreshCcw className="h-4 w-4" />
+                            Database Restoration
+                        </CardTitle>
+                        <CardDescription>Upload a previously downloaded .json snapshot to restore system data. THIS WILL OVERWRITE ALL CURRENT DATA.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select Snapshot File</Label>
+                            <Input type="file" accept=".json" onChange={handleRestoreFileChange} ref={restoreInputRef} className="max-w-md h-10 border-destructive/20 bg-white" />
+                        </div>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" disabled={!restoreFile || isRestoring} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
+                                    {isRestoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+                                    Execute Full Restore
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>CRITICAL: System Restore Initiated</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action is highly destructive. All current records in the database will be deleted and replaced with the contents of the uploaded snapshot.
+                                        This cannot be undone. Are you absolutely certain?
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Abort</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleRestoreFileChange} className="bg-destructive text-white hover:bg-destructive/90">Yes, Restore System</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </CardContent>
                 </Card>
             </TabsContent>

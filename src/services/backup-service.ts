@@ -8,6 +8,7 @@ const collectionsToBackup = [
     'rawMaterials',
     'employees',
     'attendance',
+    'payroll',
     'vehicles',
     'drivers',
     'policies',
@@ -19,7 +20,27 @@ const collectionsToBackup = [
     'trips',
     'settings',
     'notes',
-    'system_users'
+    'pageVisits',
+    'tdsCalculations',
+    'estimatedInvoices',
+    'cheques',
+    'expenses',
+    'logs',
+    'files',
+    'rentalProperties',
+    'rentalUnits',
+    'rentalAgreements',
+    'rentalBills',
+    'system_users',
+    'usernames',
+    'raw_machine_logs',
+    'bonus_ledger',
+    'bonus_summaries',
+    'behavior_ledger',
+    'behavior_analytics',
+    'analytics_reports',
+    'hr_shifts',
+    'leave_requests'
 ];
 
 export const exportData = async (): Promise<Record<string, any[]>> => {
