@@ -201,17 +201,15 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         };
     }, []);
 
-    // Reactive Trip Number Generation
+    // Reactive Trip Number Generation based on Date and Registry
+    const watchedDate = form.watch('date');
     useEffect(() => {
-        if (!tripToEdit) {
-            generateNextSalesNumber(trips).then(num => {
-                const current = form.getValues('tripNumber');
-                if (current !== num) {
-                    form.setValue('tripNumber', num);
-                }
+        if (!tripToEdit && watchedDate) {
+            generateNextSalesNumber(trips, watchedDate.toISOString()).then(num => {
+                form.setValue('tripNumber', num);
             });
         }
-    }, [trips, tripToEdit, form]);
+    }, [trips, tripToEdit, form, watchedDate]);
 
     useEffect(() => {
         if (tripToEdit) {
@@ -301,7 +299,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         const odoEnd = Number(values.odometerEnd) || 0;
         const totalDistance = odoEnd > odoStart ? odoEnd - odoStart : 0;
         const totalLiters = (values.fuelEntries || []).reduce((sum, entry) => sum + (Number(entry.liters) || 0), 0);
-        const efficiency = totalLiters > 0 && totalDistance > 0 ? (totalDistance / totalLiters).toFixed(2) : 'N/A';
+        const efficiency = totalLiters > 0 && totalDistance > 0 ? (totalDistance / totalLiters).toFixed(2) : 'N/L';
         
         return { 
             totalFreight, 

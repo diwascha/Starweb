@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip, TdsCalculation, EstimatedInvoice, DocumentType } from './types';
+import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip, TdsCalculation, EstimatedInvoice, DocumentType, NumberingRule } from './types';
 import type { Expense } from './expense-types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
@@ -80,48 +80,61 @@ export const generateNextNumber = async (
   items: any[],
   fieldName: string,
   settingKey: DocumentType,
-  defaultPrefix: string
+  defaultPrefix: string,
+  documentDate?: string
 ): Promise<string> => {
   const numberingSetting = await getSetting('documentPrefixes');
   const numberingConfig = numberingSetting?.value as DocumentPrefixes || {};
   const rawRules = numberingConfig[settingKey];
   
-  // Robust check for legacy string data vs new array data
   const rules = Array.isArray(rawRules) ? rawRules : [];
-  const activeRule = rules.find(r => r.status === 'Active');
   
-  // If legacy data exists as a string, use it as prefix. 
-  // Otherwise use the rule's prefix or the system default.
-  const prefix = activeRule?.prefix || (typeof rawRules === 'string' ? rawRules : defaultPrefix);
-  const startNum = activeRule?.startingNumber || 1;
+  let matchedRule: NumberingRule | undefined;
+  
+  if (documentDate) {
+    const docDate = new Date(documentDate);
+    matchedRule = rules.find(r => {
+        const from = new Date(r.effectiveFrom);
+        const to = r.effectiveTo ? new Date(r.effectiveTo) : null;
+        return docDate >= from && (!to || docDate <= to);
+    });
+  }
+
+  // Fallback to active rule if no specific date rule found
+  if (!matchedRule) {
+    matchedRule = rules.find(r => r.status === 'Active');
+  }
+  
+  const prefix = matchedRule?.prefix || (typeof rawRules === 'string' ? rawRules : defaultPrefix);
+  const startNum = matchedRule?.startingNumber || 1;
   
   const numberStrings = items.map(item => item[fieldName]);
   return calculateNextSequence(numberStrings, prefix, startNum);
 };
 
-export const generateNextSerialNumber = (reports: Pick<Report, 'serialNumber'>[]) =>
-  generateNextNumber(reports, 'serialNumber', 'report', '2082/083-');
+export const generateNextSerialNumber = (reports: Pick<Report, 'serialNumber'>[], date?: string) =>
+  generateNextNumber(reports, 'serialNumber', 'report', '2082/083-', date);
 
-export const generateNextPONumber = (items: Pick<PurchaseOrder, 'poNumber'>[]) =>
-  generateNextNumber(items, 'poNumber', 'purchaseOrder', 'SPI-');
+export const generateNextPONumber = (items: Pick<PurchaseOrder, 'poNumber'>[], date?: string) =>
+  generateNextNumber(items, 'poNumber', 'purchaseOrder', 'SPI-', date);
 
-export const generateNextPurchaseNumber = (items: Pick<Transaction, 'purchaseNumber'>[]) =>
-  generateNextNumber(items, 'purchaseNumber', 'purchase', 'PUR-');
+export const generateNextPurchaseNumber = (items: Pick<Transaction, 'purchaseNumber'>[], date?: string) =>
+  generateNextNumber(items, 'purchaseNumber', 'purchase', 'PUR-', date);
 
-export const generateNextEstimateInvoiceNumber = (items: Pick<EstimatedInvoice, 'invoiceNumber'>[]) =>
-  generateNextNumber(items, 'invoiceNumber', 'estimateInvoice', 'EST-');
+export const generateNextEstimateInvoiceNumber = (items: Pick<EstimatedInvoice, 'invoiceNumber'>[], date?: string) =>
+  generateNextNumber(items, 'invoiceNumber', 'estimateInvoice', 'EST-', date);
 
-export const generateNextSalesNumber = (items: Pick<Trip, 'tripNumber'>[]) =>
-  generateNextNumber(items, 'tripNumber', 'sales', 'SALE-');
+export const generateNextSalesNumber = (items: Pick<Trip, 'tripNumber'>[], date?: string) =>
+  generateNextNumber(items, 'tripNumber', 'sales', 'SALE-', date);
 
-export const generateNextExpenseNumber = (items: Pick<Expense, 'voucherNo'>[]) =>
-  generateNextNumber(items, 'voucherNo', 'expense', 'EXP-');
+export const generateNextExpenseNumber = (items: Pick<Expense, 'voucherNo'>[], date?: string) =>
+  generateNextNumber(items, 'voucherNo', 'expense', 'EXP-', date);
 
-export const generateNextVoucherNumber = async (items: (TdsCalculation | Transaction)[], prefix: string): Promise<string> => {
+export const generateNextVoucherNumber = async (items: (TdsCalculation | Transaction | Cheque)[], prefix: string): Promise<string> => {
     const numberStrings = items.map(item => {
         if ('voucherNo' in item) return item.voucherNo;
         if ('referenceId' in item) return item.referenceId;
-        return item.items?.[0]?.particular?.replace(/ .*/, '');
+        return (item as Transaction).items?.[0]?.particular?.replace(/ .*/, '');
     });
     
     return calculateNextSequence(numberStrings, prefix);

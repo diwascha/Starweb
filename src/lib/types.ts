@@ -766,7 +766,7 @@ export interface AppSetting {
     value: any;
 }
 
-export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense', 'rentalBill'] as const;
+export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense', 'rentalBill', 'chequeVoucher'] as const;
 export type DocumentType = typeof documentTypes[number];
 
 export interface NumberingRule {
@@ -801,6 +801,8 @@ export const getDocumentName = (type: DocumentType): string => {
             return 'Expense Voucher';
         case 'rentalBill':
             return 'Rental Bill';
+        case 'chequeVoucher':
+            return 'Cheque Voucher (PDC)';
         default:
             return 'Document';
     }

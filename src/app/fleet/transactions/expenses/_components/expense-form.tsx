@@ -38,10 +38,10 @@ import {
     Briefcase,
     ArrowRightLeft,
 } from 'lucide-react';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn, toNepaliDate, generateNextExpenseNumber } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
 import type { Expense, ExpenseType } from '@/lib/expense-types';
-import { addExpense, updateExpense } from '@/services/expense-service';
+import { addExpense, updateExpense, onExpensesUpdate } from '@/services/expense-service';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -125,6 +125,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const { toast } = useToast();
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
     
     // Additional Master Data
     const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -160,11 +161,19 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         }
     });
 
+    const watchedDate = form.watch('date');
     useEffect(() => {
-        if (!expenseToEdit && initialVoucherNo) {
-            form.setValue('voucherNo', initialVoucherNo);
+        const unsub = onExpensesUpdate(setAllExpenses);
+        return () => unsub();
+    }, []);
+
+    useEffect(() => {
+        if (!expenseToEdit && watchedDate) {
+            generateNextExpenseNumber(allExpenses, watchedDate.toISOString()).then(nextPoNumber => {
+                form.setValue('voucherNo', nextPoNumber);
+            });
         }
-    }, [initialVoucherNo, form, expenseToEdit]);
+    }, [allExpenses, watchedDate, form, expenseToEdit]);
 
     const watchedType = form.watch('expenseType');
     const watchedMode = form.watch('paymentMode');

@@ -81,9 +81,9 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
           const existingParty = parties.find(p => p.name === invoiceToEdit.partyName);
           if (existingParty) setParty(existingParty);
         } else if (allInvoices.length > 0) {
-          generateNextEstimateInvoiceNumber(allInvoices).then(setInvoiceNumber);
+          generateNextEstimateInvoiceNumber(allInvoices, date.toISOString()).then(setInvoiceNumber);
         }
-    }, [invoiceToEdit, allInvoices, parties]);
+    }, [invoiceToEdit, allInvoices, parties, date]);
     
     const allParties = useMemo(() => [...parties].sort((a, b) => a.name.localeCompare(b.name)), [parties]);
     
@@ -385,7 +385,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                         <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Full Name / Trading Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} className="h-11 font-bold" /></div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Type</Label><Select value={partyForm.type} onValueChange={(v: any) => setPartyForm({...partyForm, type: v})}><SelectTrigger className="h-10"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor / Supplier</SelectItem><SelectItem value="Customer">Customer / Client</SelectItem></SelectContent></Select></div>
-                            <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger className="h-10"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan Dhuwani</SelectItem><SelectItem value="Shivam">Shivam Packaging</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
+                            <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger className="h-10"><SelectValue/></SelectTrigger><SelectContent>{parties.map(p => p.ownership).filter((v, i, a) => a.indexOf(v) === i).map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                         </div>
                          <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">PAN/VAT Number</Label><Input value={partyForm.panNumber} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} className="h-10 font-mono" /></div>
                         <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Address</Label><Textarea value={partyForm.address} onChange={e => setPartyForm({...partyForm, address: e.target.value})} className="min-h-[80px]" /></div>

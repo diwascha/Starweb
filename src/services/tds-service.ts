@@ -1,7 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, getDocs, updateDoc, setDoc } from 'firebase/firestore';
-import type { TdsCalculation, DocumentPrefixes } from '@/lib/types';
+import type { TdsCalculation, DocumentPrefixes, NumberingRule } from '@/lib/types';
 import { getSetting } from './settings-service';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -28,15 +28,29 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): TdsCalcul
     };
 }
 
-export const getTdsPrefix = async (): Promise<string> => {
+export const getTdsPrefix = async (date?: string): Promise<string> => {
     const prefixSetting = await getSetting('documentPrefixes');
     const numberingConfig = prefixSetting?.value as DocumentPrefixes || {};
     const rawRules = numberingConfig.tdsVoucher;
     
     const rules = Array.isArray(rawRules) ? rawRules : [];
-    const activeRule = rules.find(r => r.status === 'Active');
     
-    return activeRule?.prefix || (typeof rawRules === 'string' ? rawRules : 'TDS-');
+    let matchedRule: NumberingRule | undefined;
+    
+    if (date) {
+        const docDate = new Date(date);
+        matchedRule = rules.find(r => {
+            const from = new Date(r.effectiveFrom);
+            const to = r.effectiveTo ? new Date(r.effectiveTo) : null;
+            return docDate >= from && (!to || docDate <= to);
+        });
+    }
+
+    if (!matchedRule) {
+        matchedRule = rules.find(r => r.status === 'Active');
+    }
+    
+    return matchedRule?.prefix || (typeof rawRules === 'string' ? rawRules : 'TDS-');
 }
 
 export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' | 'createdAt'>): Promise<string> => {
