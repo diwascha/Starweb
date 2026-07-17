@@ -41,7 +41,10 @@ import {
   Settings2,
   CalendarIcon,
   Hash,
-  RefreshCcw
+  RefreshCcw,
+  History,
+  X,
+  Info
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -95,6 +98,9 @@ export default function GeneralSettingsPage() {
       effectiveFrom: new Date().toISOString().split('T')[0],
       startingNumber: 1
   });
+
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
+  const [historyKey, setHistoryKey] = useState<DocumentType | null>(null);
 
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -226,8 +232,8 @@ export default function GeneralSettingsPage() {
   const openNumberingDialog = (key: DocumentType) => {
     setActiveNumberingKey(key);
     const rawRules = prefixes[key];
-    const rules = Array.isArray(rawRules) ? rawRules : [];
-    const active = rules.find(r => r.status === 'Active');
+    const rules = Array.isArray(rawRules) ? (rawRules as any) : [];
+    const active = rules.find((r: any) => r.status === 'Active');
     
     setNumberingForm({
         prefix: active?.prefix || (typeof rawRules === 'string' ? rawRules : ''),
@@ -287,6 +293,12 @@ export default function GeneralSettingsPage() {
         toast({ title: 'Error', variant: 'destructive' });
     }
   };
+
+  const numberingHistory = useMemo(() => {
+      if (!historyKey) return [];
+      const raw = prefixes[historyKey];
+      return Array.isArray(raw) ? [...raw].reverse() : [];
+  }, [historyKey, prefixes]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -491,7 +503,16 @@ export default function GeneralSettingsPage() {
                                             <TableCell className="font-mono text-blue-600 font-black">{active?.prefix || (typeof rawRules === 'string' ? rawRules : '(System Default)')}</TableCell>
                                             <TableCell className="text-center font-bold">{active?.startingNumber.toString().padStart(3, '0') || '001'}</TableCell>
                                             <TableCell className="text-muted-foreground italic">{active ? toNepaliDate(active.effectiveFrom) : 'N/A'}</TableCell>
-                                            <TableCell className="text-right pr-6">
+                                            <TableCell className="text-right pr-6 space-x-1">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="h-8 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary" 
+                                                    onClick={() => { setHistoryKey(t); setIsHistoryDialogOpen(true); }}
+                                                >
+                                                    <History className="mr-1.5 h-3.5 w-3.5" />
+                                                    View History
+                                                </Button>
                                                 <Button 
                                                     variant="outline" 
                                                     size="sm" 
@@ -499,7 +520,7 @@ export default function GeneralSettingsPage() {
                                                     onClick={() => openNumberingDialog(t)}
                                                 >
                                                     <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
-                                                    Change Numbering
+                                                    Change Rule
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -570,6 +591,66 @@ export default function GeneralSettingsPage() {
                 <DialogFooter className="border-t pt-4">
                     <Button variant="outline" onClick={() => setIsNumberingDialogOpen(false)} className="h-11 font-bold text-xs uppercase tracking-widest">Cancel</Button>
                     <Button onClick={handleSaveNumbering} className="h-11 px-8 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">Apply New Sequence</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col p-0">
+                <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <DialogTitle className="text-xl font-black uppercase tracking-tight">Numbering History</DialogTitle>
+                            <DialogDescription className="text-xs uppercase font-bold text-muted-foreground">{historyKey ? getDocumentName(historyKey) : ''}</DialogDescription>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => setIsHistoryDialogOpen(false)}><X className="h-4 w-4"/></Button>
+                    </div>
+                </DialogHeader>
+                <ScrollArea className="flex-1">
+                    <div className="p-6">
+                        <Table className="text-xs border">
+                            <TableHeader className="bg-muted/50">
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="font-bold uppercase text-[9px]">Status</TableHead>
+                                    <TableHead className="font-bold uppercase text-[9px]">Prefix</TableHead>
+                                    <TableHead className="text-center font-bold uppercase text-[9px]">Start #</TableHead>
+                                    <TableHead className="font-bold uppercase text-[9px]">Effective From (BS)</TableHead>
+                                    <TableHead className="font-bold uppercase text-[9px]">Effective To (BS)</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {numberingHistory.map((rule, idx) => (
+                                    <TableRow key={idx} className={cn("h-12 border-b", rule.status === 'Active' ? "bg-primary/5 font-bold" : "text-muted-foreground opacity-70")}>
+                                        <TableCell>
+                                            <Badge variant={rule.status === 'Active' ? 'default' : 'outline'} className="text-[8px] uppercase px-1.5 h-4">
+                                                {rule.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="font-mono text-blue-600 font-black">{rule.prefix}</TableCell>
+                                        <TableCell className="text-center font-bold">{rule.startingNumber.toString().padStart(3, '0')}</TableCell>
+                                        <TableCell>{toNepaliDate(rule.effectiveFrom)}</TableCell>
+                                        <TableCell>{rule.effectiveTo ? toNepaliDate(rule.effectiveTo) : <span className="italic text-[9px]">Currently Active</span>}</TableCell>
+                                    </TableRow>
+                                ))}
+                                {numberingHistory.length === 0 && (
+                                    <TableRow><TableCell colSpan={5} className="py-12 text-center italic">No rule history found.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                        
+                        <div className="mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex gap-4">
+                            <Info className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-black uppercase text-blue-900">Historical Logic active</p>
+                                <p className="text-[10px] text-blue-800 leading-relaxed font-medium">
+                                    The system automatically selects the correct prefix based on the document date. Back-dated entries will respect the "Archived" rules if they fall within the historical date range.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </ScrollArea>
+                <DialogFooter className="p-4 border-t bg-muted/5 shrink-0">
+                    <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)} className="w-full font-bold uppercase text-[10px] tracking-widest h-10">Close Audit Log</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
