@@ -45,8 +45,7 @@ import {
   Table, 
   TableBody, 
   TableCell, 
-  TableHead, 
-  TableHeader, 
+  TableHead, TableHeader, 
   TableRow,
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -299,7 +298,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
   
   const [isSaving, setIsSaving] = useState(false);
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-  const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, address: '', panNumber: '', ownership: 'Both' as AccountOwnership });
+  const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, address: '', panNumber: '', ownership: 'Shivam' as AccountOwnership });
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
   const [partySearch, setPartySearch] = useState('');
   
@@ -577,7 +576,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
         setSelectedPartyId(newPartyId);
         toast({ title: 'Success', description: 'New party added.' });
         setIsPartyDialogOpen(false);
-        setPartyForm({ name: '', type: 'Customer', address: '', panNumber: '', ownership: 'Both' });
+        setPartyForm({ name: '', type: 'Customer', address: '', panNumber: '', ownership: 'Shivam' });
     } catch {
         toast({ title: 'Error', description: 'Failed to add party.', variant: 'destructive' });
     }
@@ -698,6 +697,12 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
     });
   }, []);
 
+  const filteredParties = useMemo(() => {
+    return parties
+        .filter(p => p.ownership === 'Shivam' || p.ownership === 'Both')
+        .sort((a, b) => a.name.localeCompare(b.name));
+  }, [parties]);
+
   return (
     <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -722,12 +727,12 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                                     <CommandInput placeholder="Search customer..." value={partySearch} onValueChange={setPartySearch} />
                                     <CommandList>
                                         <CommandEmpty>
-                                            <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setPartyForm({ name: partySearch, type: 'Customer', address: '', panNumber: '', ownership: 'Both' }); setIsPartyDialogOpen(true); setIsPartyPopoverOpen(false); }}>
+                                            <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setPartyForm({ name: partySearch, type: 'Customer', address: '', panNumber: '', ownership: 'Shivam' }); setIsPartyDialogOpen(true); setIsPartyPopoverOpen(false); }}>
                                                 <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
                                             </Button>
                                         </CommandEmpty>
                                         <CommandGroup>
-                                            {parties.sort((a: Party, b: Party)=>a.name.localeCompare(b.name)).map(p => (
+                                            {filteredParties.map(p => (
                                                 <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setIsPartyPopoverOpen(false); }}>
                                                     <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
                                                     {p.name}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Product, Party, AccountOwnership } from '@/lib/types';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { Label } from '@/components/ui/label';
@@ -34,7 +34,7 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
     const [dim, setDim] = useState({ l: '', b: '', h: '' });
     const [parties, setParties] = useState<Party[]>([]);
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{name: string, ownership: AccountOwnership, address?: string}>({name: '', ownership: 'Both', address: ''});
+    const [partyForm, setPartyForm] = useState<{name: string, ownership: AccountOwnership, address?: string}>({name: '', ownership: 'Shivam', address: ''});
     const { toast } = useToast();
     const { user } = useAuth();
 
@@ -53,6 +53,12 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
             });
         }
     }, [productToEdit]);
+
+    const filteredParties = useMemo(() => {
+        return parties
+            .filter(p => p.ownership === 'Shivam' || p.ownership === 'Both')
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [parties]);
 
     const handleSave = () => {
         if (!form.name || !form.partyId) { 
@@ -105,7 +111,7 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
                         <div className="flex gap-2">
                             <Select value={form.partyId ?? ''} onValueChange={v => setForm({...form, partyId: v})}>
                                 <SelectTrigger><SelectValue placeholder="Select party..." /></SelectTrigger>
-                                <SelectContent>{parties.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                                <SelectContent>{filteredParties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                             </Select>
                             <Button variant="outline" size="icon" onClick={() => setIsPartyDialogOpen(true)}><PlusCircle className="h-4 w-4"/></Button>
                         </div>
