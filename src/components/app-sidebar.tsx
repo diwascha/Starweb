@@ -181,6 +181,29 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild isActive={getIsActive('/dashboard', true)}><Link href="/dashboard" className="flex items-center gap-2"><LayoutDashboard /><span>Dashboard</span></Link></SidebarMenuButton>
             </SidebarMenuItem>
             )}
+
+            {/* Quick Access Actions (Promoted to Top Level) */}
+            {hasPermission('purchaseOrders', 'create') && (
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders/new')} tooltip="New PO">
+                        <Link href="/purchase-orders/new" className="flex items-center gap-2">
+                            <PlusCircle className="h-4 w-4 text-amber-600" />
+                            <span>New PO</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            )}
+
+            {hasPermission('crm', 'view') && (
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report/calculator')} tooltip="CRM Calc">
+                        <Link href="/crm/cost-report/calculator" className="flex items-center gap-2">
+                            <Calculator className="h-4 w-4 text-primary" />
+                            <span>CRM Calc</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            )}
         </SidebarMenu>
         
         {hasPermission('finance', 'view') && (
@@ -308,9 +331,6 @@ export function AppSidebar() {
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>CRM Reports</span></Link></SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                                <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/cost-report/calculator')}><Link href="/crm/cost-report/calculator" className="flex items-center gap-2"><Calculator className="h-4 w-4" /><span>CRM Calc</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm/pack-spec')}><Link href="/crm/pack-spec" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>PackSpec</span></Link></SidebarMenuSubButton>
