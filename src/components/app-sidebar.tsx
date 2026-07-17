@@ -47,7 +47,9 @@ import {
   Home,
   HardDrive,
   Settings2,
-  CalendarCheck
+  Terminal,
+  ShieldAlert,
+  Server
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -461,25 +463,27 @@ export function AppSidebar() {
             )}
         </SidebarMenu>
 
-        <SidebarMenu>
-            <SidebarSeparator />
-            <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Backup Data" onClick={handleExportData} disabled={isExporting}>
-                    {isExporting ? <Loader2 className="animate-spin" /> : <Download />}
-                    <span>{isExporting ? 'Backing up...' : 'Backup Data'}</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            {hasPermission('settings', 'view') && (
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/settings')} tooltip="Settings">
-                    <Link href="/settings" className="flex items-center gap-2">
-                        <Settings />
-                        <span>Settings</span>
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            )}
-        </SidebarMenu>
+        <Collapsible asChild defaultOpen={getIsActive('/settings')} className="group/collapsible">
+            <SidebarMenu>
+                <SidebarSeparator />
+                <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip="Settings" isActive={getIsActive('/settings')}>
+                            <Settings />
+                            <span>Settings</span>
+                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <SidebarMenuSub>
+                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/general')}><Link href="/settings/general" className="flex items-center gap-2"><Settings2 className="h-4 w-4"/><span>General</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/finance')}><Link href="/settings/finance" className="flex items-center gap-2"><Calculator className="h-4 w-4"/><span>Finance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/system')}><Link href="/settings/system" className="flex items-center gap-2"><ShieldAlert className="h-4 w-4"/><span>System</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                    </CollapsibleContent>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        </Collapsible>
       </SidebarContent>
        <SidebarFooter>
         <SidebarMenu>
