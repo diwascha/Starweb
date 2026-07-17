@@ -307,7 +307,7 @@ export function AppSidebar() {
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm', true)}><Link href="/crm" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>Cost Reports (History)</span></Link></SidebarMenuSubButton>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>CRM Reports</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm/cost-report/calculator')}><Link href="/crm/cost-report/calculator" className="flex items-center gap-2"><Calculator className="h-4 w-4" /><span>New Costing Tool</span></Link></SidebarMenuSubButton>
