@@ -1,6 +1,20 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip, TdsCalculation, EstimatedInvoice, DocumentType, NumberingRule } from './types';
+import type { 
+  Report, 
+  PurchaseOrder, 
+  PurchaseOrderStatus, 
+  AttendanceStatus, 
+  User, 
+  Transaction, 
+  DocumentPrefixes, 
+  Trip, 
+  TdsCalculation, 
+  EstimatedInvoice, 
+  DocumentType, 
+  NumberingRule,
+  Cheque
+} from './types';
 import type { Expense } from './expense-types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
@@ -84,7 +98,7 @@ export const generateNextNumber = async (
   documentDate?: string
 ): Promise<string> => {
   const numberingSetting = await getSetting('documentPrefixes');
-  const numberingConfig = numberingSetting?.value as DocumentPrefixes || {};
+  const numberingConfig = (numberingSetting?.value as DocumentPrefixes) || {};
   const rawRules = numberingConfig[settingKey];
   
   const rules = Array.isArray(rawRules) ? rawRules : [];
