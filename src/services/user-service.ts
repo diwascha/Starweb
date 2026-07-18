@@ -1,3 +1,4 @@
+
 import { getFirebase } from '@/lib/firebase';
 import { 
     collection, 
@@ -35,7 +36,7 @@ const UserSchema = z.object({
     email: z.string().email().optional().or(z.literal('')).catch(''),
     isApproved: z.boolean().optional().default(true).catch(true),
     isAdmin: z.boolean().optional().default(false).catch(false),
-    permissions: z.record(z.string(), z.array(z.string())).optional().default({}).catch({}),
+    permissions: z.record(z.string(), z.any()).optional().default({}).catch({}),
     passwordLastUpdated: z.string().optional(),
 });
 
@@ -60,15 +61,14 @@ export const onUsersUpdate = (callback: (users: User[]) => void) => {
         callback(snapshot.docs.map(fromFirestore));
     }, async (error) => {
         if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.SYSTEM_USERS, operation: 'list' }));
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+                path: COLLECTIONS.SYSTEM_USERS, 
+                operation: 'list' 
+            }));
         }
     });
 };
 
-/**
- * Restores the administrator profile documents in Firestore.
- * Used for self-healing if a master admin account is accidentally deleted.
- */
 export const restoreAdminProfile = async (uid: string, email: string, username: string) => {
     const { db } = getFirebase();
     const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, uid);
@@ -128,22 +128,16 @@ export const saveUser = async (user: User) => {
     }
 };
 
-/**
- * Updates the currently logged-in user's password and metadata.
- */
 export const setAdminPassword = async (password: string, updatedAt: string) => {
     const { auth, db } = getFirebase();
     if (!auth.currentUser) throw new Error("No authenticated session found.");
     
     try {
         await updatePassword(auth.currentUser, password);
-        
-        // Synchronize metadata to ensure sessions on other devices are invalidated
         const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, auth.currentUser.uid);
         await updateDoc(userRef, { 
             passwordLastUpdated: updatedAt 
         });
-        
         logAudit('Administrative Key Updated', 'Security');
     } catch (error: any) {
         if (error.code === 'auth/requires-recent-login') {
@@ -181,16 +175,12 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     }
 };
 
-/**
- * Robust login supporting direct email or registered username.
- */
 export const loginWithUsername = async (auth: Auth, loginString: string, password: string) => {
     const { db } = getFirebase();
     const login = (loginString || '').toLowerCase().trim();
     
     let email = login;
 
-    // If the input doesn't look like an email, assume it's a username and try to resolve it.
     if (!login.includes('@')) {
         const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
         const snap = await getDoc(usernameRef);
@@ -198,7 +188,6 @@ export const loginWithUsername = async (auth: Auth, loginString: string, passwor
         if (snap.exists()) {
             email = snap.data()?.email || login;
         } else {
-            // Fallback: search system_users for this username directly if registry is missing
             const q = query(collection(db, COLLECTIONS.SYSTEM_USERS), where("username", "==", login), limit(1));
             const userSnap = await getDocs(q);
             if (!userSnap.empty) {
@@ -213,19 +202,24 @@ export const loginWithUsername = async (auth: Auth, loginString: string, passwor
 export const getUserById = async (uid: string): Promise<User | null> => {
     const { db } = getFirebase();
     const userDocRef = doc(db, COLLECTIONS.SYSTEM_USERS, uid);
-    const snap = await getDoc(userDocRef);
-    return snap.exists() ? fromFirestore(snap) : null;
+    try {
+        const snap = await getDoc(userDocRef);
+        return snap.exists() ? fromFirestore(snap) : null;
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userDocRef.path, operation: 'get' }));
+        }
+        return null;
+    }
 };
 
 export const deleteUser = async (userId: string, username?: string) => {
     const { db } = getFirebase();
-    
-    // Safety Check: Avoid deleting the root administrator account via application code
     const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, userId);
     const userSnap = await getDoc(userRef);
     
     if (userSnap.exists() && userSnap.data().isAdmin === true) {
-        throw new Error("Administrative accounts are protected and cannot be deleted through this interface. Please use the Firebase Console if you must remove an administrator.");
+        throw new Error("Administrative accounts are protected and cannot be deleted through this interface.");
     }
     
     deleteDoc(userRef).catch(err => {
@@ -238,31 +232,6 @@ export const deleteUser = async (userId: string, username?: string) => {
         const usernameRef = doc(db, COLLECTIONS.USERNAMES, username.toLowerCase().trim());
         deleteDoc(usernameRef);
     }
-};
-
-export const getUserByLogin = async (loginString: string): Promise<User | null> => {
-    const { db } = getFirebase();
-    const login = (loginString || '').toLowerCase().trim();
-    const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
-    const usernameSnap = await getDoc(usernameRef);
-    
-    let email = login;
-    if (usernameSnap?.exists()) {
-        email = usernameSnap.data()?.email || login;
-    }
-
-    const qEmail = query(collection(db, COLLECTIONS.SYSTEM_USERS), where("email", "==", email), limit(1));
-    const snapEmail = await getDocs(qEmail);
-    if (!snapEmail.empty) return fromFirestore(snapEmail.docs[0]);
-
-    return null;
-};
-
-export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean, error?: string } => {
-    if (!isRequired && !password) return { isValid: true };
-    if (isRequired && !password) return { isValid: false, error: 'Password required.' };
-    if ((password?.length || 0) < 8) return { isValid: false, error: 'Min 8 chars.' };
-    return { isValid: true };
 };
 
 export const getUsers = async (): Promise<User[]> => {

@@ -3,165 +3,110 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "Represents a user of the application.",
+      "description": "Represents a user of the application with RBAC permissions.",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "The unique identifier for the user."
-        },
-        "username": {
-          "type": "string",
-          "description": "The user's chosen username."
-        },
-        "permissions": {
-          "type": "object",
-          "description": "A map of module to action permissions."
-        }
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "isAdmin": { "type": "boolean" },
+        "isApproved": { "type": "boolean" },
+        "permissions": { "type": "object" },
+        "passwordLastUpdated": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "username"]
     },
-    "UserProfile": {
-      "title": "User Profile",
-      "description": "Stores additional information about a user.",
+    "PurchaseOrder": {
+      "title": "Purchase Order",
+      "description": "Procurement document for raw materials.",
       "type": "object",
       "properties": {
-        "userId": {
-          "type": "string",
-          "description": "The ID of the user this profile belongs to."
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The user's display name."
-        },
-        "photoURL": {
-          "type": "string",
-          "format": "uri",
-          "description": "URL of the user's profile picture."
-        }
+        "poNumber": { "type": "string" },
+        "poDate": { "type": "string", "format": "date-time" },
+        "companyName": { "type": "string" },
+        "status": { "type": "string", "enum": ["Draft", "Ordered", "Amended", "Delivered", "Canceled"] },
+        "items": { "type": "array" }
       },
-      "required": ["userId"]
-    },
-    "Expense": {
-      "title": "Expense",
-      "description": "A daily operational expense related to a vehicle.",
-      "type": "object",
-      "properties": {
-        "date": { "type": "string", "format": "date-time" },
-        "vehicleId": { "type": "string" },
-        "expenseType": { "type": "string", "enum": ["Advance", "Maintenance", "Purchase", "Loan Repayment", "Membership Renewal"] },
-        "amount": { "type": "number" },
-        "paymentMode": { "type": "string", "enum": ["Cash", "Bank"] },
-        "partyId": { "type": "string" },
-        "accountId": { "type": "string" },
-        "remarks": { "type": "string" },
-        "createdBy": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["date", "vehicleId", "expenseType", "amount", "paymentMode", "createdBy"]
+      "required": ["poNumber", "poDate", "companyName", "items"]
     },
     "Cheque": {
       "title": "Cheque Voucher",
-      "description": "Post-dated or issued cheque record for payments.",
+      "description": "PDC or issued cheque record for payments.",
       "type": "object",
       "properties": {
         "voucherNo": { "type": "string" },
-        "paymentDate": { "type": "string", "format": "date-time" },
-        "partyName": { "type": "string" },
+        "payeeName": { "type": "string" },
         "amount": { "type": "number" },
-        "status": { "type": "string", "enum": ["Due", "Paid", "Canceled", "Partially Paid"] }
+        "splits": { "type": "array" },
+        "status": { "type": "string" }
       },
-      "required": ["voucherNo", "paymentDate", "partyName", "amount"]
+      "required": ["voucherNo", "payeeName", "amount"]
     },
-    "FileRecord": {
-      "title": "File Record",
-      "description": "Metadata for files stored in Firebase Storage.",
+    "Transaction": {
+      "title": "Financial Transaction",
+      "description": "General ledger entry for income or expense.",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "url": { "type": "string", "format": "uri" },
-        "size": { "type": "number" },
-        "type": { "type": "string" },
-        "path": { "type": "string" },
-        "uploadedBy": { "type": "string" },
-        "uploadedAt": { "type": "string", "format": "date-time" },
-        "category": { "type": "string", "enum": ["General", "HR", "Fleet", "Finance", "CRM"] }
-      },
-      "required": ["name", "url", "path", "uploadedBy", "uploadedAt"]
-    },
-    "SystemLog": {
-      "title": "System Log",
-      "description": "Captures application crashes and events for debugging.",
-      "type": "object",
-      "properties": {
-        "timestamp": { "type": "string", "format": "date-time" },
-        "level": { "type": "string", "enum": ["error", "warn", "info"] },
-        "module": { "type": "string" },
-        "message": { "type": "string" },
-        "stack": { "type": "string" },
-        "username": { "type": "string" },
-        "userId": { "type": "string" },
-        "context": { "type": "object" }
-      },
-      "required": ["timestamp", "level", "message"]
-    },
-    "HrShift": {
-      "title": "HR Shift",
-      "description": "Definition of standard working hours and shift timings.",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "onDuty": { "type": "string" },
-        "offDuty": { "type": "string" },
-        "breakStart": { "type": "string" },
-        "breakEnd": { "type": "string" },
-        "isDefault": { "type": "boolean" }
-      },
-      "required": ["name", "onDuty", "offDuty"]
-    },
-    "PublicHoliday": {
-      "title": "Public Holiday",
-      "description": "A calendar date marked as a non-working day for all employees.",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
-        "isRecurring": { "type": "boolean" }
+        "type": { "type": "string", "enum": ["Purchase", "Sales", "Payment", "Receipt"] },
+        "amount": { "type": "number" },
+        "billingType": { "type": "string" },
+        "category": { "type": "string" }
       },
-      "required": ["name", "date"]
+      "required": ["date", "type", "amount"]
+    },
+    "Employee": {
+      "title": "Employee Profile",
+      "description": "Personnel master record.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string" },
+        "wageBasis": { "type": "string" },
+        "wageAmount": { "type": "number" }
+      },
+      "required": ["name", "status", "wageBasis", "wageAmount"]
     }
   },
   "auth": {
     "providers": ["password"]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": { "$ref": "#/entities/UserProfile" },
-      "description": "Stores public profiles for users."
+    "/system_users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Master user directory with security flags."
     },
-    "/cheques/{chequeId}": {
+    "/purchaseOrders/{id}": {
+      "schema": { "$ref": "#/entities/PurchaseOrder" },
+      "description": "Procurement registry."
+    },
+    "/cheques/{id}": {
       "schema": { "$ref": "#/entities/Cheque" },
-      "description": "Registry of issued and post-dated cheques."
+      "description": "PDC and voucher registry."
     },
-    "/expenses/{expenseId}": {
+    "/transactions/{id}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Unified financial ledger."
+    },
+    "/expenses/{id}": {
       "schema": { "$ref": "#/entities/Expense" },
-      "description": "Stores daily operational expenses for fleet management."
+      "description": "Direct operational expense tracking."
     },
-    "/files/{fileId}": {
-      "schema": { "$ref": "#/entities/FileRecord" },
-      "description": "Index of files for the document management system."
+    "/employees/{id}": {
+      "schema": { "$ref": "#/entities/Employee" },
+      "description": "Workforce master data."
     },
-    "/logs/{logId}": {
-      "schema": { "$ref": "#/entities/SystemLog" },
-      "description": "Historical audit log of system exceptions and events."
+    "/attendance/{id}": {
+      "schema": { "type": "object" },
+      "description": "Processed labor metrics."
     },
-    "/hr_shifts/{shiftId}": {
-        "schema": { "$ref": "#/entities/HrShift" },
-        "description": "Configuration for employee shifts."
+    "/payroll/{id}": {
+      "schema": { "type": "object" },
+      "description": "Monthly financial settlements for staff."
     },
-    "/public_holidays/{holidayId}": {
-        "schema": { "$ref": "#/entities/PublicHoliday" },
-        "description": "Registry of company-wide public holidays."
+    "/settings/{id}": {
+      "schema": { "type": "object" },
+      "description": "System-wide configuration and branding."
     }
   }
 }

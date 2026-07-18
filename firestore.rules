@@ -9,6 +9,8 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Centrally managed approval check. Defaults to true if field is missing for legacy support,
+    // but requires a valid user document in system_users.
     function isApproved() {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
@@ -21,9 +23,9 @@ service cloud.firestore {
              get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.get('isAdmin', false) == true;
     }
 
-    // --- Identity & Settings ---
+    // --- Semi-Public Configurations ---
 
-    // Allow public read for branding and setup so login works for all users
+    // Branding and basic company info must be readable for the app to boot correctly
     match /settings/companyProfile { allow read: if true; }
     match /settings/fleetCompanyProfile { allow read: if true; }
     match /settings/appBranding { allow read: if true; }
@@ -34,25 +36,23 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // --- Identity & Access ---
+
     match /system_users/{userId} {
-      // Allow read for self or admins. Also allow public read for login resolution.
-      allow read: if true; 
+      // Allow read for authenticated users to resolve identities.
+      // Allow create for signup flow.
+      allow read: if isAuthenticated(); 
       allow create: if true; 
       
-      // CRITICAL: Prevent deletion of any administrator via the app
-      allow delete: if isAdmin() && (resource == null || resource.data.get('isAdmin', false) != true);
-      
-      allow update: if (isAdmin() && (
-        // An admin cannot demote themselves or disable their own account to prevent lockout
-        request.auth.uid != userId || (
-            request.resource.data.isAdmin == true && 
-            request.resource.data.get('isApproved', true) == true
-        )
-      )) || (
-        isAuthenticated() && request.auth.uid == userId &&
-        request.resource.data.get('isApproved', true) == resource.data.get('isApproved', true) &&
-        request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false)
-      );
+      // An admin cannot demote themselves or disable their own account to prevent lockout.
+      // Users can update their own non-security fields.
+      allow update: if (isAdmin() && request.auth.uid != userId) || 
+                       (isAuthenticated() && request.auth.uid == userId && 
+                        request.resource.data.get('isApproved', true) == resource.data.get('isApproved', true) &&
+                        request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false));
+                        
+      allow delete: if isAdmin() && userId != request.auth.uid && 
+                       resource.data.get('isAdmin', false) != true;
     }
 
     match /usernames/{username} {
@@ -61,27 +61,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
-    // --- Logging ---
     match /logs/{logId} {
-      allow create: if true; // Always allow logging errors
-      allow read: if isAdmin();
-      allow delete: if isAdmin();
+      allow create: if true; // Always allow logging to capture errors
+      allow read, delete: if isAdmin();
     }
 
-    // --- Application Data ---
+    // --- Unified Application Data Rules ---
 
-    match /cheques/{docId} {
-      allow read, write: if isApproved();
-    }
-
+    // This catch-all ensures all documented modules follow the central isApproved requirement.
     match /{collectionName}/{docId} {
-      // Approved users can access all application data
       allow read, write: if isApproved();
-    }
-
-    match /{document=**} {
-      // Catch-all safety for nested subcollections
-      allow read, write: if isApproved();
+      
+      // Allow access to subcollections (like item history or amendments)
+      match /{allPaths=**} {
+        allow read, write: if isApproved();
+      }
     }
   }
 }

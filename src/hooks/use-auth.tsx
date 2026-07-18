@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User, Permissions, Module, Action, AccountOwnership, ModulePermission, OwnershipCategory } from '@/lib/types';
+import type { User, Permissions, Module, Action, AccountOwnership, OwnershipCategory } from '@/lib/types';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 import { toast } from '@/hooks/use-toast';
@@ -155,7 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubOwnership = onSettingUpdate('ownership_categories', (s) => {
         if (s?.value) {
             const normalized = s.value.map((cat: any) => {
-                if (typeof cat === 'string') return { name: cat, modules: Array.from(modules) };
+                if (typeof cat === 'string') return { name: cat, modules: ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr', 'fleet', 'rental', 'notes', 'settings'] };
                 return cat as OwnershipCategory;
             });
             setOwnershipCategories(normalized);
@@ -172,7 +173,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session && session.sessionCreatedAt && (Date.now() - session.sessionCreatedAt > SESSION_MAX_AGE)) {
              localStorage.removeItem(USER_SESSION_KEY);
              setUser(null);
-             toast({ title: 'Session Expired', description: 'Please login again for security.' });
+             toast({ title: 'Session Expired', description: 'Please login again.' });
         } else if (session) {
             setUser(session);
         }
@@ -195,10 +196,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         unsubscribeFirestore = onSnapshot(userDocRef, (docSnap) => {
             if (!docSnap.exists()) {
-                // Self-Healing Logic for Master Administrator
                 if (firebaseUser.uid === MASTER_ADMIN_UID) {
                     restoreAdminProfile(firebaseUser.uid, firebaseUser.email || 'shivampackaging69@gmail.com', 'administrator');
-                    return; // Let the next snapshot cycle catch the newly created document
+                    return;
                 }
                 logout();
                 return;
@@ -210,19 +210,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 toast({ title: 'Access Revoked', description: 'Account pending approval.', variant: 'destructive' });
                 logout();
                 return;
-            }
-
-            const currentSessionJson = localStorage.getItem(USER_SESSION_KEY);
-            if (currentSessionJson) {
-                try {
-                    const localSession = JSON.parse(currentSessionJson) as UserSession;
-                    if (data.passwordLastUpdated && localSession.passwordLastUpdated && 
-                        data.passwordLastUpdated !== localSession.passwordLastUpdated) {
-                        toast({ title: 'Session Invalid', description: 'Password change detected. Please log in again.' });
-                        logout();
-                        return;
-                    }
-                } catch { }
             }
 
             const session: UserSession = {
@@ -243,19 +230,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
 
       } else {
-        const currentSessionJson = localStorage.getItem(USER_SESSION_KEY);
-        if (currentSessionJson) {
-            try {
-                const currentSession = JSON.parse(currentSessionJson);
-                if (currentSession && !currentSession.isAdmin) {
-                    localStorage.removeItem(USER_SESSION_KEY);
-                    setUser(null);
-                }
-            } catch {
-                localStorage.removeItem(USER_SESSION_KEY);
-                setUser(null);
-            }
-        }
+        localStorage.removeItem(USER_SESSION_KEY);
+        setUser(null);
       }
       setLoading(false);
     });
@@ -292,29 +268,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const act = action === 'create' ? 'add' : action;
     const m = String(module || '') as Module;
 
+    // Standardize module mapping for permissions check
     let primaryKey: Module | null = null;
-
-    if (['finance', 'invoice', 'tds', 'cheque', 'estimatedInvoices', 'tdsCalculations', 'cheques'].includes(m)) {
-        primaryKey = 'finance';
-    } else if (['hr', 'payroll', 'attendance', 'analytics', 'bonus', 'payslip'].includes(m)) {
-        primaryKey = 'hr';
-    } else if (['reports', 'products'].includes(m)) {
-        primaryKey = 'reports';
-    } else if (['purchaseOrders', 'rawMaterials'].includes(m)) {
-        primaryKey = 'purchaseOrders';
-    } else if (m === 'dashboard') {
-        primaryKey = 'dashboard';
-    } else if (m === 'fleet') {
-        primaryKey = 'fleet';
-    } else if (m === 'rental') {
-        primaryKey = 'rental';
-    } else if (m === 'crm') {
-        primaryKey = 'crm';
-    } else if (m === 'notes') {
-        primaryKey = 'notes';
-    } else if (m === 'settings') {
-        primaryKey = 'settings';
-    }
+    const map: Record<string, Module> = {
+        'finance': 'finance', 'invoice': 'finance', 'tds': 'finance', 'cheque': 'finance',
+        'hr': 'hr', 'payroll': 'hr', 'attendance': 'hr', 'analytics': 'hr', 'bonus': 'hr', 'payslip': 'hr',
+        'reports': 'reports', 'products': 'reports',
+        'purchaseOrders': 'purchaseOrders', 'rawMaterials': 'purchaseOrders',
+        'dashboard': 'dashboard', 'fleet': 'fleet', 'rental': 'rental', 'crm': 'crm', 'notes': 'notes', 'settings': 'settings'
+    };
+    primaryKey = map[m] || null;
 
     if (!primaryKey) return false;
 
@@ -332,17 +295,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const getAllowedOwnerships = useCallback((module: Module): AccountOwnership[] => {
       if (!user) return [];
-      
       const customNames = ownershipCategories.map(c => c.name);
-      const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
-      const allPossible = Array.from(new Set([...customNames, ...defaults]));
+      const allPossible = Array.from(new Set([...customNames, 'Sijan', 'Shivam', 'Rental', 'Both']));
 
-      // Administrators have full scope
       if (user.isAdmin) return allPossible;
-      
       const perms = user.permissions[module];
       if (!perms || Array.isArray(perms)) return []; 
-      
       return perms.ownerships || [];
   }, [user, ownershipCategories]);
 
