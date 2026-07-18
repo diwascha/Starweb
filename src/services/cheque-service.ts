@@ -1,7 +1,7 @@
 'use client';
 /**
  * @fileOverview Cheque service for managing post-dated and issued cheques.
- * Restored to fix parsing errors causing build failures.
+ * Standardized for contextual error handling and ownership enforcement.
  */
 
 import { getFirebase } from '@/lib/firebase';
@@ -41,6 +41,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
         amount: Number(data.amount) || 0,
         amountInWords: String(data.amountInWords || ''),
         accountId: data.accountId,
+        ownership: data.ownership || 'Both',
         splits: (data.splits || []).map((split: any) => ({
             ...split,
             remarks: split.remarks || '',
@@ -52,9 +53,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
     };
 };
 
-/**
- * Retrieves all cheque records from Firestore.
- */
 export const getCheques = async (): Promise<Cheque[]> => {
     const q = query(getChequesCollection(), orderBy('createdAt', 'desc'));
     try {
@@ -71,9 +69,6 @@ export const getCheques = async (): Promise<Cheque[]> => {
     }
 };
 
-/**
- * Persists a new cheque voucher record.
- */
 export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promise<string> => {
     const docRef = doc(getChequesCollection());
     const payload = { ...cheque, createdAt: new Date().toISOString() };
@@ -90,9 +85,6 @@ export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promi
     return docRef.id;
 };
 
-/**
- * Updates an existing cheque voucher or its individual splits.
- */
 export const updateCheque = async (id: string, cheque: Partial<Omit<Cheque, 'id'>>): Promise<void> => {
     const chequeDoc = doc(getChequesCollection(), id);
     const payload = { ...cheque, lastModifiedAt: new Date().toISOString() };
@@ -108,9 +100,6 @@ export const updateCheque = async (id: string, cheque: Partial<Omit<Cheque, 'id'
     });
 };
 
-/**
- * Deletes an entire cheque voucher record.
- */
 export const deleteCheque = async (id: string): Promise<void> => {
     const chequeDoc = doc(getChequesCollection(), id);
     deleteDoc(chequeDoc).catch(async (err: any) => {
@@ -123,9 +112,6 @@ export const deleteCheque = async (id: string): Promise<void> => {
     });
 };
 
-/**
- * Subscribes to real-time updates for the cheque registry.
- */
 export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => void => {
     const q = query(getChequesCollection(), orderBy('createdAt', 'desc'));
     return onSnapshot(q, 

@@ -54,6 +54,7 @@ export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | an
         createdAt: String(data.createdAt || ''),
         lastModifiedBy: data.lastModifiedBy ? String(data.lastModifiedBy) : null,
         lastModifiedAt: data.lastModifiedAt ? String(data.lastModifiedAt) : null,
+        ownership: data.ownership || 'Both',
     };
 }
 

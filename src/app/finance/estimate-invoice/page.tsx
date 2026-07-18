@@ -26,7 +26,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
-import type { EstimatedInvoice, Product, RateHistoryEntry, Party } from '@/lib/types';
+import type { EstimatedInvoice, Product, RateHistoryEntry, Party, Module } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
@@ -82,6 +82,8 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
+    const { user, getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
     
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -123,7 +125,8 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     };
 
     const sortedAndFilteredInvoices = useMemo(() => {
-        let filtered = [...invoices];
+        let filtered = invoices.filter(inv => inv.ownership === 'Both' || allowedOwnerships.includes(inv.ownership));
+        
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
             filtered = filtered.filter(inv =>
@@ -153,7 +156,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
             return 0;
         });
         return filtered;
-    }, [invoices, searchQuery, filterParty, dateRange, sortConfig]);
+    }, [invoices, searchQuery, filterParty, dateRange, sortConfig, allowedOwnerships]);
 
     const paginatedInvoices = useMemo(() => {
         if (itemsPerPage === -1) return sortedAndFilteredInvoices;
@@ -429,7 +432,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                    ))
                  ) : (
                    <TableRow>
-                     <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic">No saved invoices yet.</TableCell>
+                     <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic">No saved invoices matching your filters.</TableCell>
                    </TableRow>
                  )}
                </TableBody>
@@ -562,7 +565,8 @@ function SavedRatesList() {
     const [selectedHistory, setSelectedHistory] = useState<RateHistoryEntry[]>([]);
     const [newRate, setNewRate] = useState<string>('');
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
 
     useEffect(() => {
         const unsub = onProductsUpdate(setProducts);
@@ -577,7 +581,7 @@ function SavedRatesList() {
         const pIds = new Set(products.map(p => p.partyId).filter(Boolean));
         return products
             .filter(p => p.partyId && pIds.has(p.partyId))
-            .map(p => ({ id: p.partyId!, name: p.partyName! }))
+            .map(p => ({ id: p.partyId!, name: p.partyName!, ownership: p.partyName ? parties.find(x => x.name === p.partyName)?.ownership : 'Both' }))
             .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [products]);
@@ -618,7 +622,11 @@ function SavedRatesList() {
     };
 
     const filteredAndSortedProducts = useMemo(() => {
-        let filtered = [...products];
+        let filtered = products.filter(p => {
+             // Basic product filtering by allowed ownership of its associated party
+             const partyOwnership = p.partyName ? parties.find(x => x.name === p.partyName)?.ownership : 'Both';
+             return partyOwnership === 'Both' || allowedOwnerships.includes(partyOwnership || 'Both');
+        });
 
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
@@ -642,7 +650,7 @@ function SavedRatesList() {
         });
 
         return filtered;
-    }, [products, searchQuery, filterPartyId, sortConfig]);
+    }, [products, searchQuery, filterPartyId, sortConfig, allowedOwnerships]);
 
     const paginatedProducts = useMemo(() => {
         if (itemsPerPage === -1) return filteredAndSortedProducts;

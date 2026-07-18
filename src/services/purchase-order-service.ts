@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Purchase Order service.
  * Standardized for contextual error handling and non-blocking writes.
@@ -52,6 +51,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         deliveryDate: data.deliveryDate,
         createdBy: data.createdBy,
         lastModifiedBy: data.lastModifiedBy,
+        ownership: data.ownership || 'Both',
     };
 }
 

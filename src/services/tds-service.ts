@@ -25,6 +25,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): TdsCalcul
         netPayable: data.netPayable,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
+        ownership: data.ownership || 'Both',
     };
 }
 

@@ -142,7 +142,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [filterStatus, setFilterStatus] = useState('All');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'chequeDate', direction: 'desc' });
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
     
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -186,14 +187,17 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         const today = startOfToday().getTime();
         const q = searchQuery.toLowerCase();
         
-        let res = cheques.flatMap(c => 
-            c.splits.map(s => {
+        let res = cheques.flatMap(c => {
+            // Apply document-level ownership filter first
+            if (c.ownership !== 'Both' && !allowedOwnerships.includes(c.ownership)) return [];
+            
+            return c.splits.map(s => {
                 const paid = (s.partialPayments || []).reduce((sum, p) => sum + p.amount, 0);
                 const total = Number(s.amount) || 0;
                 const days = Math.ceil((new Date(s.chequeDate).getTime() - today) / (1000 * 60 * 60 * 24));
                 return { ...s, chequeDate: new Date(s.chequeDate), daysRemaining: days, isOverdue: days < 0, parentCheque: c, paidAmount: paid, remainingAmount: total - paid } as AugmentedChequeSplit;
-            })
-        ).filter(s => {
+            });
+        }).filter(s => {
             const matchesSearch = q === '' || s.parentCheque.payeeName.toLowerCase().includes(q) || (s.chequeNumber || '').toLowerCase().includes(q);
             const matchesParty = filterParty === 'All' || s.parentCheque.payeeName === filterParty;
             const matchesStatus = filterStatus === 'All' || s.status === filterStatus;
@@ -208,7 +212,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         });
 
         return res;
-    }, [cheques, searchQuery, sortConfig, filterParty, filterStatus]);
+    }, [cheques, searchQuery, sortConfig, filterParty, filterStatus, allowedOwnerships]);
 
     const paginatedSplits = useMemo(() => {
         if (itemsPerPage === -1) return sortedAndFilteredSplits;

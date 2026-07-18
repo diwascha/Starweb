@@ -46,7 +46,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
 
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, ownership: 'Shivam' as AccountOwnership, address: '', panNumber: '' });
+    const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, ownership: '' as AccountOwnership, address: '', panNumber: '' });
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
     
@@ -186,8 +186,17 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         const vatTotal = grossTotal * 0.13;
         const netTotal = grossTotal + vatTotal;
         return {
-            invoiceNumber, date: date.toISOString(), party, items, totalQuantity, grossTotal, vatTotal, netTotal,
-            amountInWords: toWords(netTotal), createdBy: user?.username,
+            invoiceNumber, 
+            date: date.toISOString(), 
+            party, 
+            items, 
+            totalQuantity, 
+            grossTotal, 
+            vatTotal, 
+            netTotal,
+            amountInWords: toWords(netTotal), 
+            createdBy: user?.username,
+            ownership: party?.ownership || 'Both'
         }
     }, [items, party, date, invoiceNumber, user]);
     
@@ -207,6 +216,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 amountInWords: invoiceData.amountInWords,
                 createdBy: user.username,
                 createdAt: invoiceToEdit?.createdAt || new Date().toISOString(),
+                ownership: party.ownership
             };
 
             if (invoiceToEdit) {

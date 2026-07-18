@@ -84,7 +84,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, getAllowedOwnerships } = useAuth();
+  const allowedOwnerships = useMemo(() => getAllowedOwnerships('purchaseOrders'), [getAllowedOwnerships]);
   const [isClient, setIsClient] = useState(false);
   
   const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
@@ -92,7 +93,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
-  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: ''});
+  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Vendor', ownership: '', address: '', panNumber: ''});
   
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['All']);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -138,6 +139,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const watchedItems = form.watch("items");
   const watchedPoDate = form.watch("poDate");
+  const watchedPartyId = form.watch("partyId");
   
   const quantityTotalsByUnit = useMemo(() => {
     return (watchedItems || []).reduce((acc, item) => {
@@ -176,8 +178,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   }, [poToEdit?.id, form, defaultValues]);
 
   const companies = useMemo(() => {
-    return [...parties].sort((a,b) => a.name.localeCompare(b.name));
-  }, [parties]);
+    return parties
+        .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
+        .sort((a,b) => a.name.localeCompare(b.name));
+  }, [parties, allowedOwnerships]);
 
   const allCategories = useMemo(() => {
     const types = new Set([...baseMaterialTypes, ...rawMaterials.map(m => m.type)]);
@@ -210,10 +214,16 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const handleOpenPartyDialog = (party: Party | null = null, searchName: string = '') => {
       if (party) {
           setEditingParty(party);
-          setPartyForm({ name: party.name, type: party.type, ownership: party.ownership || 'Both', address: party.address || '', panNumber: party.panNumber || '' });
+          setPartyForm({ name: party.name, type: party.type, ownership: party.ownership || '', address: party.address || '', panNumber: party.panNumber || '' });
       } else {
           setEditingParty(null);
-          setPartyForm({ name: searchName, type: 'Vendor', ownership: 'Both', address: '', panNumber: '' });
+          setPartyForm({ 
+            name: searchName, 
+            type: 'Vendor', 
+            ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), 
+            address: '', 
+            panNumber: '' 
+          });
       }
       setIsCompanyPopoverOpen(false);
       setIsPartyDialogOpen(true);
@@ -278,6 +288,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     try {
       const isCurrentlyDraft = poToEdit ? poToEdit.isDraft : true;
       const now = new Date().toISOString();
+      const party = companies.find(c => c.id === values.partyId);
 
       let poData: Omit<PurchaseOrder, 'id'> = {
         ...values,
@@ -289,6 +300,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         createdBy: poToEdit?.createdBy || user.username,
         updatedAt: now,
         lastModifiedBy: user.username,
+        ownership: party?.ownership || 'Both',
       };
 
       if (poToEdit?.id) {
@@ -875,9 +887,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
                         <SelectTrigger><SelectValue/></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
-                            <SelectItem value="Shivam">Shivam Packaging</SelectItem>
-                            <SelectItem value="Both">Both</SelectItem>
+                            {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>

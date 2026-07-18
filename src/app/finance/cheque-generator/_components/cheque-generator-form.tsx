@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -44,6 +43,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     const [invoiceDate, setInvoiceDate] = useState<Date | undefined>();
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [partyName, setPartyName] = useState('');
+    const [partyOwnership, setPartyOwnership] = useState<string>('Both');
     
     const [invoiceAmount, setInvoiceAmount] = useState<number | ''>('');
     const [numberOfSplits, setNumberOfSplits] = useState<number>(1);
@@ -106,6 +106,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             setInvoiceDate(chequeToEdit.invoiceDate ? new Date(chequeToEdit.invoiceDate) : undefined);
             setInvoiceNumber(chequeToEdit.invoiceNumber || '');
             setPartyName(chequeToEdit.partyName);
+            setPartyOwnership(chequeToEdit.ownership || 'Both');
             setInvoiceAmount(chequeToEdit.amount);
             setNumberOfSplits(chequeToEdit.splits.length);
             setSelectedAccountId(chequeToEdit.accountId);
@@ -190,6 +191,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     const handlePartySelect = (selectedPartyName: string) => {
         const party = filteredParties.find(c => c.name === selectedPartyName);
         setPartyName(party?.name || selectedPartyName);
+        setPartyOwnership(party?.ownership || 'Both');
         setIsPartyPopoverOpen(false);
     };
     
@@ -200,7 +202,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             return;
         }
         try {
-            await addParty({...partyForm, createdBy: user.username });
+            const newId = await addParty({...partyForm, createdBy: user.username });
             handlePartySelect(partyForm.name);
             toast({title: 'Success', description: 'New party added.'});
             setIsPartyDialogOpen(false);
@@ -237,6 +239,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         setInvoiceDate(undefined);
         setInvoiceNumber('');
         setPartyName('');
+        setPartyOwnership('Both');
         setInvoiceAmount('');
         setNumberOfSplits(1);
         setSelectedAccountId(undefined);
@@ -265,6 +268,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 amount: Number(invoiceAmount),
                 amountInWords,
                 accountId: selectedAccountId,
+                ownership: partyOwnership,
                 splits: chequeSplits.map(s => ({
                     id: s.id,
                     chequeDate: s.chequeDate.toISOString(),
@@ -299,36 +303,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             return;
         }
         setIsPreviewOpen(true);
-    };
-
-    const doActualPrint = () => {
-        const printableArea = printRef.current;
-        if (!printableArea) return;
-
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'absolute';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
-        document.body.appendChild(iframe);
-
-        const doc = iframe.contentWindow?.document;
-        if (!doc) return;
-
-        doc.open();
-        doc.write('<html><head><title>Print Cheques</title>');
-        const styles = Array.from(document.styleSheets).map(s => s.href ? `<link rel="stylesheet" href="${s.href}">` : '').join('');
-        doc.write(styles);
-        doc.write('</head><body style="margin: 0;">');
-        doc.write(printableArea.innerHTML);
-        doc.write('</body></html>');
-        doc.close();
-
-        iframe.contentWindow?.focus();
-        setTimeout(() => {
-            iframe.contentWindow?.print();
-            document.body.removeChild(iframe);
-        }, 500);
     };
 
     const handleSplitChange = (index: number, field: keyof ChequeSplit, value: any) => {
@@ -448,7 +422,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                                 ))}
                             </SelectContent>
                         </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }}>
+                        <Button type="button" variant="outline" size="icon" onClick={() => { setAccountForm({name:'', type:'Bank', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }}>
                             <Plus className="h-4 w-4" />
                         </Button>
                     </div>

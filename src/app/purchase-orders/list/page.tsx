@@ -154,7 +154,8 @@ export default function PurchaseOrdersListPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const { hasPermission, user } = useAuth();
+  const { hasPermission, user, getAllowedOwnerships } = useAuth();
+  const allowedOwnerships = useMemo(() => getAllowedOwnerships('purchaseOrders'), [getAllowedOwnerships]);
 
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
   const [purchaseOrderToUpdate, setPurchaseOrderToUpdate] = useState<PurchaseOrder | null>(null);
@@ -253,7 +254,7 @@ export default function PurchaseOrdersListPage() {
   };
   
   const filteredAndSortedPOs = useMemo(() => {
-    let filtered = [...purchaseOrders];
+    let filtered = purchaseOrders.filter(po => po.ownership === 'Both' || allowedOwnerships.includes(po.ownership));
 
     if (filterBsYears.length > 0) {
       filtered = filtered.filter(purchaseOrder => {
@@ -309,7 +310,7 @@ export default function PurchaseOrdersListPage() {
       });
     }
     return filtered;
-  }, [purchaseOrders, sortConfig, searchQuery, filterBsYears, filterBsMonths, filterCompanies, filterStatuses]);
+  }, [purchaseOrders, sortConfig, searchQuery, filterBsYears, filterBsMonths, filterCompanies, filterStatuses, allowedOwnerships]);
 
   const paginatedPOs = useMemo(() => {
     if (itemsPerPage === -1) return filteredAndSortedPOs;
@@ -606,11 +607,11 @@ export default function PurchaseOrdersListPage() {
         </div>
         <div className="flex items-center gap-2">
             <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                     type="search"
                     placeholder="Search POs..."
-                    className="pl-8 sm:w-[250px]"
+                    className="pl-8 sm:w-[300px]"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />

@@ -175,6 +175,7 @@ export interface PurchaseOrder {
   deliveryDate?: string; // ISO string
   createdBy: string;
   lastModifiedBy?: string;
+  ownership: string; // Added for scope enforcement
 }
 
 // --- HR Module Types ---
@@ -641,6 +642,7 @@ export interface Transaction {
     createdAt: string; // ISO string
     lastModifiedBy?: string | null;
     lastModifiedAt?: string | null;
+    ownership: string; // Added for scope enforcement
 }
 
 
@@ -871,6 +873,7 @@ export interface Cheque {
     createdAt: string; // ISO string
     lastModifiedBy?: string;
     lastModifiedAt?: string;
+    ownership: string; // Added for scope enforcement
 }
 
 
@@ -894,6 +897,7 @@ export interface TdsCalculation {
   createdAt: string; // ISO string
   lastModifiedBy?: string;
   lastModifiedAt?: string;
+  ownership: string; // Added for scope enforcement
 }
 
 export interface EstimateInvoiceItem {
@@ -917,6 +921,7 @@ export interface EstimatedInvoice {
     amountInWords: string;
     createdBy: string;
     createdAt: string; // ISO
+    ownership: string; // Added for scope enforcement
 }
 
 // CRM Types

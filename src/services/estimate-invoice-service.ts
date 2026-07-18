@@ -26,6 +26,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         amountInWords: String(data.amountInWords || ''),
         createdBy: String(data.createdBy || 'System'),
         createdAt: data.createdAt,
+        ownership: data.ownership || 'Both',
     };
 }
 

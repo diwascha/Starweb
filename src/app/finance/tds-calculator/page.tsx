@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -112,6 +111,8 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
+    const { user, getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
     
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -142,7 +143,8 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
     };
 
     const sortedAndFilteredCalculations = useMemo(() => {
-        let filtered = [...savedCalculations];
+        let filtered = savedCalculations.filter(calc => calc.ownership === 'Both' || allowedOwnerships.includes(calc.ownership));
+        
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
             filtered = filtered.filter(calc => 
@@ -161,7 +163,7 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
         });
 
         return filtered;
-    }, [savedCalculations, searchQuery, sortConfig]);
+    }, [savedCalculations, searchQuery, sortConfig, allowedOwnerships]);
 
     const paginatedCalculations = useMemo(() => {
         if (itemsPerPage === -1) return sortedAndFilteredCalculations;
@@ -397,6 +399,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const [selectedRateValue, setSelectedRateValue] = useState<string>('1.5');
   const [date, setDate] = useState<Date>(new Date());
   const [partyName, setPartyName] = useState('');
+  const [partyOwnership, setPartyOwnership] = useState<string>('Both');
   const [voucherNo, setVoucherNo] = useState('');
   const [includeVat, setIncludeVat] = useState(true);
   
@@ -445,6 +448,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         setVoucherNo(calculationToEdit.voucherNo);
         setDate(new Date(calculationToEdit.date));
         setPartyName(calculationToEdit.partyName || '');
+        setPartyOwnership(calculationToEdit.ownership || 'Both');
         setAmount(calculationToEdit.taxableAmount);
         setSelectedRateValue(String(calculationToEdit.tdsRate));
         setIncludeVat(calculationToEdit.vatAmount > 0);
@@ -487,10 +491,11 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         netPayable: netAmountCalc,
         createdBy: user?.username || '',
         createdAt: calculationToEdit?.createdAt || new Date().toISOString(),
+        ownership: partyOwnership
     }
 
     return { tds: tdsCalc, netAmount: netAmountCalc, vat: vatCalc, totalWithVat: totalWithVatCalc, calculationData: data };
-  }, [amount, selectedRateValue, includeVat, voucherNo, date, partyName, calculationToEdit, user]);
+  }, [amount, selectedRateValue, includeVat, voucherNo, date, partyName, partyOwnership, calculationToEdit, user]);
 
   
   const handleOpenRateDialog = (rate: TdsRate | null = null) => {
@@ -532,6 +537,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const resetForm = async () => {
     setAmount('');
     setPartyName('');
+    setPartyOwnership('Both');
     setDate(new Date());
     setSelectedRateValue('1.5');
     const prefix = await getTdsPrefix();
@@ -560,6 +566,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         tdsAmount: tds,
         vatAmount: vat,
         netPayable: netAmount,
+        ownership: partyOwnership
     };
     
     try {
@@ -586,6 +593,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
     try {
         await addParty({...partyForm, createdBy: user.username });
         setPartyName(partyForm.name);
+        setPartyOwnership(partyForm.ownership);
         toast({title: 'Success', description: 'New party added.'});
         setIsPartyDialogOpen(false);
         setPartyForm({name: '', type: 'Vendor', ownership: '', address: '', panNumber: ''});
@@ -678,7 +686,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                                         variant="ghost"
                                                         className="w-full justify-start text-xs text-primary font-bold"
                                                         onClick={() => {
-                                                            handleOpenPartyDialog(null, partySearch);
+                                                            handleOpenPartyDialog(null, 'Vendor', partySearch);
                                                         }}
                                                     >
                                                         <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
@@ -688,6 +696,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                                     {filteredParties.map((p) => (
                                                     <CommandItem key={p.id} value={p.name} onSelect={() => {
                                                         setPartyName(p.name);
+                                                        setPartyOwnership(p.ownership);
                                                         setIsPartyPopoverOpen(false);
                                                     }} className="text-xs">
                                                         <Check className={cn("mr-2 h-4 w-4", partyName === p.name ? "opacity-100" : "opacity-0")}/>
@@ -866,10 +875,13 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+            <Dialog open={isPartyDialogOpen} onOpenChange={(isOpen) => {
+                if (!isOpen) setEditingParty(null);
+                setIsPartyDialogOpen(isOpen);
+            }}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black uppercase tracking-tight">New Beneficiary</DialogTitle>
+                        <DialogTitle className="text-xl font-black uppercase tracking-tight">{editingParty ? 'Edit Beneficiary' : 'New Beneficiary'}</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-5 py-4">
                         <div className="space-y-1.5">
@@ -923,5 +935,46 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                 </DialogContent>
             </Dialog>
         </div>
+    );
+}
+
+export default function TdsCalculatorPage() {
+    const [activeTab, setActiveTab] = useState('calculator');
+    const [calculationToEdit, setCalculationToEdit] = useState<TdsCalculation | null>(null);
+    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE_LOCAL);
+
+    useEffect(() => {
+        const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE_LOCAL));
+        return () => unsub();
+    }, []);
+
+    const handleEdit = (calc: TdsCalculation) => {
+        setCalculationToEdit(calc);
+        setActiveTab('calculator');
+    };
+
+    const handleSaveSuccess = () => {
+        setCalculationToEdit(null);
+        setActiveTab('history');
+    };
+
+    return (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="mb-4 bg-muted/50 p-1">
+                <TabsTrigger value="calculator" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">Calculator</TabsTrigger>
+                <TabsTrigger value="history" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">History</TabsTrigger>
+            </TabsList>
+            <TabsContent value="calculator">
+                <CalculatorTab 
+                    calculationToEdit={calculationToEdit} 
+                    onSaveSuccess={handleSaveSuccess}
+                    onCancelEdit={() => { setCalculationToEdit(null); setActiveTab('history'); }}
+                    companyProfile={companyProfile}
+                />
+            </TabsContent>
+            <TabsContent value="history">
+                <SavedTdsRecords onEdit={handleEdit} companyProfile={companyProfile} />
+            </TabsContent>
+        </Tabs>
     );
 }
