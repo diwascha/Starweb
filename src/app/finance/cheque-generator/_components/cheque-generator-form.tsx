@@ -9,7 +9,7 @@ import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2
 import { cn, toWords, generateNextVoucherNumber, toNepaliDate, generateId } from '@/lib/utils';
 import { format, addDays, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { onPartiesUpdate, addParty } from '@/services/party-service';
+import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account, BankAccountType, AccountOwnership, PartialPayment } from '@/lib/types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
@@ -57,6 +57,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     
     // Dialog States
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+    const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
     const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, ownership: AccountOwnership, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', ownership: '', address: '', panNumber: '' });
     const [accountForm, setAccountForm] = useState({ name: '', type: 'Bank' as 'Cash' | 'Bank', ownership: '' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType });
@@ -194,6 +195,30 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         setPartyOwnership(party?.ownership || 'Both');
         setIsPartyPopoverOpen(false);
     };
+
+    const handleOpenPartyDialog = (party: Party | null = null, searchName: string = '') => {
+        if (party) {
+            setEditingParty(party);
+            setPartyForm({ 
+                name: party.name, 
+                type: party.type, 
+                ownership: party.ownership || '', 
+                address: party.address || '', 
+                panNumber: party.panNumber || '' 
+            });
+        } else {
+            setEditingParty(null);
+            setPartyForm({ 
+                name: searchName, 
+                type: 'Vendor', 
+                ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), 
+                address: '', 
+                panNumber: '' 
+            });
+        }
+        setIsPartyPopoverOpen(false);
+        setIsPartyDialogOpen(true);
+    };
     
     const handleSubmitParty = async () => {
         if(!user) return;
@@ -202,13 +227,20 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             return;
         }
         try {
-            const newId = await addParty({...partyForm, createdBy: user.username });
-            handlePartySelect(partyForm.name);
-            toast({title: 'Success', description: 'New party added.'});
+            if (editingParty) {
+                await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
+                toast({title: 'Success', description: 'Party updated.'});
+                handlePartySelect(partyForm.name);
+            } else {
+                const newId = await addParty({...partyForm, createdBy: user.username });
+                handlePartySelect(partyForm.name);
+                toast({title: 'Success', description: 'New party added.'});
+            }
             setIsPartyDialogOpen(false);
             setPartyForm({name: '', type: 'Vendor', ownership: '', address: '', panNumber: ''});
+            setEditingParty(null);
         } catch {
-            toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
+            toast({title: 'Error', description: 'Failed to save party.', variant: 'destructive'});
         }
     };
     
