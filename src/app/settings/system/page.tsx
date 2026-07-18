@@ -24,10 +24,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -355,7 +355,7 @@ export default function SystemSettingsPage() {
                         <CardDescription>Download a full snapshot of the system database for local archiving.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button onClick={handleManualBackup} disabled={isExporting} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
+                        <Button onClick={handleManualBackup} disabled={isExporting} className="h-10 px-8 font-black text-xs uppercase tracking-widest shadow-lg">
                             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                             Download System Snapshot
                         </Button>
@@ -403,61 +403,90 @@ export default function SystemSettingsPage() {
 
         {/* User Permission Dialog */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
-                <DialogHeader className="p-6 border-b"><DialogTitle>{editingUser ? 'Edit Permissions' : 'New User Access'}</DialogTitle></DialogHeader>
+            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+                <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">{editingUser ? 'Edit Permissions' : 'New User Access'}</DialogTitle>
+                    <DialogDescription className="text-xs uppercase font-bold text-muted-foreground">Define scope and operational limits.</DialogDescription>
+                </DialogHeader>
                 <ScrollArea className="flex-1 p-6">
                     <div className="space-y-8">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5"><Label>Username</Label><Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} /></div>
-                            <div className="space-y-1.5"><Label>Password</Label><Input type="password" value={userForm.password} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} placeholder={editingUser ? "Unchanged" : "New Password"} /></div>
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Login Username</Label>
+                                <Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 font-bold" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Credential</Label>
+                                <Input type="password" value={userForm.password} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} placeholder={editingUser ? "Unchanged" : "Secure Password"} className="h-10 font-mono" />
+                            </div>
                         </div>
-                        <div className="flex gap-4 border-t pt-4">
-                            <div className="flex items-center gap-2"><Switch checked={userForm.isAdmin} onCheckedChange={v => setUserForm(p => ({...p, isAdmin: v}))} /><Label>Global Admin</Label></div>
-                            <div className="flex items-center gap-2"><Switch checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} /><Label>Approved</Label></div>
+                        <div className="flex gap-6 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                            <div className="flex items-center gap-3"><Switch checked={userForm.isAdmin} onCheckedChange={v => setUserForm(p => ({...p, isAdmin: v}))} /><Label className="font-bold text-xs uppercase">Administrative Access</Label></div>
+                            <div className="flex items-center gap-3"><Switch checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} /><Label className="font-bold text-xs uppercase">Account Active</Label></div>
                         </div>
                         
                         {!userForm.isAdmin && (
-                            <Table className="text-[11px] border">
-                                <TableHeader className="bg-muted/50"><TableRow><TableHead>Module</TableHead><TableHead className="text-center">Operations</TableHead><TableHead className="text-center">Ownership Scope</TableHead></TableRow></TableHeader>
-                                <TableBody>{modules.map(m => {
-                                    const curr = userForm.permissions[m] || { actions: [], ownerships: [] };
-                                    return (
-                                        <TableRow key={m}>
-                                            <TableCell className="font-bold border-r">{getModuleDisplayName(m)}</TableCell>
-                                            <TableCell className="border-r">
-                                                <div className="flex justify-center gap-3">
-                                                    {['view', 'add', 'edit', 'delete'].map(act => (
-                                                        <div key={act} className="flex flex-col items-center gap-1">
-                                                            <Checkbox checked={curr.actions.includes(act as any)} onCheckedChange={v => handlePermissionChange(m, act as any, !!v)} />
-                                                            <span className="text-[8px] uppercase">{act}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex justify-center gap-3">
-                                                    {ownershipCategories
-                                                        .filter(cat => cat.modules?.includes(m))
-                                                        .map(cat => (
-                                                            <div key={cat.name} className="flex flex-col items-center gap-1">
-                                                                <Checkbox 
-                                                                    checked={curr.ownerships.includes(cat.name)} 
-                                                                    onCheckedChange={v => handleOwnershipChange(m, cat.name, !!v)} 
-                                                                />
-                                                                <span className="text-[8px] uppercase">{cat.name}</span>
-                                                            </div>
-                                                        ))
-                                                    }
-                                                </div>
-                                            </TableCell>
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-black uppercase tracking-widest text-primary">Granular Capability Map</h3>
+                                <Table className="text-[11px] border rounded-lg overflow-hidden">
+                                    <TableHeader className="bg-muted/50">
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableHead className="font-black uppercase">Functional Module</TableHead>
+                                            <TableHead className="text-center font-black uppercase">Operational Rights</TableHead>
+                                            <TableHead className="text-center font-black uppercase">Organizational Scope</TableHead>
                                         </TableRow>
-                                    );
-                                })}</TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody className="bg-white">
+                                        {modules.map(m => {
+                                            const curr = userForm.permissions[m] || { actions: [], ownerships: [] };
+                                            return (
+                                                <TableRow key={m} className="border-b last:border-0 h-14">
+                                                    <TableCell className="font-bold border-r text-gray-900">{getModuleDisplayName(m)}</TableCell>
+                                                    <TableCell className="border-r">
+                                                        <div className="flex justify-center gap-4">
+                                                            {['view', 'add', 'edit', 'delete'].map(act => (
+                                                                <div key={act} className="flex flex-col items-center gap-1.5">
+                                                                    <Checkbox checked={curr.actions.includes(act as any)} onCheckedChange={v => handlePermissionChange(m, act as any, !!v)} />
+                                                                    <span className="text-[8px] font-black uppercase text-muted-foreground">{act}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex justify-center gap-3 flex-wrap">
+                                                            {ownershipCategories
+                                                                .filter(cat => cat.modules?.includes(m))
+                                                                .map(cat => (
+                                                                    <div key={cat.name} className="flex flex-col items-center gap-1.5">
+                                                                        <Checkbox 
+                                                                            checked={curr.ownerships.includes(cat.name)} 
+                                                                            onCheckedChange={v => handleOwnershipChange(m, cat.name, !!v)} 
+                                                                        />
+                                                                        <span className="text-[8px] font-black uppercase text-primary/70">{cat.name}</span>
+                                                                    </div>
+                                                                ))
+                                                            }
+                                                            {ownershipCategories.filter(cat => cat.modules?.includes(m)).length === 0 && (
+                                                                <span className="text-[9px] text-muted-foreground italic uppercase">No sub-scope</span>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         )}
                     </div>
                 </ScrollArea>
-                <DialogFooter className="p-6 border-t"><Button onClick={handleUserSubmit} disabled={isSubmittingUser}>Save User Profile</Button></DialogFooter>
+                <DialogFooter className="p-6 border-t bg-white shrink-0">
+                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="font-bold text-xs uppercase h-11 px-8">Cancel</Button>
+                    <Button onClick={handleUserSubmit} disabled={isSubmittingUser} className="font-black text-xs uppercase h-11 px-12 shadow-xl shadow-primary/20">
+                        {isSubmittingUser ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
+                        Authorize & Commit Profile
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
 

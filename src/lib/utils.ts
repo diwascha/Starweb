@@ -90,6 +90,9 @@ export const calculateNextSequence = (
   return `${prefix}${nextNumber.toString().padStart(3, '0')}`;
 };
 
+/**
+ * Standard rule-based numbering logic for ALL document types.
+ */
 export const generateNextNumber = async (
   items: any[],
   fieldName: string,
@@ -122,7 +125,17 @@ export const generateNextNumber = async (
   const prefix = matchedRule?.prefix || (typeof rawRules === 'string' ? rawRules : defaultPrefix);
   const startNum = matchedRule?.startingNumber || 1;
   
-  const numberStrings = items.map(item => item[fieldName]);
+  const numberStrings = items.map(item => {
+      // Handle complex items like Transactions which store the ID in specific fields or narratives
+      if (settingKey === 'paymentReceipt' || settingKey === 'tdsVoucher' || settingKey === 'chequeVoucher') {
+          if ('voucherNo' in item) return item.voucherNo;
+          if ('referenceId' in item) return item.referenceId;
+          // For generic transactions, extract from particular narrative
+          return (item as Transaction).items?.[0]?.particular?.replace(/ .*/, '');
+      }
+      return item[fieldName];
+  });
+  
   return calculateNextSequence(numberStrings, prefix, startNum);
 };
 
@@ -145,13 +158,14 @@ export const generateNextExpenseNumber = (items: Pick<Expense, 'voucherNo'>[], d
   generateNextNumber(items, 'voucherNo', 'expense', 'EXP-', date);
 
 export const generateNextVoucherNumber = async (items: (TdsCalculation | Transaction | Cheque)[], prefix: string): Promise<string> => {
-    const numberStrings = items.map(item => {
-        if ('voucherNo' in item) return item.voucherNo;
-        if ('referenceId' in item) return item.referenceId;
-        return (item as Transaction).items?.[0]?.particular?.replace(/ .*/, '');
-    });
-    
-    return calculateNextSequence(numberStrings, prefix);
+    // Note: This is now a wrapper for the standardized generateNextNumber but maintains prefix compatibility
+    const typeMap: Record<string, DocumentType> = {
+        'PRV-': 'paymentReceipt',
+        'TDS-': 'tdsVoucher',
+        'PDC-': 'chequeVoucher'
+    };
+    const docType = typeMap[prefix] || 'paymentReceipt';
+    return generateNextNumber(items, 'voucherNo', docType, prefix);
 };
 
 export const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {

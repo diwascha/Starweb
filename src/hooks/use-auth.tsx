@@ -153,7 +153,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubOwnership = onSettingUpdate('ownership_categories', (s) => {
-        setOwnershipCategories(s?.value || []);
+        if (s?.value) {
+            const normalized = s.value.map((cat: any) => {
+                if (typeof cat === 'string') return { name: cat, modules: Array.from(modules) };
+                return cat as OwnershipCategory;
+            });
+            setOwnershipCategories(normalized);
+        }
     });
     return () => unsubOwnership();
   }, []);
@@ -327,12 +333,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const getAllowedOwnerships = useCallback((module: Module): AccountOwnership[] => {
       if (!user) return [];
       
-      // Administrators have full scope, including custom categories from settings
-      if (user.isAdmin) {
-          const customNames = ownershipCategories.map(c => c.name);
-          const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
-          return Array.from(new Set([...customNames, ...defaults]));
-      }
+      const customNames = ownershipCategories.map(c => c.name);
+      const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
+      const allPossible = Array.from(new Set([...customNames, ...defaults]));
+
+      // Administrators have full scope
+      if (user.isAdmin) return allPossible;
       
       const perms = user.permissions[module];
       if (!perms || Array.isArray(perms)) return []; 
