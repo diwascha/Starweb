@@ -8,6 +8,7 @@ import type {
   AccountType, 
   BankAccountType, 
   AccountOwnership,
+  OwnershipCategory
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -51,6 +52,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
+import { modules } from '@/lib/types';
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
@@ -137,7 +139,7 @@ export default function FinanceSettingsPage() {
   const [bsYears, setBsYears] = useState<number[]>([]);
   const [selectedLockYear, setSelectedLockYear] = useState<string>('');
   const [selectedLockMonth, setSelectedLockMonth] = useState<string>('');
-  const [ownershipCategories, setOwnershipCategories] = useState<any[]>([]);
+  const [ownershipCategories, setOwnershipCategories] = useState<OwnershipCategory[]>([]);
 
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
@@ -153,7 +155,17 @@ export default function FinanceSettingsPage() {
         onPartiesUpdate(setParties),
         onAccountsUpdate(setAccounts),
         onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {})),
-        onSettingUpdate('ownership_categories', (s) => { if (s?.value) setOwnershipCategories(s.value); }),
+        onSettingUpdate('ownership_categories', (s) => { 
+            if (s?.value) {
+                const normalized = s.value.map((item: any) => {
+                    if (typeof item === 'string') return { name: item, modules: Array.from(modules) };
+                    return item as OwnershipCategory;
+                });
+                setOwnershipCategories(normalized);
+            } else {
+                setOwnershipCategories([]);
+            }
+        }),
     ];
     
     import('@/services/payroll-service').then(m => {
@@ -172,7 +184,7 @@ export default function FinanceSettingsPage() {
   }, []);
 
   const getOwnershipOptions = (currentValue: string) => {
-    const names = ownershipCategories.map(c => typeof c === 'string' ? c : c.name);
+    const names = ownershipCategories.map(c => c.name);
     const defaults = ['Sijan', 'Shivam', 'Both', 'Rental'];
     const combined = Array.from(new Set([...names, ...defaults]));
     if (currentValue && !combined.includes(currentValue)) {

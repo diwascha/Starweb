@@ -153,7 +153,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubOwnership = onSettingUpdate('ownership_categories', (s) => {
-        if (s?.value) setOwnershipCategories(s.value);
+        setOwnershipCategories(s?.value || []);
     });
     return () => unsubOwnership();
   }, []);

@@ -22,10 +22,11 @@ service cloud.firestore {
 
     // --- Identity & Settings ---
 
-    // Allow public read for branding so login/setup works for all users
+    // Allow public read for branding and setup so login works for all users
     match /settings/companyProfile { allow read: if true; }
     match /settings/fleetCompanyProfile { allow read: if true; }
     match /settings/appBranding { allow read: if true; }
+    match /settings/ownership_categories { allow read: if true; }
 
     match /settings/{settingId} {
       allow read: if isAuthenticated(); 
