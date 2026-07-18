@@ -138,14 +138,14 @@ export default function SystemSettingsPage() {
             });
 
             // Ensure defaults are present for mapping permissions
-            const existing = new Set(normalized.map(c => c.name));
+            const existing = new Set(normalized.map((c: OwnershipCategory) => c.name));
             defaults.forEach(d => {
                 if (!existing.has(d)) {
                     normalized.push({ name: d, modules: Array.from(modules) });
                 }
             });
 
-            setOwnershipCategories(normalized.sort((a,b) => a.name.localeCompare(b.name)));
+            setOwnershipCategories(normalized.sort((a: OwnershipCategory, b: OwnershipCategory) => a.name.localeCompare(b.name)));
         }),
     ];
     return () => unsubs.forEach(u => u());

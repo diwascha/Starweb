@@ -33,6 +33,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RentalAgr
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
+        ownership: data.ownership || 'Rental',
     };
 };
 

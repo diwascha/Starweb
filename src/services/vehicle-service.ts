@@ -1,9 +1,9 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
-import type { Vehicle } from '@/lib/types';
+import { collection, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, setDoc } from 'firebase/firestore';
+import type { Vehicle, VehicleStatus } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const getVehiclesCollection = () => {
     const { db } = getFirebase();
@@ -25,6 +25,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
+        ownership: data.ownership || 'Sijan',
     };
 }
 
@@ -59,13 +60,13 @@ export const addVehicle = async (vehicle: Omit<Vehicle, 'id'>): Promise<string> 
         ...vehicle,
         createdAt: new Date().toISOString(),
     };
-    const docRef = await addDoc(getVehiclesCollection(), payload).catch(async (err) => {
+    const docRef = doc(getVehiclesCollection());
+    setDoc(docRef, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'vehicles',
             operation: 'create',
             requestResourceData: payload,
         }));
-        throw err;
     });
     return docRef.id;
 };

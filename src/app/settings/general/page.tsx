@@ -65,7 +65,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 
-const getModuleDisplayName = (m: string): string => {
+const getModuleDisplayName = (m: Module): string => {
     switch (m) {
         case 'dashboard': return 'Dashboard';
         case 'finance': return 'Finance';
@@ -137,14 +137,14 @@ export default function GeneralSettingsPage() {
             });
 
             // Ensure defaults are present in the list for configuration
-            const existing = new Set(normalized.map(c => c.name));
+            const existing = new Set(normalized.map((c: OwnershipCategory) => c.name));
             defaults.forEach(d => {
                 if (!existing.has(d)) {
                     normalized.push({ name: d, modules: Array.from(modules) });
                 }
             });
 
-            setOwnershipCategories(normalized.sort((a,b) => a.name.localeCompare(b.name)));
+            setOwnershipCategories(normalized.sort((a: OwnershipCategory, b: OwnershipCategory) => a.name.localeCompare(b.name)));
         }),
     ];
     setIsLoading(false);

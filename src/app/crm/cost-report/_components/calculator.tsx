@@ -589,11 +589,12 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
     }
     setIsSaving(true);
     try {
+        const party = parties.find(p => p.id === selectedPartyId);
         const reportData = {
             reportNumber,
             reportDate: reportDate.toISOString(),
             partyId: selectedPartyId,
-            partyName: parties.find(p => p.id === selectedPartyId)?.name || 'N/A',
+            partyName: party?.name || 'N/A',
             kraftPaperCosts,
             virginPaperCost: Number(virginPaperCost) || 0,
             conversionCost: Number(conversionCost) || 0,
@@ -603,7 +604,8 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
             termsAndConditions,
             items: items.map(({ calculated, ...rest }) => rest),
             totalCost: items.reduce((sum, i) => sum + i.calculated.paperCost + i.calculated.transportCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0) + (transportCostType === 'Per Consignment' ? (Number(transportCost) || 0) : 0),
-            createdBy: user.username
+            createdBy: user.username,
+            ownership: party?.ownership || 'Shivam'
         };
         await addCostReport(reportData);
 
@@ -991,7 +993,8 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                     <ProductForm 
                         initialName={quickProductSearch}
                         onSaveSuccess={(data: any) => { 
-                            addProductService({...data, createdBy: user?.username, createdAt: new Date().toISOString()}).then((newId) => {
+                            const party = parties.find(p => p.id === data.partyId);
+                            addProductService({...data, ownership: party?.ownership || 'Shivam', createdBy: user?.username, createdAt: new Date().toISOString()}).then((newId) => {
                                 if (activeRowIndexForProduct !== null) {
                                     handleItemChange(activeRowIndexForProduct, 'productId', newId);
                                 }

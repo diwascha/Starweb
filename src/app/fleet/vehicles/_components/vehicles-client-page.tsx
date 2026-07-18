@@ -23,10 +23,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -72,6 +72,7 @@ export default function VehiclesClientPage({
         vin: '',
         status: 'Active',
         driverId: undefined,
+        ownership: 'Sijan',
     });
     
     const [searchQuery, setSearchQuery] = useState('');
@@ -109,6 +110,7 @@ export default function VehiclesClientPage({
             vin: '',
             status: 'Active',
             driverId: undefined,
+            ownership: 'Sijan',
         });
     };
 
@@ -397,7 +399,7 @@ export default function VehiclesClientPage({
                                 <Input
                                     type="search"
                                     placeholder="Search vehicles..."
-                                    className="pl-8 sm:w-[200px]"
+                                    className="pl-8 sm:w-[250px]"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -467,7 +469,7 @@ export default function VehiclesClientPage({
                      </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                    <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="font-bold text-xs uppercase h-10">Cancel</Button>
                     <Button onClick={handleSubmit}>{editingVehicle ? 'Save Changes' : 'Add Vehicle'}</Button>
                 </DialogFooter>
             </DialogContent>

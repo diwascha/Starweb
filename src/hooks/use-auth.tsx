@@ -164,7 +164,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
 
         // Ensure defaults are present for mapping
-        const existing = new Set(normalized.map(c => c.name));
+        const existing = new Set(normalized.map((c: OwnershipCategory) => c.name));
         defaults.forEach(d => {
             if (!existing.has(d)) {
                 normalized.push({ name: d, modules: Array.from(modules) });

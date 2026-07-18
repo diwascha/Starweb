@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, Check, ChevronsUpDown, User, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Product, ProductSpecification, Report, Party } from '@/lib/types';
+import type { Product, ProductSpecification, Report, Party, AccountOwnership } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
@@ -17,10 +17,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
@@ -80,6 +80,7 @@ export default function ProductsPage() {
   const [newPartyId, setNewPartyId] = useState('');
   const [newRate, setNewRate] = useState<number | ''>('');
   const [newSpec, setNewSpec] = useState<ProductSpecification>(initialSpecValues);
+  const [newOwnership, setNewOwnership] = useState<AccountOwnership>('Shivam');
   
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -93,7 +94,8 @@ export default function ProductsPage() {
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
   const { toast } = useToast();
-  const { hasPermission, user } = useAuth();
+  const { hasPermission, user, getAllowedOwnerships } = useAuth();
+  const allowedOwnerships = useMemo(() => getAllowedOwnerships('reports'), [getAllowedOwnerships]);
   
   const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p])), [parties]);
   const customers = useMemo(() => parties.filter(p => p.type === 'Customer' || p.type === 'Both'), [parties]);
@@ -114,7 +116,9 @@ export default function ProductsPage() {
   }, [searchQuery, itemsPerPage]);
 
   const handlePartySelect = (partyId: string) => {
+    const party = partiesById.get(partyId);
     setNewPartyId(partyId);
+    if (party) setNewOwnership(party.ownership as AccountOwnership);
     setIsPartyPopoverOpen(false);
   };
   
@@ -124,6 +128,7 @@ export default function ProductsPage() {
     setNewPartyId('');
     setNewRate('');
     setNewSpec(initialSpecValues);
+    setNewOwnership('Shivam');
     setEditingProduct(null);
   };
 
@@ -138,6 +143,7 @@ export default function ProductsPage() {
     setNewMaterialCode(product.materialCode || '');
     setNewPartyId(product.partyId || '');
     setNewRate(product.rate || '');
+    setNewOwnership(product.ownership as AccountOwnership || 'Shivam');
 
     const specsWithDefaults = { ...initialSpecValues, ...product.specification };
     setNewSpec(specsWithDefaults);
@@ -166,6 +172,7 @@ export default function ProductsPage() {
             partyAddress: party.address || '',
             rate: newRate === '' ? undefined : Number(newRate),
             specification: newSpec,
+            ownership: newOwnership,
         };
 
         if (editingProduct) {
@@ -231,7 +238,7 @@ export default function ProductsPage() {
   };
   
   const filteredAndSortedProducts = useMemo(() => {
-    let filteredProducts = [...products];
+    let filteredProducts = products.filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership));
 
     if (searchQuery) {
         const lowercasedQuery = searchQuery.toLowerCase();
@@ -266,7 +273,7 @@ export default function ProductsPage() {
       });
     }
     return filteredProducts;
-  }, [products, productSortConfig, searchQuery]);
+  }, [products, productSortConfig, searchQuery, allowedOwnerships]);
 
   const paginatedProducts = useMemo(() => {
     if (itemsPerPage === -1) return filteredAndSortedProducts;
@@ -575,15 +582,26 @@ export default function ProductsPage() {
                                 </PopoverContent>
                             </Popover>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="product-rate">Rate</Label>
-                            <Input
-                                id="product-rate"
-                                type="number"
-                                value={newRate}
-                                onChange={e => setNewRate(e.target.value === '' ? '' : Number(e.target.value))}
-                                placeholder="e.g. 150.50"
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="product-rate">Rate</Label>
+                                <Input
+                                    id="product-rate"
+                                    type="number"
+                                    value={newRate}
+                                    onChange={e => setNewRate(e.target.value === '' ? '' : Number(e.target.value))}
+                                    placeholder="e.g. 150.50"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Ownership</Label>
+                                <Select value={newOwnership} onValueChange={(v: AccountOwnership) => setNewOwnership(v)}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         
                         <div>
@@ -615,7 +633,20 @@ export default function ProductsPage() {
           )}
         </div>
       </header>
-      {renderContent()}
+       {isLoading ? renderContent() : (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+              {tabs.map(tab => (
+                   <TabsTrigger key={tab} value={tab} className="font-bold text-xs uppercase tracking-widest">{tab}</TabsTrigger>
+              ))}
+          </TabsList>
+          {tabs.map(tab => (
+              <TabsContent key={tab} value={tab} className="mt-4">
+                  {renderContent()}
+              </TabsContent>
+          ))}
+        </Tabs>
+       )}
     </div>
   );
 }

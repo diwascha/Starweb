@@ -259,7 +259,8 @@ export default function PoliciesPage() {
                         remarks: `Auto-recorded from Policy Registry. Provider: ${formState.provider}`,
                         referenceType: 'Policy Registry',
                         referenceId: newPolicyId,
-                        createdBy: user.username
+                        createdBy: user.username,
+                        ownership: 'Sijan'
                     });
                 }
 
@@ -758,8 +759,7 @@ export default function PoliciesPage() {
                                         {formState.memberType === 'Vehicle' ? (
                                             vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
                                         ) : (
-                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
-                                        )}
+                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>

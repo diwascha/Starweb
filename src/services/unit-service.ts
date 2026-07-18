@@ -29,6 +29,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RentalUni
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
+        ownership: data.ownership || 'Rental',
     };
 };
 

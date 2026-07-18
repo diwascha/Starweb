@@ -27,13 +27,26 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
+        ownership: data.ownership || 'Shivam',
     };
 }
 
-export const getProducts = async (): Promise<Product[]> => {
+// Memory cache to avoid repeated JSON parsing from sessionStorage
+const productCache = new Map<string, { data: Product[]; timestamp: number }>();
+
+export const getProducts = async (useCache = false): Promise<Product[]> => {
+    if (useCache) {
+        const cached = productCache.get('products');
+        if (cached && Date.now() - cached.timestamp < 60000) {
+            return cached.data;
+        }
+    }
+    
     try {
         const snapshot = await getDocs(getProductsCollection());
-        return snapshot.docs.map(fromFirestore);
+        const products = snapshot.docs.map(fromFirestore);
+        productCache.set('products', { data: products, timestamp: Date.now() });
+        return products;
     } catch (error: any) {
         if (error.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -63,7 +76,9 @@ export const addProduct = async (product: Omit<Product, 'id'>): Promise<string> 
 export const onProductsUpdate = (callback: (products: Product[]) => void): () => void => {
     return onSnapshot(getProductsCollection(), 
         (snapshot) => {
-            callback(snapshot.docs.map(fromFirestore));
+            const products = snapshot.docs.map(fromFirestore);
+            productCache.set('products', { data: products, timestamp: Date.now() });
+            callback(products);
         },
         async (error) => {
             if (error.code === 'permission-denied') {
@@ -126,4 +141,24 @@ export const deleteProduct = async (id: string): Promise<void> => {
             }));
         }
     });
+};
+
+export const getProduct = async (id: string): Promise<Product | null> => {
+    if (!id || typeof id !== 'string') return null;
+    const docRef = doc(getProductsCollection(), id);
+    try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return fromFirestore(docSnap as QueryDocumentSnapshot<DocumentData>);
+        }
+        return null;
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'get',
+            }));
+        }
+        return null;
+    }
 };

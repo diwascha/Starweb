@@ -123,7 +123,8 @@ export const importConsolidatedLedger = async (
             wageAmount: 0,
             mobileNumber: 'Not Provided',
             createdBy: importedBy,
-            createdAt: now
+            createdAt: now,
+            ownership: 'Both'
         };
         batch.set(empRef, newEmp);
         const employee = { id: empRef.id, ...newEmp } as Employee;

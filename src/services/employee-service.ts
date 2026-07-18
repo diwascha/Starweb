@@ -21,7 +21,7 @@ import type { Employee } from '@/lib/types';
 import { deleteFile } from './storage-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 import { logAudit } from './log-service';
 
 const getEmployeesCollection = () => {
@@ -74,6 +74,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
+        ownership: data.ownership || 'Shivam',
     };
 }
 

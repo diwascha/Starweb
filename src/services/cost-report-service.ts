@@ -28,6 +28,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         termsAndConditions: data.termsAndConditions || [],
         createdBy: data.createdBy,
         createdAt: data.createdAt,
+        ownership: data.ownership || 'Shivam',
     };
 };
 

@@ -33,6 +33,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RentalBil
         remarks: data.remarks,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
+        ownership: data.ownership || 'Rental',
     };
 };
 
@@ -71,7 +72,8 @@ export const generateRentBill = async (agreement: RentalAgreement, month: number
         remarks: `Auto-generated rent bill for ${agreement.propertyName}`,
         createdBy: generatedBy,
         referenceType: 'Rental Bill',
-        referenceId: agreement.id
+        referenceId: agreement.id,
+        ownership: agreement.ownership || 'Rental'
     };
 
     const txnId = await addTransaction(txn);
@@ -92,7 +94,8 @@ export const generateRentBill = async (agreement: RentalAgreement, month: number
         dueDate: now, // Default to generation date
         status: 'Unpaid',
         transactionId: txnId,
-        createdBy: generatedBy
+        createdBy: generatedBy,
+        ownership: agreement.ownership || 'Rental'
     };
 
     const payload = {

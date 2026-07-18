@@ -286,7 +286,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 
         } catch (error) {
             console.error('PDF export failed:', error);
-            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to export PDF.', variant: "destructive" });
         } finally {
             setIsExporting(false);
         }
@@ -546,6 +546,7 @@ type RatesSortDirection = 'asc' | 'desc';
 
 function SavedRatesList() {
     const [products, setProducts] = useState<Product[]>([]);
+    const [parties, setParties] = useState<Party[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterPartyId, setFilterPartyId] = useState('All');
     
@@ -569,8 +570,9 @@ function SavedRatesList() {
     const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
 
     useEffect(() => {
-        const unsub = onProductsUpdate(setProducts);
-        return () => unsub();
+        const unsubP = onProductsUpdate(setProducts);
+        const unsubT = onPartiesUpdate(setParties);
+        return () => { unsubP(); unsubT(); };
     }, []);
 
     useEffect(() => {
@@ -584,7 +586,7 @@ function SavedRatesList() {
             .map(p => ({ id: p.partyId!, name: p.partyName!, ownership: p.partyName ? parties.find(x => x.name === p.partyName)?.ownership : 'Both' }))
             .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
             .sort((a, b) => a.name.localeCompare(b.name));
-    }, [products]);
+    }, [products, parties]);
 
     const handleOpenRateDialog = (product: Product) => {
         setEditingProduct(product);
@@ -650,7 +652,7 @@ function SavedRatesList() {
         });
 
         return filtered;
-    }, [products, searchQuery, filterPartyId, sortConfig, allowedOwnerships]);
+    }, [products, parties, searchQuery, filterPartyId, sortConfig, allowedOwnerships]);
 
     const paginatedProducts = useMemo(() => {
         if (itemsPerPage === -1) return filteredAndSortedProducts;
@@ -845,7 +847,7 @@ function SavedRatesList() {
         <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
             <DialogContent className="sm:max-w-lg h-[80vh] flex flex-col p-0 overflow-hidden">
                 <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
-                    <DialogTitle className="text-xl font-black uppercase">Rate History: {editingProduct?.name}</DialogTitle>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Rate History: {editingProduct?.name}</DialogTitle>
                     <DialogDescription className="text-xs uppercase font-bold tracking-widest text-muted-foreground">Historical price log.</DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="flex-1 p-0">

@@ -22,6 +22,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RentalPro
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
+        ownership: data.ownership || 'Rental',
     };
 };
 

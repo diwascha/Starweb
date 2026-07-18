@@ -39,6 +39,7 @@ const reportConverter: FirestoreDataConverter<Report> = {
       createdBy: data.createdBy || '',
       lastModifiedBy: data.lastModifiedBy || null,
       lastModifiedAt: data.lastModifiedAt || null,
+      ownership: data.ownership || 'Both',
     };
   }
 };
