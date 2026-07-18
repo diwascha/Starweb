@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -79,6 +78,11 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
   const watchedBillingType = form.watch("billingType");
   const watchedInvoiceType = form.watch("invoiceType");
 
+  const sortedVehicles = useMemo(() => [...vehicles].sort((a, b) => a.name.localeCompare(b.name)), [vehicles]);
+  const sortedSuppliers = useMemo(() => 
+    parties.filter(p => p.type !== 'Customer').sort((a, b) => a.name.localeCompare(b.name)), 
+  [parties]);
+
   const totals = useMemo(() => {
       const subtotal = (watchedItems || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
       const vat = watchedInvoiceType === 'Taxable' ? subtotal * 0.13 : 0;
@@ -110,7 +114,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                         <FormItem><FormLabel>Posting Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select'}</Button></FormControl></PopoverTrigger><PopoverContent className="p-0"><DualCalendar selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover><FormMessage/></FormItem>
                     )}/>
                     <FormField control={form.control} name="vehicleId" render={({ field }) => (
-                        <FormItem><FormLabel>Vehicle (Truck)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select Vehicle"/></SelectTrigger></FormControl><SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                        <FormItem><FormLabel>Vehicle (Truck)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select Vehicle"/></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
                     )}/>
                 </CardContent>
             </Card>
@@ -119,7 +123,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                 <CardHeader className="py-4"><CardTitle className="text-sm font-bold">Supplier & Invoice</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     <FormField control={form.control} name="partyId" render={({ field }) => (
-                        <FormItem><FormLabel>Supplier</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select Supplier"/></SelectTrigger></FormControl><SelectContent>{parties.filter(p => p.type !== 'Customer').map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                        <FormItem><FormLabel>Supplier</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select Supplier"/></SelectTrigger></FormControl><SelectContent>{sortedSuppliers.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
                     )}/>
                     <div className="grid grid-cols-2 gap-2">
                         <FormField control={form.control} name="invoiceNumber" render={({ field }) => (

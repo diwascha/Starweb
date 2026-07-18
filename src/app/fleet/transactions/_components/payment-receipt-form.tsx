@@ -77,6 +77,15 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const watchedItems = form.watch("items") || [];
   const watchedBillingType = form.watch("billingType");
 
+  const sortedVehicles = React.useMemo(() => [...vehicles].sort((a, b) => a.name.localeCompare(b.name)), [vehicles]);
+  const generalLedgers = React.useMemo(() => 
+    parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both').sort((a, b) => a.name.localeCompare(b.name)), 
+  [parties]);
+
+  const sijanAccounts = React.useMemo(() => 
+    accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Sijan' || a.ownership === 'Both')).sort((a, b) => (a.bankName || '').localeCompare(b.bankName || '')), 
+  [accounts]);
+
   React.useEffect(() => {
     if (!initialValues?.voucherNo) {
         const unsub = onTransactionsUpdate(async (txns) => {
@@ -93,9 +102,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
       const pay = watchedItems.reduce((sum, item) => sum + (Number(item.payAmount) || 0), 0);
       return { rec, pay };
   }, [watchedItems]);
-
-  const sijanAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Sijan' || a.ownership === 'Both')), [accounts]);
-  const generalLedgers = React.useMemo(() => parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both'), [parties]);
 
   const handleFormSubmitInternal = async (values: VoucherFormValues) => {
       setIsSubmitting(true);
@@ -134,7 +140,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                 <TableBody>
                     {fields.map((item, index) => (
                         <TableRow key={item.id}>
-                            <TableCell><FormField control={form.control} name={`items.${index}.vehicleId`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Select"/></SelectTrigger></FormControl><SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select>)}/> </TableCell>
+                            <TableCell><FormField control={form.control} name={`items.${index}.vehicleId`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Select"/></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select>)}/> </TableCell>
                             <TableCell><FormField control={form.control} name={`items.${index}.ledgerId`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Select Ledger"/></SelectTrigger></FormControl><SelectContent>{generalLedgers.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>)}/> </TableCell>
                             <TableCell><FormField control={form.control} name={`items.${index}.recAmount`} render={({ field }) => (<Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-9" />)}/></TableCell>
                             <TableCell><FormField control={form.control} name={`items.${index}.payAmount`} render={({ field }) => (<Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-9" />)}/></TableCell>

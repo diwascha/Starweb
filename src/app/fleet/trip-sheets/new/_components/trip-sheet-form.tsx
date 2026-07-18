@@ -220,8 +220,23 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         }
     }, [tripToEdit, form, defaultValues]);
 
-    const vendors = useMemo(() => parties.filter(p => (p.type === 'Vendor' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both')), [parties]);
-    const customers = useMemo(() => parties.filter(p => (p.type === 'Customer' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both')), [parties]);
+    const vendors = useMemo(() => 
+        parties.filter(p => (p.type === 'Vendor' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both'))
+            .sort((a, b) => a.name.localeCompare(b.name)), 
+    [parties]);
+
+    const customers = useMemo(() => 
+        parties.filter(p => (p.type === 'Customer' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both'))
+            .sort((a, b) => a.name.localeCompare(b.name)), 
+    [parties]);
+
+    const sortedVehicles = useMemo(() => 
+        [...vehicles].sort((a, b) => a.name.localeCompare(b.name)), 
+    [vehicles]);
+
+    const sortedDestinations = useMemo(() => 
+        [...destinations].sort((a, b) => a.name.localeCompare(b.name)), 
+    [destinations]);
     
     const watchedFormValues = form.watch();
     const finalDestinationName = watchedFormValues.destinations?.[0]?.name;
@@ -536,7 +551,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                     )}/>
                                     <FormField control={form.control} name="vehicleId" render={({ field }) => (
                                         <FormItem><FormLabel>Vehicle</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a vehicle" /></SelectTrigger></FormControl><SelectContent>
-                                            {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                            {sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                                         </SelectContent></Select><FormMessage /></FormItem>
                                     )}/>
                                      <FormField control={form.control} name="partyId" render={({ field }) => (
@@ -631,7 +646,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                                     </Button>
                                                                 </CommandEmpty>
                                                                 <CommandGroup>
-                                                                {destinations.map((dest) => (
+                                                                {sortedDestinations.map((dest) => (
                                                                     <CommandItem
                                                                     key={dest.id}
                                                                     value={dest.name}
@@ -848,7 +863,6 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                             {expenseFields.map((item, index) => (
                                                 <div key={item.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr] items-start gap-2">
                                                     <FormField
-                                                        relative
                                                         control={form.control}
                                                         name={`extraExpenses.${index}.partyId`}
                                                         render={({ field }) => (

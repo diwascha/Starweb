@@ -189,14 +189,21 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         return () => unsubDest();
     }, []);
 
-    const sijanParties = parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both');
-    const sijanAccounts = accounts.filter(a => (a.ownership === 'Sijan' || a.ownership === 'Both') && (a.type === 'Bank' || a.type === 'Cash'));
+    const sortedVehicles = useMemo(() => [...vehicles].sort((a, b) => a.name.localeCompare(b.name)), [vehicles]);
+    const sortedParties = useMemo(() => 
+        parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both').sort((a, b) => a.name.localeCompare(b.name)), 
+    [parties]);
+    const sortedAccounts = useMemo(() => 
+        accounts.filter(a => (a.ownership === 'Sijan' || a.ownership === 'Both') && (a.type === 'Bank' || a.type === 'Cash'))
+            .sort((a, b) => (a.bankName || a.name).localeCompare(b.bankName || b.name)), 
+    [accounts]);
+    const sortedDestinations = useMemo(() => [...destinations].sort((a, b) => a.name.localeCompare(b.name)), [destinations]);
 
     const routeStandardAmount = useMemo(() => {
         if (watchedType !== 'Advance' || !watchedDestinationName) return null;
-        const dest = destinations.find(d => d.name === watchedDestinationName);
+        const dest = sortedDestinations.find(d => d.name === watchedDestinationName);
         return dest?.standardAdvanceAmount || null;
-    }, [watchedType, watchedDestinationName, destinations]);
+    }, [watchedType, watchedDestinationName, sortedDestinations]);
 
     const totalSettlement = watchedAmount + watchedExtraAmount;
 
@@ -358,7 +365,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                    {sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                             <FormMessage />
@@ -414,7 +421,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
+                                                    {sortedAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />
@@ -483,7 +490,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                                     </Button>
                                                 </CommandEmpty>
                                                 <CommandGroup>
-                                                    {destinations.map(d => (
+                                                    {sortedDestinations.map(d => (
                                                         <CommandItem 
                                                             key={d.id} 
                                                             value={d.name} 
@@ -575,7 +582,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {sijanParties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                    {sortedParties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                             {partyBalance && (
