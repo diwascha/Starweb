@@ -1,3 +1,4 @@
+
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -13,16 +14,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Product, Report, TestResultData, ProductSpecification } from '@/lib/types';
+import type { Product, Report, TestResultData, ProductSpecification, Party } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { generateNextSerialNumber } from '@/lib/utils';
+import { generateNextSerialNumber, cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onProductsUpdate } from '@/services/product-service';
 import { addReport, updateReport, getReportsForSerial } from '@/services/report-service';
+import { onPartiesUpdate } from '@/services/party-service';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const testResultSchema = z.object({
   value: z.string().min(1, { message: 'Result is required.' }),
@@ -31,6 +35,7 @@ const testResultSchema = z.object({
 
 const reportFormSchema = z.object({
   serialNumber: z.string().min(1, 'Serial Number is required.'),
+  partyId: z.string().min(1, { message: 'Party is required.' }),
   productId: z.string().min(1, { message: 'Product is required.' }),
   taxInvoiceNumber: z.string().optional(),
   challanNumber: z.string().optional(),
@@ -89,6 +94,10 @@ const getRandomInRange = (min: number, max: number, precision: number = 2) => {
 
 export function ReportForm({ reportToEdit }: ReportFormProps) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
+  const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
+  const [partySearch, setPartySearch] = useState('');
+  
   const router = useRouter();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,6 +110,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     if (reportToEdit) {
       return {
         serialNumber: reportToEdit.serialNumber,
+        partyId: reportToEdit.product.partyId || '',
         productId: reportToEdit.product.id,
         taxInvoiceNumber: reportToEdit.taxInvoiceNumber,
         challanNumber: reportToEdit.challanNumber,
@@ -110,6 +120,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     }
     return {
       serialNumber: '',
+      partyId: '',
       productId: '',
       taxInvoiceNumber: '',
       challanNumber: '',
@@ -129,12 +140,13 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
   
   const form = useForm<ReportFormValues>({
     resolver: zodResolver(reportFormSchema),
-    defaultValues,
+    defaultValues: defaultValues as any,
   });
   
   useEffect(() => {
     setIsClient(true);
     const unsubProducts = onProductsUpdate(setProducts);
+    const unsubParties = onPartiesUpdate(setParties);
 
     if (reportToEdit) {
         setSelectedProduct(reportToEdit.product);
@@ -148,8 +160,18 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         setInitialSerial();
     }
 
-    return () => unsubProducts();
+    return () => {
+        unsubProducts();
+        unsubParties();
+    };
 }, [reportToEdit, form, defaultValues]);
+
+  const watchedPartyId = form.watch('partyId');
+
+  const filteredProducts = useMemo(() => {
+    if (!watchedPartyId) return [];
+    return products.filter(p => p.partyId === watchedPartyId).sort((a, b) => a.name.localeCompare(b.name));
+  }, [products, watchedPartyId]);
 
   const calculateAndSetValues = (boxType: BoxType) => {
     if (!selectedProduct) {
@@ -227,6 +249,13 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     form.setValue('load.value', String(Math.max(loadMin, parseFloat(loadResult.toFixed(2)))));
   };
 
+  const handlePartyChange = (partyId: string) => {
+    form.setValue('partyId', partyId);
+    form.setValue('productId', '');
+    setSelectedProduct(null);
+    setIsPartyPopoverOpen(false);
+  };
+
   const handleProductChange = (productId: string) => {
     form.setValue('productId', productId);
     const product = products.find(p => p.id === productId);
@@ -274,7 +303,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     }
     setIsSubmitting(true);
     try {
-      const { productId, taxInvoiceNumber, challanNumber, quantity, ...testDataValues } = values;
+      const { productId, partyId, taxInvoiceNumber, challanNumber, quantity, ...testDataValues } = values;
       const testData: TestResultData = testDataValues as any;
       
       
@@ -313,6 +342,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             testData,
             printLog: [],
             createdBy: user.username,
+            ownership: selectedProduct.ownership || 'Both',
         };
 
         const newReportId = await addReport(newReportData);
@@ -339,6 +369,10 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
   const description = reportToEdit ? 'Update the test results for this report.' : 'Fill in the details below to generate a new report.';
   const buttonText = isSubmitting ? (reportToEdit ? 'Updating...' : 'Generating...') : (reportToEdit ? 'Update Report' : 'Generate Report');
 
+  const filteredParties = useMemo(() => {
+    return parties.filter(p => p.type === 'Customer' || p.type === 'Both').sort((a, b) => a.name.localeCompare(b.name));
+  }, [parties]);
+
   return (
     <>
      <div className="mb-8">
@@ -348,7 +382,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     <Card>
       <CardHeader>
         <CardTitle>Test Result Input</CardTitle>
-        <CardDescription>Select a product and enter the measured test results against its standard specifications.</CardDescription>
+        <CardDescription>Select a party, product and enter the measured test results against its standard specifications.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -367,27 +401,89 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                     </FormItem>
                   )}
                 />
+                
+                <FormField
+                  control={form.control}
+                  name="partyId"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Select Party / Customer</FormLabel>
+                      <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value
+                                ? filteredParties.find(
+                                    (party) => party.id === field.value
+                                  )?.name
+                                : "Select party..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0">
+                          <Command>
+                            <CommandInput placeholder="Search party..." onValueChange={setPartySearch} />
+                            <CommandList>
+                              <CommandEmpty>No party found.</CommandEmpty>
+                              <CommandGroup>
+                                {filteredParties.map((party) => (
+                                  <CommandItem
+                                    key={party.id}
+                                    value={party.name}
+                                    onSelect={() => handlePartyChange(party.id)}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        party.id === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {party.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="productId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Product</FormLabel>
-                      <Select onValueChange={handleProductChange} value={field.value} disabled={!!reportToEdit}>
+                      <Select onValueChange={handleProductChange} value={field.value} disabled={!watchedPartyId || !!reportToEdit}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a product to test" />
+                            <SelectValue placeholder={watchedPartyId ? "Select a product to test" : "Select a party first"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {isClient && products.length > 0 ? (
-                            products.map(product => (
+                          {isClient && filteredProducts.length > 0 ? (
+                            filteredProducts.map(product => (
                               <SelectItem key={product.id} value={product.id}>
                                 {product.name} ({product.materialCode})
                               </SelectItem>
                             ))
                           ) : (
-                            <div className="p-4 text-center text-sm text-muted-foreground">No products found. Add one from the dashboard.</div>
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                                {watchedPartyId ? "No products found for this party." : "Select a party to see products."}
+                            </div>
                           )}
                         </SelectContent>
                       </Select>
