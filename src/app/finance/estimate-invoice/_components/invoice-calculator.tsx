@@ -1,4 +1,3 @@
-
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Party, PartyType, Product, EstimateInvoiceItem, EstimatedInvoice, AccountOwnership } from '@/lib/types';
@@ -330,7 +329,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                                                                 setIsProductDialogOpen(true);
                                                             }}
                                                         >
-                                                            <PlusCircle className="mr-2 h-4 w-4 /> Add "{productSearch}" to catalog
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}" to catalog
                                                         </Button>
                                                     </CommandEmpty>
                                                     <CommandGroup>
