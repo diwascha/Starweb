@@ -60,6 +60,19 @@
       },
       "required": ["date", "vehicleId", "expenseType", "amount", "paymentMode", "createdBy"]
     },
+    "Cheque": {
+      "title": "Cheque Voucher",
+      "description": "Post-dated or issued cheque record for payments.",
+      "type": "object",
+      "properties": {
+        "voucherNo": { "type": "string" },
+        "paymentDate": { "type": "string", "format": "date-time" },
+        "partyName": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Due", "Paid", "Canceled", "Partially Paid"] }
+      },
+      "required": ["voucherNo", "paymentDate", "partyName", "amount"]
+    },
     "FileRecord": {
       "title": "File Record",
       "description": "Metadata for files stored in Firebase Storage.",
@@ -125,6 +138,10 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/UserProfile" },
       "description": "Stores public profiles for users."
+    },
+    "/cheques/{chequeId}": {
+      "schema": { "$ref": "#/entities/Cheque" },
+      "description": "Registry of issued and post-dated cheques."
     },
     "/expenses/{expenseId}": {
       "schema": { "$ref": "#/entities/Expense" },

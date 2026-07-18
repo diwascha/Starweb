@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,13 +12,13 @@ service cloud.firestore {
     function isApproved() {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isApproved == true;
+             get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.get('isApproved', true) == true;
     }
 
     function isAdmin() {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.isAdmin == true;
+             get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.get('isAdmin', false) == true;
     }
 
     // --- Identity & Settings ---
@@ -39,13 +40,13 @@ service cloud.firestore {
       allow create: if true; 
       
       // CRITICAL: Prevent deletion of any administrator via the app
-      allow delete: if isAdmin() && (resource == null || resource.data.isAdmin != true);
+      allow delete: if isAdmin() && (resource == null || resource.data.get('isAdmin', false) != true);
       
       allow update: if (isAdmin() && (
         // An admin cannot demote themselves or disable their own account to prevent lockout
         request.auth.uid != userId || (
             request.resource.data.isAdmin == true && 
-            request.resource.data.isApproved == true
+            request.resource.data.get('isApproved', true) == true
         )
       )) || (
         isAuthenticated() && request.auth.uid == userId &&
@@ -68,6 +69,10 @@ service cloud.firestore {
     }
 
     // --- Application Data ---
+
+    match /cheques/{docId} {
+      allow read, write: if isApproved();
+    }
 
     match /{collectionName}/{docId} {
       // Approved users can access all application data
