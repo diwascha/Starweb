@@ -41,7 +41,7 @@ import { onTdsCalculationsUpdate, addTdsCalculation, getTdsPrefix, deleteTdsCalc
 import type { TdsCalculation, TdsRate, Party, PartyType, CompanyProfile, AccountOwnership } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { onPartiesUpdate, addParty } from '@/services/party-service';
+import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Switch } from '@/components/ui/switch';
@@ -412,6 +412,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const [editingRate, setEditingRate] = useState<TdsRate | null>(null);
 
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+  const [editingParty, setEditingParty] = useState<Party | null>(null);
   const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, ownership: AccountOwnership, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', ownership: '', address: '', panNumber: '' });
   const [partySearch, setPartySearch] = useState('');
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
@@ -584,6 +585,24 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
     }
   };
 
+  const handleOpenPartyDialog = (party: Party | null = null, type: PartyType, searchName: string = '') => {
+    if (party) {
+        setEditingParty(party);
+        setPartyForm({ name: party.name, type: party.type, ownership: party.ownership || 'Both', address: party.address || '', panNumber: party.panNumber || '' });
+    } else {
+        setEditingParty(null);
+        setPartyForm({ 
+            name: searchName, 
+            type, 
+            ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), 
+            address: '', 
+            panNumber: '' 
+        });
+    }
+    setIsPartyPopoverOpen(false);
+    setIsPartyDialogOpen(true);
+  };
+
   const handleSubmitParty = async () => {
     if(!user) return;
     if(!partyForm.name || !partyForm.type || !partyForm.ownership) {
@@ -591,14 +610,20 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         return;
     }
     try {
-        await addParty({...partyForm, createdBy: user.username });
+        if (editingParty) {
+            await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
+            toast({title: 'Success', description: 'Party updated.'});
+        } else {
+            await addParty({...partyForm, createdBy: user.username });
+            toast({title: 'Success', description: 'New party added.'});
+        }
         setPartyName(partyForm.name);
         setPartyOwnership(partyForm.ownership);
-        toast({title: 'Success', description: 'New party added.'});
         setIsPartyDialogOpen(false);
         setPartyForm({name: '', type: 'Vendor', ownership: '', address: '', panNumber: ''});
+        setEditingParty(null);
     } catch {
-         toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
+         toast({title: 'Error', description: 'Failed to save party.', variant: 'destructive'});
     }
   };
 
