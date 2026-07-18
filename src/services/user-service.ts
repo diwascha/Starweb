@@ -54,6 +54,17 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | any): Use
     };
 };
 
+/**
+ * Validates password strength and requirements.
+ * Used during user creation and password updates.
+ */
+export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean; error?: string } => {
+    if (!isRequired && !password) return { isValid: true };
+    if (isRequired && !password) return { isValid: false, error: "Password is required." };
+    if (password && password.length < 6) return { isValid: false, error: "Password must be at least 6 characters." };
+    return { isValid: true };
+};
+
 export const onUsersUpdate = (callback: (users: User[]) => void) => {
     const { db } = getFirebase();
     const q = query(collection(db, COLLECTIONS.SYSTEM_USERS));
