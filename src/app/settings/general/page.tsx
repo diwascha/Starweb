@@ -127,16 +127,24 @@ export default function GeneralSettingsPage() {
         onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE)),
         onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '' })),
         onSettingUpdate('ownership_categories', (s) => { 
-            if (s?.value) {
-                const raw = s.value;
-                if (Array.isArray(raw)) {
-                    const normalized = raw.map((item: any) => {
-                        if (typeof item === 'string') return { name: item, modules: Array.from(modules) };
-                        return item as OwnershipCategory;
-                    });
-                    setOwnershipCategories(normalized);
+            const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
+            let raw = s?.value || [];
+            if (!Array.isArray(raw)) raw = [];
+
+            const normalized = raw.map((item: any) => {
+                if (typeof item === 'string') return { name: item, modules: Array.from(modules) };
+                return item as OwnershipCategory;
+            });
+
+            // Ensure defaults are present in the list for configuration
+            const existing = new Set(normalized.map(c => c.name));
+            defaults.forEach(d => {
+                if (!existing.has(d)) {
+                    normalized.push({ name: d, modules: Array.from(modules) });
                 }
-            }
+            });
+
+            setOwnershipCategories(normalized.sort((a,b) => a.name.localeCompare(b.name)));
         }),
     ];
     setIsLoading(false);

@@ -156,15 +156,24 @@ export default function FinanceSettingsPage() {
         onAccountsUpdate(setAccounts),
         onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {})),
         onSettingUpdate('ownership_categories', (s) => { 
-            if (s?.value) {
-                const normalized = s.value.map((item: any) => {
-                    if (typeof item === 'string') return { name: item, modules: Array.from(modules) };
-                    return item as OwnershipCategory;
-                });
-                setOwnershipCategories(normalized);
-            } else {
-                setOwnershipCategories([]);
-            }
+            const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
+            let raw = s?.value || [];
+            if (!Array.isArray(raw)) raw = [];
+
+            const normalized = raw.map((item: any) => {
+                if (typeof item === 'string') return { name: item, modules: Array.from(modules) };
+                return item as OwnershipCategory;
+            });
+
+            // Standardize categories for dropdown selection
+            const existing = new Set(normalized.map(c => c.name));
+            defaults.forEach(d => {
+                if (!existing.has(d)) {
+                    normalized.push({ name: d, modules: Array.from(modules) });
+                }
+            });
+
+            setOwnershipCategories(normalized.sort((a,b) => a.name.localeCompare(b.name)));
         }),
     ];
     
@@ -185,12 +194,10 @@ export default function FinanceSettingsPage() {
 
   const getOwnershipOptions = (currentValue: string) => {
     const names = ownershipCategories.map(c => c.name);
-    const defaults = ['Sijan', 'Shivam', 'Both', 'Rental'];
-    const combined = Array.from(new Set([...names, ...defaults]));
-    if (currentValue && !combined.includes(currentValue)) {
-        combined.push(currentValue);
+    if (currentValue && !names.includes(currentValue)) {
+        names.push(currentValue);
     }
-    return combined.sort();
+    return names.sort();
   };
 
   const partyOwnershipOptions = useMemo(() => getOwnershipOptions(partyForm.ownership), [ownershipCategories, partyForm.ownership]);
@@ -335,57 +342,48 @@ export default function FinanceSettingsPage() {
                         <Button size="sm" onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership:'', accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table className="text-xs">
-                            <TableHeader className="bg-muted/50">
-                                <TableRow className="hover:bg-transparent">
-                                    <TableHead className="pl-6">Account Name</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Bank</TableHead>
-                                    <TableHead>Ownership</TableHead>
-                                    <TableHead className="text-right pr-6">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {accounts.map(acc => (
-                                <TableRow key={acc.id} className="h-12 border-b">
-                                    <TableCell className="font-bold pl-6">{acc.name}</TableCell>
-                                    <TableCell><Badge variant="outline" className="text-[9px] uppercase">{acc.type}</Badge></TableCell>
-                                    <TableCell className="text-muted-foreground">{acc.bankName || '-'}</TableCell>
-                                    <TableCell><Badge variant="outline" className="text-[9px] uppercase">{acc.ownership}</Badge></TableCell>
-                                    <TableCell className="text-right pr-6 space-x-1">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { 
-                                            setEditingAccount(acc); 
-                                            setAccountForm({
-                                                name: acc.name || '',
-                                                type: acc.type || 'Cash',
-                                                ownership: acc.ownership || '',
-                                                accountNumber: acc.accountNumber || '',
-                                                bankName: acc.bankName || '',
-                                                branch: acc.branch || '',
-                                                bankAccountType: acc.bankAccountType || 'Saving'
-                                            }); 
-                                            setIsAccountDialogOpen(true); 
-                                        }}><Edit className="h-3.5 w-3.5" /></Button>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Remove Financial Account?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        This will delete the account record for "{acc.name}". Ensure all balances are zeroed or reassigned.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => deleteAccount(acc.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </TableCell>
-                                </TableRow>
-                            ))}</TableBody>
+                        <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Account Name</TableHead><TableHead>Type</TableHead><TableHead>Bank</TableHead><TableHead>Ownership</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                        {accounts.map(acc => (
+                            <TableRow key={acc.id} className="h-12 border-b">
+                                <TableCell className="font-bold pl-6">{acc.name}</TableCell>
+                                <TableCell><Badge variant="outline" className="text-[9px] uppercase">{acc.type}</Badge></TableCell>
+                                <TableCell className="text-muted-foreground">{acc.bankName || '-'}</TableCell>
+                                <TableCell><Badge variant="outline" className="text-[9px] uppercase">{acc.ownership}</Badge></TableCell>
+                                <TableCell className="text-right pr-6 space-x-1">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { 
+                                        setEditingAccount(acc); 
+                                        setAccountForm({
+                                            name: acc.name || '',
+                                            type: acc.type || 'Cash',
+                                            ownership: acc.ownership || '',
+                                            accountNumber: acc.accountNumber || '',
+                                            bankName: acc.bankName || '',
+                                            branch: acc.branch || '',
+                                            bankAccountType: acc.bankAccountType || 'Saving'
+                                        }); 
+                                        setIsAccountDialogOpen(true); 
+                                    }}><Edit className="h-3.5 w-3.5" /></Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Remove Financial Account?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will delete the account record for "{acc.name}". Ensure all balances are zeroed or reassigned.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => deleteAccount(acc.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TableCell>
+                            </TableRow>
+                        ))}</TableBody>
                         </Table>
                     </CardContent>
                 </Card>

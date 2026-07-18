@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
@@ -12,6 +11,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { logAudit } from '@/services/log-service';
 import { restoreAdminProfile } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
+import { modules } from '@/lib/types';
 
 interface UserSession {
   id: string;
@@ -154,13 +154,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubOwnership = onSettingUpdate('ownership_categories', (s) => {
-        if (s?.value) {
-            const normalized = s.value.map((cat: any) => {
-                if (typeof cat === 'string') return { name: cat, modules: ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr', 'fleet', 'rental', 'notes', 'settings'] };
-                return cat as OwnershipCategory;
-            });
-            setOwnershipCategories(normalized);
-        }
+        const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
+        let raw = s?.value || [];
+        if (!Array.isArray(raw)) raw = [];
+
+        const normalized = raw.map((item: any) => {
+            if (typeof item === 'string') return { name: item, modules: Array.from(modules) };
+            return item as OwnershipCategory;
+        });
+
+        // Ensure defaults are present for mapping
+        const existing = new Set(normalized.map(c => c.name));
+        defaults.forEach(d => {
+            if (!existing.has(d)) {
+                normalized.push({ name: d, modules: Array.from(modules) });
+            }
+        });
+        
+        setOwnershipCategories(normalized);
     });
     return () => unsubOwnership();
   }, []);
@@ -295,8 +306,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const getAllowedOwnerships = useCallback((module: Module): AccountOwnership[] => {
       if (!user) return [];
-      const customNames = ownershipCategories.map(c => c.name);
-      const allPossible = Array.from(new Set([...customNames, 'Sijan', 'Shivam', 'Rental', 'Both']));
+      const allPossible = Array.from(new Set([...ownershipCategories.map(c => c.name), 'Sijan', 'Shivam', 'Rental', 'Both']));
 
       if (user.isAdmin) return allPossible;
       const perms = user.permissions[module];

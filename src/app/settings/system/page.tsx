@@ -24,10 +24,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -128,13 +128,24 @@ export default function SystemSettingsPage() {
         onPageVisitsUpdate(setPageVisits),
         onLogsUpdate(setLogs),
         onSettingUpdate('ownership_categories', (s) => { 
-            if (s?.value) {
-                const normalized = s.value.map((cat: any) => {
-                    if (typeof cat === 'string') return { name: cat, modules: Array.from(modules) };
-                    return cat as OwnershipCategory;
-                });
-                setOwnershipCategories(normalized);
-            }
+            const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
+            let raw = s?.value || [];
+            if (!Array.isArray(raw)) raw = [];
+
+            const normalized = raw.map((item: any) => {
+                if (typeof item === 'string') return { name: item, modules: Array.from(modules) };
+                return item as OwnershipCategory;
+            });
+
+            // Ensure defaults are present for mapping permissions
+            const existing = new Set(normalized.map(c => c.name));
+            defaults.forEach(d => {
+                if (!existing.has(d)) {
+                    normalized.push({ name: d, modules: Array.from(modules) });
+                }
+            });
+
+            setOwnershipCategories(normalized.sort((a,b) => a.name.localeCompare(b.name)));
         }),
     ];
     return () => unsubs.forEach(u => u());
