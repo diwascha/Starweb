@@ -141,7 +141,7 @@ export default function FinanceSettingsPage() {
 
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
-  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Vendor', ownership: '', address: '', panNumber: ''});
+  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address: string, panNumber: string}>({name: '', type: 'Vendor', ownership: '', address: '', panNumber: ''});
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
 
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
@@ -171,25 +171,18 @@ export default function FinanceSettingsPage() {
     return () => unsubs.forEach(u => u());
   }, []);
 
-  const partyOwnershipOptions = useMemo(() => {
+  const getOwnershipOptions = (currentValue: string) => {
     const names = ownershipCategories.map(c => typeof c === 'string' ? c : c.name);
     const defaults = ['Sijan', 'Shivam', 'Both', 'Rental'];
     const combined = Array.from(new Set([...names, ...defaults]));
-    if (partyForm.ownership && !combined.includes(partyForm.ownership)) {
-        combined.push(partyForm.ownership);
+    if (currentValue && !combined.includes(currentValue)) {
+        combined.push(currentValue);
     }
     return combined.sort();
-  }, [ownershipCategories, partyForm.ownership]);
+  };
 
-  const accountOwnershipOptions = useMemo(() => {
-    const names = ownershipCategories.map(c => typeof c === 'string' ? c : c.name);
-    const defaults = ['Sijan', 'Shivam', 'Both', 'Rental'];
-    const combined = Array.from(new Set([...names, ...defaults]));
-    if (accountForm.ownership && !combined.includes(accountForm.ownership)) {
-        combined.push(accountForm.ownership);
-    }
-    return combined.sort();
-  }, [ownershipCategories, accountForm.ownership]);
+  const partyOwnershipOptions = useMemo(() => getOwnershipOptions(partyForm.ownership), [ownershipCategories, partyForm.ownership]);
+  const accountOwnershipOptions = useMemo(() => getOwnershipOptions(accountForm.ownership), [ownershipCategories, accountForm.ownership]);
 
   const handleTogglePayrollLock = async () => {
     if (!selectedLockYear || !selectedLockMonth) return;
@@ -206,9 +199,18 @@ export default function FinanceSettingsPage() {
   const handleAccountSubmit = async () => {
       if(!user) return;
       try {
-          const { id, ...data } = accountForm as any;
-          if (editingAccount) await updateAccount(editingAccount.id, { ...data, lastModifiedBy: user.username });
-          else await addAccount({ ...data, createdAt: new Date().toISOString(), createdBy: user.username });
+          const payload = {
+              name: accountForm.name,
+              type: accountForm.type,
+              ownership: accountForm.ownership,
+              accountNumber: accountForm.accountNumber,
+              bankName: accountForm.bankName,
+              branch: accountForm.branch,
+              bankAccountType: accountForm.bankAccountType
+          };
+
+          if (editingAccount) await updateAccount(editingAccount.id, { ...payload, lastModifiedBy: user.username });
+          else await addAccount({ ...payload, createdAt: new Date().toISOString(), createdBy: user.username });
           setIsAccountDialogOpen(false);
           toast({ title: 'Account Saved' });
       } catch {
@@ -219,9 +221,16 @@ export default function FinanceSettingsPage() {
   const handlePartySubmit = async () => {
     if(!user || !partyForm.name) return;
     try {
-        const { id, ...data } = partyForm as any;
-        if (editingParty) await updateParty(editingParty.id, { ...data, lastModifiedBy: user.username });
-        else await addParty({...data, createdBy: user.username });
+        const payload = {
+            name: partyForm.name,
+            type: partyForm.type,
+            ownership: partyForm.ownership,
+            address: partyForm.address,
+            panNumber: partyForm.panNumber
+        };
+
+        if (editingParty) await updateParty(editingParty.id, { ...payload, lastModifiedBy: user.username });
+        else await addParty({...payload, createdBy: user.username });
         setIsPartyDialogOpen(false);
         toast({ title: 'Partner Record Saved' });
     } catch {
@@ -251,7 +260,7 @@ export default function FinanceSettingsPage() {
                         <CardTitle className="text-base font-black uppercase">Partner Registry</CardTitle>
                         <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => setIsMergeDialogOpen(true)} className="h-8 uppercase font-black text-[10px] tracking-widest"><GitMerge className="mr-2 h-3.5 w-3.5"/> Merge Duplicates</Button>
-                            <Button size="sm" onClick={() => { setEditingParty(null); setPartyForm({name:'', type:'Vendor', ownership:''}); setIsPartyDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Partner</Button>
+                            <Button size="sm" onClick={() => { setEditingParty(null); setPartyForm({name:'', type:'Vendor', ownership:'', address: '', panNumber: ''}); setIsPartyDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Partner</Button>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -271,7 +280,17 @@ export default function FinanceSettingsPage() {
                                     <TableCell><Badge variant="secondary" className="text-[9px] uppercase">{party.type}</Badge></TableCell>
                                     <TableCell><Badge variant="outline" className="text-[9px] uppercase">{party.ownership}</Badge></TableCell>
                                     <TableCell className="text-right pr-6 space-x-1">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingParty(party); setPartyForm(party as any); setIsPartyDialogOpen(true); }}><Edit className="h-3.5 w-3.5"/></Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { 
+                                            setEditingParty(party); 
+                                            setPartyForm({
+                                                name: party.name || '',
+                                                type: party.type || 'Vendor',
+                                                ownership: party.ownership || '',
+                                                address: party.address || '',
+                                                panNumber: party.panNumber || ''
+                                            }); 
+                                            setIsPartyDialogOpen(true); 
+                                        }}><Edit className="h-3.5 w-3.5"/></Button>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
@@ -322,7 +341,19 @@ export default function FinanceSettingsPage() {
                                     <TableCell className="text-muted-foreground">{acc.bankName || '-'}</TableCell>
                                     <TableCell><Badge variant="outline" className="text-[9px] uppercase">{acc.ownership}</Badge></TableCell>
                                     <TableCell className="text-right pr-6 space-x-1">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingAccount(acc); setAccountForm(acc as any); setIsAccountDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { 
+                                            setEditingAccount(acc); 
+                                            setAccountForm({
+                                                name: acc.name || '',
+                                                type: acc.type || 'Cash',
+                                                ownership: acc.ownership || '',
+                                                accountNumber: acc.accountNumber || '',
+                                                bankName: acc.bankName || '',
+                                                branch: acc.branch || '',
+                                                bankAccountType: acc.bankAccountType || 'Saving'
+                                            }); 
+                                            setIsAccountDialogOpen(true); 
+                                        }}><Edit className="h-3.5 w-3.5" /></Button>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>

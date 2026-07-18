@@ -442,7 +442,7 @@ export default function SystemSettingsPage() {
                                                             <div key={cat.name} className="flex flex-col items-center gap-1">
                                                                 <Checkbox 
                                                                     checked={curr.ownerships.includes(cat.name)} 
-                                                                    onCheckedChange={v => handleOwnershipChange(m, cat.name, !!v)} 
+                                                                    onCheckedChange={v => handleOwnershipChange(m, act as any, !!v)} 
                                                                 />
                                                                 <span className="text-[8px] uppercase">{cat.name}</span>
                                                             </div>

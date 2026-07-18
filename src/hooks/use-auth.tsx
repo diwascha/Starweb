@@ -2,7 +2,7 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User, Permissions, Module, Action, AccountOwnership, ModulePermission } from '@/lib/types';
+import type { User, Permissions, Module, Action, AccountOwnership, ModulePermission, OwnershipCategory } from '@/lib/types';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 import { toast } from '@/hooks/use-toast';
@@ -10,6 +10,7 @@ import { getFirebase } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { logAudit } from '@/services/log-service';
 import { restoreAdminProfile } from '@/services/user-service';
+import { onSettingUpdate } from '@/services/settings-service';
 
 interface UserSession {
   id: string;
@@ -136,6 +137,7 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ownershipCategories, setOwnershipCategories] = useState<OwnershipCategory[]>([]);
   const auth = useAuthService();
 
   const logout = useCallback(async () => {
@@ -148,6 +150,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
   }, [auth]);
+
+  useEffect(() => {
+    const unsubOwnership = onSettingUpdate('ownership_categories', (s) => {
+        if (s?.value) setOwnershipCategories(s.value);
+    });
+    return () => unsubOwnership();
+  }, []);
 
   useEffect(() => {
     const sessionJson = localStorage.getItem(USER_SESSION_KEY);
@@ -306,7 +315,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const perms = user.permissions[primaryKey];
     if (!perms) return false;
 
-    // Handle structured permissions vs legacy array-based permissions
     if (Array.isArray(perms)) {
       return perms.includes('all') || perms.includes(act as any);
     } else if (typeof perms === 'object' && perms.actions) {
@@ -318,13 +326,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const getAllowedOwnerships = useCallback((module: Module): AccountOwnership[] => {
       if (!user) return [];
-      if (user.isAdmin) return ['Sijan', 'Shivam', 'Rental', 'Both'];
+      
+      // Administrators have full scope, including custom categories from settings
+      if (user.isAdmin) {
+          const customNames = ownershipCategories.map(c => c.name);
+          const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
+          return Array.from(new Set([...customNames, ...defaults]));
+      }
       
       const perms = user.permissions[module];
-      if (!perms || Array.isArray(perms)) return []; // Legacy users have no specific ownership assigned
+      if (!perms || Array.isArray(perms)) return []; 
       
       return perms.ownerships || [];
-  }, [user]);
+  }, [user, ownershipCategories]);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, hasPermission, getAllowedOwnerships }}>
