@@ -86,6 +86,10 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     }, [invoiceToEdit, allInvoices, parties, date]);
     
     const allParties = useMemo(() => [...parties].sort((a, b) => a.name.localeCompare(b.name)), [parties]);
+
+    const sortedProducts = useMemo(() => {
+        return [...products].sort((a, b) => a.name.localeCompare(b.name));
+    }, [products]);
     
     const handlePartySelect = (selectedPartyId: string) => {
         const selected = allParties.find(c => c.id === selectedPartyId);
@@ -315,7 +319,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                                                         </Button>
                                                     </CommandEmpty>
                                                     <CommandGroup>
-                                                        {products.map(p => (
+                                                        {sortedProducts.map(p => (
                                                             <CommandItem 
                                                                 key={p.id} 
                                                                 value={p.name} 
