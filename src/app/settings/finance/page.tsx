@@ -171,6 +171,26 @@ export default function FinanceSettingsPage() {
     return () => unsubs.forEach(u => u());
   }, []);
 
+  const partyOwnershipOptions = useMemo(() => {
+    const names = ownershipCategories.map(c => typeof c === 'string' ? c : c.name);
+    const defaults = ['Sijan', 'Shivam', 'Both', 'Rental'];
+    const combined = Array.from(new Set([...names, ...defaults]));
+    if (partyForm.ownership && !combined.includes(partyForm.ownership)) {
+        combined.push(partyForm.ownership);
+    }
+    return combined.sort();
+  }, [ownershipCategories, partyForm.ownership]);
+
+  const accountOwnershipOptions = useMemo(() => {
+    const names = ownershipCategories.map(c => typeof c === 'string' ? c : c.name);
+    const defaults = ['Sijan', 'Shivam', 'Both', 'Rental'];
+    const combined = Array.from(new Set([...names, ...defaults]));
+    if (accountForm.ownership && !combined.includes(accountForm.ownership)) {
+        combined.push(accountForm.ownership);
+    }
+    return combined.sort();
+  }, [ownershipCategories, accountForm.ownership]);
+
   const handleTogglePayrollLock = async () => {
     if (!selectedLockYear || !selectedLockMonth) return;
     const lockKey = `${selectedLockYear}-${selectedLockMonth}`;
@@ -186,8 +206,9 @@ export default function FinanceSettingsPage() {
   const handleAccountSubmit = async () => {
       if(!user) return;
       try {
-          if (editingAccount) await updateAccount(editingAccount.id, { ...accountForm, lastModifiedBy: user.username });
-          else await addAccount({ ...accountForm, createdAt: new Date().toISOString(), createdBy: user.username });
+          const { id, ...data } = accountForm as any;
+          if (editingAccount) await updateAccount(editingAccount.id, { ...data, lastModifiedBy: user.username });
+          else await addAccount({ ...data, createdAt: new Date().toISOString(), createdBy: user.username });
           setIsAccountDialogOpen(false);
           toast({ title: 'Account Saved' });
       } catch {
@@ -198,8 +219,9 @@ export default function FinanceSettingsPage() {
   const handlePartySubmit = async () => {
     if(!user || !partyForm.name) return;
     try {
-        if (editingParty) await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
-        else await addParty({...partyForm, createdBy: user.username });
+        const { id, ...data } = partyForm as any;
+        if (editingParty) await updateParty(editingParty.id, { ...data, lastModifiedBy: user.username });
+        else await addParty({...data, createdBy: user.username });
         setIsPartyDialogOpen(false);
         toast({ title: 'Partner Record Saved' });
     } catch {
@@ -208,10 +230,6 @@ export default function FinanceSettingsPage() {
   };
 
   const isCurrentPeriodLocked = payrollLocks[`${selectedLockYear}-${selectedLockMonth}`] || false;
-
-  const ownershipNames = useMemo(() => {
-    return ownershipCategories.map(c => typeof c === 'string' ? c : c.name);
-  }, [ownershipCategories]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -287,13 +305,22 @@ export default function FinanceSettingsPage() {
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs">
-                            <TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Account Name</TableHead><TableHead>Type</TableHead><TableHead>Bank</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader>
+                            <TableHeader className="bg-muted/50">
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="pl-6">Account Name</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Bank</TableHead>
+                                    <TableHead>Ownership</TableHead>
+                                    <TableHead className="text-right pr-6">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
                             <TableBody>
                             {accounts.map(acc => (
                                 <TableRow key={acc.id} className="h-12 border-b">
                                     <TableCell className="font-bold pl-6">{acc.name}</TableCell>
                                     <TableCell><Badge variant="outline" className="text-[9px] uppercase">{acc.type}</Badge></TableCell>
                                     <TableCell className="text-muted-foreground">{acc.bankName || '-'}</TableCell>
+                                    <TableCell><Badge variant="outline" className="text-[9px] uppercase">{acc.ownership}</Badge></TableCell>
                                     <TableCell className="text-right pr-6 space-x-1">
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingAccount(acc); setAccountForm(acc as any); setIsAccountDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
                                         <AlertDialog>
@@ -351,8 +378,26 @@ export default function FinanceSettingsPage() {
             <div className="grid gap-4 py-4">
               <div className="space-y-2"><Label>Full Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Category</Label><Select value={partyForm.type} onValueChange={(v: any) => setPartyForm({...partyForm, type: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2"><Label>Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{ownershipNames.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Select value={partyForm.type} onValueChange={(v: any) => setPartyForm({...partyForm, type: v})}>
+                        <SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Vendor">Vendor</SelectItem>
+                            <SelectItem value="Customer">Customer</SelectItem>
+                            <SelectItem value="Both">Both</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label>Ownership</Label>
+                    <Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}>
+                        <SelectTrigger><SelectValue placeholder="Select Ownership" /></SelectTrigger>
+                        <SelectContent>
+                            {partyOwnershipOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
               </div>
             </div>
             <DialogFooter><Button onClick={handlePartySubmit} className="w-full">Save Partner</Button></DialogFooter>
@@ -365,8 +410,25 @@ export default function FinanceSettingsPage() {
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label>Account Name</Label><Input value={accountForm.name} onChange={e => setAccountForm({...accountForm, name: e.target.value})} /></div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2"><Label>Type</Label><Select value={accountForm.type} onValueChange={(v: any) => setAccountForm({...accountForm, type: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select></div>
-                        <div className="space-y-2"><Label>Ownership</Label><Select value={accountForm.ownership} onValueChange={(v: any) => setAccountForm({...accountForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{ownershipNames.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="space-y-2">
+                            <Label>Type</Label>
+                            <Select value={accountForm.type} onValueChange={(v: any) => setAccountForm({...accountForm, type: v})}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Cash">Cash</SelectItem>
+                                    <SelectItem value="Bank">Bank</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Ownership</Label>
+                            <Select value={accountForm.ownership} onValueChange={(v: any) => setAccountForm({...accountForm, ownership: v})}>
+                                <SelectTrigger><SelectValue placeholder="Select Ownership" /></SelectTrigger>
+                                <SelectContent>
+                                    {accountOwnershipOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
                 <DialogFooter><Button onClick={handleAccountSubmit} className="w-full">Save Account</Button></DialogFooter>
