@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -57,13 +58,14 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     // Dialog States
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
     const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, ownership: AccountOwnership, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: '' });
-    const [accountForm, setAccountForm] = useState({ name: '', type: 'Bank' as 'Cash' | 'Bank', ownership: 'Both' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType });
+    const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, ownership: AccountOwnership, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', ownership: '', address: '', panNumber: '' });
+    const [accountForm, setAccountForm] = useState({ name: '', type: 'Bank' as 'Cash' | 'Bank', ownership: '' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType });
     const [partySearch, setPartySearch] = useState('');
     const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
     
     const [cheques, setCheques] = useState<any[]>([]);
     const [voucherNo, setVoucherNo] = useState('');
@@ -77,7 +79,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         const unsubCheques = onChequesUpdate(setCheques);
         const unsubAccounts = onAccountsUpdate(setAccounts);
         
-        // Initial splits on mount to avoid hydration mismatch
         if (!chequeToEdit) {
             setChequeSplits([{
                 id: generateId(),
@@ -161,9 +162,16 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         setChequeSplits(newSplits);
     }, [numberOfSplits, invoiceAmount, paymentDate, invoiceDate]);
 
+    // Centralized filtering
+    const filteredParties = useMemo(() => {
+        return parties
+            .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [parties, allowedOwnerships]);
 
-    const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
-    const bankAccounts = useMemo(() => accounts.filter(a => a.type === 'Bank'), [accounts]);
+    const bankAccounts = useMemo(() => {
+        return accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Both' || allowedOwnerships.includes(a.ownership)));
+    }, [accounts, allowedOwnerships]);
     
     const totalSplitAmount = useMemo(() => {
         return chequeSplits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
@@ -180,7 +188,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     }, [invoiceAmount]);
 
     const handlePartySelect = (selectedPartyName: string) => {
-        const party = allParties.find(c => c.name === selectedPartyName);
+        const party = filteredParties.find(c => c.name === selectedPartyName);
         setPartyName(party?.name || selectedPartyName);
         setIsPartyPopoverOpen(false);
     };
@@ -196,7 +204,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             handlePartySelect(partyForm.name);
             toast({title: 'Success', description: 'New party added.'});
             setIsPartyDialogOpen(false);
-            setPartyForm({name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: ''});
+            setPartyForm({name: '', type: 'Vendor', ownership: '', address: '', panNumber: ''});
         } catch {
             toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
         }
@@ -205,18 +213,13 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     const handleAccountSubmit = async () => {
         if (!user) return;
         if (!accountForm.name || !accountForm.bankName || !accountForm.accountNumber || !accountForm.ownership) {
-            toast({ title: 'Error', description: 'All mandatory bank account fields are required.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'All mandatory fields are required.', variant: 'destructive' });
             return;
         }
         try {
             const newAccountId = await addAccountService({
-                name: accountForm.name,
+                ...accountForm,
                 type: 'Bank',
-                ownership: accountForm.ownership,
-                accountNumber: accountForm.accountNumber,
-                bankName: accountForm.bankName,
-                branch: accountForm.branch,
-                bankAccountType: accountForm.bankAccountType,
                 createdBy: user.username,
                 createdAt: new Date().toISOString(),
             });
@@ -314,7 +317,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
 
         doc.open();
         doc.write('<html><head><title>Print Cheques</title>');
-        // Link to the main app's stylesheet to preserve styles
         const styles = Array.from(document.styleSheets).map(s => s.href ? `<link rel="stylesheet" href="${s.href}">` : '').join('');
         doc.write(styles);
         doc.write('</head><body style="margin: 0;">');
@@ -326,94 +328,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         setTimeout(() => {
             iframe.contentWindow?.print();
             document.body.removeChild(iframe);
-        }, 500); // Give styles time to load
+        }, 500);
     };
-    
-    const handleExportPdf = async () => {
-        setIsExporting(true);
-        try {
-            const doc = new jsPDF('p', 'mm', 'a4');
-            const account = accounts.find(a => a.id === selectedAccountId);
-
-            // Header
-            doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(16);
-            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-            doc.setFont('Helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 21, { align: 'center' });
-            doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(14);
-            doc.text('PAYMENT VOUCHER', doc.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
-            
-            // Info
-            doc.setFontSize(10);
-            doc.text(`Voucher No: ${voucherNo}`, 14, 40);
-            doc.text(`Payee: ${partyName}`, 14, 45);
-            doc.text(`Date: ${toNepaliDate(paymentDate.toISOString())} BS (${format(paymentDate, 'yyyy-MM-dd')})`, doc.internal.pageSize.getWidth() - 14, 40, { align: 'right' });
-            
-            const totalAmount = chequeSplits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
-
-            const body = chequeSplits.map((split) => {
-                const bankDetails = account && account.type === 'Bank' ? `${account.bankName}\nA/C: ${account.accountNumber}` : "Cash Payment";
-                const nepaliChequeDate = toNepaliDate(split.chequeDate.toISOString());
-                const adChequeDate = format(split.chequeDate, 'yyyy-MM-dd');
-                return [
-                    bankDetails,
-                    split.chequeNumber || 'N/A',
-                    `${nepaliChequeDate} (${adChequeDate})`,
-                    (Number(split.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })
-                ];
-            });
-
-            autoTable(doc, {
-                startY: 55,
-                head: [['Bank Details', 'Cheque No.', 'Cheque Date', 'Amount']],
-                body: body,
-                theme: 'grid',
-                headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
-                foot: [['Total', '', '', { content: totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }), styles: { halign: 'right' } }]],
-                footStyles: { fontStyle: 'bold', fontSize: 11 },
-                didDrawPage: (data) => {
-                    let finalY = data.cursor?.y || 0;
-                    doc.setFontSize(10);
-                    doc.text(`In Words: ${toWords(totalAmount)}`, 14, finalY + 10);
-                    
-                    const signatureY = Math.max(finalY + 40, doc.internal.pageSize.getHeight() - 40);
-                    doc.line(20, signatureY, 70, signatureY);
-                    doc.text("Receiver's Signature", 45, signatureY + 5, { align: 'center' });
-                    doc.line(doc.internal.pageSize.getWidth() - 70, signatureY, doc.internal.pageSize.getWidth() - 20, signatureY);
-                    doc.text("Authorized Signature", doc.internal.pageSize.getWidth() - 45, signatureY + 5, { align: 'center' });
-                }
-            });
-
-            doc.save(`Voucher-${voucherNo}.pdf`);
-        } catch (error) {
-            console.error('PDF export failed:', error);
-            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
-
-    const handleExportJpg = async () => {
-        if (!printRef.current) return;
-        setIsExporting(true);
-        try {
-            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
-            const link = document.createElement('a');
-            link.download = `Voucher-${voucherNo}.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.9);
-            link.click();
-        } catch (error) {
-            console.error(`Failed to export as JPG`, error);
-            toast({ title: 'Export Failed', description: `Could not export as JPG.`, variant: 'destructive' });
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
 
     const handleSplitChange = (index: number, field: keyof ChequeSplit, value: any) => {
         const newSplits = [...chequeSplits];
@@ -432,7 +348,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         <div className="space-y-6">
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                  <div className="space-y-2">
-                    <Label htmlFor="voucherNo">Auto Cheque Numbering</Label>
+                    <Label htmlFor="voucherNo">Voucher Number</Label>
                     <Input id="voucherNo" value={voucherNo} readOnly className="bg-muted/50" />
                  </div>
                  <div className="space-y-2">
@@ -478,8 +394,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                         </PopoverTrigger>
                         <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                             <Command>
-                                <CommandInput
-                                  placeholder="Search party..."
+                                <CommandInput 
+                                  placeholder="Search party..." 
                                   value={partySearch}
                                   onValueChange={setPartySearch}
                                 />
@@ -489,16 +405,14 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                                         variant="ghost"
                                         className="w-full justify-start"
                                         onClick={() => {
-                                            setPartyForm(prev => ({ ...prev, name: partySearch, type: 'Vendor', ownership: 'Both' }));
-                                            setIsPartyPopoverOpen(false);
-                                            setIsPartyDialogOpen(true);
+                                            handleOpenPartyDialog(null, partySearch);
                                         }}
                                     >
                                         <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
                                     </Button>
                                 </CommandEmpty>
                                 <CommandGroup>
-                                    {allParties.map((c) => (
+                                    {filteredParties.map((c) => (
                                     <CommandItem key={c.id} value={c.name} onSelect={() => handlePartySelect(c.name)}>
                                         <Check className={cn("mr-2 h-4 w-4", partyName === c.name ? "opacity-100" : "opacity-0")}/>
                                         {c.name}
@@ -534,7 +448,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                                 ))}
                             </SelectContent>
                         </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setIsAccountDialogOpen(true)}>
+                        <Button type="button" variant="outline" size="icon" onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }}>
                             <Plus className="h-4 w-4" />
                         </Button>
                     </div>
@@ -542,9 +456,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             </div>
 
             <div className="border rounded-lg p-4 space-y-4">
-                <div className="flex justify-between items-center">
-                    <Label className="text-lg font-medium">Cheque Details</Label>
-                </div>
                  <Table>
                     <TableHeader>
                         <TableRow>
@@ -557,7 +468,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     </TableHeader>
                     <TableBody>
                         {chequeSplits.map((split, index) => (
-                            <TableRow key={(split as any).id}>
+                            <TableRow key={split.id}>
                                 <TableCell>
                                     <Input type="number" value={split.interval} onChange={(e) => handleSplitChange(index, 'interval', e.target.value)} />
                                 </TableCell>
@@ -594,53 +505,35 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     <Label>Total Invoice Amount (NPR)</Label>
                     <span className="font-bold text-lg">{Number(invoiceAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                    <Label>Total Split Amount (NPR)</Label>
-                    <span className="font-bold text-lg">{totalSplitAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                </div>
                 <div className={cn("flex justify-between items-center text-sm font-bold", remainingAmount === 0 ? 'text-green-600' : 'text-red-600')}>
-                    <Label>Remaining Amount</Label>
+                    <Label>Remaining Balance</Label>
                     <span className="text-lg">{remainingAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                </div>
-                <div className="space-y-2">
-                    <Label>Amount in Words (for Total Invoice Amount)</Label>
-                    <div className="p-3 border rounded-md bg-muted min-h-[40px]">
-                        <p className="font-semibold">{amountInWords}</p>
-                    </div>
                 </div>
             </div>
             
             <div className="flex justify-end gap-2">
                  <Button onClick={handleSave} variant="outline" disabled={isSaving}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    {chequeToEdit ? 'Save Changes' : 'Save Cheque'}
+                    {chequeToEdit ? 'Save Changes' : 'Save Voucher'}
                 </Button>
                 <Button onClick={handlePrint}>
-                    <Printer className="mr-2 h-4 w-4" /> Print Cheque
+                    <Printer className="mr-2 h-4 w-4" /> Preview & Print
                 </Button>
-                 {chequeToEdit && (
-                    <Button variant="ghost" onClick={resetForm}>Cancel Edit</Button>
-                )}
             </div>
             
              <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Add New Party</DialogTitle>
-                         <DialogDescription>
-                            Create a new vendor/supplier record.
-                        </DialogDescription>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle></DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="party-name-dialog">Party Name</Label>
-                            <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
+                            <Label>Party Name</Label>
+                            <Input value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
                         </div>
                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="party-type-dialog">Party Type</Label>
+                                <Label>Party Type</Label>
                                 <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                                    <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Vendor">Vendor</SelectItem>
                                         <SelectItem value="Customer">Customer</SelectItem>
@@ -649,30 +542,17 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="party-ownership-dialog">Ownership</Label>
-                                <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
-                                    <SelectTrigger id="party-ownership-dialog"><SelectValue/></SelectTrigger>
+                                <Label>Ownership</Label>
+                                <Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm(p => ({...p, ownership: v}))}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
-                                        <SelectItem value="Shivam">Shivam Packaging</SelectItem>
-                                        <SelectItem value="Both">Both</SelectItem>
+                                        {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="party-pan-dialog">PAN Number</Label>
-                            <Input id="party-pan-dialog" value={partyForm.panNumber || ''} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="party-address-dialog">Address</Label>
-                            <Textarea id="party-address-dialog" value={partyForm.address || ''} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} />
-                        </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSubmitParty}>Add Party</Button>
-                    </DialogFooter>
+                    <DialogFooter><Button onClick={handleSubmitParty} className="w-full">Save Partner</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
@@ -682,20 +562,18 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="account-ownership">Ownership</Label>
-                            <Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm(p => ({...p, ownership: v}))}>
-                                <SelectTrigger id="account-ownership"><SelectValue/></SelectTrigger>
+                            <Label>Ownership</Label>
+                            <Select value={accountForm.ownership} onValueChange={(v: any) => setAccountForm(p => ({...p, ownership: v}))}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
-                                    <SelectItem value="Shivam">Shivam Packaging</SelectItem>
-                                    <SelectItem value="Both">Both</SelectItem>
+                                    {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="bankAccountType">Account Type</Label>
+                            <Label>Account Type</Label>
                             <Select value={accountForm.bankAccountType || 'Saving'} onValueChange={(v: BankAccountType) => setAccountForm(p => ({ ...p, bankAccountType: v }))}>
-                                <SelectTrigger id="bankAccountType"><SelectValue /></SelectTrigger>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Saving">Saving</SelectItem>
                                     <SelectItem value="Current">Current</SelectItem>
@@ -705,59 +583,15 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="account-holder-name">Account Holder Name</Label>
-                        <Input id="account-holder-name" value={accountForm.name} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} />
+                        <Label>Bank Name</Label>
+                        <Input value={accountForm.bankName} onChange={e => setAccountForm(p => ({...p, bankName: e.target.value}))} />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="bank-name">Bank Name</Label>
-                        <Input id="bank-name" value={accountForm.bankName} onChange={e => setAccountForm(p => ({...p, bankName: e.target.value}))} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="account-number">Account Number</Label>
-                        <Input id="account-number" value={accountForm.accountNumber} onChange={e => setAccountForm(p => ({...p, accountNumber: e.target.value}))} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="branch">Branch</Label>
-                        <Input id="branch" value={accountForm.branch} onChange={e => setAccountForm(p => ({...p, branch: e.target.value}))} />
+                        <Label>Account Number</Label>
+                        <Input value={accountForm.accountNumber} onChange={e => setAccountForm(p => ({...p, accountNumber: e.target.value}))} />
                     </div>
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsAccountDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleAccountSubmit}>Add Account</Button>
-                </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-
-            <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-                <DialogContent className="max-w-4xl">
-                    <DialogHeader>
-                        <DialogTitle>Cheque Preview</DialogTitle>
-                        <DialogDescription>Review the cheques before printing.</DialogDescription>
-                    </DialogHeader>
-                     <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
-                         <div ref={printRef}>
-                            <ChequeView
-                                voucherNo={voucherNo}
-                                voucherDate={paymentDate}
-                                payeeName={partyName}
-                                account={accounts.find(a => a.id === selectedAccountId)}
-                                splits={chequeSplits}
-                            />
-                         </div>
-                    </div>
-                    <DialogFooter className="sm:justify-end gap-2">
-                        <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
-                        <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
-                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
-                             Export as JPG
-                        </Button>
-                        <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
-                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                            Export as PDF
-                        </Button>
-                        <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
-                    </DialogFooter>
+                <DialogFooter><Button onClick={handleAccountSubmit} className="w-full">Save Account</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

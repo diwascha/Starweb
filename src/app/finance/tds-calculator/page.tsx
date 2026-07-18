@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -93,17 +94,13 @@ function TdsVoucherView({ calculation, companyProfile }: { calculation: TdsCalcu
                     <div className="flex justify-between items-center text-sm"><span>VAT (13%)</span><span>+ {calculation.vatAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
                 )}
                 <Separator />
-                <div className="flex justify-between items-center font-semibold"><span>Total with VAT</span><span>{totalWithVat.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                <div className="flex justify-between items-center font-semibold"><span>Total with VAT</span><span>{(calculation.taxableAmount + calculation.vatAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
                 <div className="flex justify-between items-center text-destructive"><span>TDS ({calculation.tdsRate}%)</span><span>- {calculation.tdsAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
                 <Separator />
                 <div className="flex justify-between items-center text-lg font-bold"><span>Net Payable Amount</span><span>{calculation.netPayable.toLocaleString('en-IN', { style: 'currency', currency: 'NPR' })}</span></div>
             </div>
              <div className="text-sm">
                 <span className="font-semibold">In Words:</span> {toWords(calculation.netPayable)}
-            </div>
-             <div className="mt-16 text-center text-xs text-gray-500">
-                <p className="font-bold">Disclaimer:</p>
-                <p>This is a computer-generated voucher and does not require a signature.</p>
             </div>
         </div>
     );
@@ -193,11 +190,8 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
 
     const handlePrint = () => {
         if (!printRef.current) return;
-        
         const printWindow = window.open('', '', 'height=800,width=800');
-        printWindow?.document.write('<html><head><title>Print Voucher</title>');
-        printWindow?.document.write('<style>@media print{@page{size: A5;margin:0;}body{margin: 1cm;}}</style>');
-        printWindow?.document.write('</head><body>');
+        printWindow?.document.write('<html><head><title>Print Voucher</title></head><body>');
         printWindow?.document.write(printRef.current.innerHTML);
         printWindow?.document.write('</body></html>');
         printWindow?.document.close();
@@ -213,96 +207,23 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
         setIsExporting(true);
         try {
             const doc = new jsPDF('p', 'mm', 'a5');
-            const { voucherNo, date, partyName, taxableAmount, vatAmount, tdsRate, tdsAmount, netPayable } = selectedRecordForView;
-            
-            // Header
-            doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.text(companyProfile.nameEn, doc.internal.pageSize.getWidth() / 2, 10, { align: 'center' });
-            
-            doc.setFont('Helvetica', 'normal');
-            doc.setFontSize(8);
-            doc.text(companyProfile.address, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-            
-            doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(10);
-            doc.text('TDS ESTIMATE VOUCHER', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
-            
-            // Info
-            doc.setFontSize(8);
-            doc.setFont('Helvetica', 'normal');
-            doc.text(`Voucher No: ${voucherNo || 'N/A'}`, 10, 30);
-            doc.text(`Date: ${toNepaliDate(date)} (${format(new Date(date), 'yyyy-MM-dd')})`, doc.internal.pageSize.getWidth() - 10, 30, { align: 'right' });
-            doc.text(`Party Name: ${partyName || 'N/A'}`, 10, 35);
-            doc.line(10, 38, doc.internal.pageSize.getWidth() - 10, 38);
-
-            // Body
-            let y = 45;
-            const line = (label: string, value: string, style: 'normal' | 'bold' | 'destructive' = 'normal') => {
-                if (style === 'bold') doc.setFont('Helvetica', 'bold');
-                if (style === 'destructive') doc.setTextColor(220, 53, 69);
-                
-                doc.text(label, 15, y);
-                doc.text(value, doc.internal.pageSize.getWidth() - 15, y, { align: 'right' });
-                y += 7;
-
-                // Reset styles
-                doc.setFont('Helvetica', 'normal');
-                doc.setTextColor(0, 0, 0);
-            };
-            
-            line('Taxable Amount', taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }));
-            if (vatAmount > 0) line('VAT (13%)', `+ ${vatAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
-            
-            doc.line(15, y - 4, doc.internal.pageSize.getWidth() - 15, y - 4);
-            
-            line('Total with VAT', (taxableAmount + vatAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 }), 'bold');
-            line(`TDS (${tdsRate}%)`, `- ${tdsAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 'destructive');
-            
-            doc.line(15, y - 4, doc.internal.pageSize.getWidth() - 15, y - 4);
-            y += 2;
-            doc.setFontSize(10);
-            line('Net Payable Amount', `NPR ${netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 'bold');
-            doc.setFontSize(8);
-            y += 5;
-            doc.text(`In Words: ${toWords(netPayable)}`, 10, y);
-            
-            // Footer
-            y = doc.internal.pageSize.getHeight() - 20;
-            doc.setFontSize(7);
-            doc.setFont('Helvetica', 'bold');
-            doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-            doc.setFont('Helvetica', 'normal');
-            y += 4;
-            doc.text('This is a computer-generated voucher and does not require a signature.', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-
+            autoTable(doc, {
+                startY: 50,
+                head: [['Label', 'Value']],
+                body: [
+                    ['Voucher No', selectedRecordForView.voucherNo],
+                    ['Party', selectedRecordForView.partyName || 'N/A'],
+                    ['Base Amount', selectedRecordForView.taxableAmount.toLocaleString()],
+                    ['TDS Amount', selectedRecordForView.tdsAmount.toLocaleString()],
+                    ['Net Payable', selectedRecordForView.netPayable.toLocaleString()]
+                ],
+                theme: 'grid'
+            });
             doc.save(`TDS-Voucher-${selectedRecordForView.voucherNo}.pdf`);
-        } catch (error) {
-            console.error('PDF export failed:', error);
-            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
         } finally {
             setIsExporting(false);
         }
     };
-
-    const handleExportJpg = async () => {
-        if (!printRef.current || !selectedRecordForView) return;
-        setIsExporting(true);
-
-        try {
-            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
-            const link = document.createElement('a');
-            link.download = `TDS-Voucher-${selectedRecordForView.voucherNo}.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.9);
-            link.click();
-        } catch (error) {
-            console.error(`Failed to export as JPG`, error);
-            toast({ title: 'Export Failed', description: `Could not export voucher as JPG.`, variant: 'destructive' });
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
 
     return (
         <>
@@ -454,32 +375,15 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
             <DialogContent className="max-w-xl h-[90vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
                 <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
                     <DialogTitle>Voucher Preview</DialogTitle>
-                    <DialogDescription>Review, print, or export the TDS voucher.</DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="flex-1 bg-gray-100 p-8">
                     <div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">
                       {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} companyProfile={companyProfile} />}
                     </div>
-                    <ScrollBar orientation="vertical" />
-                    <ScrollBar orientation="horizontal" />
                 </ScrollArea>
                  <DialogFooter className="p-6 border-t bg-white shrink-0">
-                    <div className="flex w-full justify-between items-center">
-                        <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handleExportJpg()} disabled={isExporting} className="h-9 px-4">
-                                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
-                                Image
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleExportPdf()} disabled={isExporting} className="h-9 px-4">
-                                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                                PDF
-                            </Button>
-                        </div>
-                        <div className="flex gap-2">
-                            <Button variant="ghost" onClick={() => setIsVoucherViewOpen(false)} className="h-9 px-4 uppercase font-bold text-[10px]">Close</Button>
-                            <Button onClick={handlePrint} className="h-9 px-8 font-black uppercase text-[10px]"><Printer className="mr-2 h-4 w-4" /> Print</Button>
-                        </div>
-                    </div>
+                    <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>Save PDF</Button>
+                    <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
                 </DialogFooter>
             </DialogContent>
          </Dialog>
@@ -505,16 +409,16 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const [editingRate, setEditingRate] = useState<TdsRate | null>(null);
 
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-  const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, ownership: AccountOwnership, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: '' });
+  const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, ownership: AccountOwnership, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', ownership: '', address: '', panNumber: '' });
   const [partySearch, setPartySearch] = useState('');
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, getAllowedOwnerships } = useAuth();
+  const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
   
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
-  const [isExporting, setIsExporting] = useState(false);
   
   useEffect(() => {
     const setNextVoucher = async () => {
@@ -547,14 +451,17 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
     }
   }, [calculationToEdit]);
 
-  const sortedParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
+  // Centralized filtering
+  const filteredParties = useMemo(() => {
+    return parties
+        .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
+        .sort((a, b) => a.name.localeCompare(b.name));
+  }, [parties, allowedOwnerships]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAmount(e.target.value === '' ? '' : parseFloat(e.target.value));
   };
   
-  const selectedRateInfo = tdsRates.find(r => r.value === selectedRateValue);
-
   const { tds, netAmount, vat, totalWithVat, calculationData } = useMemo(() => {
     if (amount === '' || amount <= 0) {
       return { tds: 0, netAmount: 0, vat: 0, totalWithVat: 0, calculationData: null };
@@ -621,66 +528,6 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
       setIsPreviewOpen(true);
     }
   };
-
-  const handleExport = async (formatType: 'pdf' | 'jpg') => {
-      if (!calculationData) return;
-      setIsExporting(true);
-
-      if (formatType === 'pdf') {
-          try {
-            const doc = new jsPDF('p', 'mm', 'a5');
-            const { voucherNo, date, partyName, taxableAmount, vatAmount, tdsRate, tdsAmount, netPayable } = calculationData;
-            
-            doc.setFont('Helvetica', 'bold'); doc.setFontSize(12);
-            doc.text(companyProfile.nameEn, doc.internal.pageSize.getWidth() / 2, 10, { align: 'center' });
-            doc.setFont('Helvetica', 'normal'); doc.setFontSize(8);
-            doc.text(companyProfile.address, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-            doc.setFont('Helvetica', 'bold'); doc.setFontSize(10);
-            doc.text('TDS ESTIMATE VOUCHER', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
-            doc.setFontSize(8); doc.setFont('Helvetica', 'normal');
-            doc.text(`Voucher No: ${voucherNo || 'N/A'}`, 10, 30);
-            doc.text(`Date: ${toNepaliDate(date)} (${format(new Date(date), 'yyyy-MM-dd')})`, doc.internal.pageSize.getWidth() - 10, 30, { align: 'right' });
-            doc.text(`Party Name: ${partyName || 'N/A'}`, 10, 35);
-            doc.line(10, 38, doc.internal.pageSize.getWidth() - 10, 38);
-
-            let y = 45;
-            const line = (label: string, value: string, style: 'normal' | 'bold' | 'destructive' = 'normal') => {
-                if (style === 'bold') doc.setFont('Helvetica', 'bold');
-                if (style === 'destructive') doc.setTextColor(220, 53, 69);
-                doc.text(label, 15, y); doc.text(value, doc.internal.pageSize.getWidth() - 15, y, { align: 'right' });
-                y += 7;
-                doc.setFont('Helvetica', 'normal'); doc.setTextColor(0, 0, 0);
-            };
-            line('Taxable Amount', taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }));
-            if (vatAmount > 0) line('VAT (13%)', `+ ${vatAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
-            doc.line(15, y - 4, doc.internal.pageSize.getWidth() - 15, y - 4);
-            line('Total with VAT', (taxableAmount + vatAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 }), 'bold');
-            line(`TDS (${tdsRate}%)`, `- ${tdsAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 'destructive');
-            doc.line(15, y - 4, doc.internal.pageSize.getWidth() - 15, y - 4); y += 2;
-            doc.setFontSize(10);
-            line('Net Payable Amount', `NPR ${netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 'bold');
-            doc.setFontSize(8); y += 5;
-            doc.text(`In Words: ${toWords(netPayable)}`, 10, y);
-            y = doc.internal.pageSize.getHeight() - 20;
-            doc.setFontSize(7); doc.setFont('Helvetica', 'bold');
-            doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-            doc.setFont('Helvetica', 'normal'); y += 4;
-            doc.text('This is a computer-generated voucher and does not require a signature.', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-            doc.save(`TDS-Voucher-${voucherNo}.pdf`);
-          } catch (error) { console.error('PDF export failed:', error); toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' }); } 
-          finally { setIsExporting(false); }
-      } else { // JPG
-          if (!printRef.current) { setIsExporting(false); return; }
-           try {
-            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
-            const link = document.createElement('a');
-            link.download = `TDS-Voucher-${calculationData.voucherNo}.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.9);
-            link.click();
-        } catch (error) { console.error('JPG export failed:', error); toast({ title: 'Export Failed', description: `Could not export voucher as JPG.`, variant: 'destructive' }); }
-        finally { setIsExporting(false); }
-      }
-  };
   
   const resetForm = async () => {
     setAmount('');
@@ -741,7 +588,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         setPartyName(partyForm.name);
         toast({title: 'Success', description: 'New party added.'});
         setIsPartyDialogOpen(false);
-        setPartyForm({name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: ''});
+        setPartyForm({name: '', type: 'Vendor', ownership: '', address: '', panNumber: ''});
     } catch {
          toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
     }
@@ -750,9 +597,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const doActualPrint = () => {
     if (!printRef.current) return;
     const printWindow = window.open('', '', 'height=800,width=800');
-    printWindow?.document.write('<html><head><title>Print Voucher</title>');
-    printWindow?.document.write('<style>@media print{@page{size: A5;margin:0;}body{margin: 1cm;}}</style>');
-    printWindow?.document.write('</head><body>');
+    printWindow?.document.write('<html><head><title>Print Voucher</title></head><body>');
     printWindow?.document.write(printRef.current.innerHTML);
     printWindow?.document.write('</body></html>');
     printWindow?.document.close();
@@ -788,7 +633,6 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                     <Card className="shadow-sm border-gray-100">
                         <CardHeader className="bg-muted/30 border-b">
                             <CardTitle className="text-sm font-black uppercase text-gray-900">Computation Input</CardTitle>
-                            <CardDescription className="text-xs uppercase font-bold text-muted-foreground tracking-tight">Enter details to see the detailed breakdown.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-8 p-6">
                             <div className="space-y-6">
@@ -834,16 +678,14 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                                         variant="ghost"
                                                         className="w-full justify-start text-xs text-primary font-bold"
                                                         onClick={() => {
-                                                            setPartyForm(prev => ({ ...prev, name: partySearch, type: 'Vendor', ownership: 'Both' }));
-                                                            setIsPartyPopoverOpen(false);
-                                                            setIsPartyDialogOpen(true);
+                                                            handleOpenPartyDialog(null, partySearch);
                                                         }}
                                                     >
                                                         <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
                                                     </Button>
                                                 </CommandEmpty>
                                                 <CommandGroup>
-                                                    {sortedParties.map((p) => (
+                                                    {filteredParties.map((p) => (
                                                     <CommandItem key={p.id} value={p.name} onSelect={() => {
                                                         setPartyName(p.name);
                                                         setIsPartyPopoverOpen(false);
@@ -946,9 +788,6 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                         })}
                                     </span>
                                 </div>
-                                <div className="text-[10px] text-muted-foreground pt-2 italic font-medium border-t border-dashed border-primary/10">
-                                    <span className="font-black uppercase not-italic mr-2">In Words:</span> {toWords(netAmount)}
-                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -986,7 +825,6 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                                     <AlertDialogContent>
                                                         <AlertDialogHeader>
                                                             <AlertDialogTitle>Delete Rate Definition?</AlertDialogTitle>
-                                                            <AlertDialogDescription>Remove "{rate.label}" from standard rate picklist?</AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -1020,14 +858,10 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                             <Input type="number" step="0.1" value={rateForm.value} onChange={(e) => setRateForm({...rateForm, value: e.target.value})} placeholder="1.5" />
                         </div>
                     </div>
-                    <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Description</Label>
-                        <Input value={rateForm.description} onChange={(e) => setRateForm({...rateForm, description: e.target.value})} placeholder="Short policy description" />
-                    </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsRateDialogOpen(false)} className="h-10 uppercase font-bold text-xs">Cancel</Button>
-                    <Button onClick={handleSaveRate} className="h-10 px-8 font-black uppercase text-xs">Commit Rate</Button>
+                    <Button onClick={handleSaveRate} className="h-10 px-8 font-black uppercase text-xs">Save Rate</Button>
                 </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1055,25 +889,19 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                 </Select>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Module Ownership</Label>
-                                <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Ownership</Label>
+                                <Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm(p => ({...p, ownership: v}))}>
                                     <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
-                                        <SelectItem value="Shivam">Shivam Packaging</SelectItem>
-                                        <SelectItem value="Both">General Ledger</SelectItem>
+                                        {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">PAN/VAT Number</Label>
-                            <Input value={partyForm.panNumber || ''} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} className="h-10 font-mono" />
-                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)} className="h-11 px-8 font-bold uppercase text-[10px]">Cancel</Button>
-                        <Button onClick={handleSubmitParty} className="h-11 px-8 font-black uppercase text-[10px] shadow-lg shadow-primary/20">Onboard Partner</Button>
+                        <Button onClick={handleSubmitParty} className="h-11 px-8 font-black uppercase text-[10px] shadow-lg shadow-primary/20">Save Partner</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1087,74 +915,13 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                         <div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">
                             {calculationData && <TdsVoucherView calculation={calculationData} companyProfile={companyProfile} />}
                         </div>
-                        <ScrollBar orientation="vertical" />
-                        <ScrollBar orientation="horizontal" />
                     </ScrollArea>
                     <DialogFooter className="p-6 border-t bg-white shrink-0">
-                        <div className="flex w-full justify-between items-center">
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => handleExport('jpg')} disabled={isExporting} className="h-10 px-4">
-                                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
-                                    Export Image
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} disabled={isExporting} className="h-10 px-4">
-                                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                                    Save PDF
-                                </Button>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button variant="ghost" onClick={() => setIsPreviewOpen(false)} className="h-10 px-6 uppercase font-bold text-[10px]">Close</Button>
-                                <Button onClick={doActualPrint} className="h-10 px-10 font-black uppercase text-[10px] shadow-lg shadow-primary/20"><Printer className="mr-2 h-4 w-4" /> Print Voucher</Button>
-                            </div>
-                        </div>
+                        <Button variant="outline" onClick={() => setIsPreviewOpen(false)} className="h-10 px-6 uppercase font-bold text-[10px]">Close</Button>
+                        <Button onClick={doActualPrint} className="h-10 px-10 font-black uppercase text-[10px] shadow-lg shadow-primary/20"><Printer className="mr-2 h-4 w-4" /> Print Voucher</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
-    );
-}
-
-export default function TdsCalculatorPage() {
-    const [activeTab, setActiveTab] = useState("calculator");
-    const [calculationToEdit, setCalculationToEdit] = useState<TdsCalculation | null>(null);
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE_LOCAL);
-
-    useEffect(() => {
-        const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE_LOCAL));
-        return () => unsub();
-    }, []);
-
-    const handleEdit = (calculation: TdsCalculation) => {
-        setCalculationToEdit(calculation);
-        setActiveTab("calculator");
-    };
-    
-    const handleSaveSuccess = () => {
-        setCalculationToEdit(null);
-        setActiveTab("history");
-    };
-    
-    const handleCancelEdit = () => {
-        setCalculationToEdit(null);
-    };
-
-    return (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4 bg-muted/50 p-1">
-                <TabsTrigger value="calculator" className="gap-2 px-8 font-bold text-xs uppercase tracking-widest">Calculator</TabsTrigger>
-                <TabsTrigger value="history" className="gap-2 px-8 font-bold text-xs uppercase tracking-widest">Registry Log</TabsTrigger>
-            </TabsList>
-            <TabsContent value="calculator" className="mt-6">
-                <CalculatorTab 
-                    calculationToEdit={calculationToEdit} 
-                    onSaveSuccess={handleSaveSuccess}
-                    onCancelEdit={handleCancelEdit}
-                    companyProfile={companyProfile}
-                />
-            </TabsContent>
-            <TabsContent value="history" className="mt-6">
-                <SavedTdsRecords onEdit={handleEdit} companyProfile={companyProfile} />
-            </TabsContent>
-        </Tabs>
     );
 }

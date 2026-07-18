@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -130,7 +131,7 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
 }
 
 export default function FinanceSettingsPage() {
-  const { user } = useAuth();
+  const { user, getAllowedOwnerships } = useAuth();
   const { toast } = useToast();
   
   const [parties, setParties] = useState<Party[]>([]);
@@ -139,7 +140,8 @@ export default function FinanceSettingsPage() {
   const [bsYears, setBsYears] = useState<number[]>([]);
   const [selectedLockYear, setSelectedLockYear] = useState<string>('');
   const [selectedLockMonth, setSelectedLockMonth] = useState<string>('');
-  const [ownershipCategories, setOwnershipCategories] = useState<OwnershipCategory[]>([]);
+  
+  const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
 
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
@@ -155,26 +157,6 @@ export default function FinanceSettingsPage() {
         onPartiesUpdate(setParties),
         onAccountsUpdate(setAccounts),
         onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {})),
-        onSettingUpdate('ownership_categories', (s) => { 
-            const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
-            let raw = s?.value || [];
-            if (!Array.isArray(raw)) raw = [];
-
-            const normalized = raw.map((item: any) => {
-                if (typeof item === 'string') return { name: item, modules: Array.from(modules) };
-                return item as OwnershipCategory;
-            });
-
-            // Standardize categories for dropdown selection
-            const existing = new Set(normalized.map(c => c.name));
-            defaults.forEach(d => {
-                if (!existing.has(d)) {
-                    normalized.push({ name: d, modules: Array.from(modules) });
-                }
-            });
-
-            setOwnershipCategories(normalized.sort((a,b) => a.name.localeCompare(b.name)));
-        }),
     ];
     
     import('@/services/payroll-service').then(m => {
@@ -192,16 +174,16 @@ export default function FinanceSettingsPage() {
     return () => unsubs.forEach(u => u());
   }, []);
 
-  const getOwnershipOptions = (currentValue: string) => {
-    const names = ownershipCategories.map(c => c.name);
-    if (currentValue && !names.includes(currentValue)) {
-        names.push(currentValue);
-    }
-    return names.sort();
-  };
+  // Centralized filtering for tables
+  const filteredParties = useMemo(() => {
+    return parties
+        .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
+        .sort((a, b) => a.name.localeCompare(b.name));
+  }, [parties, allowedOwnerships]);
 
-  const partyOwnershipOptions = useMemo(() => getOwnershipOptions(partyForm.ownership), [ownershipCategories, partyForm.ownership]);
-  const accountOwnershipOptions = useMemo(() => getOwnershipOptions(accountForm.ownership), [ownershipCategories, accountForm.ownership]);
+  const filteredAccounts = useMemo(() => {
+    return accounts.filter(a => a.ownership === 'Both' || allowedOwnerships.includes(a.ownership));
+  }, [accounts, allowedOwnerships]);
 
   const handleTogglePayrollLock = async () => {
     if (!selectedLockYear || !selectedLockMonth) return;
@@ -279,7 +261,7 @@ export default function FinanceSettingsPage() {
                         <CardTitle className="text-base font-black uppercase">Partner Registry</CardTitle>
                         <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => setIsMergeDialogOpen(true)} className="h-8 uppercase font-black text-[10px] tracking-widest"><GitMerge className="mr-2 h-3.5 w-3.5"/> Merge Duplicates</Button>
-                            <Button size="sm" onClick={() => { setEditingParty(null); setPartyForm({name:'', type:'Vendor', ownership:'', address: '', panNumber: ''}); setIsPartyDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Partner</Button>
+                            <Button size="sm" onClick={() => { setEditingParty(null); setPartyForm({name:'', type:'Vendor', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), address: '', panNumber: ''}); setIsPartyDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Partner</Button>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -293,7 +275,7 @@ export default function FinanceSettingsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                            {parties.sort((a,b) => a.name.localeCompare(b.name)).map(party => (
+                            {filteredParties.map(party => (
                                 <TableRow key={party.id} className="h-12 border-b">
                                     <TableCell className="font-bold pl-6">{party.name}</TableCell>
                                     <TableCell><Badge variant="secondary" className="text-[9px] uppercase">{party.type}</Badge></TableCell>
@@ -318,7 +300,7 @@ export default function FinanceSettingsPage() {
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Delete Partner Record?</AlertDialogTitle>
                                                     <AlertDialogDescription>
-                                                        This will permanently remove "{party.name}" from the system. Associated transaction history will remain but the partner reference will be orphaned.
+                                                        This will permanently remove "{party.name}" from the system.
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
@@ -339,12 +321,12 @@ export default function FinanceSettingsPage() {
                 <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Financial Accounts</CardTitle>
-                        <Button size="sm" onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership:'', accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
+                        <Button size="sm" onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Account Name</TableHead><TableHead>Type</TableHead><TableHead>Bank</TableHead><TableHead>Ownership</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader>
                         <TableBody>
-                        {accounts.map(acc => (
+                        {filteredAccounts.map(acc => (
                             <TableRow key={acc.id} className="h-12 border-b">
                                 <TableCell className="font-bold pl-6">{acc.name}</TableCell>
                                 <TableCell><Badge variant="outline" className="text-[9px] uppercase">{acc.type}</Badge></TableCell>
@@ -372,7 +354,7 @@ export default function FinanceSettingsPage() {
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>Remove Financial Account?</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    This will delete the account record for "{acc.name}". Ensure all balances are zeroed or reassigned.
+                                                    This will delete the account record for "{acc.name}".
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
@@ -411,7 +393,7 @@ export default function FinanceSettingsPage() {
         </Tabs>
 
         {/* Dialogs */}
-        <MergePartiesDialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen} parties={parties} onMerge={(s, d) => mergeParties(s, d)} />
+        <MergePartiesDialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen} parties={filteredParties} onMerge={(s, d) => mergeParties(s, d)} />
 
         <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
           <DialogContent>
@@ -435,7 +417,7 @@ export default function FinanceSettingsPage() {
                     <Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}>
                         <SelectTrigger><SelectValue placeholder="Select Ownership" /></SelectTrigger>
                         <SelectContent>
-                            {partyOwnershipOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                            {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
@@ -466,7 +448,7 @@ export default function FinanceSettingsPage() {
                             <Select value={accountForm.ownership} onValueChange={(v: any) => setAccountForm({...accountForm, ownership: v})}>
                                 <SelectTrigger><SelectValue placeholder="Select Ownership" /></SelectTrigger>
                                 <SelectContent>
-                                    {accountOwnershipOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                    {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>

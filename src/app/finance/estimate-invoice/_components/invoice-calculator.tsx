@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Party, PartyType, Product, EstimateInvoiceItem, EstimatedInvoice, AccountOwnership } from '@/lib/types';
@@ -42,10 +43,11 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     const [parties, setParties] = useState<Party[]>([]);
 
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
 
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, ownership: 'Both' as AccountOwnership, address: '', panNumber: '' });
+    const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, ownership: 'Shivam' as AccountOwnership, address: '', panNumber: '' });
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
     
@@ -85,14 +87,21 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         }
     }, [invoiceToEdit, allInvoices, parties, date]);
     
-    const allParties = useMemo(() => [...parties].sort((a, b) => a.name.localeCompare(b.name)), [parties]);
+    // Centralized filtering logic
+    const filteredParties = useMemo(() => {
+        return parties
+            .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [parties, allowedOwnerships]);
 
-    const sortedProducts = useMemo(() => {
-        return [...products].sort((a, b) => a.name.localeCompare(b.name));
-    }, [products]);
+    const filteredProducts = useMemo(() => {
+        return products
+            .filter(p => !p.partyId || filteredParties.some(party => party.id === p.partyId))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [products, filteredParties]);
     
     const handlePartySelect = (selectedPartyId: string) => {
-        const selected = allParties.find(c => c.id === selectedPartyId);
+        const selected = filteredParties.find(c => c.id === selectedPartyId);
         setParty(selected || null);
         setIsPartyPopoverOpen(false);
     };
@@ -100,10 +109,16 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
         if (partyToEdit) {
             setEditingParty(partyToEdit);
-            setPartyForm({ name: partyToEdit.name, type: partyToEdit.type, ownership: partyToEdit.ownership || 'Both', address: partyToEdit.address || '', panNumber: partyToEdit.panNumber || '' });
+            setPartyForm({ name: partyToEdit.name, type: partyToEdit.type, ownership: partyToEdit.ownership, address: partyToEdit.address || '', panNumber: partyToEdit.panNumber || '' });
         } else {
             setEditingParty(null);
-            setPartyForm({ name: searchName, type: 'Customer', ownership: 'Both', address: '', panNumber: '' });
+            setPartyForm({ 
+                name: searchName, 
+                type: 'Customer', 
+                ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), 
+                address: '', 
+                panNumber: '' 
+            });
         }
         setIsPartyPopoverOpen(false);
         setIsPartyDialogOpen(true);
@@ -252,7 +267,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                                 <CommandInput placeholder="Search party..." value={partySearch} onValueChange={setPartySearch} />
                                 <CommandList>
                                     <CommandEmpty><Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}><PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"</Button></CommandEmpty>
-                                    <CommandGroup>{allParties.map(p => (<CommandItem key={p.id} value={p.name} onSelect={() => handlePartySelect(p.id)}><Check className={cn("mr-2 h-4 w-4", party?.id === p.id ? "opacity-100" : "opacity-0")}/>{p.name}</CommandItem>))}</CommandGroup>
+                                    <CommandGroup>{filteredParties.map(p => (<CommandItem key={p.id} value={p.name} onSelect={() => handlePartySelect(p.id)}><Check className={cn("mr-2 h-4 w-4", party?.id === p.id ? "opacity-100" : "opacity-0")}/>{p.name}</CommandItem>))}</CommandGroup>
                                 </CommandList>
                             </Command>
                         </PopoverContent>
@@ -315,11 +330,11 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                                                                 setIsProductDialogOpen(true);
                                                             }}
                                                         >
-                                                            <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}" to catalog
+                                                            <PlusCircle className="mr-2 h-4 w-4 /> Add "{productSearch}" to catalog
                                                         </Button>
                                                     </CommandEmpty>
                                                     <CommandGroup>
-                                                        {sortedProducts.map(p => (
+                                                        {filteredProducts.map(p => (
                                                             <CommandItem 
                                                                 key={p.id} 
                                                                 value={p.name} 
@@ -389,7 +404,9 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                         <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Full Name / Trading Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} className="h-11 font-bold" /></div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Type</Label><Select value={partyForm.type} onValueChange={(v: any) => setPartyForm({...partyForm, type: v})}><SelectTrigger className="h-10"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor / Supplier</SelectItem><SelectItem value="Customer">Customer / Client</SelectItem></SelectContent></Select></div>
-                            <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger className="h-10"><SelectValue/></SelectTrigger><SelectContent>{parties.map(p => p.ownership).filter((v, i, a) => a.indexOf(v) === i).map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                            <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger className="h-10"><SelectValue/></SelectTrigger><SelectContent>
+                                {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                            </SelectContent></Select></div>
                         </div>
                          <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">PAN/VAT Number</Label><Input value={partyForm.panNumber} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} className="h-10 font-mono" /></div>
                         <div className="space-y-2"><Label className="text-xs uppercase font-bold text-muted-foreground">Address</Label><Textarea value={partyForm.address} onChange={e => setPartyForm({...partyForm, address: e.target.value})} className="min-h-[80px]" /></div>
