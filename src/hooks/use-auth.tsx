@@ -306,12 +306,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const getAllowedOwnerships = useCallback((module: Module): AccountOwnership[] => {
       if (!user) return [];
-      const allPossible = Array.from(new Set([...ownershipCategories.map(c => c.name), 'Sijan', 'Shivam', 'Rental', 'Both']));
+      
+      // Get all categories that are EXPLICITLY associated with this module in Settings
+      const moduleCategories = ownershipCategories
+          .filter(c => c.modules?.includes(module))
+          .map(c => c.name);
+      
+      // 'Both' is always a valid scope for any module to allow shared records
+      const allowedBase = Array.from(new Set([...moduleCategories, 'Both']));
 
-      if (user.isAdmin) return allPossible;
+      if (user.isAdmin) return allowedBase;
+
       const perms = user.permissions[module];
-      if (!perms || Array.isArray(perms)) return []; 
-      return perms.ownerships || [];
+      if (!perms || Array.isArray(perms)) return ['Both'];
+      
+      const userOwnerships = perms.ownerships || [];
+      // Return intersection of (user's ownerships for this module) AND (globally allowed ownerships for this module)
+      return allowedBase.filter(o => o === 'Both' || userOwnerships.includes(o));
   }, [user, ownershipCategories]);
 
   return (

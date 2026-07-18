@@ -110,7 +110,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const [isDetentionDialogOpen, setIsDetentionDialogOpen] = useState(false);
     const [detentionDateRange, setDetentionDateRange] = useState<DateRange | undefined>(undefined);
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Customer', ownership: 'Both', address: '', panNumber: ''});
+    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Customer', ownership: 'Sijan', address: '', panNumber: ''});
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
     
@@ -379,6 +379,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                     return returnTrip as ReturnTrip;
                 }),
             createdBy: user.username,
+            ownership: 'Sijan', // Trips created here are inherently Sijan
         };
 
         if (values.odometerStart !== undefined && values.odometerStart !== null) tripDataForDb.odometerStart = values.odometerStart;
@@ -427,7 +428,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 toast({title: 'Success', description: 'New party added.'});
             }
             setIsPartyDialogOpen(false);
-            setPartyForm({name: '', type: 'Customer', ownership: 'Both', address: '', panNumber: ''});
+            setPartyForm({name: '', type: 'Customer', ownership: 'Sijan', address: '', panNumber: ''});
             setEditingParty(null);
         } catch {
              toast({title: 'Error', description: 'Failed to save party.', variant: 'destructive'});
@@ -437,10 +438,10 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const handleOpenPartyDialog = (party: Party | null = null, type: PartyType, searchName: string = '') => {
         if (party) {
             setEditingParty(party);
-            setPartyForm({ name: party.name, type: party.type, ownership: party.ownership || 'Both', address: party.address || '', panNumber: party.panNumber || '' });
+            setPartyForm({ name: party.name, type: party.type, ownership: party.ownership || 'Sijan', address: party.address || '', panNumber: party.panNumber || '' });
         } else {
             setEditingParty(null);
-            setPartyForm({ name: searchName, type, ownership: 'Both', address: '', panNumber: '' });
+            setPartyForm({ name: searchName, type, ownership: 'Sijan', address: '', panNumber: '' });
         }
         setIsPartyDialogOpen(true);
     };
@@ -847,6 +848,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                             {expenseFields.map((item, index) => (
                                                 <div key={item.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr] items-start gap-2">
                                                     <FormField
+                                                        relative
                                                         control={form.control}
                                                         name={`extraExpenses.${index}.partyId`}
                                                         render={({ field }) => (

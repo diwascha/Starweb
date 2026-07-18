@@ -78,6 +78,7 @@ export interface Product {
   createdAt: string; // ISO string
   lastModifiedBy?: string | null;
   lastModifiedAt?: string; // ISO string
+  ownership: string;
 }
 
 export interface TestResult {
@@ -105,6 +106,7 @@ export interface Report {
   createdBy: string;
   lastModifiedBy?: string | null;
   lastModifiedAt?: string | null;
+  ownership: string;
 }
 
 export interface RawMaterial {
@@ -119,6 +121,7 @@ export interface RawMaterial {
   createdAt: string; // ISO string
   lastModifiedBy?: string;
   lastModifiedAt?: string; // ISO string
+  ownership: string;
 }
 
 export interface PurchaseOrderItem {
@@ -228,6 +231,7 @@ export interface Employee {
   createdAt: string; // ISO string
   lastModifiedBy?: string;
   lastModifiedAt?: string; // ISO string
+  ownership: string;
 }
 
 export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday' | 'C/I Miss' | 'C/O Miss' | 'EXTRAOK' | 'Leave';
@@ -520,6 +524,7 @@ export interface Vehicle {
   createdAt: string; // ISO string
   lastModifiedBy?: string;
   lastModifiedAt?: string; // ISO string
+  ownership: string;
 }
 
 export interface Driver {
@@ -711,6 +716,7 @@ export interface Trip {
     createdAt: string; // ISO string
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO string
+    ownership: string;
 }
 
 
@@ -993,6 +999,7 @@ export interface CostReport {
   termsAndConditions?: CostReportTerm[];
   createdBy: string;
   createdAt: string;
+  ownership: string;
 }
 
 export interface CostSettingHistoryEntry {
@@ -1051,6 +1058,7 @@ export interface RentalProperty {
   createdAt: string;
   lastModifiedBy?: string;
   lastModifiedAt?: string;
+  ownership: string;
 }
 
 export interface RentalUnit {
@@ -1069,6 +1077,7 @@ export interface RentalUnit {
   createdAt: string;
   lastModifiedBy?: string;
   lastModifiedAt?: string;
+  ownership: string;
 }
 
 export interface RentalAgreement {
@@ -1090,6 +1099,7 @@ export interface RentalAgreement {
   createdAt: string;
   lastModifiedBy?: string;
   lastModifiedAt?: string;
+  ownership: string;
 }
 
 export interface RentalBill {
@@ -1111,4 +1121,5 @@ export interface RentalBill {
   remarks?: string;
   createdBy: string;
   createdAt: string;
+  ownership: string;
 }

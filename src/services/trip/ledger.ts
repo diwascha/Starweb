@@ -27,7 +27,8 @@ export const addTrip = async (trip: any): Promise<string> => {
         referenceId: trip.tripNumber,
         billingType: 'Credit',
         invoiceType: 'Normal',
-        createdBy: trip.createdBy
+        createdBy: trip.createdBy,
+        ownership: trip.ownership || 'Sijan', // Ensure ownership is synced to ledger
     };
     batch.set(doc(db, COLLECTIONS.TRANSACTIONS, `sales-${trip.tripNumber}`), txnData);
     
@@ -57,7 +58,8 @@ export const updateTrip = async (id: string, updates: any): Promise<void> => {
         date: updates.date,
         lastModifiedAt: now,
         lastModifiedBy: updates.lastModifiedBy,
-        items: [{ particular: `Trip ${updates.tripNumber}`, quantity: 1, rate: updates.transport }]
+        items: [{ particular: `Trip ${updates.tripNumber}`, quantity: 1, rate: updates.transport }],
+        ownership: updates.ownership || 'Sijan', // Ensure ownership is synced on update
     };
     batch.set(txnRef, txnUpdate, { merge: true });
 
