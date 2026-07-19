@@ -311,6 +311,20 @@ export default function GeneralSettingsPage() {
   const openEditRuleDialog = (idx: number) => {
     if (!historyKey) return;
     const raw = prefixes[historyKey];
+
+    if (idx === -99) {
+        setEditingRuleIndex(-99);
+        setEditRuleForm({
+            prefix: typeof raw === 'string' ? raw : '',
+            effectiveFrom: new Date().toISOString().split('T')[0],
+            effectiveTo: null,
+            startingNumber: 1,
+            status: 'Active'
+        });
+        setIsEditRuleDialogOpen(true);
+        return;
+    }
+
     if (!Array.isArray(raw) || !raw[idx]) return;
     
     const rule = raw[idx];
@@ -327,14 +341,21 @@ export default function GeneralSettingsPage() {
     if (!historyKey || editingRuleIndex === null) return;
     
     const rawRules = prefixes[historyKey];
-    if (!Array.isArray(rawRules)) return;
+    let updatedRules: NumberingRule[];
     
-    const updatedRules = [...rawRules];
-    updatedRules[editingRuleIndex] = {
+    const newRuleBase = {
         ...editRuleForm,
         effectiveFrom: new Date(editRuleForm.effectiveFrom).toISOString(),
         effectiveTo: editRuleForm.effectiveTo ? new Date(editRuleForm.effectiveTo).toISOString() : null
     };
+
+    if (editingRuleIndex === -99) {
+        updatedRules = [newRuleBase];
+    } else {
+        if (!Array.isArray(rawRules)) return;
+        updatedRules = [...rawRules];
+        updatedRules[editingRuleIndex] = newRuleBase;
+    }
     
     const newConfig = { ...prefixes, [historyKey]: updatedRules };
     
@@ -748,13 +769,14 @@ export default function GeneralSettingsPage() {
                                         <TableCell>{toNepaliDate(rule.effectiveFrom)}</TableCell>
                                         <TableCell>{rule.effectiveTo ? toNepaliDate(rule.effectiveTo) : <span className="italic text-[9px]">Currently Active</span>}</TableCell>
                                         <TableCell className="text-right pr-4">
-                                            {rule.originalIndex === -99 ? (
-                                                <Badge variant="outline" className="text-[8px] uppercase bg-amber-50 text-amber-700 border-amber-200">Upgrade Required</Badge>
-                                            ) : (
-                                                <div className="flex justify-end gap-1">
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRuleDialog(rule.originalIndex)}>
-                                                        <Edit className="h-3.5 w-3.5" />
-                                                    </Button>
+                                            <div className="flex justify-end gap-1 items-center">
+                                                {rule.originalIndex === -99 && (
+                                                    <Badge variant="outline" className="text-[8px] uppercase bg-amber-50 text-amber-700 border-amber-200 mr-2">Upgrade Required</Badge>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRuleDialog(rule.originalIndex)}>
+                                                    <Edit className="h-3.5 w-3.5" />
+                                                </Button>
+                                                {rule.originalIndex !== -99 && (
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
                                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
@@ -774,8 +796,8 @@ export default function GeneralSettingsPage() {
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
-                                                </div>
-                                            )}
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
