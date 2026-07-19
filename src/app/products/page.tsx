@@ -48,6 +48,7 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 import { format } from 'date-fns';
 import { onPartiesUpdate } from '@/services/party-service';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 const initialSpecValues: ProductSpecification = {
@@ -85,6 +86,7 @@ export default function ProductsPage() {
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('All');
   
   const [productSortConfig, setProductSortConfig] = useState<{ key: ProductSortKey; direction: SortDirection }>({
     key: 'name',
@@ -113,7 +115,12 @@ export default function ProductsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, itemsPerPage]);
+  }, [searchQuery, activeTab, itemsPerPage]);
+
+  const tabs = useMemo(() => {
+    const ownerships = new Set(products.map(p => p.ownership));
+    return ['All', ...Array.from(ownerships).sort()];
+  }, [products]);
 
   const handlePartySelect = (partyId: string) => {
     const party = partiesById.get(partyId);
@@ -240,6 +247,10 @@ export default function ProductsPage() {
   const filteredAndSortedProducts = useMemo(() => {
     let filteredProducts = products.filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership));
 
+    if (activeTab !== 'All') {
+        filteredProducts = filteredProducts.filter(p => p.ownership === activeTab);
+    }
+
     if (searchQuery) {
         const lowercasedQuery = searchQuery.toLowerCase();
         filteredProducts = filteredProducts.filter(product =>
@@ -273,7 +284,7 @@ export default function ProductsPage() {
       });
     }
     return filteredProducts;
-  }, [products, productSortConfig, searchQuery, allowedOwnerships]);
+  }, [products, productSortConfig, searchQuery, allowedOwnerships, activeTab]);
 
   const paginatedProducts = useMemo(() => {
     if (itemsPerPage === -1) return filteredAndSortedProducts;
@@ -633,15 +644,16 @@ export default function ProductsPage() {
           )}
         </div>
       </header>
+
        {isLoading ? renderContent() : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+          <TabsList className="mb-4">
               {tabs.map(tab => (
                    <TabsTrigger key={tab} value={tab} className="font-bold text-xs uppercase tracking-widest">{tab}</TabsTrigger>
               ))}
           </TabsList>
           {tabs.map(tab => (
-              <TabsContent key={tab} value={tab} className="mt-4">
+              <TabsContent key={tab} value={tab} className="mt-0">
                   {renderContent()}
               </TabsContent>
           ))}

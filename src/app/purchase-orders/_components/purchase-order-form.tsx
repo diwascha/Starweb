@@ -421,6 +421,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             units: units,
             createdBy: user.username,
             createdAt: now,
+            ownership: 'Both'
         };
         
         await addRawMaterial(newMaterial);
@@ -1036,7 +1037,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                          <Popover open={isQuickAddUnitPopoverOpen} onOpenChange={setIsQuickAddUnitPopoverOpen}>
                             <PopoverTrigger asChild>
                                 <div className="flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                    <div className="flex flex-wrap gap-1 flex-1">
+                                    <div className="flex wrap gap-1 flex-1">
                                         {quickAddForm.units.map(unit => (
                                             <Badge key={unit} variant="secondary" className="gap-1">
                                                 {unit}

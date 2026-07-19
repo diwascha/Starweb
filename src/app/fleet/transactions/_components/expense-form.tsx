@@ -209,6 +209,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 await updateExpense(expenseToEdit.id, {
                     ...values,
                     date: values.date.toISOString(),
+                    ownership: 'Sijan'
                 }, user.username);
                 toast({ title: 'Success', description: 'Expense updated successfully.' });
             } else {
@@ -216,6 +217,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     ...values,
                     date: values.date.toISOString(),
                     createdBy: user.username,
+                    ownership: 'Sijan'
                 });
                 toast({ title: 'Success', description: 'Expense recorded successfully.' });
             }
@@ -743,7 +745,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                         <FormControl>
                             <div className="relative">
                                 <Textarea 
-                                    placeholder="Enter additional details..." 
+                                    placeholder="Add additional details..." 
                                     className="min-h-[80px] text-sm resize-none" 
                                     {...field} 
                                 />

@@ -228,6 +228,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 await updateExpense(expenseToEdit.id, {
                     ...values,
                     date: values.date.toISOString(),
+                    ownership: 'Sijan'
                 }, user.username);
                 toast({ title: 'Success', description: 'Expense updated successfully.' });
             } else {
@@ -235,6 +236,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     ...values,
                     date: values.date.toISOString(),
                     createdBy: user.username,
+                    ownership: 'Sijan'
                 });
                 toast({ title: 'Success', description: 'Expense recorded successfully.' });
             }
@@ -250,11 +252,11 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const handleQuickAddParty = async () => {
         if (!user || !partyForm.name || !partyForm.ownership) return;
         try {
-            const newId = await addParty({ 
+            const id = await addParty({ 
                 ...partyForm, 
                 createdBy: user.username 
             });
-            form.setValue('partyId', newId);
+            form.setValue('partyId', id);
             setIsPartyDialogOpen(false);
             setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '', panNumber: '' });
             toast({ title: 'Party Added' });
