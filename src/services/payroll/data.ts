@@ -55,6 +55,7 @@ export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | Do
         remark: String(data.remark || ''),
         createdBy: String(data.createdBy || 'System'),
         createdAt: String(data.createdAt || ''),
+        ownership: data.ownership || 'Both',
     };
 };
 

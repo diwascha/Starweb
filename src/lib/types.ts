@@ -461,6 +461,7 @@ export interface Payroll {
     salaryTotal?: number;
     remark?: string;
     bonus?: number;
+    ownership: string;
 }
 
 export interface BehaviorAnalyticsEntry {

@@ -37,7 +37,22 @@ export const calculateAndSavePayrollForMonth = async (bsYear: number, bsMonth: n
         const gross = basic + otPay + (employee.allowance || 0);
         const net = gross - (gross * 0.01);
         const payrollId = `${bsYear}-${bsMonth}-${employee.id}`;
-        batch.set(doc(getPayrollCollection(), payrollId), { bsYear, bsMonth, employeeId: employee.id, employeeName: employee.name, regularHours: regHrs, overtimeHours: otHrs, rate, regularPay: basic, otPay, totalPay: gross, netPayment: net, createdBy: calculatedBy, createdAt: now }, { merge: true });
+        batch.set(doc(getPayrollCollection(), payrollId), { 
+            bsYear, 
+            bsMonth, 
+            employeeId: employee.id, 
+            employeeName: employee.name, 
+            regularHours: regHrs, 
+            overtimeHours: otHrs, 
+            rate, 
+            regularPay: basic, 
+            otPay, 
+            totalPay: gross, 
+            netPayment: net, 
+            createdBy: calculatedBy, 
+            createdAt: now,
+            ownership: employee.ownership || 'Both'
+        }, { merge: true });
     }
     await batch.commit();
     return { employeeCount: workingEmployees.length };
