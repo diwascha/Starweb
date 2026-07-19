@@ -146,7 +146,7 @@ function AssetRegistryContent() {
                 await updateProperty(editingProperty.id, { ...propForm, lastModifiedBy: user.username });
                 toast({ title: 'Property Updated' });
             } else {
-                await addProperty({ ...propForm, totalUnits: 0, createdBy: user.username });
+                await addProperty({ ...propForm, totalUnits: 0, createdBy: user.username, ownership: 'Rental' });
                 toast({ title: 'Property Created' });
             }
             setIsPropDialogOpen(false);
@@ -165,7 +165,7 @@ function AssetRegistryContent() {
                 await updateUnit(editingUnit.id, { ...payload, lastModifiedBy: user.username });
                 toast({ title: 'Unit Updated' });
             } else {
-                await addUnit({ ...payload, outstandingBalance: 0, createdBy: user.username });
+                await addUnit({ ...payload, outstandingBalance: 0, createdBy: user.username, ownership: 'Rental' });
                 toast({ title: 'Unit Created' });
             }
             setIsUnitDialogOpen(false);

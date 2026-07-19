@@ -759,7 +759,8 @@ export default function PoliciesPage() {
                                         {formState.memberType === 'Vehicle' ? (
                                             vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
                                         ) : (
-                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>

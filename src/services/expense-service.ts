@@ -57,6 +57,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense =
         remarks: data.remarks ?? null,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
+        ownership: data.ownership || 'Sijan',
     };
 };
 
@@ -108,7 +109,8 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
             dueDate: null,
             tripId: null,
             voucherId: expense.voucherNo,
-            lastModifiedBy: null
+            lastModifiedBy: null,
+            ownership: expense.ownership || 'Sijan'
         };
     };
 

@@ -21,4 +21,5 @@ export interface Expense {
     createdAt: string; // ISO string
     lastModifiedBy?: string | null;
     lastModifiedAt?: string | null;
+    ownership: string;
 }

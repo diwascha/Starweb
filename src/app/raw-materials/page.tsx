@@ -197,6 +197,7 @@ export default function RawMaterialsPage() {
             units: newMaterialUnits,
             createdBy: user.username,
             createdAt: now,
+            ownership: 'Both',
           };
           await addRawMaterial(newMaterialData);
           toast({ title: 'Success', description: 'New raw material added.' });

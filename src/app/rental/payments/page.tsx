@@ -75,6 +75,7 @@ function PaymentCollection() {
                 remarks: remarks || `Rent collection from ${tenant?.name}`,
                 createdBy: user.username,
                 referenceType: 'Rental Payment',
+                ownership: tenant?.ownership || 'Rental'
             };
 
             await addTransaction(txn);
@@ -159,7 +160,7 @@ function PaymentCollection() {
                     </CardContent>
                     <CardFooter className="bg-primary/5 border-t">
                         <Button className="w-full h-12 font-bold" onClick={handleSavePayment} disabled={isSaving || !selectedTenantId || paymentAmount <= 0}>
-                            {isSaving ? <Loader2 className="animate-spin h-5 w-5 mr-2"/> : <Save className="mr-2 h-5 w-5"/>}
+                            {isSaving ? <Loader2 className="animate-spin h-5 w-5 mr-2"/> : <Save className="mr-2 h-4 w-4"/>}
                             Post Collection & Close
                         </Button>
                     </CardFooter>

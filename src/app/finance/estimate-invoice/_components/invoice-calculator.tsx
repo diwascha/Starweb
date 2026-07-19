@@ -153,7 +153,8 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 partyAddress: party.address || '',
                 specification: {},
                 createdBy: user.username,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                ownership: party.ownership
             });
             
             if (activeRowIndex !== null) {
