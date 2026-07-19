@@ -102,6 +102,16 @@ export default function GeneralSettingsPage() {
 
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [historyKey, setHistoryKey] = useState<DocumentType | null>(null);
+  
+  const [isEditRuleDialogOpen, setIsEditRuleDialogOpen] = useState(false);
+  const [editingRuleIndex, setEditingRuleIndex] = useState<number | null>(null);
+  const [editRuleForm, setEditRuleForm] = useState<NumberingRule & { originalIndex?: number }>({
+      prefix: '',
+      effectiveFrom: '',
+      effectiveTo: null,
+      startingNumber: 1,
+      status: 'Archived'
+  });
 
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -247,7 +257,7 @@ export default function GeneralSettingsPage() {
     setNumberingForm({
         prefix: active?.prefix || (typeof rawRules === 'string' ? rawRules : ''),
         effectiveFrom: new Date().toISOString().split('T')[0],
-        effectiveTo: active?.effectiveTo ? new Date(active.effectiveTo).toISOString().split('T')[0] : '',
+        effectiveTo: '',
         startingNumber: active ? active.startingNumber : 1
     });
     setIsNumberingDialogOpen(true);
@@ -297,6 +307,45 @@ export default function GeneralSettingsPage() {
     }
   };
 
+  const openEditRuleDialog = (idx: number) => {
+    if (!historyKey) return;
+    const raw = prefixes[historyKey];
+    if (!Array.isArray(raw) || !raw[idx]) return;
+    
+    const rule = raw[idx];
+    setEditingRuleIndex(idx);
+    setEditRuleForm({
+        ...rule,
+        effectiveFrom: rule.effectiveFrom.split('T')[0],
+        effectiveTo: rule.effectiveTo ? rule.effectiveTo.split('T')[0] : null
+    });
+    setIsEditRuleDialogOpen(true);
+  };
+
+  const handleSaveEditRule = async () => {
+    if (!historyKey || editingRuleIndex === null) return;
+    
+    const rawRules = prefixes[historyKey];
+    if (!Array.isArray(rawRules)) return;
+    
+    const updatedRules = [...rawRules];
+    updatedRules[editingRuleIndex] = {
+        ...editRuleForm,
+        effectiveFrom: new Date(editRuleForm.effectiveFrom).toISOString(),
+        effectiveTo: editRuleForm.effectiveTo ? new Date(editRuleForm.effectiveTo).toISOString() : null
+    };
+    
+    const newConfig = { ...prefixes, [historyKey]: updatedRules };
+    
+    try {
+        await setSetting('documentPrefixes', newConfig);
+        setIsEditRuleDialogOpen(false);
+        toast({ title: 'Record Updated' });
+    } catch {
+        toast({ title: 'Update Failed', variant: 'destructive' });
+    }
+  };
+
   const handleUomSubmit = async () => {
     if (!user) return;
     try {
@@ -312,7 +361,8 @@ export default function GeneralSettingsPage() {
   const numberingHistory = useMemo(() => {
       if (!historyKey) return [];
       const raw = prefixes[historyKey];
-      return Array.isArray(raw) ? [...raw].reverse() : [];
+      if (!Array.isArray(raw)) return [];
+      return raw.map((r, i) => ({ ...r, originalIndex: i })).reverse();
   }, [historyKey, prefixes]);
 
   return (
@@ -650,6 +700,7 @@ export default function GeneralSettingsPage() {
                                     <TableHead className="text-center font-bold uppercase text-[9px]">Start #</TableHead>
                                     <TableHead className="font-bold uppercase text-[9px]">Effective From (BS)</TableHead>
                                     <TableHead className="font-bold uppercase text-[9px]">Effective To (BS)</TableHead>
+                                    <TableHead className="text-right pr-4 font-bold uppercase text-[9px]">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -664,10 +715,15 @@ export default function GeneralSettingsPage() {
                                         <TableCell className="text-center font-bold">{rule.startingNumber.toString().padStart(3, '0')}</TableCell>
                                         <TableCell>{toNepaliDate(rule.effectiveFrom)}</TableCell>
                                         <TableCell>{rule.effectiveTo ? toNepaliDate(rule.effectiveTo) : <span className="italic text-[9px]">Currently Active</span>}</TableCell>
+                                        <TableCell className="text-right pr-4">
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRuleDialog(rule.originalIndex)}>
+                                                <Edit className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                                 {numberingHistory.length === 0 && (
-                                    <TableRow><TableCell colSpan={5} className="py-12 text-center italic">No rule history found.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={6} className="py-12 text-center italic">No rule history found.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>
@@ -685,6 +741,59 @@ export default function GeneralSettingsPage() {
                 </ScrollArea>
                 <DialogFooter className="p-4 border-t bg-muted/5 shrink-0">
                     <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)} className="w-full font-bold uppercase text-[10px] tracking-widest h-10">Close Audit Log</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        {/* Edit Historical Rule Dialog */}
+        <Dialog open={isEditRuleDialogOpen} onOpenChange={setIsEditRuleDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Edit Sequence Record</DialogTitle>
+                    <DialogDescription className="text-xs uppercase font-bold text-muted-foreground">Modify an existing numbering rule in the history.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Rule Prefix</Label>
+                        <Input 
+                            value={editRuleForm.prefix} 
+                            onChange={e => setEditRuleForm(p => ({...p, prefix: e.target.value}))} 
+                            className="h-10 font-mono text-blue-600 font-black border-2" 
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Effective From (AD)</Label>
+                            <Input 
+                                type="date" 
+                                value={editRuleForm.effectiveFrom} 
+                                onChange={e => setEditRuleForm(p => ({...p, effectiveFrom: e.target.value}))} 
+                                className="h-10 font-bold text-xs"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Effective To (AD/Optional)</Label>
+                            <Input 
+                                type="date" 
+                                value={editRuleForm.effectiveTo || ''} 
+                                onChange={e => setEditRuleForm(p => ({...p, effectiveTo: e.target.value || null}))} 
+                                className="h-10 font-bold text-xs"
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Starting Sequence #</Label>
+                        <Input 
+                            type="number" 
+                            value={editRuleForm.startingNumber} 
+                            onChange={e => setEditRuleForm(p => ({...p, startingNumber: parseInt(e.target.value) || 1}))} 
+                            className="h-10 font-black text-sm"
+                        />
+                    </div>
+                </div>
+                <DialogFooter className="border-t pt-4">
+                    <Button variant="outline" onClick={() => setIsEditRuleDialogOpen(false)} className="h-11 font-bold text-xs uppercase tracking-widest">Cancel</Button>
+                    <Button onClick={handleSaveEditRule} className="h-11 px-8 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">Commit Changes</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
