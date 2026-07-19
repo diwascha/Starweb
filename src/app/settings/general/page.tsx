@@ -96,6 +96,7 @@ export default function GeneralSettingsPage() {
   const [numberingForm, setNumberingForm] = useState({
       prefix: '',
       effectiveFrom: new Date().toISOString().split('T')[0],
+      effectiveTo: '',
       startingNumber: 1
   });
 
@@ -126,7 +127,7 @@ export default function GeneralSettingsPage() {
         onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE)),
         onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE)),
         onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '' })),
-        onSettingUpdate('ownership_categories', (s) => { 
+        onSettingUpdate('ownership_categories', (s: any) => { 
             const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
             let raw = s?.value || [];
             if (!Array.isArray(raw)) raw = [];
@@ -246,6 +247,7 @@ export default function GeneralSettingsPage() {
     setNumberingForm({
         prefix: active?.prefix || (typeof rawRules === 'string' ? rawRules : ''),
         effectiveFrom: new Date().toISOString().split('T')[0],
+        effectiveTo: active?.effectiveTo ? new Date(active.effectiveTo).toISOString().split('T')[0] : '',
         startingNumber: active ? active.startingNumber : 1
     });
     setIsNumberingDialogOpen(true);
@@ -259,22 +261,27 @@ export default function GeneralSettingsPage() {
     const activeIndex = rules.findIndex(r => r.status === 'Active');
     
     const newFromDate = new Date(numberingForm.effectiveFrom);
+    const newToDate = numberingForm.effectiveTo ? new Date(numberingForm.effectiveTo) : null;
     
     if (activeIndex !== -1) {
         const oldRule = { ...rules[activeIndex] };
         oldRule.status = 'Archived';
-        const toDate = new Date(newFromDate);
-        toDate.setDate(toDate.getDate() - 1);
-        oldRule.effectiveTo = toDate.toISOString();
+        // Auto-terminate the old rule if no specific "To" was provided by the user for it,
+        // using the new start date as anchor
+        if (!oldRule.effectiveTo) {
+            const toDate = new Date(newFromDate);
+            toDate.setDate(toDate.getDate() - 1);
+            oldRule.effectiveTo = toDate.toISOString();
+        }
         rules[activeIndex] = oldRule;
     }
     
     const newRule: NumberingRule = {
         prefix: numberingForm.prefix,
         effectiveFrom: newFromDate.toISOString(),
+        effectiveTo: newToDate ? newToDate.toISOString() : null,
         startingNumber: Number(numberingForm.startingNumber) || 1,
         status: 'Active',
-        effectiveTo: null
     };
     
     rules.push(newRule);
@@ -494,8 +501,8 @@ export default function GeneralSettingsPage() {
                                 <TableRow className="hover:bg-transparent">
                                     <TableHead className="pl-6 font-bold uppercase">Document Class</TableHead>
                                     <TableHead className="font-bold uppercase">Active Prefix</TableHead>
-                                    <TableHead className="font-bold uppercase text-center">Starting At</TableHead>
-                                    <TableHead className="font-bold uppercase">Effective From</TableHead>
+                                    <TableHead className="font-bold uppercase text-center">Start #</TableHead>
+                                    <TableHead className="font-bold uppercase">Period (BS)</TableHead>
                                     <TableHead className="text-right pr-6 font-bold uppercase">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -510,7 +517,14 @@ export default function GeneralSettingsPage() {
                                             <TableCell className="font-black pl-6 text-gray-900 uppercase tracking-tighter">{getDocumentName(t)}</TableCell>
                                             <TableCell className="font-mono text-blue-600 font-black">{active?.prefix || (typeof rawRules === 'string' ? rawRules : '(System Default)')}</TableCell>
                                             <TableCell className="text-center font-bold">{active?.startingNumber.toString().padStart(3, '0') || '001'}</TableCell>
-                                            <TableCell className="text-muted-foreground italic">{active ? toNepaliDate(active.effectiveFrom) : 'N/A'}</TableCell>
+                                            <TableCell className="text-muted-foreground italic">
+                                                {active ? (
+                                                    <>
+                                                        {toNepaliDate(active.effectiveFrom)} 
+                                                        {active.effectiveTo ? ` — ${toNepaliDate(active.effectiveTo)}` : ' — Open'}
+                                                    </>
+                                                ) : 'N/A'}
+                                            </TableCell>
                                             <TableCell className="text-right pr-6 space-x-1">
                                                 <Button 
                                                     variant="ghost" 
@@ -571,7 +585,7 @@ export default function GeneralSettingsPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Effective From Date</Label>
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Effective From (AD)</Label>
                             <div className="relative">
                                 <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                 <Input 
@@ -583,16 +597,28 @@ export default function GeneralSettingsPage() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Starting Number</Label>
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Effective To (AD/Optional)</Label>
                             <div className="relative">
-                                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                 <Input 
-                                    type="number" 
-                                    value={numberingForm.startingNumber} 
-                                    onChange={e => setNumberingForm(p => ({...p, startingNumber: parseInt(e.target.value) || 1}))} 
-                                    className="h-10 pl-9 font-black text-sm"
+                                    type="date" 
+                                    value={numberingForm.effectiveTo} 
+                                    onChange={e => setNumberingForm(p => ({...p, effectiveTo: e.target.value}))} 
+                                    className="h-10 pl-9 font-bold text-xs"
                                 />
                             </div>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Starting Sequence #</Label>
+                        <div className="relative">
+                            <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                            <Input 
+                                type="number" 
+                                value={numberingForm.startingNumber} 
+                                onChange={e => setNumberingForm(p => ({...p, startingNumber: parseInt(e.target.value) || 1}))} 
+                                className="h-10 pl-9 font-black text-sm"
+                            />
                         </div>
                     </div>
                 </div>
