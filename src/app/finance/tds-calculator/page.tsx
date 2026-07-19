@@ -9,7 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown, ChevronsUpDown, Check, Plus, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+    CalendarIcon, 
+    Edit, 
+    Trash2, 
+    Printer, 
+    Save, 
+    Loader2, 
+    Search, 
+    ArrowUpDown, 
+    ChevronsUpDown, 
+    Check, 
+    Plus, 
+    MoreHorizontal, 
+    ChevronLeft, 
+    ChevronRight,
+    PlusCircle
+} from 'lucide-react';
 import { toNepaliDate, toWords, generateNextVoucherNumber, cn } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
@@ -32,11 +48,15 @@ import {
   AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { onTdsCalculationsUpdate, addTdsCalculation, getTdsPrefix, deleteTdsCalculation, updateTdsCalculation } from '@/services/tds-service';
+import { 
+    onTdsCalculationsUpdate, 
+    addTdsCalculation, 
+    getTdsPrefix, 
+    deleteTdsCalculation, 
+    updateTdsCalculation 
+} from '@/services/tds-service';
 import type { TdsCalculation, TdsRate, Party, PartyType, CompanyProfile, AccountOwnership } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -47,30 +67,18 @@ import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-
-const DEFAULT_COMPANY_PROFILE_LOCAL: CompanyProfile = {
-  nameEn: "GENERIC ENTERPRISE PVT LTD.",
-  nameNp: "जेनेरिक इन्टरप्राइज प्रा.लि.",
-  address: "ADDRESS NOT CONFIGURED",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
+import { DEFAULT_COMPANY_PROFILE, NEPALI_MONTHS } from '@/lib/constants';
+import NepaliDate from 'nepali-date-converter';
 
 const INITIAL_TDS_RATES: TdsRate[] = [
-  { value: '1.5', label: 'Goods & Contracts', description: 'Supply of goods and contracts/sub-contracts (1.5%)' },
-  { value: '15', label: 'Services (Individual)', description: 'Payment for services to natural persons (15%)' },
+  { value: '1.5', label: 'Goods & Contracts', description: 'Supply of goods and contracts (1.5%)' },
+  { value: '15', label: 'Services (Individual)', description: 'Payment for services (15%)' },
   { value: '10', label: 'Rent', description: 'Payment of rent (10%)' },
-  { value: '2.5', label: 'Vehicle Hire', description: 'Payment for vehicle hire to VAT registered person (2.5%)' },
+  { value: '2.5', label: 'Vehicle Hire', description: 'Payment for vehicle hire (2.5%)' },
   { value: '5', label: 'Dividends', description: 'Payment of dividend (5%)' },
 ];
 
-type SortKey = 'date' | 'voucherNo' | 'partyName' | 'taxableAmount' | 'netPayable';
-type SortDirection = 'asc' | 'desc';
-
-
 function TdsVoucherView({ calculation, companyProfile }: { calculation: TdsCalculation, companyProfile: CompanyProfile }) {
-    const totalWithVat = calculation.taxableAmount + calculation.vatAmount;
     return (
         <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
             <header className="text-center space-y-1 mb-4">
@@ -104,112 +112,65 @@ function TdsVoucherView({ calculation, companyProfile }: { calculation: TdsCalcu
     );
 }
 
-
 function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: TdsCalculation) => void, companyProfile: CompanyProfile }) {
     const [savedCalculations, setSavedCalculations] = useState<TdsCalculation[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
-    const { user, getAllowedOwnerships } = useAuth();
+    const { getAllowedOwnerships } = useAuth();
     const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
-    
-    // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    
     const [isVoucherViewOpen, setIsVoucherViewOpen] = useState(false);
     const [selectedRecordForView, setSelectedRecordForView] = useState<TdsCalculation | null>(null);
-
     const [isExporting, setIsExporting] = useState(false);
     const printRef = useRef<HTMLDivElement>(null);
-
 
     useEffect(() => {
         const unsub = onTdsCalculationsUpdate(setSavedCalculations);
         return () => unsub();
     }, []);
 
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, itemsPerPage]);
-
-    const requestSort = (key: SortKey) => {
-        let direction: SortDirection = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
+    const requestSort = (key: string) => {
+        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
     };
 
-    const sortedAndFilteredCalculations = useMemo(() => {
-        let filtered = savedCalculations.filter(calc => calc.ownership === 'Both' || allowedOwnerships.includes(calc.ownership));
-        
+    const filtered = useMemo(() => {
+        let res = savedCalculations.filter(calc => calc.ownership === 'Both' || allowedOwnerships.includes(calc.ownership));
         if (searchQuery) {
-            const lowercasedQuery = searchQuery.toLowerCase();
-            filtered = filtered.filter(calc => 
-                (calc.voucherNo || '').toLowerCase().includes(lowercasedQuery) ||
-                (calc.partyName || '').toLowerCase().includes(lowercasedQuery)
-            );
+            const q = searchQuery.toLowerCase();
+            res = res.filter(calc => (calc.voucherNo || '').toLowerCase().includes(q) || (calc.partyName || '').toLowerCase().includes(q));
         }
-        
-        filtered.sort((a, b) => {
-            const aVal = a[sortConfig.key] ?? '';
-            const bVal = b[sortConfig.key] ?? '';
-
-            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        res.sort((a: any, b: any) => {
+            if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-
-        return filtered;
+        return res;
     }, [savedCalculations, searchQuery, sortConfig, allowedOwnerships]);
 
-    const paginatedCalculations = useMemo(() => {
-        if (itemsPerPage === -1) return sortedAndFilteredCalculations;
-        const start = (currentPage - 1) * itemsPerPage;
-        return sortedAndFilteredCalculations.slice(start, start + itemsPerPage);
-    }, [sortedAndFilteredCalculations, currentPage, itemsPerPage]);
-
-    const totalPages = useMemo(() => {
-        if (itemsPerPage === -1) return 1;
-        return Math.ceil(sortedAndFilteredCalculations.length / itemsPerPage);
-    }, [sortedAndFilteredCalculations, itemsPerPage]);
-
-    const handleDeleteCalculation = async (id: string) => {
-        try {
-            await deleteTdsCalculation(id);
-            toast({ title: "Deleted", description: "TDS record has been deleted." });
-        } catch (error) {
-            toast({ title: "Error", description: "Failed to delete record.", variant: "destructive" });
-        }
-    };
-    
-    const openVoucherView = (record: TdsCalculation) => {
-        setSelectedRecordForView(record);
-        setIsVoucherViewOpen(true);
-    };
+    const paginated = filtered.slice((currentPage - 1) * itemsPerPage, itemsPerPage === -1 ? undefined : currentPage * itemsPerPage);
+    const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(filtered.length / itemsPerPage);
 
     const handlePrint = () => {
         if (!printRef.current) return;
-        const printWindow = window.open('', '', 'height=800,width=800');
-        printWindow?.document.write('<html><head><title>Print Voucher</title></head><body>');
-        printWindow?.document.write(printRef.current.innerHTML);
-        printWindow?.document.write('</body></html>');
-        printWindow?.document.close();
-        printWindow?.focus();
-        setTimeout(() => {
-            printWindow?.print();
-            printWindow?.close();
-        }, 250);
+        const win = window.open('', '', 'height=800,width=800');
+        win?.document.write('<html><head><title>Print Voucher</title></head><body>');
+        win?.document.write(printRef.current.innerHTML);
+        win?.document.write('</body></html>');
+        win?.document.close();
+        win?.focus();
+        setTimeout(() => { win?.print(); win?.close(); }, 250);
     };
 
     const handleExportPdf = async () => {
         if (!selectedRecordForView) return;
         setIsExporting(true);
         try {
+            const jsPDF = (await import('jspdf')).default;
+            const autoTable = (await import('jspdf-autotable')).default;
             const doc = new jsPDF('p', 'mm', 'a5');
-            const { default: autoTable } = await import('jspdf-autotable');
-            (doc as any).autoTable({
+            autoTable(doc, {
                 startY: 50,
                 head: [['Label', 'Value']],
                 body: [
@@ -229,170 +190,72 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
 
     return (
         <>
-        <Card>
-           <CardHeader>
-             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <CardTitle>TDS Calculation History</CardTitle>
-                    <CardDescription>A log of all saved TDS calculations.</CardDescription>
-                </div>
-                <div className="relative w-full sm:w-auto">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search by voucher or party..."
-                        className="pl-8 w-full sm:w-[250px]"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
-             </div>
-           </CardHeader>
-           <CardContent className="p-0">
-             <Table>
-               <TableHeader className="bg-muted/50">
-                 <TableRow className="hover:bg-transparent">
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="text-xs">Date (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="text-xs">Voucher # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="text-xs">Party Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('taxableAmount')} className="text-xs">Taxable Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                   <TableHead className="text-xs">TDS Amount</TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('netPayable')} className="text-xs">Net Payable <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                   <TableHead className="text-right pr-6 text-xs">Actions</TableHead>
-                 </TableRow>
-               </TableHeader>
-               <TableBody>
-                 {paginatedCalculations.length > 0 ? (
-                    paginatedCalculations.map(calc => (
-                     <TableRow key={calc.id} className="h-14">
-                       <TableCell>{toNepaliDate(calc.date)}</TableCell>
-                       <TableCell className="font-mono text-xs">{calc.voucherNo}</TableCell>
-                       <TableCell>{calc.partyName}</TableCell>
-                       <TableCell className="font-mono text-xs">{calc.taxableAmount.toLocaleString()}</TableCell>
-                       <TableCell className="font-mono text-xs text-red-600">{calc.tdsAmount.toLocaleString()}</TableCell>
-                       <TableCell className="font-mono text-xs font-black">Rs. {calc.netPayable.toLocaleString()}</TableCell>
-                       <TableCell className="text-right pr-6">
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onSelect={() => openVoucherView(calc)}>
-                                    <Printer className="mr-2 h-4 w-4" /> Print / Export
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => onEdit(calc)}>
-                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
-                                        <Trash2 className="mr-2 h-4 w-4" /> Delete Record
-                                    </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will permanently delete this TDS calculation record. This action cannot be undone.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteCalculation(calc.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                                </AlertDialog>
-                            </DropdownMenuContent>
-                         </DropdownMenu>
-                       </TableCell>
-                     </TableRow>
-                   ))
-                 ) : (
-                   <TableRow>
-                     <TableCell colSpan={7} className="text-center py-10 text-muted-foreground italic">
-                       No saved TDS calculations matching your search.
-                     </TableCell>
-                   </TableRow>
-                 )}
-               </TableBody>
-             </Table>
-           </CardContent>
-           {(totalPages > 1 || itemsPerPage !== -1) && (
-                <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
-                    <div className="text-xs text-muted-foreground font-medium">
-                        {itemsPerPage === -1 ? (
-                            <>Showing all <span className="font-bold text-foreground">{sortedAndFilteredCalculations.length}</span> records</>
-                        ) : (
-                            <>
-                                Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, sortedAndFilteredCalculations.length)}</span> of <span className="font-bold text-foreground">{sortedAndFilteredCalculations.length}</span> records
-                            </>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
-                            <Select value={String(itemsPerPage)} onValueChange={(v) => {
-                                setItemsPerPage(parseInt(v));
-                                setCurrentPage(1);
-                            }}>
-                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="10">10</SelectItem>
-                                    <SelectItem value="25">25</SelectItem>
-                                    <SelectItem value="50">50</SelectItem>
-                                    <SelectItem value="-1">All</SelectItem>
-                                </SelectContent>
-                            </Select>
+            <Card>
+                <CardHeader>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div><CardTitle>TDS History</CardTitle><CardDescription>A log of all saved TDS calculations.</CardDescription></div>
+                        <div className="relative w-full sm:w-auto">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search..." className="pl-8 w-full sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                         </div>
-                        {itemsPerPage !== -1 && (
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                    disabled={currentPage === 1}
-                                    className="h-8 w-8 p-0"
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                    disabled={currentPage === totalPages}
-                                    className="h-8 w-8 p-0"
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        )}
                     </div>
-                </CardFooter>
-            )}
-         </Card>
-          <Dialog open={isVoucherViewOpen} onOpenChange={setIsVoucherViewOpen}>
-            <DialogContent className="max-w-xl h-[90vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
-                <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
-                    <DialogTitle>Voucher Preview</DialogTitle>
-                </DialogHeader>
-                <ScrollArea className="flex-1 bg-gray-100 p-8">
-                    <div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">
-                      {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} companyProfile={companyProfile} />}
-                    </div>
-                </ScrollArea>
-                 <DialogFooter className="p-6 border-t bg-white shrink-0">
-                    <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>Save PDF</Button>
-                    <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
-                </DialogFooter>
-            </DialogContent>
-         </Dialog>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader className="bg-muted/50">
+                            <TableRow>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="text-xs">Date (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="text-xs">Voucher # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="text-xs">Party Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead className="text-right pr-6 text-xs">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {paginated.map(calc => (
+                                <TableRow key={calc.id} className="h-14">
+                                    <TableCell>{toNepaliDate(calc.date)}</TableCell>
+                                    <TableCell className="font-mono text-xs">{calc.voucherNo}</TableCell>
+                                    <TableCell>{calc.partyName}</TableCell>
+                                    <TableCell className="text-right pr-6">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onSelect={() => { setSelectedRecordForView(calc); setIsVoucherViewOpen(true); }}><Printer className="mr-2 h-4 w-4" /> View/Print</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => onEdit(calc)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                                <DropdownMenuItem className="text-destructive" onSelect={() => deleteTdsCalculation(calc.id)}><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+                {totalPages > 1 && (
+                    <CardFooter className="flex justify-between py-4 border-t">
+                        <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}><ChevronLeft className="h-4 w-4"/></Button>
+                        <span className="text-xs font-medium">Page {currentPage} of {totalPages}</span>
+                        <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}><ChevronRight className="h-4 w-4"/></Button>
+                    </CardFooter>
+                )}
+            </Card>
+            <Dialog open={isVoucherViewOpen} onOpenChange={setIsVoucherViewOpen}>
+                <DialogContent className="max-w-xl h-[90vh] overflow-hidden flex flex-col p-0">
+                    <DialogHeader className="p-6 border-b"><DialogTitle>Voucher Preview</DialogTitle></DialogHeader>
+                    <ScrollArea className="flex-1 bg-gray-100 p-8">
+                        <div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">
+                        {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} companyProfile={companyProfile} />}
+                        </div>
+                    </ScrollArea>
+                    <DialogFooter className="p-6 border-t bg-white">
+                        <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>Save PDF</Button>
+                        <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
-
 
 function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, companyProfile }: { calculationToEdit: TdsCalculation | null, onSaveSuccess: () => void, onCancelEdit: () => void, companyProfile: CompanyProfile }) {
   const [amount, setAmount] = useState<number | ''>('');
@@ -402,47 +265,26 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const [partyOwnership, setPartyOwnership] = useState<string>('Both');
   const [voucherNo, setVoucherNo] = useState('');
   const [includeVat, setIncludeVat] = useState(true);
-  
   const [parties, setParties] = useState<Party[]>([]);
   const [tdsRates, setTdsRates] = useState<TdsRate[]>(INITIAL_TDS_RATES);
-  
-  // Dialog States
   const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
   const [rateForm, setRateForm] = useState({ value: '', label: '', description: '' });
   const [editingRate, setEditingRate] = useState<TdsRate | null>(null);
-
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
-  const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, ownership: AccountOwnership, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', ownership: '', address: '', panNumber: '' });
+  const [partyForm, setPartyForm] = useState({ name: '', type: 'Vendor' as PartyType, ownership: '' as AccountOwnership, address: '', panNumber: '' });
   const [partySearch, setPartySearch] = useState('');
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
-
   const { toast } = useToast();
   const { user, getAllowedOwnerships } = useAuth();
   const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
-  
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
-    const setNextVoucher = async () => {
-        const prefix = await getTdsPrefix();
-        const unsub = onTdsCalculationsUpdate(async (calcs) => {
-             if (!calculationToEdit) {
-                const nextNumber = await generateNextVoucherNumber(calcs, prefix);
-                setVoucherNo(nextNumber);
-             }
-        });
-        
-        const unsubParties = onPartiesUpdate(setParties);
-
-        return () => {
-            unsub();
-            unsubParties();
-        };
-    };
-    setNextVoucher();
-  }, [calculationToEdit]);
+    const unsubParties = onPartiesUpdate(setParties);
+    return () => unsubParties();
+  }, []);
 
   useEffect(() => {
     if (calculationToEdit) {
@@ -453,512 +295,177 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         setAmount(calculationToEdit.taxableAmount);
         setSelectedRateValue(String(calculationToEdit.tdsRate));
         setIncludeVat(calculationToEdit.vatAmount > 0);
+    } else {
+        onTdsCalculationsUpdate(async (calcs) => {
+            const prefix = await getTdsPrefix();
+            const next = await generateNextVoucherNumber(calcs, prefix);
+            setVoucherNo(next);
+        });
     }
   }, [calculationToEdit]);
 
-  // Centralized filtering
   const filteredParties = useMemo(() => {
-    return parties
-        .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
-        .sort((a, b) => a.name.localeCompare(b.name));
+    return parties.filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership)).sort((a, b) => a.name.localeCompare(b.name));
   }, [parties, allowedOwnerships]);
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmount(e.target.value === '' ? '' : parseFloat(e.target.value));
-  };
-  
   const { tds, netAmount, vat, totalWithVat, calculationData } = useMemo(() => {
-    if (amount === '' || amount <= 0) {
-      return { tds: 0, netAmount: 0, vat: 0, totalWithVat: 0, calculationData: null };
-    }
+    const base = Number(amount) || 0;
     const rate = parseFloat(selectedRateValue) / 100;
-    const vatRate = 0.13;
-    
-    const taxableAmount = amount;
-    const vatCalc = includeVat ? taxableAmount * vatRate : 0;
-    const totalWithVatCalc = taxableAmount + vatCalc;
-    const tdsCalc = taxableAmount * rate;
-    const netAmountCalc = totalWithVatCalc - tdsCalc;
-    
-    const data: TdsCalculation = {
-        id: calculationToEdit?.id || '',
-        voucherNo: voucherNo,
-        date: date.toISOString(),
-        partyName: partyName,
-        taxableAmount: taxableAmount,
-        tdsRate: parseFloat(selectedRateValue),
-        tdsAmount: tdsCalc,
-        vatAmount: vatCalc,
-        netPayable: netAmountCalc,
-        createdBy: user?.username || '',
-        createdAt: calculationToEdit?.createdAt || new Date().toISOString(),
-        ownership: partyOwnership
-    }
-
-    return { tds: tdsCalc, netAmount: netAmountCalc, vat: vatCalc, totalWithVat: totalWithVatCalc, calculationData: data };
+    const v = includeVat ? base * 0.13 : 0;
+    const gross = base + v;
+    const t = base * rate;
+    const net = gross - t;
+    const data = { id: calculationToEdit?.id || '', voucherNo, date: date.toISOString(), partyName, taxableAmount: base, tdsRate: parseFloat(selectedRateValue), tdsAmount: t, vatAmount: v, netPayable: net, createdBy: user?.username || '', createdAt: calculationToEdit?.createdAt || new Date().toISOString(), ownership: partyOwnership };
+    return { tds: t, netAmount: net, vat: v, totalWithVat: gross, calculationData: data };
   }, [amount, selectedRateValue, includeVat, voucherNo, date, partyName, partyOwnership, calculationToEdit, user]);
 
-  
-  const handleOpenRateDialog = (rate: TdsRate | null = null) => {
-    if (rate) {
-        setEditingRate(rate);
-        setRateForm(rate);
-    } else {
-        setEditingRate(null);
-        setRateForm({ value: '', label: '', description: '' });
-    }
-    setIsRateDialogOpen(true);
-  };
-  
-  const handleSaveRate = () => {
-      if (!rateForm.value || !rateForm.label) {
-          return;
-      }
-      if (editingRate) {
-          setTdsRates(rates => rates.map(r => r.value === editingRate.value ? rateForm : r));
-      } else {
-          setTdsRates(rates => [...rates, rateForm]);
-      }
-      setIsRateDialogOpen(false);
-  };
-  
-  const handleDeleteRate = (value: string) => {
-      setTdsRates(rates => rates.filter(r => r.value !== value));
-      if (selectedRateValue === value) {
-          setSelectedRateValue(tdsRates[0]?.value || '');
-      }
-  };
-
-  const handlePrint = () => {
-    if (calculationData) {
-      setIsPreviewOpen(true);
-    }
-  };
-  
-  const resetForm = async () => {
-    setAmount('');
-    setPartyName('');
-    setPartyOwnership('Both');
-    setDate(new Date());
-    setSelectedRateValue('1.5');
-    const prefix = await getTdsPrefix();
-    onTdsCalculationsUpdate(async (calcs) => {
-        const nextNumber = await generateNextVoucherNumber(calcs, prefix);
-        setVoucherNo(nextNumber);
-    })();
-  };
-
   const handleSave = async () => {
-    if (!user) {
-        toast({ title: "Authentication Error", description: "You must be logged in to save.", variant: "destructive" });
-        return;
-    }
-    if (!amount || amount <= 0) {
-        toast({ title: "Invalid Amount", description: "Please enter a valid taxable amount.", variant: "destructive" });
-        return;
-    }
-
-    const calculation = {
-        voucherNo: voucherNo,
-        date: date.toISOString(),
-        partyName: partyName,
-        taxableAmount: amount,
-        tdsRate: parseFloat(selectedRateValue),
-        tdsAmount: tds,
-        vatAmount: vat,
-        netPayable: netAmount,
-        ownership: partyOwnership
-    };
-    
+    if (!user || !amount || amount <= 0) return;
     try {
-        if (calculationToEdit) {
-            await updateTdsCalculation(calculationToEdit.id, { ...calculation });
-            toast({ title: "Updated!", description: "TDS calculation has been updated." });
-        } else {
-            await addTdsCalculation({ ...calculation, createdBy: user.username });
-            toast({ title: "Saved!", description: "TDS calculation has been saved." });
-        }
-        resetForm();
+        if (calculationToEdit) await updateTdsCalculation(calculationToEdit.id, calculationData);
+        else await addTdsCalculation(calculationData);
+        toast({ title: "Saved Successfully" });
         onSaveSuccess();
-    } catch (error) {
-        toast({ title: "Error", description: "Failed to save calculation.", variant: "destructive" });
+    } catch {
+        toast({ title: "Error", variant: "destructive" });
     }
   };
 
-  const handleOpenPartyDialog = (party: Party | null = null, type: PartyType, searchName: string = '') => {
+  const handleOpenPartyDialog = (party: Party | null = null, type: PartyType, search: string = '') => {
     if (party) {
         setEditingParty(party);
-        setPartyForm({ name: party.name, type: party.type, ownership: party.ownership || 'Both', address: party.address || '', panNumber: party.panNumber || '' });
+        setPartyForm({ name: party.name, type: party.type, ownership: party.ownership, address: party.address || '', panNumber: party.panNumber || '' });
     } else {
         setEditingParty(null);
-        setPartyForm({ 
-            name: searchName, 
-            type, 
-            ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), 
-            address: '', 
-            panNumber: '' 
-        });
+        setPartyForm({ name: search, type, ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), address: '', panNumber: '' });
     }
     setIsPartyPopoverOpen(false);
     setIsPartyDialogOpen(true);
   };
 
-  const handleSubmitParty = async () => {
-    if(!user) return;
-    if(!partyForm.name || !partyForm.type || !partyForm.ownership) {
-        toast({title: 'Error', description: 'Name, Type, and Ownership are mandatory.', variant: 'destructive'});
-        return;
-    }
-    try {
-        if (editingParty) {
-            await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
-            toast({title: 'Success', description: 'Party updated.'});
-        } else {
-            await addParty({...partyForm, createdBy: user.username });
-            toast({title: 'Success', description: 'New party added.'});
-        }
-        setPartyName(partyForm.name);
-        setPartyOwnership(partyForm.ownership);
-        setIsPartyDialogOpen(false);
-        setPartyForm({name: '', type: 'Vendor', ownership: '', address: '', panNumber: ''});
-        setEditingParty(null);
-    } catch {
-         toast({title: 'Error', description: 'Failed to save party.', variant: 'destructive'});
-    }
-  };
+  return (
+    <div className="flex flex-col gap-8">
+        <header className="flex justify-between items-start gap-4">
+            <div><h1 className="text-3xl font-bold tracking-tight">TDS Calculator</h1><p className="text-muted-foreground text-sm italic">Compute and record tax withholdings.</p></div>
+            <div className="flex gap-2">
+                <Button onClick={handleSave} className="h-10 px-6 font-black text-xs uppercase shadow-lg"><Save className="mr-2 h-4 w-4"/> {calculationToEdit ? 'Update' : 'Save'}</Button>
+                <Button onClick={() => setIsPreviewOpen(true)} variant="outline" className="h-10 px-6 font-bold text-xs uppercase border-gray-300"><Printer className="mr-2 h-4 w-4" /> Preview</Button>
+            </div>
+        </header>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <Card className="lg:col-span-2 shadow-sm">
+                <CardHeader className="bg-muted/30 border-b"><CardTitle className="text-sm font-black uppercase">Input</CardTitle></CardHeader>
+                <CardContent className="p-6 space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-muted-foreground">Voucher No.</Label><Input value={voucherNo} readOnly className="bg-muted/50 h-10 font-mono text-sm" /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-muted-foreground">Date</Label>
+                            <Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start h-10 font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{toNepaliDate(date.toISOString())}</Button></PopoverTrigger>
+                            <PopoverContent className="w-auto p-0"><DualCalendar selected={date} onSelect={d => d && setDate(d)} /></PopoverContent></Popover>
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Beneficiary</Label>
+                        <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
+                            <PopoverTrigger asChild><Button variant="outline" className="w-full justify-between h-10">{partyName || "Select beneficiary..."}<ChevronsUpDown className="ml-2 h-4 w-4 opacity-30" /></Button></PopoverTrigger>
+                            <PopoverContent className="p-0"><Command><CommandInput placeholder="Search..." onValueChange={setPartySearch} /><CommandList><CommandEmpty><Button variant="ghost" className="w-full justify-start text-xs" onClick={() => handleOpenPartyDialog(null, 'Vendor', partySearch)}><PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"</Button></CommandEmpty><CommandGroup>
+                                {filteredParties.map(p => <CommandItem key={p.id} onSelect={() => { setPartyName(p.name); setPartyOwnership(p.ownership); setIsPartyPopoverOpen(false); }}>{p.name}</CommandItem>)}
+                            </CommandGroup></CommandList></Command></PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-muted-foreground">Taxable Base</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-11 font-black text-lg" /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-muted-foreground">TDS Rate</Label>
+                            <Select value={selectedRateValue} onValueChange={setSelectedRateValue}>
+                                <SelectTrigger className="h-11 font-bold"><SelectValue /></SelectTrigger>
+                                <SelectContent>{tdsRates.map(r => <SelectItem key={r.value} value={r.value}>{r.label} ({r.value}%)</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-3 p-4 rounded-xl bg-muted/20 border"><Switch id="include-vat" checked={includeVat} onCheckedChange={setIncludeVat} /><Label htmlFor="include-vat" className="text-xs font-bold uppercase cursor-pointer">Include VAT (13%)</Label></div>
+                    <div className="rounded-2xl border-2 border-primary/20 bg-primary/[0.02] p-6 space-y-4">
+                        <div className="flex justify-between text-xs font-black uppercase"><span className="opacity-70">Total with VAT</span><span>Rs. {totalWithVat.toLocaleString()}</span></div>
+                        <div className="flex justify-between text-xs font-black uppercase text-red-600"><span>TDS Withholding</span><span>- Rs. {tds.toLocaleString()}</span></div>
+                        <Separator className="h-0.5 bg-primary/20" />
+                        <div className="flex justify-between items-center"><span className="text-xs font-black uppercase tracking-widest">Net Payable</span><span className="text-2xl font-black tabular-nums">Rs. {netAmount.toLocaleString()}</span></div>
+                    </div>
+                </CardContent>
+            </Card>
+            <div className="space-y-6">
+                <Card className="shadow-sm">
+                    <CardHeader className="py-4 border-b bg-muted/10 flex flex-row items-center justify-between"><CardTitle className="text-xs uppercase font-black">Rates</CardTitle><Button size="icon" variant="ghost" className="h-7 w-7 text-primary" onClick={() => setIsRateDialogOpen(true)}><PlusCircle className="h-4 w-4" /></Button></CardHeader>
+                    <CardContent className="p-0"><ScrollArea className="h-[400px]">
+                        {tdsRates.map(r => (
+                            <div key={r.value} className="flex items-center justify-between p-4 border-b hover:bg-muted/30">
+                                <div className="space-y-0.5"><div className="font-black text-xs">{r.label} <Badge variant="outline" className="text-[9px] h-4 bg-blue-50">{r.value}%</Badge></div><p className="text-[9px] text-muted-foreground uppercase">{r.description}</p></div>
+                                <div className="flex gap-1"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingRate(r); setRateForm(r); setIsRateDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setTdsRates(rates => rates.filter(x => x.value !== r.value))}><Trash2 className="h-3.5 w-3.5" /></Button></div>
+                            </div>
+                        ))}
+                    </ScrollArea></CardContent>
+                </Card>
+            </div>
+        </div>
+        <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader><DialogTitle className="text-xl font-black uppercase">{editingParty ? 'Edit Beneficiary' : 'New Beneficiary'}</DialogTitle></DialogHeader>
+                <div className="grid gap-5 py-4">
+                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Entity Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} className="h-10 font-bold" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Type</Label><Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                    </div>
+                </div>
+                <DialogFooter><Button onClick={async () => {
+                    if (!user || !partyForm.name) return;
+                    try {
+                        if (editingParty) await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
+                        else await addParty({ ...partyForm, createdBy: user.username });
+                        setPartyName(partyForm.name); setPartyOwnership(partyForm.ownership); setIsPartyDialogOpen(false);
+                    } catch { toast({ title: "Error", variant: "destructive" }); }
+                }} className="w-full h-11 font-black text-xs uppercase shadow-lg shadow-primary/20">Save Beneficiary</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+            <DialogContent className="max-w-xl h-[95vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
+                <DialogHeader className="p-6 border-b bg-muted/5 shrink-0"><DialogTitle className="text-xl font-black uppercase">Document Preview</DialogTitle></DialogHeader>
+                <ScrollArea className="flex-1 bg-gray-100 p-8"><div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">{calculationData && <TdsVoucherView calculation={calculationData as any} companyProfile={companyProfile} />}</div></ScrollArea>
+                <DialogFooter className="p-6 border-t bg-white shrink-0"><Button variant="outline" onClick={async () => {
+                    const jsPDF = (await import('jspdf')).default;
+                    const autoTable = (await import('jspdf-autotable')).default;
+                    const doc = new jsPDF('p', 'mm', 'a5');
+                    autoTable(doc, { head: [['Label', 'Value']], body: [['Voucher', voucherNo], ['Net', netAmount.toLocaleString()]] });
+                    doc.save(`TDS-${voucherNo}.pdf`);
+                }} className="h-10 px-6 uppercase font-bold text-[10px]">Save PDF</Button><Button onClick={() => {
+                    if (!printRef.current) return;
+                    const win = window.open('', '', 'height=800,width=800');
+                    win?.document.write('<html><body>' + printRef.current.innerHTML + '</body></html>');
+                    win?.document.close(); win?.focus(); setTimeout(() => { win?.print(); win?.close(); }, 250);
+                }} className="h-10 px-10 font-black uppercase text-[10px] shadow-lg shadow-primary/20"><Printer className="mr-2 h-4 w-4" /> Print Voucher</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+    </div>
+  );
+}
 
-  const doActualPrint = () => {
-    if (!printRef.current) return;
-    const printWindow = window.open('', '', 'height=800,width=800');
-    printWindow?.document.write('<html><head><title>Print Voucher</title></head><body>');
-    printWindow?.document.write(printRef.current.innerHTML);
-    printWindow?.document.write('</body></html>');
-    printWindow?.document.close();
-    printWindow?.focus();
-    setTimeout(() => {
-        printWindow?.print();
-        printWindow?.close();
-    }, 250);
-  };
+export default function TdsCalculatorPage() {
+    const [activeTab, setActiveTab] = useState('calculator');
+    const [calculationToEdit, setCalculationToEdit] = useState<TdsCalculation | null>(null);
+    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
+
+    useEffect(() => {
+        const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
+        return () => unsub();
+    }, []);
 
     return (
         <div className="flex flex-col gap-8">
-            <header className="print:hidden flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Advanced TDS Calculator</h1>
-                    <p className="text-muted-foreground text-sm font-medium italic">Quickly calculate Tax Deducted at Source (TDS) for various payment types.</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    <Button onClick={handleSave} className="h-10 px-6 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">
-                        <Save className="mr-2 h-4 w-4"/>
-                        {calculationToEdit ? 'Update Record' : 'Commit Entry'}
-                    </Button>
-                    <Button onClick={handlePrint} disabled={!calculationData} variant="outline" className="h-10 px-6 font-bold text-xs uppercase tracking-widest border-gray-300">
-                        <Printer className="mr-2 h-4 w-4" /> Preview
-                    </Button>
-                    {calculationToEdit && (
-                        <Button variant="ghost" onClick={onCancelEdit} className="h-10 text-xs font-bold uppercase tracking-widest text-muted-foreground">Cancel</Button>
-                    )}
-                </div>
-            </header>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2">
-                    <Card className="shadow-sm border-gray-100">
-                        <CardHeader className="bg-muted/30 border-b">
-                            <CardTitle className="text-sm font-black uppercase text-gray-900">Computation Input</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-8 p-6">
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Voucher No.</Label>
-                                        <Input id="voucher-no" value={voucherNo} readOnly className="bg-muted/50 h-10 font-mono text-sm border-none shadow-inner" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Posting Date</Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant={"outline"} className="w-full justify-start text-left font-normal h-10 bg-white border-gray-300 shadow-sm">
-                                                <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                                                {date ? `${toNepaliDate(date.toISOString())} BS (${format(date, "PP")})` : <span>Pick a date</span>}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <DualCalendar selected={date} onSelect={(d) => d && setDate(d)} />
-                                            </PopoverContent>
-                                        </Popover>
-                                    </div>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Beneficiary Name</Label>
-                                    <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
-                                        <PopoverTrigger asChild>
-                                           <Button variant="outline" role="combobox" className="w-full justify-between h-10 bg-white border-gray-300 shadow-sm">
-                                                {partyName || "Select or type beneficiary..."}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                            <Command>
-                                                <CommandInput 
-                                                    placeholder="Search beneficiary registry..." 
-                                                    value={partySearch}
-                                                    onValueChange={setPartySearch}
-                                                />
-                                                <CommandList>
-                                                <CommandEmpty>
-                                                    <Button
-                                                        variant="ghost"
-                                                        className="w-full justify-start text-xs text-primary font-bold"
-                                                        onClick={() => {
-                                                            handleOpenPartyDialog(null, 'Vendor', partySearch);
-                                                        }}
-                                                    >
-                                                        <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
-                                                    </Button>
-                                                </CommandEmpty>
-                                                <CommandGroup>
-                                                    {filteredParties.map((p) => (
-                                                    <CommandItem key={p.id} value={p.name} onSelect={() => {
-                                                        setPartyName(p.name);
-                                                        setPartyOwnership(p.ownership);
-                                                        setIsPartyPopoverOpen(false);
-                                                    }} className="text-xs">
-                                                        <Check className={cn("mr-2 h-4 w-4", partyName === p.name ? "opacity-100" : "opacity-0")}/>
-                                                        {p.name}
-                                                    </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end border-t pt-6">
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Taxable Base Amount (NPR)</Label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-blue-400">रु</span>
-                                        <Input
-                                            id="amount"
-                                            type="number"
-                                            placeholder="0.00"
-                                            value={amount}
-                                            onChange={handleAmountChange}
-                                            className="pl-10 h-11 text-lg font-black border-gray-300 focus-visible:ring-primary shadow-sm"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Nature of Payment / Rate</Label>
-                                    <Select value={selectedRateValue} onValueChange={setSelectedRateValue}>
-                                        <SelectTrigger id="payment-nature" className="h-11 bg-white border-gray-300 font-bold shadow-sm">
-                                            <SelectValue placeholder="Select classification..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                        {tdsRates.map(rate => (
-                                            <SelectItem key={rate.value} value={rate.value} className="text-xs">{rate.label} ({rate.value}%)</SelectItem>
-                                        ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-muted/20 border border-gray-200">
-                                <Switch id="include-vat" checked={includeVat} onCheckedChange={setIncludeVat} />
-                                <Label htmlFor="include-vat" className="text-xs font-bold uppercase text-gray-700 cursor-pointer">Include Standard VAT (13%) in Estimate</Label>
-                            </div>
-                            
-                            <div className="space-y-4 rounded-2xl border-2 border-primary/20 bg-primary/[0.02] p-6 shadow-inner animate-in fade-in zoom-in-95">
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="text-muted-foreground uppercase font-black tracking-widest">Base Taxable</span>
-                                    <span className="font-bold tabular-nums">
-                                        {Number(amount || 0).toLocaleString('en-IN', {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                        })}
-                                    </span>
-                                </div>
-                                {includeVat && (
-                                    <div className="flex justify-between items-center text-xs">
-                                        <span className="text-muted-foreground uppercase font-black tracking-widest">Estimated VAT (13%)</span>
-                                        <span className="font-bold tabular-nums text-blue-600">
-                                            + {vat.toLocaleString('en-IN', {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                            })}
-                                        </span>
-                                    </div>
-                                )}
-                                <Separator className="bg-primary/10" />
-                                <div className="flex justify-between items-center font-bold text-xs">
-                                    <span className="text-muted-foreground uppercase font-black tracking-widest">Gross Calculation</span>
-                                    <span className="tabular-nums">
-                                        {totalWithVat.toLocaleString('en-IN', {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                        })}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="text-destructive uppercase font-black tracking-widest">TDS WITHHOLDING ({selectedRateValue}%)</span>
-                                    <span className="font-black tabular-nums text-red-600">
-                                        - {tds.toLocaleString('en-IN', {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                        })}
-                                    </span>
-                                </div>
-                                <Separator className="h-0.5 bg-primary/20" />
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-black uppercase tracking-[0.2em] text-gray-900">Net Payable Amount</span>
-                                    <span className="text-2xl font-black text-gray-900 tabular-nums">
-                                        {netAmount.toLocaleString('en-IN', {
-                                        style: 'currency',
-                                        currency: 'NPR',
-                                        minimumFractionDigits: 2,
-                                        })}
-                                    </span>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-                <div className="lg:col-span-1 space-y-6 print:hidden">
-                    <Card className="shadow-sm border-gray-100 h-fit">
-                        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/10">
-                            <CardTitle className="text-xs uppercase font-black">Standard Rates</CardTitle>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-primary" onClick={() => handleOpenRateDialog()}>
-                                <PlusCircle className="h-4 w-4" />
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <ScrollArea className="h-[400px]">
-                                <div className="divide-y">
-                                    {tdsRates.map(rate => (
-                                        <div key={rate.value} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                                            <div className="space-y-0.5">
-                                                <div className="font-black text-xs text-gray-900 flex items-center gap-2">
-                                                    {rate.label} 
-                                                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-black uppercase text-blue-700 bg-blue-50 border-blue-100">{rate.value}%</Badge>
-                                                </div>
-                                                <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-tight">{rate.description}</p>
-                                            </div>
-                                            <div className="flex gap-1">
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleOpenRateDialog(rate)}>
-                                                    <Edit className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Delete Rate Definition?</AlertDialogTitle>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteRate(rate.value)} className="bg-destructive text-white">Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-            
-            <Dialog open={isRateDialogOpen} onOpenChange={setIsRateDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-black uppercase">{editingRate ? 'Modify Rate' : 'New Rate Definition'}</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-5 py-4">
-                    <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Rate Label</Label>
-                        <Input value={rateForm.label} onChange={(e) => setRateForm({...rateForm, label: e.target.value})} placeholder="e.g. Rent" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Percentage (%)</Label>
-                            <Input type="number" step="0.1" value={rateForm.value} onChange={(e) => setRateForm({...rateForm, value: e.target.value})} placeholder="1.5" />
-                        </div>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsRateDialogOpen(false)} className="h-10 uppercase font-bold text-xs">Cancel</Button>
-                    <Button onClick={handleSaveRate} className="h-10 px-8 font-black uppercase text-xs">Save Rate</Button>
-                </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isPartyDialogOpen} onOpenChange={(isOpen) => {
-                if (!isOpen) setEditingParty(null);
-                setIsPartyDialogOpen(isOpen);
-            }}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-black uppercase tracking-tight">{editingParty ? 'Edit Beneficiary' : 'New Beneficiary'}</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-5 py-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Entity Name</Label>
-                            <Input value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} className="h-10 font-bold" />
-                        </div>
-                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Beneficiary Type</Label>
-                                <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                                    <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Vendor">Vendor / Agency</SelectItem>
-                                        <SelectItem value="Customer">Customer</SelectItem>
-                                        <SelectItem value="Both">Both</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Ownership</Label>
-                                <Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm(p => ({...p, ownership: v}))}>
-                                    <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)} className="h-11 px-8 font-bold uppercase text-[10px]">Cancel</Button>
-                        <Button onClick={handleSubmitParty} className="h-11 px-8 font-black uppercase text-[10px] shadow-lg shadow-primary/20">Save Partner</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-                <DialogContent className="max-w-xl h-[95vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
-                    <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
-                        <DialogTitle className="text-xl font-black uppercase">Document Preview</DialogTitle>
-                    </DialogHeader>
-                    <ScrollArea className="flex-1 bg-gray-100 p-8">
-                        <div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">
-                            {calculationData && <TdsVoucherView calculation={calculationData} companyProfile={companyProfile} />}
-                        </div>
-                    </ScrollArea>
-                    <DialogFooter className="p-6 border-t bg-white shrink-0">
-                        <Button variant="outline" onClick={() => setIsPreviewOpen(false)} className="h-10 px-6 uppercase font-bold text-[10px]">Close</Button>
-                        <Button onClick={doActualPrint} className="h-10 px-10 font-black uppercase text-[10px] shadow-lg shadow-primary/20"><Printer className="mr-2 h-4 w-4" /> Print Voucher</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="mb-4 bg-muted/50 p-1">
+                    <TabsTrigger value="calculator" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">Calculator</TabsTrigger>
+                    <TabsTrigger value="history" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">History Logs</TabsTrigger>
+                </TabsList>
+                <TabsContent value="calculator"><CalculatorTab calculationToEdit={calculationToEdit} onSaveSuccess={() => setActiveTab('history')} onCancelEdit={() => setCalculationToEdit(null)} companyProfile={companyProfile} /></TabsContent>
+                <TabsContent value="history"><SavedTdsRecords onEdit={(calc) => { setCalculationToEdit(calc); setActiveTab('calculator'); }} companyProfile={companyProfile} /></TabsContent>
+            </Tabs>
         </div>
     );
 }

@@ -26,17 +26,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addCheque, onChequesUpdate, updateCheque } from '@/services/cheque-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChequeView } from './cheque-view';
 import { onAccountsUpdate, addAccount as addAccountService } from '@/services/account-service';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
 
 interface ChequeGeneratorFormProps {
     chequeToEdit?: Cheque | null;
     onSaveSuccess: () => void;
 }
-
 
 export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGeneratorFormProps) {
     const [paymentDate, setPaymentDate] = useState<Date>(new Date());
@@ -71,9 +66,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     const [cheques, setCheques] = useState<any[]>([]);
     const [voucherNo, setVoucherNo] = useState('');
 
-    const printRef = useRef<HTMLDivElement>(null);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
 
     useEffect(() => {
         const unsubParties = onPartiesUpdate(setParties);
@@ -128,10 +121,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 } as ChequeSplit;
             }));
         } else {
-            const setNextVoucher = async () => {
-                 generateNextVoucherNumber(cheques, 'PDC-').then(setVoucherNo);
-            };
-            setNextVoucher();
+             generateNextVoucherNumber(cheques, 'PDC-').then(setVoucherNo);
         }
     }, [chequeToEdit, cheques]);
 
@@ -265,20 +255,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         }
     };
 
-
-    const resetForm = () => {
-        setPaymentDate(new Date());
-        setInvoiceDate(undefined);
-        setInvoiceNumber('');
-        setPartyName('');
-        setPartyOwnership('Both');
-        setInvoiceAmount('');
-        setNumberOfSplits(1);
-        setSelectedAccountId(undefined);
-        setChequeSplits([{ id: generateId(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0, status: 'Due', partialPayments: [] }]);
-        onSaveSuccess();
-    };
-
     const handleSave = async () => {
         if (!user || !partyName || !invoiceAmount || Number(invoiceAmount) <= 0) {
             toast({ title: 'Error', description: 'Party Name and a valid invoice amount are required.', variant: 'destructive'});
@@ -321,7 +297,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 await addCheque(chequeData);
                 toast({ title: 'Success', description: 'Cheque record saved.' });
             }
-            resetForm();
+            onSaveSuccess();
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to save cheque record.', variant: 'destructive' });
         } finally {
@@ -329,14 +305,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         }
     };
     
-    const handlePrint = () => {
-        if (!partyName || totalSplitAmount <= 0) {
-            toast({ title: 'Error', description: 'Please fill in party and cheque details.', variant: 'destructive'});
-            return;
-        }
-        setIsPreviewOpen(true);
-    };
-
     const handleSplitChange = (index: number, field: keyof ChequeSplit, value: any) => {
         const newSplits = [...chequeSplits];
         (newSplits[index] as any)[field] = value;
@@ -506,24 +474,10 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 </Table>
             </div>
             
-            <div className="border rounded-lg p-4 space-y-4">
-                 <div className="flex justify-between items-center text-sm">
-                    <Label>Total Invoice Amount (NPR)</Label>
-                    <span className="font-bold text-lg">{Number(invoiceAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                </div>
-                <div className={cn("flex justify-between items-center text-sm font-bold", remainingAmount === 0 ? 'text-green-600' : 'text-red-600')}>
-                    <Label>Remaining Balance</Label>
-                    <span className="text-lg">{remainingAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                </div>
-            </div>
-            
             <div className="flex justify-end gap-2">
                  <Button onClick={handleSave} variant="outline" disabled={isSaving}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     {chequeToEdit ? 'Save Changes' : 'Save Voucher'}
-                </Button>
-                <Button onClick={handlePrint}>
-                    <Printer className="mr-2 h-4 w-4" /> Preview & Print
                 </Button>
             </div>
             
@@ -540,20 +494,14 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                                 <Label>Party Type</Label>
                                 <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
                                     <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Vendor">Vendor</SelectItem>
-                                        <SelectItem value="Customer">Customer</SelectItem>
-                                        <SelectItem value="Both">Both</SelectItem>
-                                    </SelectContent>
+                                    <SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
                                 <Label>Ownership</Label>
                                 <Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm(p => ({...p, ownership: v}))}>
                                     <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                                    </SelectContent>
+                                    <SelectContent>{allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
                         </div>
@@ -571,20 +519,14 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                             <Label>Ownership</Label>
                             <Select value={accountForm.ownership} onValueChange={(v: any) => setAccountForm(p => ({...p, ownership: v}))}>
                                 <SelectTrigger><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    {allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                                </SelectContent>
+                                <SelectContent>{allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <Label>Account Type</Label>
                             <Select value={accountForm.bankAccountType || 'Saving'} onValueChange={(v: BankAccountType) => setAccountForm(p => ({ ...p, bankAccountType: v }))}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Saving">Saving</SelectItem>
-                                    <SelectItem value="Current">Current</SelectItem>
-                                    <SelectItem value="Over Draft">Over Draft</SelectItem>
-                                </SelectContent>
+                                <SelectContent><SelectItem value="Saving">Saving</SelectItem><SelectItem value="Current">Current</SelectItem><SelectItem value="Over Draft">Over Draft</SelectItem></SelectContent>
                             </Select>
                         </div>
                     </div>
