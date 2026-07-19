@@ -46,7 +46,9 @@ import {
   RefreshCcw,
   BarChart3,
   MousePointer2,
-  Clock
+  Clock,
+  ArrowUpDown,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -126,6 +128,11 @@ export default function SystemSettingsPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
+
+  const [trafficSortConfig, setTrafficSortConfig] = useState<{ key: 'path' | 'lastVisited' | 'count'; direction: 'asc' | 'desc' }>({
+    key: 'count',
+    direction: 'desc'
+  });
 
   useEffect(() => {
     const unsubs = [
@@ -281,6 +288,13 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const requestTrafficSort = (key: 'path' | 'lastVisited' | 'count') => {
+    setTrafficSortConfig(prev => ({
+        key,
+        direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
   const aggregatedVisits = useMemo(() => {
     const map = new Map<string, PageVisit>();
     
@@ -299,8 +313,27 @@ export default function SystemSettingsPage() {
         }
     });
 
-    return Array.from(map.values()).sort((a, b) => b.count - a.count);
-  }, [pageVisits]);
+    const result = Array.from(map.values());
+
+    result.sort((a, b) => {
+        let aVal: any = a[trafficSortConfig.key];
+        let bVal: any = b[trafficSortConfig.key];
+        
+        if (trafficSortConfig.key === 'path') {
+            aVal = aVal.toLowerCase();
+            bVal = bVal.toLowerCase();
+        } else if (trafficSortConfig.key === 'lastVisited') {
+            aVal = new Date(aVal).getTime();
+            bVal = new Date(bVal).getTime();
+        }
+
+        if (aVal < bVal) return trafficSortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return trafficSortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    return result;
+  }, [pageVisits, trafficSortConfig]);
 
   const totalUsageViews = useMemo(() => {
     return aggregatedVisits.reduce((sum, v) => sum + (v.count || 0), 0);
@@ -413,9 +446,21 @@ export default function SystemSettingsPage() {
                         <Table className="text-xs">
                             <TableHeader className="bg-muted/30">
                                 <TableRow className="hover:bg-transparent h-10">
-                                    <TableHead className="pl-6 font-bold uppercase text-[9px]">Module / Route Path</TableHead>
-                                    <TableHead className="font-bold uppercase text-[9px] text-center">Last Active</TableHead>
-                                    <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Total Engagement (Hits)</TableHead>
+                                    <TableHead className="pl-6 font-bold uppercase text-[9px]">
+                                        <Button variant="ghost" onClick={() => requestTrafficSort('path')} className="-ml-4 h-8 px-2 text-[9px] font-black uppercase tracking-widest text-foreground hover:bg-transparent">
+                                            Module / Route Path <ArrowUpDown className={cn("ml-1.5 h-3 w-3", trafficSortConfig.key === 'path' ? "opacity-100 text-primary" : "opacity-30")} />
+                                        </Button>
+                                    </TableHead>
+                                    <TableHead className="font-bold uppercase text-[9px] text-center">
+                                        <Button variant="ghost" onClick={() => requestTrafficSort('lastVisited')} className="h-8 px-2 text-[9px] font-black uppercase tracking-widest text-foreground hover:bg-transparent mx-auto">
+                                            Last Active <ArrowUpDown className={cn("ml-1.5 h-3 w-3", trafficSortConfig.key === 'lastVisited' ? "opacity-100 text-primary" : "opacity-30")} />
+                                        </Button>
+                                    </TableHead>
+                                    <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">
+                                        <Button variant="ghost" onClick={() => requestTrafficSort('count')} className="-mr-4 h-8 px-2 text-[9px] font-black uppercase tracking-widest text-foreground hover:bg-transparent ml-auto">
+                                            Total Engagement (Hits) <ArrowUpDown className={cn("ml-1.5 h-3 w-3", trafficSortConfig.key === 'count' ? "opacity-100 text-primary" : "opacity-30")} />
+                                        </Button>
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
