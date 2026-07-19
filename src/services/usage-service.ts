@@ -25,7 +25,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PageVisit
 export const trackPageVisit = async (path: string) => {
     const { db } = getFirebase();
     const normalizedPath = getNormalizedPath(path);
-    const pathId = normalizedPath.replace(/\//g, '_') || 'home';
+    
+    // Create a safe document ID from the normalized path.
+    // We remove slashes and ensure a consistent key for root.
+    const pathId = normalizedPath === '/' ? 'root' : normalizedPath.replace(/^\//, '').replace(/\//g, '--');
     const docRef = doc(getUsageCollection(), pathId);
     
     const payload = {

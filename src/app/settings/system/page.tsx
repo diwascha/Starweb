@@ -75,7 +75,7 @@ import { modules, actions } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { format, formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, getNormalizedPath } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
@@ -281,9 +281,30 @@ export default function SystemSettingsPage() {
     }
   };
 
-  const totalUsageViews = useMemo(() => {
-    return pageVisits.reduce((sum, v) => sum + (v.count || 0), 0);
+  const aggregatedVisits = useMemo(() => {
+    const map = new Map<string, PageVisit>();
+    
+    pageVisits.forEach(v => {
+        // Use the robust normalization to group paths like /dashboard and /dashboard/
+        const norm = getNormalizedPath(v.path);
+        const existing = map.get(norm);
+        
+        if (existing) {
+            existing.count += v.count;
+            if (new Date(v.lastVisited) > new Date(existing.lastVisited)) {
+                existing.lastVisited = v.lastVisited;
+            }
+        } else {
+            map.set(norm, { ...v, path: norm });
+        }
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
   }, [pageVisits]);
+
+  const totalUsageViews = useMemo(() => {
+    return aggregatedVisits.reduce((sum, v) => sum + (v.count || 0), 0);
+  }, [aggregatedVisits]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -363,7 +384,7 @@ export default function SystemSettingsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-3xl font-black text-gray-900 tabular-nums">
-                                {pageVisits.length.toLocaleString()}
+                                {aggregatedVisits.length.toLocaleString()}
                                 <span className="text-xs font-bold text-muted-foreground ml-2 uppercase tracking-tighter">Mapped Routes</span>
                             </div>
                         </CardContent>
@@ -386,7 +407,7 @@ export default function SystemSettingsPage() {
                 <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                     <CardHeader className="border-b py-4 px-6 bg-muted/5">
                         <CardTitle className="text-sm font-black uppercase tracking-tight text-gray-900">Granular Route Analysis</CardTitle>
-                        <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Identify high-usage modules for development focus.</CardDescription>
+                        <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Identified modules for development focus. Grouped by canonical normalized path.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs">
@@ -398,8 +419,8 @@ export default function SystemSettingsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {pageVisits.length > 0 ? pageVisits.map((visit) => (
-                                    <TableRow key={visit.id} className="h-12 border-b transition-colors hover:bg-muted/20 group">
+                                {aggregatedVisits.length > 0 ? aggregatedVisits.map((visit) => (
+                                    <TableRow key={visit.path} className="h-12 border-b transition-colors hover:bg-muted/20 group">
                                         <TableCell className="pl-6">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary transition-colors" />

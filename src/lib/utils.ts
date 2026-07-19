@@ -52,9 +52,23 @@ export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 11);
 };
 
-export const getNormalizedPath = (path: string): string => {
+/**
+ * Normalizes a URL path for consistent tracking and routing comparisons.
+ * Trims whitespace, handles query params, ensures leading slash, and removes trailing slash.
+ */
+export const getNormalizedPath = (path: string | null | undefined): string => {
   if (!path) return '/';
-  return path.replace(/\/$/, '') || '/';
+  
+  // Remove query strings and hashes
+  let cleaned = path.split('?')[0].split('#')[0];
+  
+  // Clean whitespace and normalize slashes
+  cleaned = cleaned.trim();
+  
+  // Collapse multiple slashes and ensure leading slash
+  cleaned = '/' + cleaned.split('/').filter(Boolean).join('/');
+  
+  return cleaned === '' ? '/' : cleaned;
 };
 
 export const normalizeBF = (val: any): string => {
