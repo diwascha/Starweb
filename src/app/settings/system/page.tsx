@@ -44,6 +44,9 @@ import {
   Terminal,
   Download,
   RefreshCcw,
+  BarChart3,
+  MousePointer2,
+  Clock
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -71,7 +74,7 @@ import {
 import { modules, actions } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -94,6 +97,8 @@ const getModuleDisplayName = (m: Module): string => {
         default: return m;
     }
 };
+
+const CORE_MODULES: string[] = ['dashboard', 'settings', 'notes'];
 
 export default function SystemSettingsPage() {
   const { user, logout } = useAuth();
@@ -127,7 +132,7 @@ export default function SystemSettingsPage() {
         onUsersUpdate(setUsers),
         onPageVisitsUpdate(setPageVisits),
         onLogsUpdate(setLogs),
-        onSettingUpdate('ownership_categories', (s) => { 
+        onSettingUpdate('ownership_categories', (s: any) => { 
             const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
             let raw = s?.value || [];
             if (!Array.isArray(raw)) raw = [];
@@ -276,6 +281,10 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const totalUsageViews = useMemo(() => {
+    return pageVisits.reduce((sum, v) => sum + (v.count || 0), 0);
+  }, [pageVisits]);
+
   return (
     <div className="flex flex-col gap-8">
         <header className="flex items-center justify-between">
@@ -331,11 +340,98 @@ export default function SystemSettingsPage() {
                 </div>
             </TabsContent>
 
-            <TabsContent value="usage" className="animate-in fade-in slide-in-from-left-2">
-                <Card>
-                    <CardHeader><CardTitle className="text-sm font-black uppercase">Traffic Analysis</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-black text-primary">{pageVisits.reduce((sum, v) => sum + (v.count || 0), 0).toLocaleString()} Total Views</div>
+            <TabsContent value="usage" className="space-y-6 animate-in fade-in slide-in-from-left-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card className="bg-primary/5 border-primary/20 border-l-4 border-l-primary shadow-none">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                                <BarChart3 className="h-3 w-3" /> System Traffic
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-3xl font-black text-gray-900 tabular-nums">
+                                {totalUsageViews.toLocaleString()}
+                                <span className="text-xs font-bold text-muted-foreground ml-2 uppercase tracking-tighter">Total Views</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-muted/10 border-gray-200 shadow-none">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                <MousePointer2 className="h-3 w-3" /> Unique Paths
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-3xl font-black text-gray-900 tabular-nums">
+                                {pageVisits.length.toLocaleString()}
+                                <span className="text-xs font-bold text-muted-foreground ml-2 uppercase tracking-tighter">Mapped Routes</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-muted/10 border-gray-200 shadow-none">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                <Clock className="h-3 w-3" /> Active Period
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-lg font-black text-gray-900 uppercase">
+                                Real-time
+                                <span className="text-xs font-bold text-emerald-600 ml-2 uppercase tracking-tighter animate-pulse">Monitoring Active</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <CardHeader className="border-b py-4 px-6 bg-muted/5">
+                        <CardTitle className="text-sm font-black uppercase tracking-tight text-gray-900">Granular Route Analysis</CardTitle>
+                        <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Identify high-usage modules for development focus.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table className="text-xs">
+                            <TableHeader className="bg-muted/30">
+                                <TableRow className="hover:bg-transparent h-10">
+                                    <TableHead className="pl-6 font-bold uppercase text-[9px]">Module / Route Path</TableHead>
+                                    <TableHead className="font-bold uppercase text-[9px] text-center">Last Active</TableHead>
+                                    <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Total Engagement (Hits)</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {pageVisits.length > 0 ? pageVisits.map((visit) => (
+                                    <TableRow key={visit.id} className="h-12 border-b transition-colors hover:bg-muted/20 group">
+                                        <TableCell className="pl-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary transition-colors" />
+                                                <span className="font-black text-gray-900 font-mono tracking-tight text-[11px]">
+                                                    {visit.path === '/' ? '/ROOT' : visit.path}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center font-medium text-muted-foreground text-[10px]">
+                                            {visit.lastVisited ? formatDistanceToNow(new Date(visit.lastVisited), { addSuffix: true }) : 'N/A'}
+                                        </TableCell>
+                                        <TableCell className="text-right pr-6">
+                                            <div className="flex items-center justify-end gap-3">
+                                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                                                    <div 
+                                                        className="h-full bg-primary" 
+                                                        style={{ width: `${Math.min(100, (visit.count / totalUsageViews) * 500)}%` }} 
+                                                    />
+                                                </div>
+                                                <span className="font-black tabular-nums text-blue-900">{visit.count.toLocaleString()}</span>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="h-40 text-center text-muted-foreground italic uppercase text-[10px] font-black tracking-widest">
+                                            Waiting for data sync...
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
             </TabsContent>
