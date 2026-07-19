@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown, ChevronsUpDown, Check, Plus, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toNepaliDate, toWords, generateNextVoucherNumber, cn } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format as formatDate, format } from 'date-fns';
+import { format } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -30,12 +30,10 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogHeader as AlertDialogHead,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
+import 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { onTdsCalculationsUpdate, addTdsCalculation, getTdsPrefix, deleteTdsCalculation, updateTdsCalculation } from '@/services/tds-service';
@@ -210,7 +208,8 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
         setIsExporting(true);
         try {
             const doc = new jsPDF('p', 'mm', 'a5');
-            autoTable(doc, {
+            const { default: autoTable } = await import('jspdf-autotable');
+            (doc as any).autoTable({
                 startY: 50,
                 head: [['Label', 'Value']],
                 body: [
@@ -961,46 +960,5 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                 </DialogContent>
             </Dialog>
         </div>
-    );
-}
-
-export default function TdsCalculatorPage() {
-    const [activeTab, setActiveTab] = useState('calculator');
-    const [calculationToEdit, setCalculationToEdit] = useState<TdsCalculation | null>(null);
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE_LOCAL);
-
-    useEffect(() => {
-        const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE_LOCAL));
-        return () => unsub();
-    }, []);
-
-    const handleEdit = (calc: TdsCalculation) => {
-        setCalculationToEdit(calc);
-        setActiveTab('calculator');
-    };
-
-    const handleSaveSuccess = () => {
-        setCalculationToEdit(null);
-        setActiveTab('history');
-    };
-
-    return (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4 bg-muted/50 p-1">
-                <TabsTrigger value="calculator" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">Calculator</TabsTrigger>
-                <TabsTrigger value="history" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">History</TabsTrigger>
-            </TabsList>
-            <TabsContent value="calculator">
-                <CalculatorTab 
-                    calculationToEdit={calculationToEdit} 
-                    onSaveSuccess={handleSaveSuccess}
-                    onCancelEdit={() => { setCalculationToEdit(null); setActiveTab('history'); }}
-                    companyProfile={companyProfile}
-                />
-            </TabsContent>
-            <TabsContent value="history">
-                <SavedTdsRecords onEdit={handleEdit} companyProfile={companyProfile} />
-            </TabsContent>
-        </Tabs>
     );
 }

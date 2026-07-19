@@ -44,7 +44,8 @@ import {
   RefreshCcw,
   History,
   X,
-  Info
+  Info,
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -377,6 +378,19 @@ export default function GeneralSettingsPage() {
   const numberingHistory = useMemo(() => {
       if (!historyKey) return [];
       const raw = prefixes[historyKey];
+      
+      // Support legacy string prefixes in history
+      if (typeof raw === 'string') {
+          return [{
+              prefix: raw,
+              effectiveFrom: '2000-01-01T00:00:00.000Z',
+              effectiveTo: null,
+              startingNumber: 1,
+              status: 'Active' as const,
+              originalIndex: -99 // Marker for legacy
+          }];
+      }
+
       if (!Array.isArray(raw)) return [];
       return raw.map((r, i) => ({ ...r, originalIndex: i })).reverse();
   }, [historyKey, prefixes]);
@@ -589,6 +603,8 @@ export default function GeneralSettingsPage() {
                                                         {toNepaliDate(active.effectiveFrom)} 
                                                         {active.effectiveTo ? ` — ${toNepaliDate(active.effectiveTo)}` : ' — Open'}
                                                     </>
+                                                ) : typeof rawRules === 'string' ? (
+                                                    <span className="text-[10px] font-black uppercase text-amber-600">Legacy String</span>
                                                 ) : 'N/A'}
                                             </TableCell>
                                             <TableCell className="text-right pr-6 space-x-1">
@@ -732,30 +748,34 @@ export default function GeneralSettingsPage() {
                                         <TableCell>{toNepaliDate(rule.effectiveFrom)}</TableCell>
                                         <TableCell>{rule.effectiveTo ? toNepaliDate(rule.effectiveTo) : <span className="italic text-[9px]">Currently Active</span>}</TableCell>
                                         <TableCell className="text-right pr-4">
-                                            <div className="flex justify-end gap-1">
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRuleDialog(rule.originalIndex)}>
-                                                    <Edit className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Delete History Record?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                This will permanently remove this numbering rule from the log. This action cannot be undone.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteRule(rule.originalIndex)} className="bg-destructive text-white">Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
+                                            {rule.originalIndex === -99 ? (
+                                                <Badge variant="outline" className="text-[8px] uppercase bg-amber-50 text-amber-700 border-amber-200">Upgrade Required</Badge>
+                                            ) : (
+                                                <div className="flex justify-end gap-1">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRuleDialog(rule.originalIndex)}>
+                                                        <Edit className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Delete History Record?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    This will permanently remove this numbering rule from the log. This action cannot be undone.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteRule(rule.originalIndex)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}

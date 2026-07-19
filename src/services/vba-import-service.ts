@@ -255,7 +255,8 @@ export const importConsolidatedLedger = async (
                     regularHours: coerceNumber(row[34]) * 8, // Calc from workdays
                     otHours: coerceNumber(row[44]),
                     createdBy: importedBy,
-                    createdAt: now
+                    createdAt: now,
+                    ownership: 'Both' // High-level payroll is typically broad scope
                 };
                 batch.set(doc(collection(db, COLLECTIONS.PAYROLL), payrollId), entry, { merge: true });
                 results.payroll++;

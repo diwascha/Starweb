@@ -46,11 +46,13 @@ export const getVehicles = async (useCache = false): Promise<Vehicle[]> => {
         const vehicles = snapshot.docs.map(fromFirestore);
         vehicleCache.set('vehicles', { data: vehicles, timestamp: Date.now() });
         return vehicles;
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'vehicles',
-            operation: 'list',
-        }));
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'vehicles',
+                operation: 'list',
+            }));
+        }
         throw error;
     }
 };
@@ -79,10 +81,12 @@ export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () =>
             callback(vehicles);
         },
         async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'vehicles',
-                operation: 'list',
-            }));
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: 'vehicles',
+                    operation: 'list',
+                }));
+            }
         }
     );
 };

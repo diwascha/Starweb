@@ -26,10 +26,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
-import type { EstimatedInvoice, Product, RateHistoryEntry, Party, Module } from '@/lib/types';
+import type { EstimatedInvoice, Product, RateHistoryEntry, Party } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useRouter } from 'next/navigation';
 import { onProductsUpdate, updateProduct } from '@/services/product-service';
@@ -218,6 +218,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 
         try {
             const doc = new jsPDF();
+            const { default: autoTable } = await import('jspdf-autotable');
             
             // Header
             doc.setFont('Helvetica', 'bold');
@@ -345,7 +346,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                         />
                     </div>
 
-                    <Select value={filterParty} onValueChange={setFilterParty}>
+                    <Select value={filterParty} onValueChange={(v) => { setFilterParty(v); setCurrentPage(1); }}>
                         <SelectTrigger className="h-8 w-[150px] bg-white text-xs border-gray-200 shadow-none">
                             <div className="flex items-center gap-2">
                                 <Users className="h-3 w-3 text-muted-foreground" />
@@ -688,7 +689,7 @@ function SavedRatesList() {
                         />
                     </div>
 
-                    <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                    <Select value={filterPartyId} onValueChange={(v) => { setFilterPartyId(v); setCurrentPage(1); }}>
                         <SelectTrigger className="h-8 w-[150px] bg-white text-xs border-gray-200 shadow-none">
                             <div className="flex items-center gap-2">
                                 <Users className="h-3 w-3 text-muted-foreground" />
