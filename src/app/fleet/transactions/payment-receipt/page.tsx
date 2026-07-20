@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState, use } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { getVoucherTransactions } from '@/services/transaction-service';
@@ -10,12 +10,9 @@ import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
 
-function VoucherView(props: { params: Promise<any>, searchParams: Promise<any> }) {
-  // Next.js 15: Unwrap dynamic params and searchParams
-  use(props.params);
-  const searchParams = use(props.searchParams);
-  
-  const voucherId = searchParams.voucherId || '';
+function VoucherView() {
+  const searchParams = useSearchParams();
+  const voucherId = searchParams.get('voucherId') || '';
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -95,10 +92,10 @@ function VoucherView(props: { params: Promise<any>, searchParams: Promise<any> }
 }
 
 
-export default function VoucherViewPage(props: { params: Promise<any>, searchParams: Promise<any> }) {
+export default function VoucherViewPage() {
     return (
         <Suspense fallback={<div>Loading...</div>}>
-            <VoucherView {...props} />
+            <VoucherView />
         </Suspense>
     )
 }

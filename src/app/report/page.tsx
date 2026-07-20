@@ -2,16 +2,14 @@
 
 import ReportView from './[id]/_components/report-view';
 import { getReport } from '@/services/report-service';
-import { useEffect, useState, Suspense, use } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import type { Report } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSearchParams } from 'next/navigation';
 
-function ReportViewComponent(props: { params: Promise<any>, searchParams: Promise<any> }) {
-  // Next.js 15: Unwrap dynamic params and searchParams
-  use(props.params);
-  const searchParams = use(props.searchParams);
-  
-  const id = searchParams.id;
+function ReportViewComponent() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +44,7 @@ function ReportViewComponent(props: { params: Promise<any>, searchParams: Promis
 }
 
 
-export default function ReportPage(props: { params: Promise<any>, searchParams: Promise<any> }) {
+export default function ReportPage() {
     return (
         <Suspense fallback={
             <div className="space-y-4">
@@ -54,7 +52,7 @@ export default function ReportPage(props: { params: Promise<any>, searchParams: 
                 <Skeleton className="h-[80vh] w-full" />
             </div>
         }>
-            <ReportViewComponent {...props} />
+            <ReportViewComponent />
         </Suspense>
     )
 }

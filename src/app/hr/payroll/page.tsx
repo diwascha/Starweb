@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense, use } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,7 +17,7 @@ import { getAttendanceYears, onAttendanceUpdate } from '@/services/attendance-se
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { deletePayrollForMonth } from '@/services/payroll-service';
 import { useAuth } from '@/hooks/use-auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { Employee, AttendanceRecord } from '@/lib/types';
 import {
@@ -32,9 +32,9 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-export default function UnifiedWorkforcePage(props: { params: Promise<any>, searchParams: Promise<any> }) {
-    const searchParams = use(props.searchParams);
-    const activeTab = searchParams.tab || "payroll";
+export default function UnifiedWorkforcePage() {
+    const searchParams = useSearchParams();
+    const activeTab = searchParams.get('tab') || "payroll";
     const router = useRouter();
     const { user } = useAuth();
     const { toast } = useToast();
@@ -44,7 +44,7 @@ export default function UnifiedWorkforcePage(props: { params: Promise<any>, sear
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
     const [bsYears, setBsYears] = useState<number[]>([]);
     
-    // Global Dataset State (Lifted for consistency)
+    // Global Dataset State
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);

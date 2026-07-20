@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, Suspense, use } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import type { Payroll, Employee } from '@/lib/types';
 import { getPayrollForEmployee } from '@/services/payroll-service';
 import { getEmployee } from '@/services/employee-service';
-import { useRouter } from 'next/navigation';
 import PayslipView from './_components/payslip-view';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSearchParams } from 'next/navigation';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -15,14 +15,11 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-function PayslipContent(props: { params: Promise<any>, searchParams: Promise<any> }) {
-    // Next.js 15: Unwrap dynamic params and searchParams
-    use(props.params);
-    const searchParams = use(props.searchParams);
-    
-    const employeeId = searchParams.employeeId;
-    const year = searchParams.year;
-    const month = searchParams.month;
+function PayslipContent() {
+    const searchParams = useSearchParams();
+    const employeeId = searchParams.get('employeeId');
+    const year = searchParams.get('year');
+    const month = searchParams.get('month');
 
     const [employee, setEmployee] = useState<Employee | null>(null);
     const [payrollData, setPayrollData] = useState<Payroll | null>(null);
@@ -49,13 +46,13 @@ function PayslipContent(props: { params: Promise<any>, searchParams: Promise<any
         <PayslipView 
             employee={employee} 
             payroll={payrollData} 
-            bsYear={parseInt(year)} 
-            bsMonthName={nepaliMonths[parseInt(month)]?.name || ''} 
+            bsYear={parseInt(year!)} 
+            bsMonthName={nepaliMonths[parseInt(month!)]?.name || ''} 
         />
     );
 }
 
-export default function PayslipPage(props: { params: Promise<any>, searchParams: Promise<any> }) {
+export default function PayslipPage() {
     return (
         <Suspense fallback={
             <div className="space-y-4">
@@ -63,7 +60,7 @@ export default function PayslipPage(props: { params: Promise<any>, searchParams:
                 <Skeleton className="h-[400px] w-full" />
             </div>
         }>
-            <PayslipContent {...props} />
+            <PayslipContent />
         </Suspense>
     );
 }

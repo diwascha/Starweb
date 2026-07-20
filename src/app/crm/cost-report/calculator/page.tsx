@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, Suspense, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, History, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CostReportCalculator } from '../_components/calculator';
@@ -14,10 +14,10 @@ import React from 'react';
 
 const QuotationPreviewDialog = React.lazy(() => import('../_components/quotation-preview').then(m => ({ default: m.QuotationPreviewDialog })));
 
-function CalculatorPageContent(props: { searchParams: Promise<any> }) {
-    const searchParams = use(props.searchParams);
+function CalculatorPageContent() {
+    const searchParams = useSearchParams();
+    const poId = searchParams.get('id');
     const router = useRouter();
-    const poId = searchParams.id;
 
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -57,7 +57,7 @@ function CalculatorPageContent(props: { searchParams: Promise<any> }) {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mb-1">
                         <Button variant="ghost" size="icon" onClick={() => router.push('/crm/cost-report')} className="h-8 w-8">
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
@@ -97,10 +97,10 @@ function CalculatorPageContent(props: { searchParams: Promise<any> }) {
     );
 }
 
-export default function Page(props: { params: Promise<any>, searchParams: Promise<any> }) {
+export default function Page() {
     return (
         <Suspense fallback={<div className="p-8 text-center"><Loader2 className="animate-spin h-8 w-8 mx-auto" /></div>}>
-            <CalculatorPageContent searchParams={props.searchParams} />
+            <CalculatorPageContent />
         </Suspense>
     );
 }
