@@ -469,6 +469,8 @@ export default function GeneralSettingsPage() {
                     <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Name (EN)</Label><Input value={companyProfile.nameEn || ''} onChange={e => setCompanyProfile(p => ({...p, nameEn: e.target.value}))} /></div>
                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">कम्पनी (NP)</Label><Input value={companyProfile.nameNp || ''} onChange={e => setCompanyProfile(p => ({...p, nameNp: e.target.value}))} /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">PAN/VAT Number</Label><Input value={companyProfile.pan || ''} onChange={e => setCompanyProfile(p => ({...p, pan: e.target.value}))} /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Phone Number</Label><Input value={companyProfile.phone || ''} onChange={e => setCompanyProfile(p => ({...p, phone: e.target.value}))} /></div>
                         <div className="space-y-1.5 md:col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Address</Label><Input value={companyProfile.address || ''} onChange={e => setCompanyProfile(p => ({...p, address: e.target.value}))} /></div>
                     </CardContent>
                 </Card>
