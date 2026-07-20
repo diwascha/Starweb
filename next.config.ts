@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   output: 'export',
   trailingSlash: true,
   experimental: {
-    outputFileTracingRoot: path.join(__dirname),
+    outputFileTracingRoot: __dirname,
   },
   typescript: {
     ignoreBuildErrors: true,

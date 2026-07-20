@@ -21,7 +21,3 @@ serde_json = "1.0"
 # this feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
-
-[[bin]]
-name = "starsutra"
-path = "src/main.rs" 
