@@ -15,6 +15,8 @@ export const addTrip = async (trip: any): Promise<string> => {
     const tripData = { ...trip, createdAt: now };
     batch.set(doc(getTripsCollection(), id), tripData);
     
+    const safeTripId = trip.tripNumber.replace(/\//g, '-');
+
     // Side effect: Sales Ledger
     const txnData = { 
         type: 'Sales', 
@@ -30,7 +32,7 @@ export const addTrip = async (trip: any): Promise<string> => {
         createdBy: trip.createdBy,
         ownership: trip.ownership || 'Sijan', // Ensure ownership is synced to ledger
     };
-    batch.set(doc(db, COLLECTIONS.TRANSACTIONS, `sales-${trip.tripNumber}`), txnData);
+    batch.set(doc(db, COLLECTIONS.TRANSACTIONS, `sales-${safeTripId}`), txnData);
     
     batch.commit().catch(err => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -51,8 +53,10 @@ export const updateTrip = async (id: string, updates: any): Promise<void> => {
     const tripRef = doc(getTripsCollection(), id);
     batch.update(tripRef, { ...updates, lastModifiedAt: now });
     
+    const safeTripId = updates.tripNumber.replace(/\//g, '-');
+
     // Sync with Ledger
-    const txnRef = doc(db, COLLECTIONS.TRANSACTIONS, `sales-${updates.tripNumber}`);
+    const txnRef = doc(db, COLLECTIONS.TRANSACTIONS, `sales-${safeTripId}`);
     const txnUpdate = {
         amount: updates.transport,
         date: updates.date,
@@ -82,8 +86,10 @@ export const deleteTrip = async (id: string) => {
     const trip = tripSnap.data();
     const batch = writeBatch(db);
     
+    const safeTripId = trip.tripNumber.replace(/\//g, '-');
+
     batch.delete(docRef);
-    batch.delete(doc(db, COLLECTIONS.TRANSACTIONS, `sales-${trip.tripNumber}`));
+    batch.delete(doc(db, COLLECTIONS.TRANSACTIONS, `sales-${safeTripId}`));
     
     batch.commit().catch(err => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({

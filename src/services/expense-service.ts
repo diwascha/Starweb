@@ -79,12 +79,15 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
     const transactions: Transaction[] = [];
     const baseNarrative = `${expense.voucherNo}: ${expense.expenseType}${expense.destination ? ` to ${expense.destination}` : ''}`;
     const now = createTimestamp();
+    
+    // Sanitize voucher number for use in document ID to avoid "invalid reference" errors if slashes are present
+    const safeVoucherId = expense.voucherNo.replace(/\//g, '-');
 
     const createTxn = (mode: 'Cash' | 'Bank', amt: number, suffix: string): Transaction => {
         const items: TransactionItem[] = [{ particular: `${baseNarrative} (${suffix})`, quantity: 1, rate: amt }];
         
         return {
-            id: `ledger-${expense.voucherNo}-${mode.toLowerCase()}`, 
+            id: `ledger-${safeVoucherId}-${mode.toLowerCase()}`, 
             date: expense.date,
             vehicleId: expense.vehicleId || null,
             type: 'Payment' as const,
@@ -174,8 +177,9 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
     const batch = writeBatch(db);
     batch.update(expenseRef, { ...updates, lastModifiedBy: modifiedBy, lastModifiedAt: now });
 
+    const safeOldVoucherId = oldData.voucherNo.replace(/\//g, '-');
     ['cash', 'bank'].forEach(mode => {
-        batch.delete(doc(getTransactionsCollection(), `ledger-${oldData.voucherNo}-${mode}`));
+        batch.delete(doc(getTransactionsCollection(), `ledger-${safeOldVoucherId}-${mode}`));
     });
 
     const ledgerTxns = generateLedgerTransactions(newData as any, oldData.createdAt);
@@ -201,8 +205,9 @@ export const deleteExpense = async (id: string): Promise<void> => {
     const batch = writeBatch(db);
     batch.delete(expenseRef);
 
+    const safeVoucherId = data.voucherNo.replace(/\//g, '-');
     ['cash', 'bank'].forEach(mode => {
-        batch.delete(doc(getTransactionsCollection(), `ledger-${data.voucherNo}-${mode}`));
+        batch.delete(doc(getTransactionsCollection(), `ledger-${safeVoucherId}-${mode}`));
     });
 
     batch.commit().catch(err => {
