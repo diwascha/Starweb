@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
-import type { PurchaseOrder, PurchaseOrderStatus, PurchaseOrderVersion, CompanyProfile } from '@/lib/types';
+import type { PurchaseOrder, PurchaseOrderVersion, CompanyProfile, Amendment } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import {
     Printer,
@@ -53,12 +53,6 @@ const DEFAULT_COMPANY_PROFILE_LOCAL: CompanyProfile = {
 
 const PAPER_TYPES = ['Kraft Paper', 'Virgin Paper'];
 
-/* -------------------------------------------------------------------------
- * PO DOCUMENT
- * NOTE: Avoid `tracking-*` (letter-spacing) and `italic` inside this
- * component. html2canvas collapses spaces when letter-spacing is applied,
- * which caused words like "AMENDED PO" to render as "AMENDEDPO".
- * ---------------------------------------------------------------------- */
 function PurchaseOrderDocument({
   purchaseOrder,
   includeAmendments = true,
@@ -85,7 +79,6 @@ function PurchaseOrderDocument({
     }, {} as Record<string, any>);
   }, [purchaseOrder.items]);
 
-  /** Grand total across all groups, per unit */
   const grandTotals = useMemo(() => {
     return (purchaseOrder.items || []).reduce((acc: Record<string, number>, item: any) => {
         const q = parseFloat(item.quantity);
@@ -94,8 +87,6 @@ function PurchaseOrderDocument({
     }, {});
   }, [purchaseOrder.items]);
 
-  /** For paper items the size/GSM/BF live in their own columns —
-   *  show only the material type in Description to avoid duplication. */
   const descriptionFor = (item: any, isPaper: boolean, type: string) => {
     if (!isPaper) return item.rawMaterialName || type;
     return item.grade ? `${type} — ${item.grade}` : type;
@@ -107,7 +98,6 @@ function PurchaseOrderDocument({
       className="po-document bg-white text-neutral-900 font-sans min-h-[297mm] flex flex-col"
       style={{ padding: '14mm 14mm 12mm', fontVariantNumeric: 'tabular-nums' }}
     >
-        {/* ---------------- HEADER ---------------- */}
         <header className="flex items-start justify-between pb-5 border-b-2 border-neutral-900">
             <div>
                 <h1 className="text-[22px] leading-tight font-extrabold uppercase">{companyProfile.nameEn}</h1>
@@ -127,7 +117,6 @@ function PurchaseOrderDocument({
             </div>
         </header>
 
-        {/* ---------------- META GRID ---------------- */}
         <div className="grid grid-cols-3 gap-6 py-5 border-b border-neutral-200 text-[11px]">
             <div>
                 <p className="text-[9px] font-bold uppercase text-neutral-500 mb-1">PO Reference</p>
@@ -156,7 +145,6 @@ function PurchaseOrderDocument({
             </div>
         </div>
 
-        {/* ---------------- ITEM TABLES ---------------- */}
         <div className="mt-6 space-y-6">
             {Object.entries(groupedItems).map(([type, items]: [string, any]) => {
                 const isPaper = PAPER_TYPES.includes(type);
@@ -229,7 +217,6 @@ function PurchaseOrderDocument({
                 );
             })}
 
-            {/* Grand total */}
             <div className="flex justify-end">
                 <div className="border-2 border-neutral-900 px-5 py-2 text-right">
                     <p className="text-[9px] font-bold uppercase text-neutral-500">Total Order Volume</p>
@@ -240,7 +227,6 @@ function PurchaseOrderDocument({
             </div>
         </div>
 
-        {/* ---------------- TERMS ---------------- */}
         <div className="mt-8 text-[10px]">
             <div>
                 <p className="font-extrabold uppercase text-[9px] text-neutral-500 mb-1">Delivery Location</p>
@@ -254,7 +240,6 @@ function PurchaseOrderDocument({
             )}
         </div>
 
-        {/* ---------------- AMENDMENT LOGS ---------------- */}
         {includeAmendments && hasAmendments && (
             <div className="mt-8 border border-amber-200 bg-amber-50/60 rounded-md px-4 py-3">
                 <h3 className="text-[9px] font-extrabold uppercase text-amber-800 mb-2">Amendment History</h3>
@@ -274,10 +259,9 @@ function PurchaseOrderDocument({
 
         <div className="flex-1 min-h-[24px]" />
 
-        {/* ---------------- FOOTER ---------------- */}
         <footer className="pt-4 border-t border-neutral-200 text-center">
             <p className="text-[8px] text-neutral-400 leading-snug">
-                Computer-generated and electronically authorized by {companyProfile.nameEn} via the StarSutra Enterprise Suite. Valid without signature or seal.
+                Computer-generated document. Valid without physical signature or seal. Produced via StarSutra Enterprise Suite.
             </p>
         </footer>
     </div>
@@ -311,10 +295,6 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     return () => unsub();
   }, []);
 
-  /* ------------------------------------------------------------------
-   * PDF export — html2canvas with letterRendering to prevent word
-   * merging, plus multi-page slicing for long POs.
-   * ---------------------------------------------------------------- */
   const handleExportPdf = async (ref: React.RefObject<HTMLDivElement | null>, poNo: string) => {
     const key = `pdf-${poNo}`;
     const element = ref.current;
@@ -332,14 +312,13 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         } as any);
 
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const pageWidth = pdf.internal.pageSize.getWidth();   // 210
-        const pageHeight = pdf.internal.pageSize.getHeight(); // 297
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
         const imgHeight = (canvas.height * pageWidth) / canvas.width;
 
         if (imgHeight <= pageHeight + 1) {
             pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidth, imgHeight);
         } else {
-            // Slice the canvas into A4-height pages
             const pageCanvasHeight = Math.floor((pageHeight * canvas.width) / pageWidth);
             let renderedHeight = 0;
             let pageIndex = 0;
@@ -410,11 +389,6 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     }
   };
 
-  /* ------------------------------------------------------------------
-   * Print — clones all page stylesheets into the print window so the
-   * document keeps its Tailwind styling (previous version printed
-   * completely unstyled HTML).
-   * ---------------------------------------------------------------- */
   const handlePrint = (ref: React.RefObject<HTMLDivElement | null>) => {
     if (!ref.current) return;
     const printWindow = window.open('', '', 'height=900,width=800');

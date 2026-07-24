@@ -1,99 +1,32 @@
 'use client';
 
-import { Suspense, useEffect, useState, use } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { getTransaction } from '@/services/transaction-service';
-import { getVehicles } from '@/services/vehicle-service';
-import { getParties } from '@/services/party-service';
-import { getAccounts } from '@/services/account-service';
-import { getUoms } from '@/services/uom-service';
-import EditPurchaseClientPage from '../_components/EditPurchaseClientPage';
+import { useEffect, use } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
+/**
+ * @fileOverview Redirection wrapper for unified fleet entry.
+ * Editing old Purchase records now leverages the enhanced Expense system.
+ */
+export default function EditPurchaseRedirect(props: { params: Promise<any>, searchParams: Promise<any> }) {
+    const router = useRouter();
+    const searchParams = use(props.searchParams);
+    const id = searchParams.id;
 
-function EditPurchaseComponent(props: { params: Promise<any>, searchParams: Promise<any> }) {
-  // Next.js 15: Unwrap dynamic params and searchParams
-  use(props.params);
-  const searchParams = use(props.searchParams);
-  
-  const id = searchParams.id;
-  const [initialValues, setInitialValues] = useState<any>(null);
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [parties, setParties] = useState<any[]>([]);
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [uoms, setUoms] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (id) {
-      Promise.all([
-        getTransaction(id),
-        getVehicles(),
-        getParties(),
-        getAccounts(),
-        getUoms()
-      ]).then(([transactionData, vehicleData, partyData, accountData, uomData]) => {
-        if (transactionData) {
-          // Sanitize null values to prevent Zod string/date validation errors
-          setInitialValues({
-            ...transactionData,
-            invoiceNumber: transactionData.invoiceNumber || '',
-            remarks: transactionData.remarks || '',
-            purchaseNumber: transactionData.purchaseNumber || '',
-            chequeNumber: transactionData.chequeNumber || '',
-            date: new Date(transactionData.date),
-            invoiceDate: transactionData.invoiceDate ? new Date(transactionData.invoiceDate) : null,
-            chequeDate: transactionData.chequeDate ? new Date(transactionData.chequeDate) : null,
-            dueDate: transactionData.dueDate ? new Date(transactionData.dueDate) : null,
-          });
+    useEffect(() => {
+        if (id) {
+            router.replace(`/fleet/transactions/expenses/edit?id=${id}`);
+        } else {
+            router.replace('/fleet/transactions/expenses');
         }
-        setVehicles(vehicleData);
-        setParties(partyData);
-        setAccounts(accountData);
-        setUoms(uomData);
-        setLoading(false);
-      });
-    }
-  }, [id]);
+    }, [router, id]);
 
-  if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-        <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
-      </div>
+        <div className="flex h-[70vh] flex-col items-center justify-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground animate-pulse">
+                Navigating to Unified Ledger...
+            </p>
+        </div>
     );
-  }
-
-  if (!initialValues) {
-    return (
-      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-        <h3 className="text-2xl font-bold tracking-tight">Purchase not found.</h3>
-      </div>
-    );
-  }
-
-  return (
-    <EditPurchaseClientPage
-      accounts={accounts}
-      parties={parties}
-      vehicles={vehicles}
-      uoms={uoms}
-      initialValues={initialValues}
-      transactionId={id!}
-    />
-  );
-}
-
-
-export default function EditPurchasePage(props: { params: Promise<any>, searchParams: Promise<any> }) {
-  return (
-    <div className="flex flex-col gap-8">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight">Edit Purchase</h1>
-        <p className="text-muted-foreground">Modify the details for this purchase transaction.</p>
-      </header>
-       <Suspense fallback={<div>Loading Form...</div>}>
-         <EditPurchaseComponent {...props} />
-       </Suspense>
-    </div>
-  );
 }

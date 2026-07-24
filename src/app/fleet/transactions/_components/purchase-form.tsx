@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
@@ -61,27 +61,36 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Use 'values' instead of 'defaultValues' to ensure the form updates when 
-  // props (like an asynchronously generated purchaseNumber) change.
+  // Reverting to defaultValues + reset strategy to prevent infinite loop caused by unstable 'values' prop
   const form = useForm<PurchaseFormValues>({
     resolver: zodResolver(purchaseSchema),
-    values: {
-      purchaseNumber: initialValues?.purchaseNumber || '',
-      date: initialValues?.date || new Date(),
-      vehicleId: initialValues?.vehicleId || '',
-      partyId: initialValues?.partyId || '',
-      invoiceNumber: initialValues?.invoiceNumber || '',
-      invoiceDate: initialValues?.invoiceDate || null,
-      invoiceType: initialValues?.invoiceType || 'Normal',
-      billingType: initialValues?.billingType || 'Cash',
-      accountId: initialValues?.accountId || null,
-      chequeNumber: initialValues?.chequeNumber || '',
-      chequeDate: initialValues?.chequeDate || null,
-      dueDate: initialValues?.dueDate || null,
-      items: initialValues?.items || [{ particular: '', quantity: 0, rate: 0 }],
-      remarks: initialValues?.remarks || '',
+    defaultValues: {
+      purchaseNumber: '',
+      date: new Date(),
+      vehicleId: '',
+      partyId: '',
+      invoiceNumber: '',
+      invoiceDate: null,
+      invoiceType: 'Normal',
+      billingType: 'Cash',
+      accountId: null,
+      chequeNumber: '',
+      chequeDate: null,
+      dueDate: null,
+      items: [{ particular: '', quantity: 0, rate: 0 }],
+      remarks: '',
     },
   });
+
+  // Reactive reset when initialValues arrive (e.g. async PO Number)
+  useEffect(() => {
+    if (initialValues) {
+        form.reset({
+            ...form.getValues(),
+            ...initialValues
+        });
+    }
+  }, [initialValues, form]);
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   
@@ -132,10 +141,10 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                         </FormItem>
                     )}/>
                     <FormField control={form.control} name="date" render={({ field }) => (
-                        <FormItem><FormLabel>Posting Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select'}</Button></FormControl></PopoverTrigger><PopoverContent className="p-0"><DualCalendar selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover><FormMessage/></FormItem>
+                        <FormItem><FormLabel>Posting Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select'}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover><FormMessage/></FormItem>
                     )}/>
                     <FormField control={form.control} name="vehicleId" render={({ field }) => (
-                        <FormItem><FormLabel>Vehicle (Truck)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select Vehicle"/></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                        <FormItem><FormLabel>Vehicle (Truck)</FormLabel><Select onValueChange={field.onChange} value={field.value || ""}><FormControl><SelectTrigger><SelectValue placeholder="Select Vehicle"/></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
                     )}/>
                 </CardContent>
             </Card>
@@ -144,7 +153,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                 <CardHeader className="py-4"><CardTitle className="text-sm font-bold">Supplier & Invoice</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     <FormField control={form.control} name="partyId" render={({ field }) => (
-                        <FormItem><FormLabel>Supplier</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select Supplier"/></SelectTrigger></FormControl><SelectContent>{sortedSuppliers.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                        <FormItem><FormLabel>Supplier</FormLabel><Select onValueChange={field.onChange} value={field.value || ""}><FormControl><SelectTrigger><SelectValue placeholder="Select Supplier"/></SelectTrigger></FormControl><SelectContent>{sortedSuppliers.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
                     )}/>
                     <div className="grid grid-cols-2 gap-2">
                         <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
@@ -155,7 +164,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                         )}/>
                     </div>
                     <FormField control={form.control} name="invoiceDate" render={({ field }) => (
-                        <FormItem><FormLabel>Supplier Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Optional'}</Button></FormControl></PopoverTrigger><PopoverContent className="p-0"><DualCalendar selected={field.value || undefined} onSelect={field.onChange}/></PopoverContent></Popover></FormItem>
+                        <FormItem><FormLabel>Supplier Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Optional'}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value || undefined} onSelect={field.onChange}/></PopoverContent></Popover></FormItem>
                     )}/>
                 </CardContent>
             </Card>
