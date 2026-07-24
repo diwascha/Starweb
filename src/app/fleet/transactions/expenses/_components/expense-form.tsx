@@ -420,7 +420,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     <div className="space-y-4">
                         <FormField control={form.control} name="amount" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Payment Amount (रु)</FormLabel>
+                                <FormLabel>Payment Amount (रु)</Label>
                                 <FormControl><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">Rs.</span><Input {...numFieldProps} className="pl-10 h-10 text-lg font-black" {...field} value={field.value || ''} onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); if (watchedMode === 'Mixed') { const total = val + (watchedExtraAmount || 0); form.setValue('cashAmount', total); form.setValue('bankAmount', 0); } }} /></div></FormControl>
                                 {routeStandardAmount && (
                                     <p className="text-[10px] text-amber-700 font-bold uppercase mt-1 flex items-center gap-1">
@@ -436,7 +436,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
                 {watchedType === 'Advance' && (
                     <div className="bg-muted/30 p-4 rounded-xl border border-dashed space-y-4">
-                        {!showExtraFields ? <Button type="button" variant="outline" size="sm" className="h-8 text-[10px] uppercase font-bold" onClick={() => setShowExtraFields(true)}><PlusIcon className="mr-1 h-3 w-3" /> Add Extra Charge</Button> : (
+                        {!showExtraFields ? <Button type="button" variant="outline" size="sm" className="h-8 text-[10px] uppercase font-bold" onClick={() => setShowExtraFields(true)}><Plus className="mr-1 h-3 w-3" /> Add Extra Charge</Button> : (
                             <div className="animate-in fade-in slide-in-from-top-2">
                                 <div className="flex items-center justify-between mb-3"><h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Extra Combined Charge</h4><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setShowExtraFields(false); form.setValue('extraAmount', 0); }}><X className="h-3 w-3" /></Button></div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
