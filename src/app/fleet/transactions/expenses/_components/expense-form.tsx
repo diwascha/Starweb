@@ -37,7 +37,8 @@ import {
     ShieldCheck,
     Briefcase,
     ArrowRightLeft,
-    HandCoins
+    HandCoins,
+    FileText
 } from 'lucide-react';
 import { cn, toNepaliDate, generateNextExpenseNumber } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
@@ -67,17 +68,15 @@ import { Separator } from '@/components/ui/separator';
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
     { type: 'Maintenance', label: 'Maintenance Fee', sub: 'Repair / Service', icon: Wrench, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+    { type: 'Vendor Purchase', label: 'Vendor Purchase', sub: 'Parts, Fuel, Spares', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
     { type: 'Loan Repayment', label: 'Loan Repayment', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
-    { type: 'Membership Renewal', label: 'Renewal', sub: 'Policy / Tax', icon: ShieldCheck, color: 'text-purple-600 bg-purple-50 border-purple-200' },
-    { type: 'Purchase', label: 'Cash Purchase', sub: 'Oil, spares, etc.', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
-    { type: 'Shivam / Others', label: 'Shivam / Others', sub: 'Misc expenses', icon: Briefcase, color: 'text-pink-600 bg-pink-50 border-pink-200' },
 ];
 
 const expenseSchema = z.object({
     voucherNo: z.string().min(1, "Voucher No is required."),
     date: z.date(),
     vehicleId: z.string().min(1, "Truck is required."),
-    expenseType: z.enum(['Advance', 'Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others']),
+    expenseType: z.enum(['Advance', 'Maintenance', 'Vendor Purchase', 'Loan Repayment']),
     amount: z.number().min(1, "Amount must be positive."),
     extraAmount: z.number().optional().default(0),
     extraRemarks: z.string().optional(),
@@ -85,12 +84,14 @@ const expenseSchema = z.object({
     cashAmount: z.number().optional().default(0),
     bankAmount: z.number().optional().default(0),
     dueDate: z.date().optional().nullable(),
+    invoiceNumber: z.string().optional(),
+    invoiceDate: z.date().optional().nullable(),
     partyId: z.string().optional(),
     accountId: z.string().optional(),
     destination: z.string().optional(),
     remarks: z.string().max(200).optional(),
 }).refine(data => {
-    if (['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(data.expenseType)) return !!data.partyId;
+    if (['Maintenance', 'Vendor Purchase', 'Loan Repayment'].includes(data.expenseType)) return !!data.partyId;
     if (data.paymentMode === 'Credit') return !!data.partyId;
     return true;
 }, { message: "Party / Creditor is required.", path: ['partyId'] })
@@ -153,7 +154,9 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         defaultValues: {
             voucherNo: expenseToEdit?.voucherNo || initialVoucherNo,
             date: expenseToEdit ? new Date(expenseToEdit.date) : new Date(),
-            expenseType: expenseToEdit?.expenseType || 'Advance',
+            expenseType: (expenseToEdit?.expenseType === 'Purchase' || expenseToEdit?.expenseType === 'Membership Renewal' || expenseToEdit?.expenseType === 'Shivam / Others') 
+                ? 'Vendor Purchase' 
+                : (expenseToEdit?.expenseType || 'Advance'),
             paymentMode: expenseToEdit?.paymentMode || 'Cash',
             amount: expenseToEdit?.amount || 0,
             extraAmount: expenseToEdit?.extraAmount || 0,
@@ -166,6 +169,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
             cashAmount: expenseToEdit?.cashAmount || 0,
             bankAmount: expenseToEdit?.bankAmount || 0,
             dueDate: expenseToEdit?.dueDate ? new Date(expenseToEdit.dueDate) : null,
+            invoiceNumber: expenseToEdit?.invoiceNumber || '',
+            invoiceDate: expenseToEdit?.invoiceDate ? new Date(expenseToEdit.invoiceDate) : null,
         }
     });
 
@@ -236,6 +241,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 ...values,
                 date: values.date.toISOString(),
                 dueDate: values.dueDate?.toISOString() || null,
+                invoiceDate: values.invoiceDate?.toISOString() || null,
                 ownership: 'Sijan'
             };
 
@@ -478,7 +484,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
                 <div className="space-y-4">
                     <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Expense Type <span className="text-destructive">*</span></FormLabel>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {expenseTypes.map((item) => (
                             <button
                                 key={item.type}
@@ -508,7 +514,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
                 {watchedType === 'Advance' && (
                     <FormField control={form.control} name="destination" render={({ field }) => (
-                        <FormItem className="flex flex-col">
+                        <FormItem className="flex flex-col animate-in fade-in zoom-in-95">
                             <FormLabel>Destination Route <span className="text-destructive">*</span></FormLabel>
                             <div className="flex gap-2">
                                 <Popover>
@@ -576,18 +582,53 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 )}
 
+                {watchedType === 'Vendor Purchase' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-blue-50/20 border-2 border-dashed border-blue-100 animate-in fade-in slide-in-from-top-2">
+                        <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs flex items-center gap-2">
+                                    <FileText className="h-3 w-3 text-blue-600" />
+                                    Invoice Number (Optional)
+                                </FormLabel>
+                                <FormControl>
+                                    <Input {...field} placeholder="e.g. INV-1234" className="h-9 bg-white" />
+                                </FormControl>
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="invoiceDate" render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel className="text-xs flex items-center gap-2">
+                                    <CalendarIcon className="h-3 w-3 text-blue-600" />
+                                    Invoice Date (Optional)
+                                </FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button variant="outline" className={cn("h-9 justify-start text-left font-normal bg-white text-xs px-3", !field.value && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                                {field.value ? toNepaliDate(field.value.toISOString()) : <span>Pick Invoice Date</span>}
+                                            </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <DualCalendar selected={field.value || undefined} onSelect={field.onChange} />
+                                    </PopoverContent>
+                                </Popover>
+                            </FormItem>
+                        )} />
+                    </div>
+                )}
+
                 <div className={cn(
                     "flex items-center gap-4 p-3 rounded-lg border bg-blue-50/50 text-blue-800 text-xs",
                     (watchedType === 'Advance' && !routeStandardAmount && watchedMode !== 'Credit') && "hidden",
-                    (!['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others', 'Advance'].includes(watchedType) && watchedMode !== 'Credit') && "hidden"
+                    (!['Maintenance', 'Vendor Purchase', 'Loan Repayment', 'Advance'].includes(watchedType) && watchedMode !== 'Credit') && "hidden"
                 )}>
                     <Info className="h-3.5 w-3.5 shrink-0" />
                     <span className="flex-1">
                         {watchedType === 'Maintenance' && "Maintenance selected • Select the party who provided the service."}
-                        {watchedType === 'Purchase' && "Purchase selected • Select the supplier for the item."}
+                        {watchedType === 'Vendor Purchase' && "Vendor Purchase selected • Select the supplier for the parts/fuel."}
                         {watchedType === 'Loan Repayment' && "Loan Repayment selected • Select the lender (Party) and the specific loan account."}
-                        {watchedType === 'Membership Renewal' && "Renewal selected • Select the authority or agency paid."}
-                        {watchedType === 'Shivam / Others' && "Shivam / Others selected • Select the relevant party or leave blank for misc."}
                         {watchedMode === 'Credit' && "Credit settlement selected • Specify the supplier / creditor."}
                         {watchedType === 'Advance' && routeStandardAmount && (
                             <div className="flex items-center gap-2">
@@ -605,19 +646,19 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                             </div>
                         )}
                     </span>
-                    {(['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) || watchedMode === 'Credit') && (
+                    {(['Maintenance', 'Vendor Purchase', 'Loan Repayment'].includes(watchedType) || watchedMode === 'Credit') && (
                         <Button type="button" variant="outline" size="sm" onClick={() => setIsPartyDialogOpen(true)} className="bg-white text-[10px]">
                             <Plus className="mr-1 h-3 w-3" /> Add New Party
                         </Button>
                     )}
                 </div>
 
-                {(['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) || watchedMode === 'Credit') && (
+                {(['Maintenance', 'Vendor Purchase', 'Loan Repayment'].includes(watchedType) || watchedMode === 'Credit') && (
                     <FormField control={form.control} name="partyId" render={({ field }) => (
                         <FormItem>
                             <FormLabel>
                                 {watchedType === 'Loan Repayment' ? 'Lending Institution / Bank (Party)' : 'Party / Service Provider / Creditor'} 
-                                <span className={cn(watchedType === 'Shivam / Others' ? "" : "text-destructive")}>{watchedType === 'Shivam / Others' ? "" : "*"}</span>
+                                <span className="text-destructive">*</span>
                             </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>

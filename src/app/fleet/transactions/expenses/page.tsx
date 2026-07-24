@@ -215,7 +215,10 @@ export default function ExpenseLogsPage() {
         }
 
         if (filterExpenseTypes.length > 0) {
-            filtered = filtered.filter(e => filterExpenseTypes.includes(e.expenseType));
+            filtered = filtered.filter(e => {
+                const mappedType = (e.expenseType === 'Purchase' || e.expenseType === 'Membership Renewal' || e.expenseType === 'Shivam / Others') ? 'Vendor Purchase' : e.expenseType;
+                return filterExpenseTypes.includes(mappedType);
+            });
         }
 
         if (filterPaymentModes.length > 0) {
@@ -340,10 +343,8 @@ export default function ExpenseLogsPage() {
                     items={[
                         { id: 'Advance', name: 'Advance' },
                         { id: 'Maintenance', name: 'Maintenance' },
-                        { id: 'Purchase', name: 'Purchase' },
-                        { id: 'Loan Repayment', name: 'Loan Repayment' },
-                        { id: 'Membership Renewal', name: 'Membership Renewal' },
-                        { id: 'Shivam / Others', name: 'Shivam / Others' }
+                        { id: 'Vendor Purchase', name: 'Vendor Purchase' },
+                        { id: 'Loan Repayment', name: 'Loan Repayment' }
                     ]} 
                     placeholder="Category" 
                     icon={Tag}
@@ -404,7 +405,10 @@ export default function ExpenseLogsPage() {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                            ) : paginatedExpenses.map(e => (
+                            ) : paginatedExpenses.map(e => {
+                                const displayType = (e.expenseType === 'Purchase' || e.expenseType === 'Membership Renewal' || e.expenseType === 'Shivam / Others') ? 'Vendor Purchase' : e.expenseType;
+                                
+                                return (
                                 <TableRow key={e.id} className="hover:bg-muted/30 h-14">
                                     <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
                                     <TableCell className="font-mono text-[11px]">{e.voucherNo}</TableCell>
@@ -416,12 +420,12 @@ export default function ExpenseLogsPage() {
                                     <TableCell>
                                         <Badge variant="outline" className={cn(
                                             "text-[9px] uppercase font-bold shadow-none",
-                                            e.expenseType === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
-                                            e.expenseType === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
-                                            e.expenseType === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
-                                            e.expenseType === 'Membership Renewal' && "border-purple-200 bg-purple-50 text-purple-700",
+                                            displayType === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
+                                            displayType === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                                            displayType === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
+                                            displayType === 'Vendor Purchase' && "border-cyan-200 bg-cyan-50 text-cyan-700",
                                         )}>
-                                            {e.expenseType}
+                                            {displayType}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -440,7 +444,12 @@ export default function ExpenseLogsPage() {
                                             <span className="text-[11px] font-semibold text-gray-900">
                                                 {e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}
                                             </span>
-                                            {e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}
+                                            {(e.remarks || e.invoiceNumber) && (
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    {e.invoiceNumber && <Badge variant="secondary" className="h-4 px-1.5 text-[8px] uppercase tracking-tighter bg-blue-100/50 text-blue-800 border-none font-bold">#{e.invoiceNumber}</Badge>}
+                                                    {e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}
+                                                </div>
+                                            )}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-bold text-red-600 text-[11px] tabular-nums">
@@ -459,7 +468,7 @@ export default function ExpenseLogsPage() {
                                         </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                             {!isLoading && filteredAndSortedExpenses.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground italic">No records found.</TableCell></TableRow>}
                         </TableBody>
                     </Table>
