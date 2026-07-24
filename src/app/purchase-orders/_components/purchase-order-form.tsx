@@ -1,6 +1,6 @@
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -137,9 +137,12 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     name: "items",
   });
   
-  const watchedItems = form.watch("items");
-  const watchedPoDate = form.watch("poDate");
-  const watchedPartyId = form.watch("partyId");
+  // useWatch returns a fresh (cloned) value on every change, so useMemo
+  // below actually recomputes. form.watch("items") returns a mutated-in-place
+  // reference, which caused the Total footer to stay stale.
+  const watchedItems = useWatch({ control: form.control, name: "items" });
+  const watchedPoDate = useWatch({ control: form.control, name: "poDate" });
+  const watchedPartyId = useWatch({ control: form.control, name: "partyId" });
   
   const quantityTotalsByUnit = useMemo(() => {
     return (watchedItems || []).reduce((acc, item) => {
