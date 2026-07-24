@@ -595,43 +595,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 )}
 
-                {watchedType === 'Vendor Purchase' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-blue-50/20 border-2 border-dashed border-blue-100 animate-in fade-in slide-in-from-top-2">
-                        <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-xs flex items-center gap-2">
-                                    <FileText className="h-3 w-3 text-blue-600" />
-                                    Invoice Number (Optional)
-                                </FormLabel>
-                                <FormControl>
-                                    <Input {...field} placeholder="e.g. INV-1234" className="h-9 bg-white" />
-                                </FormControl>
-                            </FormItem>
-                        )} />
-                        <FormField control={form.control} name="invoiceDate" render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                                <FormLabel className="text-xs flex items-center gap-2">
-                                    <CalendarIcon className="h-3 w-3 text-blue-600" />
-                                    Invoice Date (Optional)
-                                </FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button variant="outline" className={cn("h-9 justify-start text-left font-normal bg-white text-xs px-3", !field.value && "text-muted-foreground")}>
-                                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                                {field.value ? toNepaliDate(field.value.toISOString()) : <span>Pick Invoice Date</span>}
-                                            </Button>
-                                        </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <DualCalendar selected={field.value || undefined} onSelect={field.onChange} />
-                                    </PopoverContent>
-                                </Popover>
-                            </FormItem>
-                        )} />
-                    </div>
-                )}
-
                 <div className={cn(
                     "flex items-center gap-4 p-3 rounded-lg border bg-blue-50/50 text-blue-800 text-xs",
                     (watchedType === 'Advance' && !routeStandardAmount && watchedMode !== 'Credit') && "hidden",
@@ -700,6 +663,43 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                             <FormMessage />
                         </FormItem>
                     )} />
+                )}
+
+                {watchedType === 'Vendor Purchase' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-blue-50/20 border-2 border-dashed border-blue-100 animate-in fade-in slide-in-from-top-2">
+                        <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs flex items-center gap-2">
+                                    <FileText className="h-3 w-3 text-blue-600" />
+                                    Invoice Number (Optional)
+                                </FormLabel>
+                                <FormControl>
+                                    <Input {...field} placeholder="e.g. INV-1234" className="h-9 bg-white" />
+                                </FormControl>
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="invoiceDate" render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel className="text-xs flex items-center gap-2">
+                                    <CalendarIcon className="h-3 w-3 text-blue-600" />
+                                    Invoice Date (Optional)
+                                </FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button variant="outline" className={cn("h-9 justify-start text-left font-normal bg-white text-xs px-3", !field.value && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                                {field.value ? toNepaliDate(field.value.toISOString()) : <span>Pick Invoice Date</span>}
+                                            </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <DualCalendar selected={field.value || undefined} onSelect={field.onChange} />
+                                    </PopoverContent>
+                                </Popover>
+                            </FormItem>
+                        )} />
+                    </div>
                 )}
 
                 {watchedType === 'Advance' && (
@@ -917,7 +917,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                         </div>
                         <div className="space-y-2">
                             <Label>PAN Number</Label>
-                            <Input value={partyForm.panNumber} onChange={e => setTenantForm({...partyForm, panNumber: e.target.value})} placeholder="Tax Identification Number" />
+                            <Input value={partyForm.panNumber} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} placeholder="Tax Identification Number" />
                         </div>
                         <div className="space-y-2">
                             <Label>Address</Label>
