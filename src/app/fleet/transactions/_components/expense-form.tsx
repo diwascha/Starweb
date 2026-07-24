@@ -18,10 +18,10 @@ import {
     Wallet, 
     Wrench, 
     Building2, 
+    ShoppingCart, 
     CalendarIcon, 
     Plus, 
     Loader2, 
-    Info,
     X,
     Save,
     MapPin,
@@ -31,13 +31,12 @@ import {
     Lightbulb,
     Edit,
     Trash2,
-    DollarSign,
     PlusIcon,
     Briefcase,
     ArrowRightLeft
 } from 'lucide-react';
 import { cn, toNepaliDate, generateNextExpenseNumber } from '@/lib/utils';
-import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
+import type { Vehicle, Party, Account, AccountOwnership, PartyType, Destination } from '@/lib/types';
 import type { Expense, ExpenseType } from '@/lib/expense-types';
 import { addExpense, updateExpense, onExpensesUpdate } from '@/services/expense-service';
 import { useAuth } from '@/hooks/use-auth';
@@ -46,7 +45,7 @@ import { useRouter } from 'next/navigation';
 import { addParty } from '@/services/party-service';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { onDestinationsUpdate, addDestination, updateDestination, deleteDestination } from '@/services/destination-service';
+import { onDestinationsUpdate, addDestination, updateDestination } from '@/services/destination-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { 
     AlertDialog, 
@@ -64,7 +63,7 @@ const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; 
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
     { type: 'Maintenance', label: 'Maintenance Fee', sub: 'Repair / Service', icon: Wrench, color: 'text-blue-600 bg-blue-50 border-blue-200' },
     { type: 'Loan Repayment', label: 'Loan Repayment', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
-    { type: 'General Expense', label: 'Office / Misc', sub: 'Local expenses', icon: DollarSign, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
+    { type: 'Vendor Purchase', label: 'Vendor Purchase', sub: 'Instant payment', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
 ];
 
 const numFieldProps = {
@@ -77,7 +76,7 @@ const expenseSchema = z.object({
     voucherNo: z.string().min(1, "Voucher No is required."),
     date: z.date(),
     vehicleId: z.string().min(1, "Truck is required."),
-    expenseType: z.enum(['Advance', 'Maintenance', 'Loan Repayment', 'General Expense']),
+    expenseType: z.enum(['Advance', 'Maintenance', 'Loan Repayment', 'Vendor Purchase']),
     amount: z.number().min(1, "Amount must be positive."),
     extraAmount: z.number().optional().default(0),
     extraRemarks: z.string().optional(),
@@ -89,11 +88,11 @@ const expenseSchema = z.object({
     destination: z.string().optional(),
     remarks: z.string().max(200).optional(),
 }).refine(data => {
-    if (['Maintenance', 'Loan Repayment', 'General Expense'].includes(data.expenseType)) return !!data.partyId;
+    if (['Maintenance', 'Loan Repayment', 'Vendor Purchase'].includes(data.expenseType)) return !!data.partyId;
     return true;
 }, { message: "Recipient / Party is required.", path: ['partyId'] })
 .refine(data => {
-    if (data.expenseType === 'Loan Repayment' || data.paymentMode === 'Bank' || data.paymentMode === 'Mixed') return !!data.accountId;
+    if (data.paymentMode === 'Bank' || data.paymentMode === 'Mixed') return !!data.accountId;
     return true;
 }, { message: "Account selection is required.", path: ['accountId'] })
 .refine(data => {
@@ -102,7 +101,7 @@ const expenseSchema = z.object({
 }, { message: "Destination is required for Advances.", path: ['destination'] })
 .refine(data => {
     if (data.paymentMode === 'Mixed') {
-        const totalExpected = data.amount + (data.extraAmount || 0);
+        const totalExpected = (data.amount || 0) + (data.extraAmount || 0);
         return Math.abs(((data.cashAmount || 0) + (data.bankAmount || 0)) - totalExpected) < 0.01;
     }
     return true;
@@ -114,7 +113,7 @@ interface ExpenseFormProps {
     vehicles: Vehicle[];
     parties: Party[];
     accounts: Account[];
-    transactions: Transaction[];
+    transactions: any[];
     initialVoucherNo: string;
     expenseToEdit?: Expense;
 }
@@ -182,6 +181,20 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const watchedExtraAmount = form.watch('extraAmount');
     const watchedCashAmount = form.watch('cashAmount');
     const watchedBankAmount = form.watch('bankAmount');
+
+    useEffect(() => {
+        if (watchedType !== 'Advance') {
+            if (form.getValues('extraAmount')) {
+                form.setValue('extraAmount', 0);
+                form.setValue('extraRemarks', '');
+                if (form.getValues('paymentMode') === 'Mixed') {
+                    form.setValue('cashAmount', form.getValues('amount') || 0);
+                    form.setValue('bankAmount', 0);
+                }
+            }
+            setShowExtraFields(false);
+        }
+    }, [watchedType, form]);
 
     useEffect(() => {
         const unsubDest = onDestinationsUpdate(setDestinations);
@@ -281,26 +294,37 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         }
     };
 
+    const handleOpenDestinationDialog = (destination: Destination | null = null) => {
+        if (destination) {
+            setEditingDestination(destination);
+            setDestForm({ name: destination.name, standardAdvance: destination.standardAdvanceAmount || 0, remarks: destination.remarks || '' });
+        } else {
+            setEditingDestination(null);
+            setDestForm({ name: destSearch, standardAdvance: 0, remarks: '' });
+        }
+        setIsDestDialogOpen(true);
+    };
+
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <FormField control={form.control} name="voucherNo" render={({ field }) => (
-                        <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl></FormItem>
+                        <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono text-sm" /></FormControl></FormItem>
                     )} />
                     <FormField control={form.control} name="date" render={({ field }) => (
-                        <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : "Select Date"}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>
+                        <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-10", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : "Select Date"}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>
                     )} />
                     <FormField control={form.control} name="vehicleId" render={({ field }) => (
-                        <FormItem><FormLabel>Truck (Vehicle)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a truck" /></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select></FormItem>
+                        <FormItem><FormLabel>Truck (Vehicle) <span className="text-destructive">*</span></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-10"><SelectValue placeholder="Select a truck" /></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select></FormItem>
                     )} />
                 </div>
 
                 <div className="space-y-4">
-                    <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Payment Category</FormLabel>
+                    <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Expense Category <span className="text-destructive">*</span></FormLabel>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {expenseTypes.map((item) => (
-                            <button key={item.type} type="button" onClick={() => form.setValue('expenseType', item.type)} className={cn("flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 text-center group", watchedType === item.type ? cn("ring-2 ring-primary border-primary bg-primary/5", item.color.split(' ')[0]) : "border-muted bg-white hover:bg-muted/50")}>
+                            <button key={item.type} type="button" onClick={() => form.setValue('expenseType', item.type)} className={cn("flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 text-center group", watchedType === item.type ? cn("ring-2 ring-primary border-primary bg-primary/5", item.color.split(' ')[0]) : "border-muted bg-white hover:bg-muted/50 text-muted-foreground")}>
                                 <div className={cn("p-2 rounded-lg", watchedType === item.type ? item.color.split(' ')[1] : "bg-muted/50")}>
                                     <item.icon className={cn("h-5 w-5", watchedType === item.type ? item.color.split(' ')[0] : "text-muted-foreground")} />
                                 </div>
@@ -323,12 +347,12 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     <Button type="button" variant={field.value === 'Bank' ? 'default' : 'outline'} className="h-10 px-6" onClick={() => field.onChange('Bank')}><Building2 className="mr-2 h-4 w-4" /> Bank</Button>
                                     <Button type="button" variant={field.value === 'Mixed' ? 'default' : 'outline'} className="h-10 px-6" onClick={() => { field.onChange('Mixed'); if (!watchedCashAmount && !watchedBankAmount) { form.setValue('cashAmount', totalSettlement); form.setValue('bankAmount', 0); } }}><ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed</Button>
                                 </div>
-                                {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
+                                {(watchedMode === 'Bank' || watchedMode === 'Mixed') && (
                                     <FormField control={form.control} name="accountId" render={({ field: accountField }) => (
                                         <FormItem className="max-w-md animate-in fade-in slide-in-from-top-1">
                                             <Select onValueChange={accountField.onChange} value={accountField.value || ''}>
-                                                <FormControl><SelectTrigger className="h-10 border-primary/20 bg-primary/5"><SelectValue placeholder="Select bank account..." /></SelectTrigger></FormControl>
-                                                <SelectContent>{sortedAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}</SelectContent>
+                                                <FormControl><SelectTrigger className="h-10 border-primary/20 bg-primary/5 text-xs"><SelectValue placeholder="Select payment account..." /></SelectTrigger></FormControl>
+                                                <SelectContent>{sortedAccounts.map(a => <SelectItem key={a.id} value={a.id} className="text-xs">{a.bankName} - {a.accountNumber}</SelectItem>)}</SelectContent>
                                             </Select>
                                             <FormMessage />
                                         </FormItem>
@@ -348,7 +372,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     <Popover>
                                         <PopoverTrigger asChild>
                                             <FormControl>
-                                                <Button variant="outline" role="combobox" className={cn("w-full justify-between h-10 font-normal", !field.value && "text-muted-foreground")}>
+                                                <Button variant="outline" role="combobox" className={cn("w-full justify-between h-10 font-normal text-sm", !field.value && "text-muted-foreground")}>
                                                     <div className="flex items-center gap-2 truncate"><MapPin className="h-4 w-4 opacity-50 shrink-0" />{field.value || "Select destination..."}</div>
                                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                 </Button>
@@ -380,7 +404,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                 <FormLabel>Recipient / Payee <span className="text-destructive">*</span></FormLabel>
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <FormControl><Button variant="outline" role="combobox" className={cn("w-full justify-between h-10 font-normal", !field.value && "text-muted-foreground")}><div className="flex items-center gap-2 truncate"><Briefcase className="h-4 w-4 opacity-50 shrink-0" /><span className="truncate">{field.value ? sortedParties.find(p => p.id === field.value)?.name : "Search or select payee..."}</span></div><ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></FormControl>
+                                        <FormControl><Button variant="outline" role="combobox" className={cn("w-full justify-between h-10 font-normal text-sm", !field.value && "text-muted-foreground")}><div className="flex items-center gap-2 truncate"><Briefcase className="h-4 w-4 opacity-50 shrink-0" /><span className="truncate">{field.value ? sortedParties.find(p => p.id === field.value)?.name : "Search or select payee..."}</span></div><ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></FormControl>
                                     </PopoverTrigger>
                                     <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                                         <Command>
@@ -425,7 +449,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                 <div className="flex items-center justify-between mb-3"><h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Extra Combined Charge</h4><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setShowExtraFields(false); form.setValue('extraAmount', 0); }}><X className="h-3 w-3" /></Button></div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <FormField control={form.control} name="extraAmount" render={({ field }) => (
-                                        <FormItem><FormLabel className="text-xs">Extra Amount</FormLabel><FormControl><Input {...numFieldProps} className="h-9 font-semibold" {...field} value={field.value || ''} onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); if (watchedMode === 'Mixed') { const total = val + (watchedAmount || 0); form.setValue('cashAmount', total); form.setValue('bankAmount', 0); } }} /></FormControl></FormItem>
+                                        <FormItem><FormLabel className="text-xs">Extra Amount</FormLabel><FormControl><Input {...numFieldProps} className="h-9 font-semibold text-sm" {...field} value={field.value || ''} onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); if (watchedMode === 'Mixed') { const total = val + (watchedAmount || 0); form.setValue('cashAmount', total); form.setValue('bankAmount', 0); } }} /></FormControl></FormItem>
                                     )} />
                                     <FormField control={form.control} name="extraRemarks" render={({ field }) => (
                                         <FormItem><FormLabel className="text-xs">Charge Note</FormLabel><FormControl><Input placeholder="e.g. Repair, Commission" className="h-9 text-xs" {...field} /></FormControl></FormItem>
@@ -439,10 +463,10 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 {watchedMode === 'Mixed' && (
                     <div className="grid grid-cols-2 gap-6 p-4 rounded-xl border-2 border-dashed border-primary/10 animate-in fade-in zoom-in-95">
                         <FormField control={form.control} name="cashAmount" render={({ field }) => (
-                            <FormItem><FormLabel className="text-xs">Cash Portion</FormLabel><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-emerald-100" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('bankAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel className="text-xs">Cash Portion</FormLabel><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-emerald-100 bg-white" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('bankAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="bankAmount" render={({ field }) => (
-                            <FormItem><FormLabel className="text-xs">Bank Portion</FormLabel><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-blue-100" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('cashAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel className="text-xs">Bank Portion</FormLabel><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-blue-100 bg-white" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('cashAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>
                         )} />
                     </div>
                 )}
@@ -453,7 +477,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 </div>
 
                 <FormField control={form.control} name="remarks" render={({ field }) => (
-                    <FormItem><FormLabel>Internal Narration</FormLabel><FormControl><Textarea placeholder="Additional details..." className="min-h-[80px] text-sm resize-none" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Internal Narration</FormLabel><FormControl><Textarea placeholder="Additional details..." className="min-h-[80px] text-sm resize-none bg-white" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
 
                 <div className="sticky bottom-0 z-20 flex items-center gap-3 border-t bg-background/95 backdrop-blur py-3">

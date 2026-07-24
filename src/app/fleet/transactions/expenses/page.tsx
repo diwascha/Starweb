@@ -18,7 +18,6 @@ import {
   Truck,
   ChevronLeft,
   ChevronRight,
-  HandCoins,
   History,
   Tag,
   Wallet
@@ -215,10 +214,7 @@ export default function ExpenseLogsPage() {
         }
 
         if (filterExpenseTypes.length > 0) {
-            filtered = filtered.filter(e => {
-                const mappedType = (e.expenseType as any === 'Purchase' || e.expenseType as any === 'Membership Renewal' || e.expenseType as any === 'Shivam / Others') ? 'Vendor Purchase' : e.expenseType;
-                return filterExpenseTypes.includes(mappedType);
-            });
+            filtered = filtered.filter(e => filterExpenseTypes.includes(e.expenseType));
         }
 
         if (filterPaymentModes.length > 0) {
@@ -289,8 +285,8 @@ export default function ExpenseLogsPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Expense History</h1>
-                    <p className="text-muted-foreground">Historical records of all truck procurement, advances, and maintenance.</p>
+                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Expense History</h1>
+                    <p className="text-muted-foreground text-sm">Log of truck-related payment outflows (Advances, Maintenance, etc).</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="relative">
@@ -329,7 +325,7 @@ export default function ExpenseLogsPage() {
                     icon={Truck}
                 />
                 <MultiSelect 
-                    label="Party / Supplier" 
+                    label="Party / Recipient" 
                     values={filterPartyIds} 
                     onSelect={setFilterPartyIds} 
                     items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} 
@@ -343,8 +339,8 @@ export default function ExpenseLogsPage() {
                     items={[
                         { id: 'Advance', name: 'Advance' },
                         { id: 'Maintenance', name: 'Maintenance' },
-                        { id: 'Vendor Purchase', name: 'Vendor Purchase' },
-                        { id: 'Loan Repayment', name: 'Loan Repayment' }
+                        { id: 'Loan Repayment', name: 'Loan Repayment' },
+                        { id: 'Vendor Purchase', name: 'Vendor Purchase' }
                     ]} 
                     placeholder="Category" 
                     icon={Tag}
@@ -356,8 +352,7 @@ export default function ExpenseLogsPage() {
                     items={[
                         { id: 'Cash', name: 'Cash' },
                         { id: 'Bank', name: 'Bank' },
-                        { id: 'Mixed', name: 'Mixed' },
-                        { id: 'Credit', name: 'Credit' }
+                        { id: 'Mixed', name: 'Mixed' }
                     ]} 
                     placeholder="Mode" 
                     icon={Wallet}
@@ -387,31 +382,28 @@ export default function ExpenseLogsPage() {
                 )}
             </div>
 
-            <Card>
+            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-xs">Voucher # <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                                <TableHead className="text-xs">Vehicle</TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-xs">Type <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                                <TableHead className="text-xs">Settlement</TableHead>
-                                <TableHead className="text-xs">Payee / Detail</TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-xs text-right w-full">Total Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                                <TableHead className="text-right text-xs">Actions</TableHead>
+                                <TableHead className="pl-6"><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Date <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'date' ? "opacity-100 text-primary" : "opacity-30")} /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Voucher # <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'voucherNo' ? "opacity-100 text-primary" : "opacity-30")} /></Button></TableHead>
+                                <TableHead className="text-[11px] font-black uppercase tracking-wider">Vehicle</TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Type <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'expenseType' ? "opacity-100 text-primary" : "opacity-30")} /></Button></TableHead>
+                                <TableHead className="text-[11px] font-black uppercase tracking-wider">Settlement</TableHead>
+                                <TableHead className="text-[11px] font-black uppercase tracking-wider">Payee / Detail</TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider text-right w-full">Total NPR <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'amount' ? "opacity-100 text-primary" : "opacity-30")} /></Button></TableHead>
+                                <TableHead className="text-right pr-6 text-[11px] font-black uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                            ) : paginatedExpenses.map(e => {
-                                const displayType = (e.expenseType as any === 'Purchase' || e.expenseType as any === 'Membership Renewal' || e.expenseType as any === 'Shivam / Others') ? 'Vendor Purchase' : e.expenseType;
-                                
-                                return (
+                            ) : paginatedLogs.map(e => (
                                 <TableRow key={e.id} className="hover:bg-muted/30 h-14">
-                                    <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
-                                    <TableCell className="font-mono text-[11px]">{e.voucherNo}</TableCell>
+                                    <TableCell className="pl-6 font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
+                                    <TableCell className="font-mono text-[11px] font-bold text-blue-600">{e.voucherNo}</TableCell>
                                     <TableCell>
                                         <span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">
                                             {vehiclesById.get(e.vehicleId) || 'N/A'}
@@ -419,43 +411,32 @@ export default function ExpenseLogsPage() {
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="outline" className={cn(
-                                            "text-[9px] uppercase font-bold shadow-none",
-                                            displayType === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
-                                            displayType === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
-                                            displayType === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
-                                            displayType === 'Vendor Purchase' && "border-cyan-200 bg-cyan-50 text-cyan-700",
+                                            "text-[9px] uppercase font-bold shadow-none border-none",
+                                            e.expenseType === 'Maintenance' && "bg-amber-50 text-amber-700",
+                                            e.expenseType === 'Advance' && "bg-emerald-50 text-emerald-700",
+                                            e.expenseType === 'Loan Repayment' && "bg-orange-50 text-orange-700",
+                                            e.expenseType === 'Vendor Purchase' && "bg-cyan-50 text-cyan-700",
                                         )}>
-                                            {displayType}
+                                            {e.expenseType}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        {e.paymentMode === 'Credit' ? (
-                                            <div className="flex items-center gap-1 text-amber-600 font-bold text-[9px] uppercase">
-                                                <HandCoins className="h-3 w-3" />
-                                                <span>Credit</span>
-                                                {e.dueDate && <span className="opacity-60 text-[8px] font-normal"> (Due: {toNepaliDate(e.dueDate)})</span>}
-                                            </div>
-                                        ) : (
-                                            <Badge variant="outline" className="text-[9px] uppercase font-medium bg-muted/50 border-none">{e.paymentMode}</Badge>
-                                        )}
+                                        <Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/50 border-none">{e.paymentMode}</Badge>
                                     </TableCell>
                                     <TableCell className="py-3">
                                         <div className="flex flex-col">
                                             <span className="text-[11px] font-semibold text-gray-900">
                                                 {e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}
                                             </span>
-                                            {(e.remarks || e.invoiceNumber) && (
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    {e.invoiceNumber && <Badge variant="secondary" className="h-4 px-1.5 text-[8px] uppercase tracking-tighter bg-blue-100/50 text-blue-800 border-none font-bold">#{e.invoiceNumber}</Badge>}
-                                                    {e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}
-                                                </div>
+                                            {e.remarks && (
+                                                <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right font-bold text-red-600 text-[11px] tabular-nums">
+                                    <TableCell className="text-right font-black text-red-600 text-[11px] tabular-nums">
                                         Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right pr-6">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
@@ -463,12 +444,12 @@ export default function ExpenseLogsPage() {
                                                 <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/new`)}><PlusCircle className="mr-2 h-4 w-4" /> New Entry</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                 <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
-                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the record and its financial impact. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the record and its financial impact. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)} className="bg-destructive text-white hover:bg-destructive/90">Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
-                            )})}
+                            ))}
                             {!isLoading && filteredAndSortedExpenses.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground italic">No records found.</TableCell></TableRow>}
                         </TableBody>
                     </Table>

@@ -22,7 +22,6 @@ import {
     CalendarIcon, 
     Plus, 
     Loader2, 
-    Info,
     X,
     Save,
     MapPin,
@@ -32,13 +31,12 @@ import {
     Lightbulb,
     Edit,
     Trash2,
-    DollarSign,
     PlusIcon,
     Briefcase,
     ArrowRightLeft
 } from 'lucide-react';
 import { cn, toNepaliDate, generateNextExpenseNumber } from '@/lib/utils';
-import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
+import type { Vehicle, Party, Account, AccountOwnership, PartyType, Destination } from '@/lib/types';
 import type { Expense, ExpenseType } from '@/lib/expense-types';
 import { addExpense, updateExpense, onExpensesUpdate } from '@/services/expense-service';
 import { useAuth } from '@/hooks/use-auth';
@@ -47,7 +45,7 @@ import { useRouter } from 'next/navigation';
 import { addParty } from '@/services/party-service';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { onDestinationsUpdate, addDestination, updateDestination, deleteDestination } from '@/services/destination-service';
+import { onDestinationsUpdate, addDestination, updateDestination } from '@/services/destination-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { 
     AlertDialog, 
@@ -65,7 +63,7 @@ const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; 
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
     { type: 'Maintenance', label: 'Maintenance Fee', sub: 'Repair / Service', icon: Wrench, color: 'text-blue-600 bg-blue-50 border-blue-200' },
     { type: 'Loan Repayment', label: 'Loan Repayment', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
-    { type: 'Vendor Purchase', label: 'Vendor Purchase', sub: 'Direct Cash/Bank', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
+    { type: 'Vendor Purchase', label: 'Vendor Purchase', sub: 'Instant payment', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
 ];
 
 const numFieldProps = {
@@ -94,7 +92,7 @@ const expenseSchema = z.object({
     return true;
 }, { message: "Recipient / Party is required.", path: ['partyId'] })
 .refine(data => {
-    if (data.expenseType === 'Loan Repayment' || data.paymentMode === 'Bank' || data.paymentMode === 'Mixed') return !!data.accountId;
+    if (data.paymentMode === 'Bank' || data.paymentMode === 'Mixed') return !!data.accountId;
     return true;
 }, { message: "Account selection is required.", path: ['accountId'] })
 .refine(data => {
@@ -103,7 +101,7 @@ const expenseSchema = z.object({
 }, { message: "Destination is required for Advances.", path: ['destination'] })
 .refine(data => {
     if (data.paymentMode === 'Mixed') {
-        const totalExpected = data.amount + (data.extraAmount || 0);
+        const totalExpected = (data.amount || 0) + (data.extraAmount || 0);
         return Math.abs(((data.cashAmount || 0) + (data.bankAmount || 0)) - totalExpected) < 0.01;
     }
     return true;
@@ -115,7 +113,7 @@ interface ExpenseFormProps {
     vehicles: Vehicle[];
     parties: Party[];
     accounts: Account[];
-    transactions: Transaction[];
+    transactions: any[];
     initialVoucherNo: string;
     expenseToEdit?: Expense;
 }
@@ -296,6 +294,17 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         }
     };
 
+    const handleOpenDestinationDialog = (destination: Destination | null = null) => {
+        if (destination) {
+            setEditingDestination(destination);
+            setDestForm({ name: destination.name, standardAdvance: destination.standardAdvanceAmount || 0, remarks: destination.remarks || '' });
+        } else {
+            setEditingDestination(null);
+            setDestForm({ name: destSearch, standardAdvance: 0, remarks: '' });
+        }
+        setIsDestDialogOpen(true);
+    };
+
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -338,7 +347,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     <Button type="button" variant={field.value === 'Bank' ? 'default' : 'outline'} className="h-10 px-6" onClick={() => field.onChange('Bank')}><Building2 className="mr-2 h-4 w-4" /> Bank</Button>
                                     <Button type="button" variant={field.value === 'Mixed' ? 'default' : 'outline'} className="h-10 px-6" onClick={() => { field.onChange('Mixed'); if (!watchedCashAmount && !watchedBankAmount) { form.setValue('cashAmount', totalSettlement); form.setValue('bankAmount', 0); } }}><ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed</Button>
                                 </div>
-                                {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
+                                {(watchedMode === 'Bank' || watchedMode === 'Mixed') && (
                                     <FormField control={form.control} name="accountId" render={({ field: accountField }) => (
                                         <FormItem className="max-w-md animate-in fade-in slide-in-from-top-1">
                                             <Select onValueChange={accountField.onChange} value={accountField.value || ''}>
