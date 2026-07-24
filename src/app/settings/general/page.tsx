@@ -75,8 +75,8 @@ const getModuleDisplayName = (m: Module): string => {
     switch (m) {
         case 'dashboard': return 'Dashboard';
         case 'finance': return 'Finance';
-        case 'reports': return 'Test Report Management';
-        case 'purchaseOrders': return 'Purchase Order Management';
+        case 'reports': return 'Manufacturing';
+        case 'purchaseOrders': return 'Procurement';
         case 'crm': return 'CRM';
         case 'hr': return 'HRMS';
         case 'fleet': return 'Fleet Management';
@@ -91,11 +91,11 @@ const CORE_MODULES: string[] = ['dashboard', 'settings', 'notes'];
 
 // Grouping document types by module for settings UI
 const groupedDocumentTypes: { label: string; icon: any; types: DocumentType[] }[] = [
-    { label: "Manufacturing Reports", icon: FileText, types: ['report'] },
-    { label: "Procurement", icon: ShoppingCart, types: ['purchaseOrder'] },
-    { label: "Fleet & Logistics", icon: Truck, types: ['sales', 'expense', 'paymentReceipt', 'purchase'] },
-    { label: "Finance & Accounts", icon: Calculator, types: ['estimateInvoice', 'tdsVoucher', 'chequeVoucher'] },
-    { label: "Rental Management", icon: Home, types: ['rentalBill'] }
+    { label: "Manufacturing Module", icon: FileText, types: ['report'] },
+    { label: "Procurement Module", icon: ShoppingCart, types: ['purchaseOrder'] },
+    { label: "Fleet Module", icon: Truck, types: ['sales', 'expense', 'paymentReceipt', 'purchase'] },
+    { label: "Finance Module", icon: Calculator, types: ['estimateInvoice', 'tdsVoucher', 'chequeVoucher'] },
+    { label: "Rental Module", icon: Home, types: ['rentalBill'] }
 ];
 
 export default function GeneralSettingsPage() {
@@ -162,7 +162,6 @@ export default function GeneralSettingsPage() {
                 return item as OwnershipCategory;
             });
 
-            // Ensure defaults are present in the list for configuration
             const existing = new Set(normalized.map((c: OwnershipCategory) => c.name));
             defaults.forEach(d => {
                 if (!existing.has(d)) {
@@ -291,8 +290,6 @@ export default function GeneralSettingsPage() {
     if (activeIndex !== -1) {
         const oldRule = { ...rules[activeIndex] };
         oldRule.status = 'Archived';
-        // Auto-terminate the old rule if no specific "To" was provided by the user for it,
-        // using the new start date as anchor
         if (!oldRule.effectiveTo) {
             const toDate = new Date(newFromDate);
             toDate.setDate(toDate.getDate() - 1);
@@ -414,7 +411,6 @@ export default function GeneralSettingsPage() {
       if (!historyKey) return [];
       const raw = prefixes[historyKey];
       
-      // Support legacy string prefixes in history
       if (typeof raw === 'string') {
           return [{
               prefix: raw,
@@ -422,7 +418,7 @@ export default function GeneralSettingsPage() {
               effectiveTo: null,
               startingNumber: 1,
               status: 'Active' as const,
-              originalIndex: -99 // Marker for legacy
+              originalIndex: -99
           }];
       }
 
@@ -606,9 +602,13 @@ export default function GeneralSettingsPage() {
             </TabsContent>
 
             <TabsContent value="numbering" className="animate-in fade-in slide-in-from-left-2 space-y-6">
+                <div className="bg-muted/10 p-4 rounded-xl border border-dashed mb-4 flex items-center gap-3">
+                    <Info className="h-4 w-4 text-primary" />
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Document prefixes are automatically selected based on the entry date.</p>
+                </div>
                 {groupedDocumentTypes.map((group) => (
                     <Card key={group.label} className="shadow-sm border-gray-100 bg-white overflow-hidden">
-                        <CardHeader className="bg-muted/10 border-b py-3 px-6">
+                        <CardHeader className="bg-primary/5 border-b py-3 px-6">
                             <div className="flex items-center gap-2">
                                 <group.icon className="h-4 w-4 text-primary" />
                                 <CardTitle className="text-sm font-black uppercase tracking-tight">{group.label}</CardTitle>
@@ -725,7 +725,7 @@ export default function GeneralSettingsPage() {
                                 <Input 
                                     type="date" 
                                     value={numberingForm.effectiveTo} 
-                                    onChange={e => setNumberingForm(p => ({...p, effectiveTo: e.target.value}))} 
+                                    onChange={e => setNumberingForm(p => ({...p, effectiveTo: e.target.value || null}))} 
                                     className="h-10 pl-9 font-bold text-xs"
                                 />
                             </div>
@@ -843,7 +843,6 @@ export default function GeneralSettingsPage() {
             </DialogContent>
         </Dialog>
 
-        {/* Edit Historical Rule Dialog */}
         <Dialog open={isEditRuleDialogOpen} onOpenChange={setIsEditRuleDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>

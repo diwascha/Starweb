@@ -51,7 +51,7 @@ import { onSettingUpdate } from '@/services/settings-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 import { NEPALI_MONTHS, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
@@ -129,7 +129,6 @@ export default function FleetTransactionsPage() {
     const [filterVehicles, setFilterVehicles] = useState<string[]>([]);
     const [filterBillingTypes, setFilterBillingTypes] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-    // BS period tokens: 'YYYY' = full year, 'YYYY-M' = specific month. Empty = all time.
     const [bsPeriods, setBsPeriods] = useState<string[]>([]);
     const [filterCategory, setFilterCategory] = useState('All');
     const [globalSearch, setGlobalSearch] = useState('');
@@ -178,7 +177,6 @@ export default function FleetTransactionsPage() {
     };
 
     const ledgerData = useMemo(() => {
-        // 1) Map each raw transaction leg.
         const rawMapped = transactions.map(t => {
             const isDebit = t.type === 'Payment' || t.type === 'Sales';
             const isCredit = t.type === 'Purchase' || t.type === 'Receipt';
@@ -195,9 +193,6 @@ export default function FleetTransactionsPage() {
             };
         });
 
-        // 2) Group legs that belong to the same voucher into a single ledger row.
-        //    A Mixed payment (cash + bank legs) collapses to one row whose
-        //    debit/credit is the SUM of its legs — no more duplicate-looking rows.
         const groups = new Map<string, typeof rawMapped>();
         for (const t of rawMapped) {
             const key = t.voucherId || t.id;
@@ -208,28 +203,45 @@ export default function FleetTransactionsPage() {
 
         let vouchers = Array.from(groups.entries()).map(([key, legs]) => {
             const rep = legs[0];
-            const debit = legs.reduce((s, l) => s + l.debit, 0);
-            const credit = legs.reduce((s, l) => s + l.credit, 0);
+            
+            // DYNAMIC CALCULATION: If payment mode filters are active, 
+            // only sum the legs that match the filter.
+            const filteredLegs = filterBillingTypes.length > 0 
+                ? legs.filter(l => filterBillingTypes.some(val => {
+                    if (val === 'Cash') return l.billingType === 'Cash';
+                    if (val === 'Credit') return l.billingType === 'Credit';
+                    return l.accountId === val;
+                }))
+                : legs;
+
+            const debit = filteredLegs.reduce((s, l) => s + l.debit, 0);
+            const credit = filteredLegs.reduce((s, l) => s + l.credit, 0);
             const modes = new Set(
-                legs.map(l => (l.accountId ? (accountsById.get(l.accountId) || 'Bank') : (l.billingType || 'Cash')))
+                filteredLegs.map(l => (l.accountId ? (accountsById.get(l.accountId) || 'Bank') : (l.billingType || 'Cash')))
             );
-            return { ...rep, id: key, rowKey: key, debit, credit, legs, modeSummary: Array.from(modes).join(' + ') };
+
+            return { 
+                ...rep, 
+                id: key, 
+                rowKey: key, 
+                debit, 
+                credit, 
+                legs, 
+                matchedLegsCount: filteredLegs.length,
+                modeSummary: Array.from(modes).join(' + ') 
+            };
         });
 
-        // Ascending for correct running-balance math.
+        // Filter out rows that have NO matching legs (only if billing filters are active)
+        if (filterBillingTypes.length > 0) {
+            vouchers = vouchers.filter(v => v.matchedLegsCount > 0);
+        }
+
         vouchers.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         const matchesNonDate = (v: any) => {
             if (filterParties.length > 0 && (!v.partyId || !filterParties.includes(v.partyId))) return false;
             if (filterVehicles.length > 0 && !filterVehicles.includes(v.vehicleId)) return false;
-            if (filterBillingTypes.length > 0) {
-                const anyLeg = v.legs.some((l: any) => filterBillingTypes.some(val => {
-                    if (val === 'Cash') return l.billingType === 'Cash';
-                    if (val === 'Credit') return l.billingType === 'Credit';
-                    return l.accountId === val;
-                }));
-                if (!anyLeg) return false;
-            }
             if (filterCategory !== 'All' && v.categoryDisplay !== filterCategory.toUpperCase()) return false;
             if (globalSearch) {
                 const q = globalSearch.toLowerCase();
@@ -244,7 +256,6 @@ export default function FleetTransactionsPage() {
 
         const inDateWindow = (v: any) => {
             const d = new Date(v.date);
-            // BS period tokens (multi-select). Empty = no BS restriction.
             if (bsPeriods.length > 0) {
                 let nd: NepaliDate;
                 try { nd = new NepaliDate(d); } catch { return false; }
@@ -264,9 +275,6 @@ export default function FleetTransactionsPage() {
             return true;
         };
 
-        // Run the TRUE running balance across every non-date-filtered voucher
-        // (chronological). Each row then keeps its real balance even when the
-        // displayed periods have gaps (e.g. Shrawan + Mangsir but not Bhadra).
         const nonDateMatched = vouchers.filter(matchesNonDate);
         let cum = 0;
         const withBalance = nonDateMatched.map(v => {
@@ -275,11 +283,8 @@ export default function FleetTransactionsPage() {
             return { ...v, balance: cum, _before: before };
         });
 
-        // Displayed = those inside the selected date window.
         const displayed = withBalance.filter(inDateWindow);
 
-        // Opening = true balance immediately before the first displayed entry.
-        // If nothing is displayed, fall back to the balance before the window start.
         let opening = 0;
         if (displayed.length > 0) {
             opening = displayed[0]._before;
@@ -299,7 +304,7 @@ export default function FleetTransactionsPage() {
         const closing = displayed.length ? displayed[displayed.length - 1].balance : opening;
 
         return {
-            entries: [...displayed].reverse(), // latest first for display
+            entries: [...displayed].reverse(),
             stats: {
                 opening,
                 debit: totalDebit,
@@ -369,7 +374,7 @@ export default function FleetTransactionsPage() {
 
     const editEntry = (entry: any) => {
         if (entry.referenceType === 'Expense Entry') {
-            router.push(`/fleet/transactions/expenses/edit?id=${entry.expenseId}`);
+            router.push(`/fleet/transactions/expenses/edit?id=${entry.expenseId || entry.id}`);
         } else if (entry.referenceType === 'Trip Sheet') {
             router.push(`/fleet/trip-sheets/edit?id=${entry.tripId}`);
         } else if (entry.voucherId) {
@@ -381,7 +386,7 @@ export default function FleetTransactionsPage() {
 
     const viewEntry = (entry: any) => {
         if (entry.referenceType === 'Expense Entry') {
-            router.push(`/fleet/transactions/expenses/view?id=${entry.expenseId}`);
+            router.push(`/fleet/transactions/expenses/view?id=${entry.expenseId || entry.id}`);
         } else if (entry.referenceType === 'Trip Sheet') {
             router.push(`/fleet/trip-sheets/${entry.tripId}`);
         } else if (entry.voucherId) {
@@ -408,10 +413,9 @@ export default function FleetTransactionsPage() {
     const money = (n: number) => Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2 });
     const drcr = (n: number) => (n >= 0 ? 'Dr' : 'Cr');
 
-    // Excel / PDF export inlined here (single ledger source, no extra file).
     const handleExport = async (type: 'excel' | 'pdf') => {
         const { entries, stats } = ledgerData;
-        const chronological = [...entries].reverse(); // oldest first for statements
+        const chronological = [...entries].reverse();
         const nowStr = format(new Date(), 'PPP p');
 
         if (type === 'excel') {
@@ -501,7 +505,6 @@ export default function FleetTransactionsPage() {
 
     return (
         <div className="flex flex-col gap-5 max-w-[1600px] mx-auto">
-            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Transaction Ledger</h1>
@@ -529,7 +532,6 @@ export default function FleetTransactionsPage() {
                 </div>
             </div>
 
-            {/* Filters */}
             <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                 <Card className="border-border/60">
                     <div className="flex items-center justify-between px-4 py-3">
@@ -636,7 +638,6 @@ export default function FleetTransactionsPage() {
                 </Card>
             </Collapsible>
 
-            {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {([
                     { label: 'Opening', value: ledgerData.stats.opening, dc: true },
@@ -662,7 +663,6 @@ export default function FleetTransactionsPage() {
                 </Card>
             </div>
 
-            {/* Ledger table */}
             <Card className="border-border/60">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b px-4 py-3 gap-3">
                     <div className="flex items-center gap-3">
@@ -702,7 +702,7 @@ export default function FleetTransactionsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {currentPage === totalPages && itemsPerPage !== -1 && ledgerData.entries.length > 0 && (
+                            {currentPage === 1 && itemsPerPage !== -1 && ledgerData.entries.length > 0 && (
                                 <TableRow className="bg-muted/20 border-b">
                                     <TableCell colSpan={2} />
                                     <TableCell className="font-medium text-muted-foreground italic">Balance B/F (opening)</TableCell>
@@ -834,7 +834,7 @@ export default function FleetTransactionsPage() {
                         <AlertDialogDescription>
                             {deleteTarget?.voucherId
                                 ? 'This entry belongs to a voucher. Deleting it removes the whole voucher and every linked leg.'
-                                : 'This permanently removes the purchase record from the ledger.'}
+                                : 'This permanently removes the record from the ledger.'}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

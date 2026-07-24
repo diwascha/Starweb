@@ -18,7 +18,6 @@ import {
     Wallet, 
     Wrench, 
     Building2, 
-    ShoppingCart, 
     CalendarIcon, 
     Plus, 
     Loader2, 
@@ -58,9 +57,8 @@ import {
 
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-    { type: 'Maintenance', label: 'Maintenance Fee', sub: 'Repair / Service', icon: Wrench, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+    { type: 'Maintenance', label: 'Maintenance Payment', sub: 'Repair / Service', icon: Wrench, color: 'text-blue-600 bg-blue-50 border-blue-200' },
     { type: 'Loan Repayment', label: 'Loan Repayment', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
-    { type: 'Vendor Purchase', label: 'Vendor Purchase', sub: 'Instant payment', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
 ];
 
 const numFieldProps = {
@@ -84,8 +82,6 @@ const expenseSchema = z.object({
     accountId: z.string().optional(),
     destination: z.string().optional(),
     remarks: z.string().max(200).optional(),
-    invoiceNumber: z.string().optional(),
-    invoiceDate: z.date().optional().nullable(),
 });
 
 type ExpenseFormValues = z.infer<typeof expenseSchema>;
@@ -137,8 +133,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
             destination: expenseToEdit?.destination || '',
             cashAmount: expenseToEdit?.cashAmount || 0,
             bankAmount: expenseToEdit?.bankAmount || 0,
-            invoiceNumber: (expenseToEdit as any)?.invoiceNumber || '',
-            invoiceDate: (expenseToEdit as any)?.invoiceDate ? new Date((expenseToEdit as any).invoiceDate) : null,
         }
     });
 
@@ -209,16 +203,15 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 cashAmount: values.paymentMode === 'Mixed' ? (values.cashAmount || 0) : 0,
                 bankAmount: values.paymentMode === 'Mixed' ? (values.bankAmount || 0) : 0,
                 date: values.date.toISOString(),
-                invoiceDate: values.invoiceDate?.toISOString() || null,
                 ownership: 'Sijan'
             };
 
             if (expenseToEdit) {
                 await updateExpense(expenseToEdit.id, payload as any, user.username);
-                toast({ title: 'Success', description: 'Expense updated.' });
+                toast({ title: 'Success', description: 'Payment record updated.' });
             } else {
                 await addExpense({ ...payload as any, createdBy: user.username });
-                toast({ title: 'Success', description: 'Expense recorded.' });
+                toast({ title: 'Success', description: 'Payment recorded.' });
             }
             router.push('/fleet/transactions/expenses');
         } catch (error: any) {
@@ -240,9 +233,9 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
             form.setValue('partyId', id, { shouldValidate: true });
             setIsPartyDialogOpen(false);
             setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '', panNumber: '' });
-            toast({ title: 'Party Added' });
+            toast({ title: 'Beneficiary Added' });
         } catch {
-            toast({ title: 'Error adding party', variant: 'destructive' });
+            toast({ title: 'Error adding beneficiary', variant: 'destructive' });
         }
     };
 
@@ -279,8 +272,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {/* 1. Category Selection */}
                 <div className="space-y-4">
-                    <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Expense Category <span className="text-destructive">*</span></FormLabel>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Payment Type <span className="text-destructive">*</span></FormLabel>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {expenseTypes.map((item) => (
                             <button key={item.type} type="button" onClick={() => form.setValue('expenseType', item.type)} className={cn("flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 text-center group", watchedType === item.type ? cn("ring-2 ring-primary border-primary bg-primary/5", item.color.split(' ')[0]) : "border-muted bg-white hover:bg-muted/50 text-muted-foreground")}>
                                 <div className={cn("p-2 rounded-lg", watchedType === item.type ? item.color.split(' ')[1] : "bg-muted/50")}>
@@ -301,12 +294,12 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                         <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono text-sm" /></FormControl></FormItem>
                     )} />
                     <FormField control={form.control} name="date" render={({ field }) => (
-                        <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-10", !field.value && "text-muted-foreground")}>
+                        <FormItem className="flex flex-col"><FormLabel>Posting Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-10", !field.value && "text-muted-foreground")}>
                             <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : "Select Date"}
                         </Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>
                     )} />
                     <FormField control={form.control} name="vehicleId" render={({ field }) => (
-                        <FormItem><FormLabel>Truck (Vehicle) <span className="text-destructive">*</span></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-10"><SelectValue placeholder="Select a truck" /></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select></FormItem>
+                        <FormItem><FormLabel>For Truck (Vehicle) <span className="text-destructive">*</span></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-10"><SelectValue placeholder="Select a truck" /></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select></FormItem>
                     )} />
                 </div>
 
@@ -377,7 +370,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                         <div className="space-y-4">
                             <FormField control={form.control} name="partyId" render={({ field }) => (
                                 <FormItem className="flex flex-col">
-                                    <FormLabel>Recipient / Payee <span className="text-destructive">*</span></FormLabel>
+                                    <FormLabel>Payee / Beneficiary <span className="text-destructive">*</span></FormLabel>
                                     <Popover>
                                         <PopoverTrigger asChild>
                                             <FormControl><Button variant="outline" role="combobox" className={cn("w-full justify-between h-10 font-normal text-sm", !field.value && "text-muted-foreground")}><div className="flex items-center gap-2 truncate"><Briefcase className="h-4 w-4 opacity-50 shrink-0" /><span className="truncate">{field.value ? sortedParties.find(p => p.id === field.value)?.name : "Search or select payee..."}</span></div><ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></FormControl>
@@ -399,28 +392,13 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     <FormMessage />
                                 </FormItem>
                             )} />
-
-                            {watchedType === 'Vendor Purchase' && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                                    <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                        <FormItem><FormLabel className="text-xs">Invoice Number (Optional)</FormLabel><FormControl><Input placeholder="Invoice #" className="h-9 text-xs" {...field} /></FormControl></FormItem>
-                                    )} />
-                                    <FormField control={form.control} name="invoiceDate" render={({ field }) => (
-                                        <FormItem className="flex flex-col"><FormLabel className="text-xs">Invoice Date (Optional)</FormLabel>
-                                            <Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("h-9 justify-start text-left font-normal text-xs px-3", !field.value && "text-muted-foreground")}>
-                                                <CalendarIcon className="mr-2 h-3 w-3" />{field.value ? toNepaliDate(field.value.toISOString()) : "Select Date"}
-                                            </Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={field.value || undefined} onSelect={field.onChange} /></PopoverContent></Popover>
-                                        </FormItem>
-                                    )} />
-                                </div>
-                            )}
                         </div>
                     )}
 
                     <div className="space-y-4">
                         <FormField control={form.control} name="amount" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Payment Amount (रु)</Label>
+                                <FormLabel>Payment Amount (रु)</FormLabel>
                                 <FormControl><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">Rs.</span><Input {...numFieldProps} className="pl-10 h-10 text-lg font-black" {...field} value={field.value || ''} onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); if (watchedMode === 'Mixed') { const total = val + (watchedExtraAmount || 0); form.setValue('cashAmount', total); form.setValue('bankAmount', 0); } }} /></div></FormControl>
                                 {routeStandardAmount && (
                                     <p className="text-[10px] text-amber-700 font-bold uppercase mt-1 flex items-center gap-1">
@@ -473,7 +451,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 )} />
 
                 <div className="sticky bottom-0 z-20 flex items-center gap-3 border-t bg-background/95 backdrop-blur py-3">
-                    <Button type="submit" size="lg" className="px-10 h-11 font-bold" disabled={isSubmitting}>{isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> {expenseToEdit ? 'Update Entry' : 'Post Expense'}</>}</Button>
+                    <Button type="submit" size="lg" className="px-10 h-11 font-bold" disabled={isSubmitting}>{isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> {expenseToEdit ? 'Update Payment' : 'Post Payment'}</>}</Button>
                     <Button type="button" variant="outline" size="lg" className="h-11" onClick={handleCancelClick}><X className="mr-2 h-4 w-4" /> Cancel</Button>
                 </div>
             </form>

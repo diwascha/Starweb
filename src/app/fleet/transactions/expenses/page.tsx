@@ -45,7 +45,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType';
 type SortDirection = 'asc' | 'desc';
@@ -85,13 +84,9 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
                 </PopoverTrigger>
                 <PopoverContent className="p-0 w-[200px]" align="start">
                     <Command>
-                        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
-                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                            <input 
-                                placeholder={`Search ${placeholder.toLowerCase()}...`} 
-                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                        </div>
+                        <CommandInput 
+                            placeholder={`Search ${placeholder.toLowerCase()}...`} 
+                        />
                         <CommandList>
                             <CommandEmpty>No results found.</CommandEmpty>
                             <CommandGroup>
@@ -283,7 +278,7 @@ export default function ExpenseLogsPage() {
             <header className="flex flex-col md:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-gray-900">Expense History</h1>
-                    <p className="text-muted-foreground text-sm">Log of truck-related payment outflows.</p>
+                    <p className="text-muted-foreground text-sm">Log of operational cash/bank payment outflows.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="relative">
@@ -303,7 +298,7 @@ export default function ExpenseLogsPage() {
                 <MultiSelect label="Month (BS)" values={filterBsMonths} onSelect={setFilterBsMonths} items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} placeholder="Month" />
                 <MultiSelect label="Vehicle" values={filterVehicleIds} onSelect={setFilterVehicleIds} items={vehicles} placeholder="Vehicle" icon={Truck} />
                 <MultiSelect label="Party" values={filterPartyIds} onSelect={setFilterPartyIds} items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} placeholder="Party" icon={Users} />
-                <MultiSelect label="Category" values={filterExpenseTypes} onSelect={setFilterExpenseTypes} items={[{ id: 'Advance', name: 'Advance' }, { id: 'Maintenance', name: 'Maintenance' }, { id: 'Loan Repayment', name: 'Loan Repayment' }, { id: 'Vendor Purchase', name: 'Vendor Purchase' }]} placeholder="Category" icon={Tag} />
+                <MultiSelect label="Category" values={filterExpenseTypes} onSelect={setFilterExpenseTypes} items={[{ id: 'Advance', name: 'Advance' }, { id: 'Maintenance', name: 'Maintenance' }, { id: 'Loan Repayment', name: 'Loan Repayment' }]} placeholder="Category" icon={Tag} />
                 <MultiSelect label="Mode" values={filterPaymentModes} onSelect={setFilterPaymentModes} items={[{ id: 'Cash', name: 'Cash' }, { id: 'Bank', name: 'Bank' }, { id: 'Mixed', name: 'Mixed' }]} placeholder="Mode" icon={Wallet} />
                 
                 <div className="space-y-1.5 w-full md:w-[180px]">
@@ -346,7 +341,7 @@ export default function ExpenseLogsPage() {
                                     <TableCell className="pl-6 font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
                                     <TableCell className="font-mono text-[11px] font-bold text-blue-600">{e.voucherNo}</TableCell>
                                     <TableCell><span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">{vehiclesById.get(e.vehicleId) || 'N/A'}</span></TableCell>
-                                    <TableCell><Badge variant="outline" className={cn("text-[9px] uppercase font-bold", e.expenseType === 'Maintenance' && "bg-amber-50 text-amber-700", e.expenseType === 'Advance' && "bg-emerald-50 text-emerald-700", e.expenseType === 'Loan Repayment' && "bg-orange-50 text-orange-700", e.expenseType === 'Vendor Purchase' && "bg-cyan-50 text-cyan-700")}>{e.expenseType}</Badge></TableCell>
+                                    <TableCell><Badge variant="outline" className={cn("text-[9px] uppercase font-bold", e.expenseType === 'Maintenance' && "bg-amber-50 text-amber-700", e.expenseType === 'Advance' && "bg-emerald-50 text-emerald-700", e.expenseType === 'Loan Repayment' && "bg-orange-50 text-orange-700")}>{e.expenseType}</Badge></TableCell>
                                     <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/50 border-none">{e.paymentMode}</Badge></TableCell>
                                     <TableCell className="py-3"><div className="flex flex-col"><span className="text-[11px] font-semibold text-gray-900">{e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}</span>{e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}</div></TableCell>
                                     <TableCell className="text-right font-black text-red-600 text-[11px] tabular-nums">Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
