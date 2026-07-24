@@ -61,14 +61,25 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Use 'values' instead of 'defaultValues' to ensure the form updates when 
+  // props (like an asynchronously generated purchaseNumber) change.
   const form = useForm<PurchaseFormValues>({
     resolver: zodResolver(purchaseSchema),
-    defaultValues: {
-      date: new Date(),
-      invoiceType: 'Normal',
-      billingType: 'Cash',
-      items: [{ particular: '', quantity: 0, rate: 0 }],
-      ...initialValues
+    values: {
+      purchaseNumber: initialValues?.purchaseNumber || '',
+      date: initialValues?.date || new Date(),
+      vehicleId: initialValues?.vehicleId || '',
+      partyId: initialValues?.partyId || '',
+      invoiceNumber: initialValues?.invoiceNumber || '',
+      invoiceDate: initialValues?.invoiceDate || null,
+      invoiceType: initialValues?.invoiceType || 'Normal',
+      billingType: initialValues?.billingType || 'Cash',
+      accountId: initialValues?.accountId || null,
+      chequeNumber: initialValues?.chequeNumber || '',
+      chequeDate: initialValues?.chequeDate || null,
+      dueDate: initialValues?.dueDate || null,
+      items: initialValues?.items || [{ particular: '', quantity: 0, rate: 0 }],
+      remarks: initialValues?.remarks || '',
     },
   });
 
@@ -108,7 +119,17 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                 <CardHeader className="py-4"><CardTitle className="text-sm font-bold">General Info</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     <FormField control={form.control} name="purchaseNumber" render={({ field }) => (
-                        <FormItem><FormLabel>Purchase #</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl><FormMessage/></FormItem>
+                        <FormItem>
+                            <FormLabel>Purchase #</FormLabel>
+                            <FormControl>
+                                <Input 
+                                    {...field} 
+                                    readOnly 
+                                    className="bg-muted/50 font-mono" 
+                                />
+                            </FormControl>
+                            <FormMessage/>
+                        </FormItem>
                     )}/>
                     <FormField control={form.control} name="date" render={({ field }) => (
                         <FormItem><FormLabel>Posting Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select'}</Button></FormControl></PopoverTrigger><PopoverContent className="p-0"><DualCalendar selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover><FormMessage/></FormItem>
