@@ -216,7 +216,7 @@ export default function ExpenseLogsPage() {
 
         if (filterExpenseTypes.length > 0) {
             filtered = filtered.filter(e => {
-                const mappedType = (e.expenseType === 'Purchase' || e.expenseType === 'Membership Renewal' || e.expenseType === 'Shivam / Others') ? 'Vendor Purchase' : e.expenseType;
+                const mappedType = (e.expenseType as any === 'Purchase' || e.expenseType as any === 'Membership Renewal' || e.expenseType as any === 'Shivam / Others') ? 'Vendor Purchase' : e.expenseType;
                 return filterExpenseTypes.includes(mappedType);
             });
         }
@@ -287,7 +287,7 @@ export default function ExpenseLogsPage() {
 
     return (
         <div className="flex flex-col gap-8">
-            <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <header className="flex flex-col md:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Expense History</h1>
                     <p className="text-muted-foreground">Historical records of all truck procurement, advances, and maintenance.</p>
@@ -406,7 +406,7 @@ export default function ExpenseLogsPage() {
                             {isLoading ? (
                                 <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                             ) : paginatedExpenses.map(e => {
-                                const displayType = (e.expenseType === 'Purchase' || e.expenseType === 'Membership Renewal' || e.expenseType === 'Shivam / Others') ? 'Vendor Purchase' : e.expenseType;
+                                const displayType = (e.expenseType as any === 'Purchase' || e.expenseType as any === 'Membership Renewal' || e.expenseType as any === 'Shivam / Others') ? 'Vendor Purchase' : e.expenseType;
                                 
                                 return (
                                 <TableRow key={e.id} className="hover:bg-muted/30 h-14">
@@ -436,7 +436,7 @@ export default function ExpenseLogsPage() {
                                                 {e.dueDate && <span className="opacity-60 text-[8px] font-normal"> (Due: {toNepaliDate(e.dueDate)})</span>}
                                             </div>
                                         ) : (
-                                            <Badge variant="ghost" className="text-[9px] uppercase font-medium bg-muted/50">{e.paymentMode}</Badge>
+                                            <Badge variant="outline" className="text-[9px] uppercase font-medium bg-muted/50 border-none">{e.paymentMode}</Badge>
                                         )}
                                     </TableCell>
                                     <TableCell className="py-3">
