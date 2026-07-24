@@ -367,18 +367,29 @@ export default function FleetTransactionsPage() {
         ...sijanBankAccounts.map(a => ({ id: a.id, name: `${a.bankName || a.name}${a.accountNumber ? ` (${a.accountNumber})` : ''}` })),
     ], [sijanBankAccounts]);
 
-    const goTo = (id: string) =>
-        router.push(id ? `/fleet/transactions/payment-receipt?voucherId=${id}` : '');
+    const editEntry = (entry: any) => {
+        if (entry.referenceType === 'Expense Entry') {
+            router.push(`/fleet/transactions/expenses/edit?id=${entry.expenseId}`);
+        } else if (entry.referenceType === 'Trip Sheet') {
+            router.push(`/fleet/trip-sheets/edit?id=${entry.tripId}`);
+        } else if (entry.voucherId) {
+            router.push(`/fleet/transactions/payment-receipt/edit?voucherId=${entry.voucherId}`);
+        } else {
+            router.push(`/fleet/transactions/purchase/edit?id=${entry.id}`);
+        }
+    };
 
-    const editEntry = (entry: any) =>
-        router.push(entry.voucherId
-            ? `/fleet/transactions/payment-receipt/edit?voucherId=${entry.voucherId}`
-            : `/fleet/transactions/purchase/edit?id=${entry.id}`);
-
-    const viewEntry = (entry: any) =>
-        router.push(entry.voucherId
-            ? `/fleet/transactions/payment-receipt?voucherId=${entry.voucherId}`
-            : `/fleet/transactions/purchase/view?id=${entry.id}`);
+    const viewEntry = (entry: any) => {
+        if (entry.referenceType === 'Expense Entry') {
+            router.push(`/fleet/transactions/expenses/view?id=${entry.expenseId}`);
+        } else if (entry.referenceType === 'Trip Sheet') {
+            router.push(`/fleet/trip-sheets/${entry.tripId}`);
+        } else if (entry.voucherId) {
+            router.push(`/fleet/transactions/payment-receipt?voucherId=${entry.voucherId}`);
+        } else {
+            router.push(`/fleet/transactions/purchase/view?id=${entry.id}`);
+        }
+    };
 
     const confirmDelete = async () => {
         const entry = deleteTarget;

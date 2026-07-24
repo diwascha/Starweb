@@ -639,6 +639,7 @@ export interface Transaction {
     amount: number; // This will be the grand total
     remarks: string | null;
     tripId?: string | null; // Link to the trip
+    expenseId?: string | null; // Link to the source expense
     type: TransactionType;
     category?: string | null; // Category for easier auditing (Maintenance, Renewal, Rent, etc.)
     referenceType?: string | null; // e.g. "Trip Sheet", "Rental Bill", "Voucher"

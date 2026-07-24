@@ -45,6 +45,7 @@ export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | an
         amount: Number(data.amount) || 0,
         remarks: data.remarks ? String(data.remarks) : null,
         tripId: data.tripId ? String(data.tripId) : null,
+        expenseId: data.expenseId ? String(data.expenseId) : null,
         type: (data.type || 'Payment') as TransactionType,
         category: data.category ? String(data.category) : null,
         referenceType: data.referenceType ? String(data.referenceType) : null,

@@ -78,7 +78,7 @@ export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () =>
     );
 };
 
-const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, createdAt: string): Transaction[] => {
+const generateLedgerTransactions = (expense: Expense, createdAt: string): Transaction[] => {
     const transactions: Transaction[] = [];
     const baseNarrative = `${expense.voucherNo}: ${expense.expenseType}${expense.destination ? ` to ${expense.destination}` : ''}`;
     const now = createTimestamp();
@@ -106,6 +106,7 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
             remarks: expense.remarks || `Expense: ${expense.expenseType}`,
             referenceType: "Expense Entry",
             referenceId: expense.voucherNo,
+            expenseId: expense.id, // CRITICAL: Linking to source document for editing from ledger
             items: items,
             purchaseNumber: null,
             dueDate: mode === 'Credit' ? expense.dueDate || null : null,
@@ -139,7 +140,8 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const now = createTimestamp();
     const expenseId = doc(getExpensesCollection()).id;
 
-    const expenseRecord = {
+    const expenseRecord: Expense = {
+        id: expenseId,
         ...expenseData,
         amount: Number(expenseData.amount) || 0,
         extraAmount: Number(expenseData.extraAmount) || 0,
@@ -151,7 +153,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const batch = writeBatch(db);
     batch.set(doc(getExpensesCollection(), expenseId), expenseRecord);
 
-    const ledgerTxns = generateLedgerTransactions(expenseRecord as any, now);
+    const ledgerTxns = generateLedgerTransactions(expenseRecord, now);
     ledgerTxns.forEach(txn => {
         const { id, ...data } = txn;
         batch.set(doc(getTransactionsCollection(), id), data);
@@ -189,7 +191,7 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
         batch.delete(doc(getTransactionsCollection(), `ledger-${safeOldVoucherId}-${mode}`));
     });
 
-    const ledgerTxns = generateLedgerTransactions(newData as any, oldData.createdAt);
+    const ledgerTxns = generateLedgerTransactions(newData, oldData.createdAt);
     ledgerTxns.forEach(txn => {
         const { id: txnId, ...data } = txn;
         batch.set(doc(getTransactionsCollection(), txnId), { ...data, lastModifiedBy: modifiedBy });
