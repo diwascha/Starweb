@@ -19,7 +19,9 @@ import {
   ChevronLeft,
   ChevronRight,
   HandCoins,
-  History
+  History,
+  Tag,
+  Wallet
 } from 'lucide-react';
 import type { Vehicle, Party } from '@/lib/types';
 import type { Expense } from '@/lib/expense-types';
@@ -72,7 +74,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
             : `${values.length} ${placeholder}s Selected`;
 
     return (
-        <div className="space-y-1.5 flex-1 min-w-[160px]">
+        <div className="space-y-1.5 flex-1 min-w-[150px]">
             <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
@@ -131,6 +133,8 @@ export default function ExpenseLogsPage() {
     const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
     const [filterVehicleIds, setFilterVehicleIds] = useState<string[]>([]);
     const [filterPartyIds, setFilterPartyIds] = useState<string[]>([]);
+    const [filterExpenseTypes, setFilterExpenseTypes] = useState<string[]>([]);
+    const [filterPaymentModes, setFilterPaymentModes] = useState<string[]>([]);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
 
     const { toast } = useToast();
@@ -150,7 +154,7 @@ export default function ExpenseLogsPage() {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, itemsPerPage]);
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, filterExpenseTypes, filterPaymentModes, itemsPerPage]);
 
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
@@ -209,6 +213,14 @@ export default function ExpenseLogsPage() {
         if (filterPartyIds.length > 0) {
             filtered = filtered.filter(e => e.partyId && filterPartyIds.includes(e.partyId));
         }
+
+        if (filterExpenseTypes.length > 0) {
+            filtered = filtered.filter(e => filterExpenseTypes.includes(e.expenseType));
+        }
+
+        if (filterPaymentModes.length > 0) {
+            filtered = filtered.filter(e => filterPaymentModes.includes(e.paymentMode));
+        }
         
         filtered.sort((a, b) => {
             const aVal = a[sortConfig.key] || '';
@@ -219,7 +231,7 @@ export default function ExpenseLogsPage() {
         });
 
         return filtered;
-    }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, sortConfig, vehiclesById]);
+    }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, filterExpenseTypes, filterPaymentModes, sortConfig, vehiclesById]);
 
     const paginatedExpenses = useMemo(() => {
         if (itemsPerPage === -1) return filteredAndSortedExpenses;
@@ -255,6 +267,8 @@ export default function ExpenseLogsPage() {
         setFilterBsMonths([]);
         setFilterVehicleIds([]);
         setFilterPartyIds([]);
+        setFilterExpenseTypes([]);
+        setFilterPaymentModes([]);
     };
 
     const isFiltered = useMemo(() => {
@@ -263,8 +277,10 @@ export default function ExpenseLogsPage() {
                filterBsYears.length > 0 || 
                filterBsMonths.length > 0 || 
                filterVehicleIds.length > 0 ||
-               filterPartyIds.length > 0;
-    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds]);
+               filterPartyIds.length > 0 ||
+               filterExpenseTypes.length > 0 ||
+               filterPaymentModes.length > 0;
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, filterExpenseTypes, filterPaymentModes]);
 
     return (
         <div className="flex flex-col gap-8">
@@ -316,6 +332,34 @@ export default function ExpenseLogsPage() {
                     items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} 
                     placeholder="Party" 
                     icon={Users}
+                />
+                <MultiSelect 
+                    label="Expense Category" 
+                    values={filterExpenseTypes} 
+                    onSelect={setFilterExpenseTypes} 
+                    items={[
+                        { id: 'Advance', name: 'Advance' },
+                        { id: 'Maintenance', name: 'Maintenance' },
+                        { id: 'Purchase', name: 'Purchase' },
+                        { id: 'Loan Repayment', name: 'Loan Repayment' },
+                        { id: 'Membership Renewal', name: 'Membership Renewal' },
+                        { id: 'Shivam / Others', name: 'Shivam / Others' }
+                    ]} 
+                    placeholder="Category" 
+                    icon={Tag}
+                />
+                <MultiSelect 
+                    label="Mode" 
+                    values={filterPaymentModes} 
+                    onSelect={setFilterPaymentModes} 
+                    items={[
+                        { id: 'Cash', name: 'Cash' },
+                        { id: 'Bank', name: 'Bank' },
+                        { id: 'Mixed', name: 'Mixed' },
+                        { id: 'Credit', name: 'Credit' }
+                    ]} 
+                    placeholder="Mode" 
+                    icon={Wallet}
                 />
                 <div className="space-y-1.5 w-full md:w-[180px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>

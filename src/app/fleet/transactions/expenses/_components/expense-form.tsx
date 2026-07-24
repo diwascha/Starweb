@@ -91,8 +91,9 @@ const expenseSchema = z.object({
     remarks: z.string().max(200).optional(),
 }).refine(data => {
     if (['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(data.expenseType)) return !!data.partyId;
+    if (data.paymentMode === 'Credit') return !!data.partyId;
     return true;
-}, { message: "Party / Supplier is required.", path: ['partyId'] })
+}, { message: "Party / Creditor is required.", path: ['partyId'] })
 .refine(data => {
     if (data.expenseType === 'Loan Repayment') return !!data.accountId;
     return true;
@@ -577,8 +578,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
                 <div className={cn(
                     "flex items-center gap-4 p-3 rounded-lg border bg-blue-50/50 text-blue-800 text-xs",
-                    (watchedType === 'Advance' && !routeStandardAmount) && "hidden",
-                    (!['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others', 'Advance'].includes(watchedType)) && "hidden"
+                    (watchedType === 'Advance' && !routeStandardAmount && watchedMode !== 'Credit') && "hidden",
+                    (!['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others', 'Advance'].includes(watchedType) && watchedMode !== 'Credit') && "hidden"
                 )}>
                     <Info className="h-3.5 w-3.5 shrink-0" />
                     <span className="flex-1">
@@ -587,6 +588,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                         {watchedType === 'Loan Repayment' && "Loan Repayment selected • Select the lender (Party) and the specific loan account."}
                         {watchedType === 'Membership Renewal' && "Renewal selected • Select the authority or agency paid."}
                         {watchedType === 'Shivam / Others' && "Shivam / Others selected • Select the relevant party or leave blank for misc."}
+                        {watchedMode === 'Credit' && "Credit settlement selected • Specify the supplier / creditor."}
                         {watchedType === 'Advance' && routeStandardAmount && (
                             <div className="flex items-center gap-2">
                                 <Lightbulb className="h-3.5 w-3.5 text-amber-600" />
@@ -603,18 +605,18 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                             </div>
                         )}
                     </span>
-                    {['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) && (
+                    {(['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) || watchedMode === 'Credit') && (
                         <Button type="button" variant="outline" size="sm" onClick={() => setIsPartyDialogOpen(true)} className="bg-white text-[10px]">
                             <Plus className="mr-1 h-3 w-3" /> Add New Party
                         </Button>
                     )}
                 </div>
 
-                {['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) && (
+                {(['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) || watchedMode === 'Credit') && (
                     <FormField control={form.control} name="partyId" render={({ field }) => (
                         <FormItem>
                             <FormLabel>
-                                {watchedType === 'Loan Repayment' ? 'Lending Institution / Bank (Party)' : 'Party / Service Provider'} 
+                                {watchedType === 'Loan Repayment' ? 'Lending Institution / Bank (Party)' : 'Party / Service Provider / Creditor'} 
                                 <span className={cn(watchedType === 'Shivam / Others' ? "" : "text-destructive")}>{watchedType === 'Shivam / Others' ? "" : "*"}</span>
                             </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>

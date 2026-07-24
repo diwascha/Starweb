@@ -28,7 +28,7 @@ export default function VoucherViewClient({
   const router = useRouter();
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
-  const transaction = initialTransactions?.[0]; // Safe access to the main transaction details
+  const transaction = initialTransactions?.[0];
 
   useEffect(() => {
     const unsub = onSettingUpdate('fleetCompanyProfile', (s) => {
@@ -53,16 +53,23 @@ export default function VoucherViewClient({
     }
 
     try {
-      const jsPDF = (await import('jspdf')).default;
-      const html2canvas = (await import('html2canvas')).default;
+        const jsPDF = (await import('jspdf')).default;
+        const html2canvas = (await import('html2canvas')).default;
 
-      const canvas = await html2canvas(printableArea, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Voucher-${transaction.items?.[0]?.particular || 'Voucher'}.pdf`);
+        const canvas = await html2canvas(printableArea, { 
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+        });
+        
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Voucher-${transaction.referenceId || 'Voucher'}.pdf`);
     } catch (error) {
       console.error("Error generating PDF", error);
     } finally {
@@ -79,17 +86,22 @@ export default function VoucherViewClient({
     );
   }
 
-  const voucherNo = transaction.items?.[0]?.particular?.replace(/ .*/,'') || 'N/A';
+  const voucherNo = transaction.referenceId || 'N/A';
 
   return (
     <>
       <div className="flex justify-between items-center mb-8 print:hidden">
-        <div>
-          <h1 className="text-3xl font-bold">Voucher Details</h1>
-          <p className="text-muted-foreground">Voucher #{voucherNo}</p>
+        <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Voucher Details</h1>
+              <p className="text-muted-foreground">Voucher #{voucherNo}</p>
+            </div>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push(`/fleet/transactions/payment-receipt/edit/${transaction.voucherId}`)}>
+            <Button variant="outline" onClick={() => router.push(`/fleet/transactions/payment-receipt/edit?voucherId=${transaction.voucherId}`)}>
                 <Edit className="mr-2 h-4 w-4" /> Edit
             </Button>
             <Button variant="outline" onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
@@ -129,9 +141,14 @@ export default function VoucherViewClient({
             <TableBody>
                 {initialTransactions.map((t) => (
                     <TableRow key={t.id} className="border-b-gray-300">
-                        <TableCell className="px-2 py-1 text-xs">{parties.find(p => p.id === t.partyId)?.name}</TableCell>
-                        <TableCell className="px-2 py-1 text-xs text-right">{t.type === 'Payment' ? t.amount.toLocaleString() : ''}</TableCell>
-                        <TableCell className="px-2 py-1 text-xs text-right">{t.type === 'Receipt' ? t.amount.toLocaleString() : ''}</TableCell>
+                        <TableCell className="px-2 py-1 text-xs">
+                            <div className="flex flex-col">
+                                <span className="font-bold">{parties.find(p => p.id === t.partyId)?.name || 'Unassigned'}</span>
+                                {t.vehicleId && <span className="text-[10px] text-gray-500">{vehicles.find(v => v.id === t.vehicleId)?.name}</span>}
+                            </div>
+                        </TableCell>
+                        <TableCell className="px-2 py-1 text-xs text-right">{t.type === 'Payment' ? t.amount.toLocaleString(undefined, {minimumFractionDigits: 2}) : ''}</TableCell>
+                        <TableCell className="px-2 py-1 text-xs text-right">{t.type === 'Receipt' ? t.amount.toLocaleString(undefined, {minimumFractionDigits: 2}) : ''}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -141,11 +158,11 @@ export default function VoucherViewClient({
             <span className="font-semibold">In Words:</span> {toWords(initialTransactions.reduce((sum, t) => sum + t.amount, 0))}
         </div>
         
-        <div className="mt-8 grid grid-cols-4 gap-8 pt-16 text-xs">
-            <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Prepared By</p></div>
-            <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Checked By</p></div>
-            <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Approved By</p></div>
-            <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Receiver's Sign</p></div>
+        <div className="mt-16 text-center pt-8 border-t border-dashed border-gray-200">
+            <p className="text-[9px] font-bold text-gray-400 uppercase italic">
+                This is a computer-generated document authorized by {companyProfile.nameEn}. 
+                Produced via StarSutra and valid without manual signature.
+            </p>
         </div>
       </div>
       

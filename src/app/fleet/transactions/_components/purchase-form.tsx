@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
@@ -60,8 +60,8 @@ interface PurchaseFormProps {
 export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, onCancel, initialValues }: PurchaseFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const lastInitialValues = useRef<string>('');
 
-  // Reverting to defaultValues + reset strategy to prevent infinite loop caused by unstable 'values' prop
   const form = useForm<PurchaseFormValues>({
     resolver: zodResolver(purchaseSchema),
     defaultValues: {
@@ -82,9 +82,11 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
     },
   });
 
-  // Reactive reset when initialValues arrive (e.g. async PO Number)
+  // Safe reactive reset to prevent infinite update depth
   useEffect(() => {
-    if (initialValues) {
+    const currentValuesStr = JSON.stringify(initialValues);
+    if (initialValues && currentValuesStr !== lastInitialValues.current) {
+        lastInitialValues.current = currentValuesStr;
         form.reset({
             ...form.getValues(),
             ...initialValues
@@ -133,8 +135,8 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                             <FormControl>
                                 <Input 
                                     {...field} 
-                                    readOnly 
-                                    className="bg-muted/50 font-mono" 
+                                    readOnly={!!initialValues?.purchaseNumber} 
+                                    className={!!initialValues?.purchaseNumber ? "bg-muted/50 font-mono" : "font-mono"} 
                                 />
                             </FormControl>
                             <FormMessage/>
@@ -182,7 +184,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                     )}
                     {watchedBillingType === 'Credit' && (
                         <FormField control={form.control} name="dueDate" render={({ field }) => (
-                            <FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select'}</Button></FormControl></PopoverTrigger><PopoverContent className="p-0"><DualCalendar selected={field.value || undefined} onSelect={field.onChange}/></PopoverContent></Popover></FormItem>
+                            <FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select'}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value || undefined} onSelect={field.onChange}/></PopoverContent></Popover></FormItem>
                     )}/>
                 )}
                 </CardContent>

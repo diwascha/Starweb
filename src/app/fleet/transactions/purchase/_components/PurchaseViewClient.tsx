@@ -62,12 +62,19 @@ export default function PurchaseViewClient({
         const jsPDF = (await import('jspdf')).default;
         const html2canvas = (await import('html2canvas')).default;
         
-        const canvas = await html2canvas(printableArea, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
+        const canvas = await html2canvas(printableArea, { 
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
         pdf.save(`Purchase-${initialTransaction.purchaseNumber}.pdf`);
     } catch (error) {
         console.error("Error generating PDF", error);
@@ -89,7 +96,7 @@ export default function PurchaseViewClient({
             </div>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push(`/fleet/transactions/purchase/edit?id=${initialTransaction.id}`)}>
+            <Button variant="outline" onClick={() => router.push(`/fleet/transactions/expenses/edit?id=${initialTransaction.id}`)}>
                 <Edit className="mr-2 h-4 w-4" /> Edit
             </Button>
             <Button variant="outline" onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
@@ -184,9 +191,11 @@ export default function PurchaseViewClient({
             <span className="font-semibold">In Words:</span> {toWords(totalAmount)}
         </div>
         
-         <div className="mt-8 text-center pt-12 text-xs text-gray-500 border-t border-gray-200">
-            <p>This is a computer-generated document and does not require a physical signature.</p>
-            <p className="font-bold mt-1 text-black uppercase">{companyProfile.nameEn}</p>
+         <div className="mt-16 text-center pt-8 border-t border-dashed border-gray-200">
+            <p className="text-[9px] font-bold text-gray-400 uppercase italic">
+                This is a computer-generated document authorized by {companyProfile.nameEn}. 
+                Produced via StarSutra and valid without manual signature.
+            </p>
         </div>
 
       </div>
