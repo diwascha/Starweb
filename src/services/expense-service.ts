@@ -51,9 +51,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense =
         amount: data.amount,
         extraAmount: data.extraAmount ?? 0,
         extraRemarks: data.extraRemarks ?? null,
-        paymentMode: data.paymentMode,
+        paymentMode: data.paymentMode || 'Cash',
         cashAmount: data.cashAmount ?? 0,
         bankAmount: data.bankAmount ?? 0,
+        dueDate: data.dueDate ?? null,
         remarks: data.remarks ?? null,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
@@ -80,28 +81,32 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
     const baseNarrative = `${expense.voucherNo}: ${expense.expenseType}${expense.destination ? ` to ${expense.destination}` : ''}`;
     const now = createTimestamp();
     
-    // Sanitize voucher number for use in document ID to avoid "invalid reference" errors if slashes are present
     const safeVoucherId = expense.voucherNo.replace(/\//g, '-');
 
-    const createTxn = (mode: 'Cash' | 'Bank', amt: number, suffix: string): Transaction => {
+    const createTxn = (mode: string, amt: number, suffix: string): Transaction => {
         const items: TransactionItem[] = [{ particular: `${baseNarrative} (${suffix})`, quantity: 1, rate: amt }];
         
+        // If mode is Credit, we record a 'Purchase' (increases payables)
+        // If mode is Cash/Bank, we record a 'Payment' (decreases liquid assets)
+        const type = mode === 'Credit' ? 'Purchase' : 'Payment';
+
         return {
-            id: `ledger-${safeVoucherId}-${mode.toLowerCase()}`, 
+            id: `ledger-${safeVoucherId}-${mode.toLowerCase().replace(/ /g, '-')}`, 
             date: expense.date,
             vehicleId: expense.vehicleId || null,
-            type: 'Payment' as const,
+            type: type as any,
             amount: amt,
             billingType: mode,
             invoiceType: 'Normal' as const,
             category: expense.expenseType,
             partyId: expense.partyId || null,
-            accountId: expense.accountId || null,
+            accountId: (mode === 'Cash' || mode === 'Credit') ? null : expense.accountId || null,
             remarks: expense.remarks || `Expense: ${expense.expenseType}`,
             referenceType: "Expense Entry",
             referenceId: expense.voucherNo,
             items: items,
             purchaseNumber: null,
+            dueDate: mode === 'Credit' ? expense.dueDate || null : null,
             createdBy: expense.createdBy,
             createdAt: createdAt,
             lastModifiedAt: now,
@@ -109,7 +114,6 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
             invoiceDate: null,
             chequeNumber: null,
             chequeDate: null,
-            dueDate: null,
             tripId: null,
             voucherId: expense.voucherNo,
             lastModifiedBy: null,
@@ -122,7 +126,7 @@ const generateLedgerTransactions = (expense: Omit<Expense, 'id' | 'createdAt'>, 
         if ((expense.bankAmount || 0) > 0) transactions.push(createTxn('Bank', expense.bankAmount!, 'Bank Portion'));
     } else {
         const totalAmount = expense.amount + (expense.extraAmount || 0);
-        transactions.push(createTxn(expense.paymentMode as any, totalAmount, expense.paymentMode));
+        transactions.push(createTxn(expense.paymentMode, totalAmount, expense.paymentMode));
     }
 
     return transactions;
@@ -177,8 +181,9 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
     const batch = writeBatch(db);
     batch.update(expenseRef, { ...updates, lastModifiedBy: modifiedBy, lastModifiedAt: now });
 
+    // Purge all possible ledger variations for this voucher
     const safeOldVoucherId = oldData.voucherNo.replace(/\//g, '-');
-    ['cash', 'bank'].forEach(mode => {
+    ['cash', 'bank', 'mixed', 'credit'].forEach(mode => {
         batch.delete(doc(getTransactionsCollection(), `ledger-${safeOldVoucherId}-${mode}`));
     });
 
@@ -206,7 +211,7 @@ export const deleteExpense = async (id: string): Promise<void> => {
     batch.delete(expenseRef);
 
     const safeVoucherId = data.voucherNo.replace(/\//g, '-');
-    ['cash', 'bank'].forEach(mode => {
+    ['cash', 'bank', 'mixed', 'credit'].forEach(mode => {
         batch.delete(doc(getTransactionsCollection(), `ledger-${safeVoucherId}-${mode}`));
     });
 

@@ -37,6 +37,7 @@ import {
     ShieldCheck,
     Briefcase,
     ArrowRightLeft,
+    HandCoins
 } from 'lucide-react';
 import { cn, toNepaliDate, generateNextExpenseNumber } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
@@ -80,9 +81,10 @@ const expenseSchema = z.object({
     amount: z.number().min(1, "Amount must be positive."),
     extraAmount: z.number().optional().default(0),
     extraRemarks: z.string().optional(),
-    paymentMode: z.enum(['Cash', 'Bank', 'Mixed']),
+    paymentMode: z.enum(['Cash', 'Bank', 'Mixed', 'Credit']),
     cashAmount: z.number().optional().default(0),
     bankAmount: z.number().optional().default(0),
+    dueDate: z.date().optional().nullable(),
     partyId: z.string().optional(),
     accountId: z.string().optional(),
     destination: z.string().optional(),
@@ -103,6 +105,10 @@ const expenseSchema = z.object({
     if (data.expenseType === 'Advance') return !!data.destination && data.destination.trim() !== '';
     return true;
 }, { message: "Destination is required for Advances.", path: ['destination'] })
+.refine(data => {
+    if (data.paymentMode === 'Credit') return !!data.dueDate;
+    return true;
+}, { message: "Due date is required for credit entries.", path: ['dueDate'] })
 .refine(data => {
     if (data.paymentMode === 'Mixed') {
         const totalExpected = data.amount + (data.extraAmount || 0);
@@ -158,6 +164,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
             destination: expenseToEdit?.destination || '',
             cashAmount: expenseToEdit?.cashAmount || 0,
             bankAmount: expenseToEdit?.bankAmount || 0,
+            dueDate: expenseToEdit?.dueDate ? new Date(expenseToEdit.dueDate) : null,
         }
     });
 
@@ -224,17 +231,19 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         if (!user) return;
         setIsSubmitting(true);
         try {
+            const payload = {
+                ...values,
+                date: values.date.toISOString(),
+                dueDate: values.dueDate?.toISOString() || null,
+                ownership: 'Sijan'
+            };
+
             if (expenseToEdit) {
-                await updateExpense(expenseToEdit.id, {
-                    ...values,
-                    date: values.date.toISOString(),
-                    ownership: 'Sijan'
-                }, user.username);
+                await updateExpense(expenseToEdit.id, payload as any, user.username);
                 toast({ title: 'Success', description: 'Expense updated successfully.' });
             } else {
                 await addExpense({
-                    ...values,
-                    date: values.date.toISOString(),
+                    ...payload as any,
                     createdBy: user.username,
                     ownership: 'Sijan'
                 });
@@ -378,13 +387,13 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 <div className="space-y-6 pt-4 pb-6 border-y border-dashed bg-muted/5 px-4 rounded-xl">
                     <FormField control={form.control} name="paymentMode" render={({ field }) => (
                         <FormItem className="space-y-2">
-                            <FormLabel>Payment Mode</FormLabel>
+                            <FormLabel>Payment Status</FormLabel>
                             <div className="flex flex-col gap-3">
-                                <div className="flex gap-2 max-w-md">
+                                <div className="flex flex-wrap gap-2 max-w-2xl">
                                     <Button
                                         type="button"
                                         variant={field.value === 'Cash' ? 'default' : 'outline'}
-                                        className="flex-1 h-10"
+                                        className="h-10 px-4"
                                         onClick={() => field.onChange('Cash')}
                                     >
                                         <Wallet className="mr-2 h-4 w-4" /> Cash
@@ -392,7 +401,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     <Button
                                         type="button"
                                         variant={field.value === 'Bank' ? 'default' : 'outline'}
-                                        className="flex-1 h-10"
+                                        className="h-10 px-4"
                                         onClick={() => field.onChange('Bank')}
                                     >
                                         <Building2 className="mr-2 h-4 w-4" /> Bank
@@ -400,7 +409,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     <Button
                                         type="button"
                                         variant={field.value === 'Mixed' ? 'default' : 'outline'}
-                                        className="flex-1 h-10"
+                                        className="h-10 px-4"
                                         onClick={() => {
                                             field.onChange('Mixed');
                                             if (watchedCashAmount === 0 && watchedBankAmount === 0) {
@@ -411,25 +420,56 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     >
                                         <ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed
                                     </Button>
+                                    <Button
+                                        type="button"
+                                        variant={field.value === 'Credit' ? 'default' : 'outline'}
+                                        className="h-10 px-4"
+                                        onClick={() => field.onChange('Credit')}
+                                    >
+                                        <HandCoins className="mr-2 h-4 w-4" /> Credit (Pay Later)
+                                    </Button>
                                 </div>
                                 
-                                {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
-                                    <FormField control={form.control} name="accountId" render={({ field: accountField }) => (
-                                        <FormItem className="animate-in fade-in slide-in-from-top-1 max-w-md">
-                                            <Select onValueChange={accountField.onChange} value={accountField.value}>
-                                                <FormControl>
-                                                    <SelectTrigger className="h-9 text-xs border-primary/20 bg-primary/5">
-                                                        <SelectValue placeholder={watchedType === 'Loan Repayment' ? "Select loan account..." : "Select bank account..."} />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {sortedAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )} />
-                                )}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+                                    {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
+                                        <FormField control={form.control} name="accountId" render={({ field: accountField }) => (
+                                            <FormItem className="animate-in fade-in slide-in-from-top-1">
+                                                <Select onValueChange={accountField.onChange} value={accountField.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger className="h-9 text-xs border-primary/20 bg-primary/5">
+                                                            <SelectValue placeholder={watchedType === 'Loan Repayment' ? "Select loan account..." : "Select bank account..."} />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {sortedAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                    )}
+
+                                    {watchedMode === 'Credit' && (
+                                        <FormField control={form.control} name="dueDate" render={({ field: dueField }) => (
+                                            <FormItem className="animate-in fade-in slide-in-from-top-1">
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <FormControl>
+                                                            <Button variant="outline" className={cn("w-full h-9 text-xs justify-start text-left font-normal border-amber-200 bg-amber-50/50 text-amber-900", !dueField.value && "text-muted-foreground")}>
+                                                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                                                {dueField.value ? `Pay on: ${toNepaliDate(dueField.value.toISOString())}` : <span>Set Payment Due Date</span>}
+                                                            </Button>
+                                                        </FormControl>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="start">
+                                                        <DualCalendar selected={dueField.value || undefined} onSelect={dueField.onChange} />
+                                                    </PopoverContent>
+                                                </Popover>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                    )}
+                                </div>
                             </div>
                         </FormItem>
                     )} />

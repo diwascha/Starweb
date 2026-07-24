@@ -17,7 +17,9 @@ import {
   Users,
   Truck,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  HandCoins,
+  History
 } from 'lucide-react';
 import type { Vehicle, Party } from '@/lib/types';
 import type { Expense } from '@/lib/expense-types';
@@ -268,13 +270,13 @@ export default function ExpenseLogsPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Daily Expense Logs</h1>
-                    <p className="text-muted-foreground">Historical records of truck advances, maintenance, and petty cash purchases.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">Expense History</h1>
+                    <p className="text-muted-foreground">Historical records of all truck procurement, advances, and maintenance.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input type="search" placeholder="Search logs..." className="pl-8 sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type="search" placeholder="Search history..." className="pl-8 sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
                     {hasPermission('fleet', 'create') && (
                         <Button onClick={() => router.push('/fleet/transactions/expenses/new')}>
@@ -349,6 +351,7 @@ export default function ExpenseLogsPage() {
                                 <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-xs">Voucher # <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                 <TableHead className="text-xs">Vehicle</TableHead>
                                 <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-xs">Type <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                <TableHead className="text-xs">Settlement</TableHead>
                                 <TableHead className="text-xs">Payee / Detail</TableHead>
                                 <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-xs text-right w-full">Total Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                 <TableHead className="text-right text-xs">Actions</TableHead>
@@ -356,7 +359,7 @@ export default function ExpenseLogsPage() {
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={7} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                             ) : paginatedExpenses.map(e => (
                                 <TableRow key={e.id} className="hover:bg-muted/30 h-14">
                                     <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
@@ -377,6 +380,17 @@ export default function ExpenseLogsPage() {
                                             {e.expenseType}
                                         </Badge>
                                     </TableCell>
+                                    <TableCell>
+                                        {e.paymentMode === 'Credit' ? (
+                                            <div className="flex items-center gap-1 text-amber-600 font-bold text-[9px] uppercase">
+                                                <HandCoins className="h-3 w-3" />
+                                                <span>Credit</span>
+                                                {e.dueDate && <span className="opacity-60 text-[8px] font-normal"> (Due: {toNepaliDate(e.dueDate)})</span>}
+                                            </div>
+                                        ) : (
+                                            <Badge variant="ghost" className="text-[9px] uppercase font-medium bg-muted/50">{e.paymentMode}</Badge>
+                                        )}
+                                    </TableCell>
                                     <TableCell className="py-3">
                                         <div className="flex flex-col">
                                             <span className="text-[11px] font-semibold text-gray-900">
@@ -396,13 +410,13 @@ export default function ExpenseLogsPage() {
                                                 <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/new`)}><PlusCircle className="mr-2 h-4 w-4" /> New Entry</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                 <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
-                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the record and its financial impact. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {!isLoading && filteredAndSortedExpenses.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground italic">No expense records found.</TableCell></TableRow>}
+                            {!isLoading && filteredAndSortedExpenses.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground italic">No records found.</TableCell></TableRow>}
                         </TableBody>
                     </Table>
                 </CardContent>

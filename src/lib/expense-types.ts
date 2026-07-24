@@ -2,20 +2,21 @@ export type ExpenseType = 'Advance' | 'Maintenance' | 'Purchase' | 'Loan Repayme
 
 export interface Expense {
     id: string;
-    voucherNo: string; // Added for entry numbering
+    voucherNo: string;
     date: string; // ISO string
     vehicleId: string;
     expenseType: ExpenseType;
-    partyId?: string | null; // For Maintenance, Purchase, Membership
-    accountId?: string | null; // For Loan Repayment and Bank payment mode
-    itemId?: string | null; // Optional for Purchase
-    destination?: string | null; // For Advance/Peski tracking
+    partyId?: string | null;
+    accountId?: string | null;
+    itemId?: string | null;
+    destination?: string | null;
     amount: number;
-    extraAmount?: number; // Added for combined payments (e.g. 5k peski + 1k maintenance)
-    extraRemarks?: string | null; // Added to explain extra amounts
-    paymentMode: 'Cash' | 'Bank' | 'Mixed'; // Support for split payments
-    cashAmount?: number; // Amount paid in cash for Mixed mode
-    bankAmount?: number; // Amount paid via bank for Mixed mode
+    extraAmount?: number;
+    extraRemarks?: string | null;
+    paymentMode: 'Cash' | 'Bank' | 'Mixed' | 'Credit'; // Added Credit
+    cashAmount?: number;
+    bankAmount?: number;
+    dueDate?: string | null; // Added for Credit terms
     remarks?: string | null;
     createdBy: string;
     createdAt: string; // ISO string
