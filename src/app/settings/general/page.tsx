@@ -45,7 +45,12 @@ import {
   History,
   X,
   Info,
-  ChevronRight
+  ChevronRight,
+  FileText,
+  ShoppingCart,
+  Truck,
+  Calculator,
+  Home
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -83,6 +88,15 @@ const getModuleDisplayName = (m: Module): string => {
 };
 
 const CORE_MODULES: string[] = ['dashboard', 'settings', 'notes'];
+
+// Grouping document types by module for settings UI
+const groupedDocumentTypes: { label: string; icon: any; types: DocumentType[] }[] = [
+    { label: "Manufacturing Reports", icon: FileText, types: ['report'] },
+    { label: "Procurement", icon: ShoppingCart, types: ['purchaseOrder'] },
+    { label: "Fleet & Logistics", icon: Truck, types: ['sales', 'expense', 'paymentReceipt', 'purchase'] },
+    { label: "Finance & Accounts", icon: Calculator, types: ['estimateInvoice', 'tdsVoucher', 'chequeVoucher'] },
+    { label: "Rental Management", icon: Home, types: ['rentalBill'] }
+];
 
 export default function GeneralSettingsPage() {
   const { user } = useAuth();
@@ -591,72 +605,75 @@ export default function GeneralSettingsPage() {
                 </Card>
             </TabsContent>
 
-            <TabsContent value="numbering" className="animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
-                    <CardHeader className="bg-muted/10 border-b py-4 px-6">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="text-sm font-black uppercase">Master Document Numbering</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <Table className="text-xs">
-                            <TableHeader className="bg-muted/50">
-                                <TableRow className="hover:bg-transparent">
-                                    <TableHead className="pl-6 font-bold uppercase">Document Class</TableHead>
-                                    <TableHead className="font-bold uppercase">Active Prefix</TableHead>
-                                    <TableHead className="font-bold uppercase text-center">Start #</TableHead>
-                                    <TableHead className="font-bold uppercase">Period (BS)</TableHead>
-                                    <TableHead className="text-right pr-6 font-bold uppercase">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {documentTypes.map(t => {
-                                    const rawRules = prefixes[t];
-                                    const rules = Array.isArray(rawRules) ? (rawRules as any) : [];
-                                    const active = rules.find((r: any) => r.status === 'Active');
-                                    
-                                    return (
-                                        <TableRow key={t} className="h-14 border-b">
-                                            <TableCell className="font-black pl-6 text-gray-900 uppercase tracking-tighter">{getDocumentName(t)}</TableCell>
-                                            <TableCell className="font-mono text-blue-600 font-black">{active?.prefix || (typeof rawRules === 'string' ? rawRules : '(System Default)')}</TableCell>
-                                            <TableCell className="text-center font-bold">{active?.startingNumber.toString().padStart(3, '0') || '001'}</TableCell>
-                                            <TableCell className="text-muted-foreground italic">
-                                                {active ? (
-                                                    <>
-                                                        {toNepaliDate(active.effectiveFrom)} 
-                                                        {active.effectiveTo ? ` — ${toNepaliDate(active.effectiveTo)}` : ' — Open'}
-                                                    </>
-                                                ) : typeof rawRules === 'string' ? (
-                                                    <span className="text-[10px] font-black uppercase text-amber-600">Legacy String</span>
-                                                ) : 'N/A'}
-                                            </TableCell>
-                                            <TableCell className="text-right pr-6 space-x-1">
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="sm" 
-                                                    className="h-8 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary" 
-                                                    onClick={() => { setHistoryKey(t); setIsHistoryDialogOpen(true); }}
-                                                >
-                                                    <History className="mr-1.5 h-3.5 w-3.5" />
-                                                    View History
-                                                </Button>
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="sm" 
-                                                    className="h-8 text-[10px] font-black uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5" 
-                                                    onClick={() => openNumberingDialog(t)}
-                                                >
-                                                    <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
-                                                    Change Rule
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+            <TabsContent value="numbering" className="animate-in fade-in slide-in-from-left-2 space-y-6">
+                {groupedDocumentTypes.map((group) => (
+                    <Card key={group.label} className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                        <CardHeader className="bg-muted/10 border-b py-3 px-6">
+                            <div className="flex items-center gap-2">
+                                <group.icon className="h-4 w-4 text-primary" />
+                                <CardTitle className="text-sm font-black uppercase tracking-tight">{group.label}</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <Table className="text-xs">
+                                <TableHeader className="bg-muted/30">
+                                    <TableRow className="hover:bg-transparent h-10">
+                                        <TableHead className="pl-6 font-bold uppercase text-[9px]">Document Class</TableHead>
+                                        <TableHead className="font-bold uppercase text-[9px]">Active Prefix</TableHead>
+                                        <TableHead className="font-bold uppercase text-[9px] text-center">Start #</TableHead>
+                                        <TableHead className="font-bold uppercase text-[9px]">Period (BS)</TableHead>
+                                        <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {group.types.map(t => {
+                                        const rawRules = prefixes[t];
+                                        const rules = Array.isArray(rawRules) ? (rawRules as any) : [];
+                                        const active = rules.find((r: any) => r.status === 'Active');
+                                        
+                                        return (
+                                            <TableRow key={t} className="h-12 border-b">
+                                                <TableCell className="font-black pl-6 text-gray-900 uppercase tracking-tighter">{getDocumentName(t)}</TableCell>
+                                                <TableCell className="font-mono text-blue-600 font-black">{active?.prefix || (typeof rawRules === 'string' ? rawRules : '(System Default)')}</TableCell>
+                                                <TableCell className="text-center font-bold">{active?.startingNumber.toString().padStart(3, '0') || '001'}</TableCell>
+                                                <TableCell className="text-muted-foreground italic text-[10px]">
+                                                    {active ? (
+                                                        <>
+                                                            {toNepaliDate(active.effectiveFrom)} 
+                                                            {active.effectiveTo ? ` — ${toNepaliDate(active.effectiveTo)}` : ' — Open'}
+                                                        </>
+                                                    ) : typeof rawRules === 'string' ? (
+                                                        <span className="text-[9px] font-black uppercase text-amber-600">Legacy String</span>
+                                                    ) : 'N/A'}
+                                                </TableCell>
+                                                <TableCell className="text-right pr-6 space-x-1">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        className="h-7 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary" 
+                                                        onClick={() => { setHistoryKey(t); setIsHistoryDialogOpen(true); }}
+                                                    >
+                                                        <History className="mr-1 h-3 w-3" />
+                                                        History
+                                                    </Button>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm" 
+                                                        className="h-7 text-[9px] font-black uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5" 
+                                                        onClick={() => openNumberingDialog(t)}
+                                                    >
+                                                        <RefreshCcw className="mr-1 h-3 w-3" />
+                                                        Update
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                ))}
             </TabsContent>
         </Tabs>
 
