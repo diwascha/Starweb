@@ -144,7 +144,10 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         defaultValues: {
             voucherNo: expenseToEdit?.voucherNo || initialVoucherNo,
             date: expenseToEdit ? new Date(expenseToEdit.date) : new Date(),
-            expenseType: expenseToEdit?.expenseType || 'Advance',
+            // Map legacy types to Vendor Purchase if necessary
+            expenseType: (expenseToEdit?.expenseType === 'Advance' || expenseToEdit?.expenseType === 'Maintenance' || expenseToEdit?.expenseType === 'Loan Repayment') 
+                ? expenseToEdit.expenseType 
+                : (expenseToEdit?.expenseType ? 'Vendor Purchase' : 'Advance'),
             paymentMode: expenseToEdit?.paymentMode || 'Cash',
             amount: expenseToEdit?.amount || 0,
             extraAmount: expenseToEdit?.extraAmount || 0,
@@ -175,8 +178,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
     const watchedType = form.watch('expenseType');
     const watchedMode = form.watch('paymentMode');
-    const watchedPartyId = form.watch('partyId');
-    const watchedDestinationName = form.watch('destination');
     const watchedAmount = form.watch('amount');
     const watchedExtraAmount = form.watch('extraAmount');
     const watchedCashAmount = form.watch('cashAmount');
@@ -211,6 +212,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     [accounts]);
     const sortedDestinations = useMemo(() => [...destinations].sort((a, b) => a.name.localeCompare(b.name)), [destinations]);
 
+    const watchedDestinationName = form.watch('destination');
     const routeStandardAmount = useMemo(() => {
         if (watchedType !== 'Advance' || !watchedDestinationName) return null;
         const dest = sortedDestinations.find(d => d.name === watchedDestinationName);
@@ -218,6 +220,17 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     }, [watchedType, watchedDestinationName, sortedDestinations]);
 
     const totalSettlement = (watchedAmount || 0) + (watchedExtraAmount || 0);
+
+    const handleOpenDestinationDialog = (destination: Destination | null = null) => {
+        if (destination) {
+            setEditingDestination(destination);
+            setDestForm({ name: destination.name, standardAdvance: destination.standardAdvanceAmount || 0, remarks: destination.remarks || '' });
+        } else {
+            setEditingDestination(null);
+            setDestForm({ name: destSearch, standardAdvance: 0, remarks: '' });
+        }
+        setIsDestDialogOpen(true);
+    };
 
     const onSubmit = async (values: ExpenseFormValues) => {
         if (!user) return;
@@ -294,17 +307,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         }
     };
 
-    const handleOpenDestinationDialog = (destination: Destination | null = null) => {
-        if (destination) {
-            setEditingDestination(destination);
-            setDestForm({ name: destination.name, standardAdvance: destination.standardAdvanceAmount || 0, remarks: destination.remarks || '' });
-        } else {
-            setEditingDestination(null);
-            setDestForm({ name: destSearch, standardAdvance: 0, remarks: '' });
-        }
-        setIsDestDialogOpen(true);
-    };
-
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -313,7 +315,9 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                         <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono text-sm" /></FormControl></FormItem>
                     )} />
                     <FormField control={form.control} name="date" render={({ field }) => (
-                        <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-10", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : "Select Date"}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>
+                        <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-10", !field.value && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : "Select Date"}
+                        </Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>
                     )} />
                     <FormField control={form.control} name="vehicleId" render={({ field }) => (
                         <FormItem><FormLabel>Truck (Vehicle) <span className="text-destructive">*</span></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-10"><SelectValue placeholder="Select a truck" /></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select></FormItem>

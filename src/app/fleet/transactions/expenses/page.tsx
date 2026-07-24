@@ -20,7 +20,8 @@ import {
   ChevronRight,
   History,
   Tag,
-  Wallet
+  Wallet,
+  Eye
 } from 'lucide-react';
 import type { Vehicle, Party } from '@/lib/types';
 import type { Expense } from '@/lib/expense-types';
@@ -230,7 +231,7 @@ export default function ExpenseLogsPage() {
         });
 
         return filtered;
-    }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, filterExpenseTypes, filterPaymentModes, sortConfig, vehiclesById]);
+    }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, filterExpenseTypes, filterPaymentModes, sortConfig, vehiclesById, partiesById]);
 
     const paginatedExpenses = useMemo(() => {
         if (itemsPerPage === -1) return filteredAndSortedExpenses;
@@ -400,7 +401,7 @@ export default function ExpenseLogsPage() {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                            ) : paginatedLogs.map(e => (
+                            ) : paginatedExpenses.map((e: Expense) => (
                                 <TableRow key={e.id} className="hover:bg-muted/30 h-14">
                                     <TableCell className="pl-6 font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
                                     <TableCell className="font-mono text-[11px] font-bold text-blue-600">{e.voucherNo}</TableCell>
@@ -461,13 +462,13 @@ export default function ExpenseLogsPage() {
                                 <>Showing all <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span> entries</>
                             ) : (
                                 <>
-                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedExpenses.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span> entries
+                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span>–<span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedExpenses.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span>
                                 </>
                             )}
                         </div>
                         <div className="flex items-center gap-6">
                             <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows</span>
                                 <Select value={String(itemsPerPage)} onValueChange={(v) => {
                                     setItemsPerPage(parseInt(v));
                                     setCurrentPage(1);
