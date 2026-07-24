@@ -23,7 +23,8 @@ import {
   Edit,
   Wallet,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -46,7 +47,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format, isWithinInterval, startOfDay, endOfDay, isBefore } from 'date-fns';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
-import { onTransactionsUpdate, deleteVoucher } from '@/services/transaction-service';
+import { onTransactionsUpdate, deleteVoucher, deleteTransaction } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onSettingUpdate } from '@/services/settings-service';
@@ -690,21 +691,69 @@ export default function FleetTransactionsPage() {
                                         <TableCell className="text-right font-bold text-red-500 tabular-nums">{entry.debit > 0 ? entry.debit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
                                         <TableCell className="text-right font-bold text-emerald-600 tabular-nums">{entry.credit > 0 ? entry.credit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
                                         <TableCell className="text-right font-black tabular-nums">
-                                            <div className="flex items-center justify-end gap-2 group/balance">
-                                                <span>
-                                                    {Math.abs(entry.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })} {entry.balance >= 0 ? 'Dr' : 'Cr'}
-                                                </span>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-3 w-3 opacity-0 group-hover/balance:opacity-100 transition-opacity"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        router.push(entry.voucherId ? `/fleet/transactions/payment-receipt/edit?voucherId=${entry.voucherId}` : `/fleet/transactions/purchase/edit?id=${entry.id}`);
-                                                    }}
-                                                >
-                                                    <Edit className="h-3 w-3" />
-                                                </Button>
+                                            <div className="flex items-center justify-end gap-1 group/balance">
+                                                <div className="flex flex-col items-end mr-1">
+                                                    <span className="leading-none">
+                                                        {Math.abs(entry.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </span>
+                                                    <span className="text-[9px] font-bold opacity-60">
+                                                        {entry.balance >= 0 ? 'Dr' : 'Cr'}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="flex gap-0.5 opacity-0 group-hover/balance:opacity-100 transition-opacity ml-1">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-6 w-6 text-blue-600 hover:bg-blue-50"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            router.push(entry.voucherId ? `/fleet/transactions/payment-receipt/edit?voucherId=${entry.voucherId}` : `/fleet/transactions/purchase/edit?id=${entry.id}`);
+                                                        }}
+                                                    >
+                                                        <Edit className="h-3 w-3" />
+                                                    </Button>
+                                                    
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                className="h-6 w-6 text-destructive hover:bg-red-50"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Delete Entry?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    {entry.voucherId 
+                                                                        ? "This entry is part of a voucher. Deleting it will remove the entire voucher and all its linked entries."
+                                                                        : "This will permanently delete this purchase record from the ledger."
+                                                                    }
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction 
+                                                                    className="bg-destructive text-white hover:bg-destructive/90"
+                                                                    onClick={async () => {
+                                                                        if (entry.voucherId) {
+                                                                            await deleteVoucher(entry.voucherId);
+                                                                        } else {
+                                                                            await deleteTransaction(entry.id);
+                                                                        }
+                                                                        toast({ title: 'Entry Removed' });
+                                                                    }}
+                                                                >
+                                                                    Confirm Delete
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
                                             </div>
                                         </TableCell>
                                     </TableRow>
