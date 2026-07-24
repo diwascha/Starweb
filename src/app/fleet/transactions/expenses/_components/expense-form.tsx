@@ -68,8 +68,8 @@ import { Separator } from '@/components/ui/separator';
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
     { type: 'Maintenance', label: 'Maintenance Fee', sub: 'Repair / Service', icon: Wrench, color: 'text-blue-600 bg-blue-50 border-blue-200' },
-    { type: 'Vendor Purchase', label: 'Vendor Purchase', sub: 'Parts, Fuel, Spares', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
     { type: 'Loan Repayment', label: 'Loan Repayment', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
+    { type: 'Vendor Purchase', label: 'Vendor Purchase', sub: 'Parts, Fuel, Spares', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
 ];
 
 const expenseSchema = z.object({
@@ -111,6 +111,10 @@ const expenseSchema = z.object({
     if (data.paymentMode === 'Credit') return !!data.dueDate;
     return true;
 }, { message: "Due date is required for credit entries.", path: ['dueDate'] })
+.refine(data => {
+    if (data.paymentMode === 'Credit') return data.expenseType === 'Vendor Purchase';
+    return true;
+}, { message: "Credit is only allowed for Vendor Purchases.", path: ['paymentMode'] })
 .refine(data => {
     if (data.paymentMode === 'Mixed') {
         const totalExpected = data.amount + (data.extraAmount || 0);
@@ -196,6 +200,13 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const watchedExtraAmount = form.watch('extraAmount');
     const watchedCashAmount = form.watch('cashAmount');
     const watchedBankAmount = form.watch('bankAmount');
+
+    // Rule: Revert from Credit if user switches to a restricted type
+    useEffect(() => {
+        if (watchedType !== 'Vendor Purchase' && watchedMode === 'Credit') {
+            form.setValue('paymentMode', 'Cash');
+        }
+    }, [watchedType, watchedMode, form]);
 
     useEffect(() => {
         const unsubDest = onDestinationsUpdate(setDestinations);
@@ -427,14 +438,16 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     >
                                         <ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed
                                     </Button>
-                                    <Button
-                                        type="button"
-                                        variant={field.value === 'Credit' ? 'default' : 'outline'}
-                                        className="h-10 px-4"
-                                        onClick={() => field.onChange('Credit')}
-                                    >
-                                        <HandCoins className="mr-2 h-4 w-4" /> Credit (Pay Later)
-                                    </Button>
+                                    {watchedType === 'Vendor Purchase' && (
+                                        <Button
+                                            type="button"
+                                            variant={field.value === 'Credit' ? 'default' : 'outline'}
+                                            className="h-10 px-4 animate-in fade-in zoom-in-95"
+                                            onClick={() => field.onChange('Credit')}
+                                        >
+                                            <HandCoins className="mr-2 h-4 w-4" /> Credit (Pay Later)
+                                        </Button>
+                                    )}
                                 </div>
                                 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
