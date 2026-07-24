@@ -402,6 +402,36 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 </div>
 
+                <div className="space-y-4">
+                    <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Expense Type <span className="text-destructive">*</span></FormLabel>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {expenseTypes.map((item) => (
+                            <button
+                                key={item.type}
+                                type="button"
+                                onClick={() => form.setValue('expenseType', item.type as any)}
+                                className={cn(
+                                    "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 text-center group",
+                                    watchedType === item.type 
+                                        ? cn("ring-2 ring-primary border-primary bg-primary/5", item.color.split(' ')[0])
+                                        : "border-muted bg-white hover:bg-muted/50 text-muted-foreground"
+                                )}
+                            >
+                                <div className={cn(
+                                    "p-2 rounded-lg transition-colors",
+                                    watchedType === item.type ? item.color.split(' ')[1] : "bg-muted/50 group-hover:bg-muted"
+                                )}>
+                                    <item.icon className={cn("h-5 w-5", watchedType === item.type ? item.color.split(' ')[0] : "text-muted-foreground")} />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <span className="text-[11px] font-bold block leading-tight">{item.label}</span>
+                                    <span className="text-[9px] opacity-70 block leading-tight">{item.sub}</span>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 <div className="space-y-6 pt-4 pb-6 border-y border-dashed bg-muted/5 px-4 rounded-xl">
                     <FormField control={form.control} name="paymentMode" render={({ field }) => (
                         <FormItem className="space-y-2">
@@ -493,36 +523,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                             </div>
                         </FormItem>
                     )} />
-                </div>
-
-                <div className="space-y-4">
-                    <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Expense Type <span className="text-destructive">*</span></FormLabel>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {expenseTypes.map((item) => (
-                            <button
-                                key={item.type}
-                                type="button"
-                                onClick={() => form.setValue('expenseType', item.type as any)}
-                                className={cn(
-                                    "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 text-center group",
-                                    watchedType === item.type 
-                                        ? cn("ring-2 ring-primary border-primary bg-primary/5", item.color.split(' ')[0])
-                                        : "border-muted bg-white hover:bg-muted/50 text-muted-foreground"
-                                )}
-                            >
-                                <div className={cn(
-                                    "p-2 rounded-lg transition-colors",
-                                    watchedType === item.type ? item.color.split(' ')[1] : "bg-muted/50 group-hover:bg-muted"
-                                )}>
-                                    <item.icon className={cn("h-5 w-5", watchedType === item.type ? item.color.split(' ')[0] : "text-muted-foreground")} />
-                                </div>
-                                <div className="space-y-0.5">
-                                    <span className="text-[11px] font-bold block leading-tight">{item.label}</span>
-                                    <span className="text-[9px] opacity-70 block leading-tight">{item.sub}</span>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
                 </div>
 
                 {watchedType === 'Advance' && (
@@ -917,7 +917,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                         </div>
                         <div className="space-y-2">
                             <Label>PAN Number</Label>
-                            <Input value={partyForm.panNumber} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} placeholder="Tax Identification Number" />
+                            <Input value={partyForm.panNumber} onChange={e => setTenantForm({...partyForm, panNumber: e.target.value})} placeholder="Tax Identification Number" />
                         </div>
                         <div className="space-y-2">
                             <Label>Address</Label>
