@@ -1,4 +1,4 @@
-export type ExpenseType = 'Advance' | 'Maintenance' | 'Vendor Purchase' | 'Loan Repayment' | 'Purchase' | 'Membership Renewal' | 'Shivam / Others';
+export type ExpenseType = 'Advance' | 'Maintenance' | 'Loan Repayment' | 'General Expense';
 
 export interface Expense {
     id: string;
@@ -13,12 +13,9 @@ export interface Expense {
     amount: number;
     extraAmount?: number;
     extraRemarks?: string | null;
-    paymentMode: 'Cash' | 'Bank' | 'Mixed' | 'Credit';
+    paymentMode: 'Cash' | 'Bank' | 'Mixed';
     cashAmount?: number;
     bankAmount?: number;
-    dueDate?: string | null;
-    invoiceNumber?: string | null;
-    invoiceDate?: string | null;
     remarks?: string | null;
     createdBy: string;
     createdAt: string; // ISO string

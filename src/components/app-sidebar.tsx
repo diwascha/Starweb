@@ -395,13 +395,16 @@ export function AppSidebar() {
                                     <SidebarGroupLabel className="px-5 py-2 text-[10px] uppercase text-muted-foreground font-bold">Data Entry</SidebarGroupLabel>
                                     <SidebarMenuSub>
                                         <SidebarMenuSubItem>
-                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}><Link href="/fleet/trip-sheets/new" className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /><span>Sales Entry</span></Link></SidebarMenuSubButton>
+                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}><Link href="/fleet/trip-sheets/new" className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-600" /><span>Sales Entry</span></Link></SidebarMenuSubButton>
                                         </SidebarMenuSubItem>
                                         <SidebarMenuSubItem>
-                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}><Link href="/fleet/transactions/expenses/new" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Expense Entry</span></Link></SidebarMenuSubButton>
+                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}><Link href="/fleet/transactions/purchase/new" className="flex items-center gap-2"><ShoppingCart className="h-4 w-4 text-blue-600" /><span>Purchase Entry</span></Link></SidebarMenuSubButton>
                                         </SidebarMenuSubItem>
                                         <SidebarMenuSubItem>
-                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}><Link href="/fleet/transactions/payment-receipt/new" className="flex items-center gap-2"><ArrowRightLeft className="h-4 w-4" /><span>Payment / Receipt</span></Link></SidebarMenuSubButton>
+                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}><Link href="/fleet/transactions/expenses/new" className="flex items-center gap-2"><Wallet className="h-4 w-4 text-orange-600" /><span>Expense Entry</span></Link></SidebarMenuSubButton>
+                                        </SidebarMenuSubItem>
+                                        <SidebarMenuSubItem>
+                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}><Link href="/fleet/transactions/payment-receipt/new" className="flex items-center gap-2"><ArrowRightLeft className="h-4 w-4 text-purple-600" /><span>Payment / Receipt</span></Link></SidebarMenuSubButton>
                                         </SidebarMenuSubItem>
                                     </SidebarMenuSub>
                                 </>
@@ -410,6 +413,7 @@ export function AppSidebar() {
                             <SidebarGroupLabel className="px-5 py-2 text-[10px] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
                             <SidebarMenuSub>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/trip-sheets', true)}><Link href="/fleet/trip-sheets" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Sales Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/purchase', true)}><Link href="/fleet/transactions/purchase" className="flex items-center gap-2"><ShoppingCart className="h-4 w-4" /><span>Purchase History</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/expenses', true)}><Link href="/fleet/transactions/expenses" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Expense History</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/list', true)}><Link href="/fleet/transactions/payment-receipt/list" className="flex items-center gap-2"><Receipt className="h-4 w-4" /><span>Pmt. / Rcd. logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions" className="flex items-center gap-2"><CreditCard className="h-4 w-4" /><span>Sijan Reports</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
