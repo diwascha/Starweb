@@ -31,6 +31,7 @@ interface LedgerReportPreviewProps {
     period: string;
     parties: string;
     vehicles: string;
+    paymentModes?: string;
   };
 }
 
@@ -112,7 +113,8 @@ export function LedgerReportPreview({
         doc.text(`Period: ${filters.period}`, 14, 38);
         doc.text(`Parties: ${filters.parties}`, 14, 43);
         doc.text(`Vehicles: ${filters.vehicles}`, 14, 48);
-        doc.text(`Report Generated: ${nowStr}`, 14, 53);
+        if (filters.paymentModes) doc.text(`Modes: ${filters.paymentModes}`, 14, 53);
+        doc.text(`Report Generated: ${nowStr}`, 14, filters.paymentModes ? 58 : 53);
 
         const body = [
             ['', '', 'Balance B/F (Opening)', '-', '-', '-', '-', `${Math.abs(ledgerData.stats.opening).toLocaleString(undefined, {minimumFractionDigits: 2})} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
@@ -129,7 +131,7 @@ export function LedgerReportPreview({
         ];
 
         autoTable(doc, {
-            startY: 60,
+            startY: filters.paymentModes ? 65 : 60,
             head: [['Date (BS)', 'Ref No.', 'Particulars / Description', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance']],
             body: body,
             theme: 'grid',
@@ -187,6 +189,7 @@ export function LedgerReportPreview({
                     <div className="meta-item">
                         <p><b>Period:</b> {filters.period}</p>
                         <p><b>Entities:</b> {filters.parties} | {filters.vehicles}</p>
+                        {filters.paymentModes && <p><b>Payment Modes:</b> {filters.paymentModes}</p>}
                     </div>
                     <div className="meta-item text-right">
                         <p><b>Generated:</b> {format(new Date(), 'PPP p')}</p>

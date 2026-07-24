@@ -51,6 +51,7 @@ import { onTransactionsUpdate, deleteVoucher, deleteTransaction } from '@/servic
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onSettingUpdate } from '@/services/settings-service';
+import { onAccountsUpdate } from '@/services/account-service';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -168,13 +169,10 @@ export default function FleetTransactionsPage() {
             onTransactionsUpdate(setTransactions),
             onVehiclesUpdate(setVehicles),
             onPartiesUpdate(setParties),
+            onAccountsUpdate(setAccounts),
             onSettingUpdate('fleetCompanyProfile', (s) => { if (s?.value) setFleetProfile(s.value); }),
-            onSettingUpdate('accounts', (s) => { if (s?.value) setAccounts(s.value); })
         ];
         
-        // Use service layer getters for initial load
-        import('@/services/account-service').then(m => m.getAccounts(true).then(setAccounts));
-
         setIsLoading(false);
         return () => unsubs.forEach(unsub => unsub());
     }, []);
@@ -186,6 +184,7 @@ export default function FleetTransactionsPage() {
 
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
+    const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a.bankName || a.name])), [accounts]);
     const categories = useMemo(() => Array.from(new Set(transactions.map(t => t.category || (t.type === 'Sales' ? 'Freight' : t.type)))).filter(Boolean).sort(), [transactions]);
 
     const availableYears = useMemo(() => {
@@ -225,7 +224,8 @@ export default function FleetTransactionsPage() {
                 partyName: t.partyId ? partiesById.get(t.partyId) || 'Unassigned' : 'Unassigned',
                 refNo: t.purchaseNumber || t.referenceId || (t.tripId ? 'Trip' : 'JV'),
                 categoryDisplay: (t.category || (t.type === 'Sales' ? 'Freight' : t.type)).toUpperCase(),
-                lineItemsSummary: (t.items || []).map(i => i.particular).join(', ')
+                lineItemsSummary: (t.items || []).map(i => i.particular).join(', '),
+                accountName: t.accountId ? accountsById.get(t.accountId) : undefined
             };
         });
 
@@ -240,6 +240,8 @@ export default function FleetTransactionsPage() {
                 const isMatched = filterBillingTypes.some(val => {
                     if (val === 'Cash') return t.billingType === 'Cash';
                     if (val === 'Credit') return t.billingType === 'Credit';
+                    // Strict separation: Cash portions of Mixed payments have accountId: null, 
+                    // while Bank portions have the accountId. Filter strictly by ID match.
                     return t.accountId === val;
                 });
                 if (!isMatched) return false;
@@ -328,7 +330,7 @@ export default function FleetTransactionsPage() {
                 count: processed.length
             }
         };
-    }, [transactions, filterParties, filterVehicles, filterBillingTypes, selectedBsYear, selectedBsMonth, dateRange, filterCategory, globalSearch, vehiclesById, partiesById]);
+    }, [transactions, filterParties, filterVehicles, filterBillingTypes, selectedBsYear, selectedBsMonth, dateRange, filterCategory, globalSearch, vehiclesById, partiesById, accountsById]);
 
     const paginatedEntries = useMemo(() => {
         if (itemsPerPage === -1) return ledgerData.entries;
@@ -847,6 +849,7 @@ export default function FleetTransactionsPage() {
                     period: dateRange?.from ? `${toNepaliDate(dateRange.from.toISOString())} - ${dateRange.to ? toNepaliDate(dateRange.to.toISOString()) : 'Present'}` : 'All Time',
                     parties: filterParties.length === 0 ? 'All' : filterParties.map(id => partiesById.get(id)).join(', '),
                     vehicles: filterVehicles.length === 0 ? 'All' : filterVehicles.map(id => vehiclesById.get(id)).join(', '),
+                    paymentModes: filterBillingTypes.length === 0 ? 'All' : filterBillingTypes.map(id => id === 'Cash' ? 'Cash' : id === 'Credit' ? 'Credit' : accountsById.get(id) || 'Bank').join(', ')
                 }}
             />
         </div>
