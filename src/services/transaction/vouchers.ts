@@ -27,13 +27,34 @@ export const saveVoucher = async (data: any, createdBy: string) => {
     const now = createTimestamp();
     
     data.items.forEach((item: any) => {
-        const ref = doc(transactionsCollection());
-        batch.set(ref, { 
-            voucherId, 
-            date: data.date.toISOString(), 
-            createdBy, 
-            createdAt: now, 
-            ...item 
+        // A single row can theoretically have both receipt and payment, though usually it's one.
+        // We create separate ledger entries for each to ensure correct filtering.
+        const types: ('Receipt' | 'Payment')[] = [];
+        if (Number(item.recAmount) > 0) types.push('Receipt');
+        if (Number(item.payAmount) > 0) types.push('Payment');
+
+        types.forEach(type => {
+            const ref = doc(transactionsCollection());
+            const amount = type === 'Receipt' ? Number(item.recAmount) : Number(item.payAmount);
+            
+            batch.set(ref, { 
+                voucherId, 
+                date: data.date.toISOString(), 
+                createdBy, 
+                createdAt: now,
+                type,
+                amount,
+                billingType: data.billingType,
+                accountId: data.billingType === 'Bank' ? data.accountId : null,
+                vehicleId: item.vehicleId || null,
+                partyId: item.ledgerId || null,
+                remarks: item.narration || data.remarks || null,
+                referenceType: "Payment/Receipt Voucher",
+                referenceId: data.voucherNo,
+                chequeNumber: data.chequeNo || null,
+                chequeDate: data.chequeDate?.toISOString() || null,
+                ownership: 'Sijan' // Fleet vouchers are Sijan scope
+            });
         });
     });
 
@@ -71,20 +92,39 @@ export const updateVoucher = async (voucherId: string, data: any, modifiedBy: st
         const batch = writeBatch(db);
         const now = createTimestamp();
 
-        // Delete existing items in the voucher
+        // Delete existing items in the voucher to handle potential row splits/merges
         txnsSnap.docs.forEach(t => batch.delete(t.ref));
 
-        // Re-add modified items
+        // Re-add modified items with correct metadata
         data.items.forEach((item: any) => {
-            const ref = doc(transactionsCollection());
-            batch.set(ref, { 
-                voucherId, 
-                date: data.date.toISOString(), 
-                createdBy: data.createdBy || modifiedBy,
-                createdAt: data.createdAt || now,
-                lastModifiedBy: modifiedBy,
-                lastModifiedAt: now,
-                ...item 
+            const types: ('Receipt' | 'Payment')[] = [];
+            if (Number(item.recAmount) > 0) types.push('Receipt');
+            if (Number(item.payAmount) > 0) types.push('Payment');
+
+            types.forEach(type => {
+                const ref = doc(transactionsCollection());
+                const amount = type === 'Receipt' ? Number(item.recAmount) : Number(item.payAmount);
+                
+                batch.set(ref, { 
+                    voucherId, 
+                    date: data.date.toISOString(), 
+                    createdBy: data.createdBy || modifiedBy,
+                    createdAt: data.createdAt || now,
+                    lastModifiedBy: modifiedBy,
+                    lastModifiedAt: now,
+                    type,
+                    amount,
+                    billingType: data.billingType,
+                    accountId: data.billingType === 'Bank' ? data.accountId : null,
+                    vehicleId: item.vehicleId || null,
+                    partyId: item.ledgerId || null,
+                    remarks: item.narration || data.remarks || null,
+                    referenceType: "Payment/Receipt Voucher",
+                    referenceId: data.voucherNo,
+                    chequeNumber: data.chequeNo || null,
+                    chequeDate: data.chequeDate?.toISOString() || null,
+                    ownership: 'Sijan'
+                });
             });
         });
 

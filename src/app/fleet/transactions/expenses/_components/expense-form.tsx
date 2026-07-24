@@ -72,6 +72,13 @@ const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; 
     { type: 'Vendor Purchase', label: 'Vendor Purchase', sub: 'Parts, Fuel, Spares', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
 ];
 
+// Shared props for numeric inputs: numeric keypad on mobile + no scroll-wheel value changes on desktop.
+const numFieldProps = {
+    type: 'number' as const,
+    inputMode: 'decimal' as const,
+    onWheel: (e: React.WheelEvent<HTMLInputElement>) => e.currentTarget.blur(),
+};
+
 const expenseSchema = z.object({
     voucherNo: z.string().min(1, "Voucher No is required."),
     date: z.date(),
@@ -118,10 +125,12 @@ const expenseSchema = z.object({
 .refine(data => {
     if (data.paymentMode === 'Mixed') {
         const totalExpected = data.amount + (data.extraAmount || 0);
-        return Math.abs((data.cashAmount + data.bankAmount) - totalExpected) < 0.01;
+        return Math.abs(((data.cashAmount || 0) + (data.bankAmount || 0)) - totalExpected) < 0.01;
     }
     return true;
 }, { message: "Cash + Bank amount must equal Total settlement amount.", path: ['cashAmount'] });
+
+type ExpenseFormValues = z.infer<typeof expenseSchema>;
 
 interface ExpenseFormProps {
     vehicles: Vehicle[];
@@ -142,7 +151,9 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     // Additional Master Data
     const [destinations, setDestinations] = useState<Destination[]>([]);
     const [destSearch, setDestSearch] = useState('');
+    const [partySearch, setPartySearch] = useState('');
     const [showExtraFields, setShowExtraFields] = useState(expenseToEdit?.extraAmount ? expenseToEdit.extraAmount > 0 : false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     
     // Quick Add States
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
@@ -153,7 +164,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const [destForm, setDestForm] = useState({ name: '', standardAdvance: 0, remarks: '' });
     const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
 
-    const form = useForm<z.infer<typeof expenseSchema>>({
+    const form = useForm<ExpenseFormValues>({
         resolver: zodResolver(expenseSchema),
         defaultValues: {
             voucherNo: expenseToEdit?.voucherNo || initialVoucherNo,
@@ -208,6 +219,23 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         }
     }, [watchedType, watchedMode, form]);
 
+    // FIX #1: Clear the combined-extra fields whenever the type leaves "Advance",
+    // otherwise a hidden extraAmount silently inflates the grand total.
+    useEffect(() => {
+        if (watchedType !== 'Advance') {
+            if (form.getValues('extraAmount')) {
+                form.setValue('extraAmount', 0);
+                form.setValue('extraRemarks', '');
+                // Re-sync Mixed split if it was based on the old (larger) total.
+                if (form.getValues('paymentMode') === 'Mixed') {
+                    form.setValue('cashAmount', form.getValues('amount') || 0);
+                    form.setValue('bankAmount', 0);
+                }
+            }
+            setShowExtraFields(false);
+        }
+    }, [watchedType, form]);
+
     useEffect(() => {
         const unsubDest = onDestinationsUpdate(setDestinations);
         return () => unsubDest();
@@ -229,7 +257,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         return dest?.standardAdvanceAmount || null;
     }, [watchedType, watchedDestinationName, sortedDestinations]);
 
-    const totalSettlement = watchedAmount + watchedExtraAmount;
+    const totalSettlement = (watchedAmount || 0) + (watchedExtraAmount || 0);
 
     const partyBalance = useMemo(() => {
         if (!watchedPartyId) return null;
@@ -244,12 +272,21 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         return balance;
     }, [watchedPartyId, transactions]);
 
-    const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
+    const onSubmit = async (values: ExpenseFormValues) => {
         if (!user) return;
         setIsSubmitting(true);
         try {
+            const isAdvance = values.expenseType === 'Advance';
+            const isMixed = values.paymentMode === 'Mixed';
+
+            // FIX #2: strip values that don't belong to the current mode/type so
+            // stale Mixed / extra amounts never get persisted.
             const payload = {
                 ...values,
+                extraAmount: isAdvance ? (values.extraAmount || 0) : 0,
+                extraRemarks: isAdvance ? (values.extraRemarks || '') : '',
+                cashAmount: isMixed ? (values.cashAmount || 0) : 0,
+                bankAmount: isMixed ? (values.bankAmount || 0) : 0,
                 date: values.date.toISOString(),
                 dueDate: values.dueDate?.toISOString() || null,
                 invoiceDate: values.invoiceDate?.toISOString() || null,
@@ -276,6 +313,23 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         }
     };
 
+    // FIX #7: on validation failure, surface a toast and scroll to the first
+    // offending field on long mobile forms.
+    const onInvalid = (errors: Record<string, any>) => {
+        const firstKey = Object.keys(errors)[0];
+        toast({ title: 'Please fix the highlighted fields', description: errors[firstKey]?.message, variant: 'destructive' });
+        const el = document.querySelector(`[name="${firstKey}"]`);
+        if (el) (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    const handleCancelClick = () => {
+        if (form.formState.isDirty) {
+            setShowCancelConfirm(true);
+        } else {
+            router.back();
+        }
+    };
+
     const handleQuickAddParty = async () => {
         if (!user || !partyForm.name || !partyForm.ownership) return;
         try {
@@ -283,7 +337,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 ...partyForm, 
                 createdBy: user.username 
             });
-            form.setValue('partyId', id);
+            form.setValue('partyId', id, { shouldValidate: true });
             setIsPartyDialogOpen(false);
             setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '', panNumber: '' });
             toast({ title: 'Party Added' });
@@ -326,7 +380,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     createdAt: new Date().toISOString(),
                     createdBy: user.username 
                 });
-                form.setValue('destination', destForm.name.trim());
+                form.setValue('destination', destForm.name.trim(), { shouldValidate: true });
                 toast({ title: 'Destination Added' });
             }
             setIsDestDialogOpen(false);
@@ -350,9 +404,11 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         }
     };
 
+    const selectedPartyName = watchedPartyId ? sortedParties.find(p => p.id === watchedPartyId)?.name : '';
+
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <FormField control={form.control} name="voucherNo" render={({ field }) => (
                         <FormItem>
@@ -460,7 +516,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                         className="h-10 px-4"
                                         onClick={() => {
                                             field.onChange('Mixed');
-                                            if (watchedCashAmount === 0 && watchedBankAmount === 0) {
+                                            if ((watchedCashAmount || 0) === 0 && (watchedBankAmount || 0) === 0) {
                                                 form.setValue('cashAmount', totalSettlement);
                                                 form.setValue('bankAmount', 0);
                                             }
@@ -631,21 +687,45 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
                 {(['Maintenance', 'Vendor Purchase', 'Loan Repayment'].includes(watchedType) || watchedMode === 'Credit') && (
                     <FormField control={form.control} name="partyId" render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex flex-col">
                             <FormLabel>
                                 {watchedType === 'Loan Repayment' ? 'Lending Institution / Bank (Party)' : 'Party / Service Provider / Creditor'} 
                                 <span className="text-destructive">*</span>
                             </FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                    <SelectTrigger className="h-10 text-sm">
-                                        <SelectValue placeholder="Search or select party..." />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {sortedParties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            {/* FIX #5: searchable combobox instead of a plain Select for long lists on mobile. */}
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between h-10 text-sm font-normal", !field.value && "text-muted-foreground")}>
+                                            <div className="flex items-center gap-2 truncate">
+                                                <Briefcase className="h-4 w-4 opacity-50 shrink-0" />
+                                                <span className="truncate">{selectedPartyName || "Search or select party..."}</span>
+                                            </div>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                    <Command>
+                                        <CommandInput placeholder="Search party..." onValueChange={setPartySearch} />
+                                        <CommandList>
+                                            <CommandEmpty>
+                                                <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setPartyForm(p => ({ ...p, name: partySearch })); setIsPartyDialogOpen(true); }}>
+                                                    <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                                </Button>
+                                            </CommandEmpty>
+                                            <CommandGroup>
+                                                {sortedParties.map(p => (
+                                                    <CommandItem key={p.id} value={p.name} onSelect={() => field.onChange(p.id)}>
+                                                        <Check className={cn("mr-2 h-4 w-4", field.value === p.id ? "opacity-100" : "opacity-0")} />
+                                                        {p.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                             {partyBalance && (
                                 <div className="flex gap-4 mt-1.5 px-1">
                                     {partyBalance.payables !== 0 && (
@@ -724,6 +804,10 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                         setShowExtraFields(false);
                                         form.setValue('extraAmount', 0);
                                         form.setValue('extraRemarks', '');
+                                        if (watchedMode === 'Mixed') {
+                                            form.setValue('cashAmount', watchedAmount || 0);
+                                            form.setValue('bankAmount', 0);
+                                        }
                                     }}>
                                         <X className="h-3 w-3" />
                                     </Button>
@@ -734,14 +818,15 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                             <FormLabel className="text-xs">Extra Amount</FormLabel>
                                             <FormControl>
                                                 <Input 
-                                                    type="number" 
+                                                    {...numFieldProps}
                                                     className="h-9 font-semibold text-sm" 
                                                     {...field} 
+                                                    value={field.value || ''}
                                                     onChange={e => {
                                                         const val = parseFloat(e.target.value) || 0;
                                                         field.onChange(val);
-                                                        if (watchedMode === 'Mixed') {
-                                                            const total = val + watchedAmount;
+                                                        if (form.getValues('paymentMode') === 'Mixed') {
+                                                            const total = val + (form.getValues('amount') || 0);
                                                             form.setValue('cashAmount', total);
                                                             form.setValue('bankAmount', 0);
                                                         }
@@ -780,14 +865,15 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     <div className="relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">Rs.</span>
                                         <Input 
-                                            type="number" 
+                                            {...numFieldProps}
                                             className="pl-10 h-10 text-base font-bold" 
                                             {...field} 
+                                            value={field.value || ''}
                                             onChange={e => {
                                                 const val = parseFloat(e.target.value) || 0;
                                                 field.onChange(val);
-                                                if (watchedMode === 'Mixed') {
-                                                    const total = val + watchedExtraAmount;
+                                                if (form.getValues('paymentMode') === 'Mixed') {
+                                                    const total = val + (form.getValues('extraAmount') || 0);
                                                     form.setValue('cashAmount', total);
                                                     form.setValue('bankAmount', 0);
                                                 }
@@ -806,13 +892,15 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                         <FormLabel className="text-xs">Paid by Cash</FormLabel>
                                         <FormControl>
                                             <Input 
-                                                type="number" 
+                                                {...numFieldProps}
                                                 {...field} 
+                                                value={field.value || ''}
                                                 className="h-10 font-semibold text-sm border-emerald-100 bg-white" 
                                                 onChange={e => {
                                                     const val = parseFloat(e.target.value) || 0;
                                                     field.onChange(val);
-                                                    form.setValue('bankAmount', Math.max(0, totalSettlement - val));
+                                                    const total = (form.getValues('amount') || 0) + (form.getValues('extraAmount') || 0);
+                                                    form.setValue('bankAmount', Math.max(0, total - val));
                                                 }} 
                                             />
                                         </FormControl>
@@ -824,13 +912,15 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                         <FormLabel className="text-xs">Paid by Bank</FormLabel>
                                         <FormControl>
                                             <Input 
-                                                type="number" 
+                                                {...numFieldProps}
                                                 {...field} 
+                                                value={field.value || ''}
                                                 className="h-10 font-semibold text-sm border-blue-100 bg-white" 
                                                 onChange={e => {
                                                     const val = parseFloat(e.target.value) || 0;
                                                     field.onChange(val);
-                                                    form.setValue('cashAmount', Math.max(0, totalSettlement - val));
+                                                    const total = (form.getValues('amount') || 0) + (form.getValues('extraAmount') || 0);
+                                                    form.setValue('cashAmount', Math.max(0, total - val));
                                                 }} 
                                             />
                                         </FormControl>
@@ -873,15 +963,30 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     </FormItem>
                 )} />
 
-                <div className="flex items-center gap-3 pt-4 border-t">
+                {/* FIX #6: sticky action bar keeps Save/Cancel reachable on long mobile forms. */}
+                <div className="sticky bottom-0 z-20 flex items-center gap-3 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-3">
                     <Button type="submit" size="lg" className="px-10 h-11 font-bold" disabled={isSubmitting}>
                         {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> {expenseToEdit ? 'Update Expense' : 'Save Expense'}</>}
                     </Button>
-                    <Button type="button" variant="outline" size="lg" className="h-11" onClick={() => router.back()}>
+                    <Button type="button" variant="outline" size="lg" className="h-11" onClick={handleCancelClick}>
                         <X className="mr-2 h-4 w-4" /> Cancel
                     </Button>
                 </div>
             </form>
+
+            {/* FIX #9: confirm before discarding unsaved edits. */}
+            <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+                        <AlertDialogDesc>You have unsaved edits on this expense. Leaving now will lose them.</AlertDialogDesc>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => router.back()}>Discard</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
                 <DialogContent className="sm:max-w-md">
@@ -949,8 +1054,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                         <div className="space-y-2">
                             <Label>Standard Advance Amount (Rs.)</Label>
                             <Input 
-                                type="number"
-                                value={destForm.standardAdvance} 
+                                {...numFieldProps}
+                                value={destForm.standardAdvance || ''} 
                                 onChange={e => setDestForm({...destForm, standardAdvance: Number(e.target.value) || 0})} 
                                 placeholder="Normal Peski amount"
                             />
