@@ -54,9 +54,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense =
         paymentMode: data.paymentMode || 'Cash',
         cashAmount: data.cashAmount ?? 0,
         bankAmount: data.bankAmount ?? 0,
-        dueDate: data.dueDate ?? null,
-        invoiceNumber: data.invoiceNumber ?? null,
-        invoiceDate: data.invoiceDate ?? null,
         remarks: data.remarks ?? null,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
@@ -88,30 +85,26 @@ const generateLedgerTransactions = (expense: Expense, createdAt: string): Transa
     const createTxn = (mode: string, amt: number, suffix: string): Transaction => {
         const items: TransactionItem[] = [{ particular: `${baseNarrative} (${suffix})`, quantity: 1, rate: amt }];
         
-        // If mode is Credit, we record a 'Purchase' (increases payables)
-        // If mode is Cash/Bank, we record a 'Payment' (decreases liquid assets)
-        const type = mode === 'Credit' ? 'Purchase' : 'Payment';
-
         return {
             id: `ledger-${safeVoucherId}-${mode.toLowerCase().replace(/ /g, '-')}`, 
             date: expense.date,
             vehicleId: expense.vehicleId || null,
-            type: type as any,
+            type: 'Payment',
             amount: amt,
             billingType: mode,
             invoiceType: 'Normal' as const,
             category: expense.expenseType,
             partyId: expense.partyId || null,
-            accountId: (mode === 'Cash' || mode === 'Credit') ? null : expense.accountId || null,
+            accountId: mode === 'Cash' ? null : expense.accountId || null,
             remarks: expense.remarks || `Expense: ${expense.expenseType}`,
             referenceType: "Expense Entry",
             referenceId: expense.voucherNo,
-            expenseId: expense.id, // CRITICAL: Linking to source document for editing from ledger
+            expenseId: expense.id,
             items: items,
             purchaseNumber: null,
-            dueDate: mode === 'Credit' ? expense.dueDate || null : null,
-            invoiceNumber: expense.invoiceNumber || null,
-            invoiceDate: expense.invoiceDate || null,
+            dueDate: null,
+            invoiceNumber: null,
+            invoiceDate: null,
             createdBy: expense.createdBy,
             createdAt: createdAt,
             lastModifiedAt: now,
@@ -187,7 +180,7 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
 
     // Purge all possible ledger variations for this voucher
     const safeOldVoucherId = oldData.voucherNo.replace(/\//g, '-');
-    ['cash', 'bank', 'mixed', 'credit'].forEach(mode => {
+    ['cash', 'bank', 'mixed'].forEach(mode => {
         batch.delete(doc(getTransactionsCollection(), `ledger-${safeOldVoucherId}-${mode}`));
     });
 
@@ -215,7 +208,7 @@ export const deleteExpense = async (id: string): Promise<void> => {
     batch.delete(expenseRef);
 
     const safeVoucherId = data.voucherNo.replace(/\//g, '-');
-    ['cash', 'bank', 'mixed', 'credit'].forEach(mode => {
+    ['cash', 'bank', 'mixed'].forEach(mode => {
         batch.delete(doc(getTransactionsCollection(), `ledger-${safeVoucherId}-${mode}`));
     });
 

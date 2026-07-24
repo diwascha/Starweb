@@ -1,4 +1,4 @@
-export type ExpenseType = 'Advance' | 'Maintenance' | 'Loan Repayment' | 'General Expense';
+export type ExpenseType = 'Advance' | 'Maintenance' | 'Loan Repayment' | 'General Expense' | 'Vendor Purchase';
 
 export interface Expense {
     id: string;
