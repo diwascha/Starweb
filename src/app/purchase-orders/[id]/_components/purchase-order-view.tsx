@@ -228,8 +228,7 @@ function PurchaseOrderDocument({
             </div>
             <div className="text-right max-w-[350px]">
                 <p className="text-[9px] font-bold text-gray-400 uppercase italic leading-tight">
-                    This is a computer-generated document authorized by {companyProfile.nameEn}. 
-                    It is produced electronically via the StarSutra Enterprise Suite and is valid without a physical signature or seal.
+                    This computer-generated document is valid without a physical signature or seal.
                 </p>
             </div>
         </footer>
