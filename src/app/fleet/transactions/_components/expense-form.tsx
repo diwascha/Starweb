@@ -13,7 +13,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format } from 'date-fns';
 import { 
     Wallet, 
     Wrench, 
@@ -30,8 +29,6 @@ import {
     PlusCircle,
     Lightbulb,
     Edit,
-    Trash2,
-    PlusIcon,
     Briefcase,
     ArrowRightLeft
 } from 'lucide-react';
@@ -57,7 +54,6 @@ import {
     AlertDialogDescription as AlertDialogDesc, 
     AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
-import { Separator } from '@/components/ui/separator';
 
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
@@ -87,25 +83,9 @@ const expenseSchema = z.object({
     accountId: z.string().optional(),
     destination: z.string().optional(),
     remarks: z.string().max(200).optional(),
-}).refine(data => {
-    if (['Maintenance', 'Loan Repayment', 'Vendor Purchase'].includes(data.expenseType)) return !!data.partyId;
-    return true;
-}, { message: "Recipient / Party is required.", path: ['partyId'] })
-.refine(data => {
-    if (data.paymentMode === 'Bank' || data.paymentMode === 'Mixed') return !!data.accountId;
-    return true;
-}, { message: "Account selection is required.", path: ['accountId'] })
-.refine(data => {
-    if (data.expenseType === 'Advance') return !!data.destination && data.destination.trim() !== '';
-    return true;
-}, { message: "Destination is required for Advances.", path: ['destination'] })
-.refine(data => {
-    if (data.paymentMode === 'Mixed') {
-        const totalExpected = (data.amount || 0) + (data.extraAmount || 0);
-        return Math.abs(((data.cashAmount || 0) + (data.bankAmount || 0)) - totalExpected) < 0.01;
-    }
-    return true;
-}, { message: "Cash + Bank amount must equal Total amount.", path: ['cashAmount'] });
+    invoiceNumber: z.string().optional(),
+    invoiceDate: z.date().optional().nullable(),
+});
 
 type ExpenseFormValues = z.infer<typeof expenseSchema>;
 
@@ -144,10 +124,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         defaultValues: {
             voucherNo: expenseToEdit?.voucherNo || initialVoucherNo,
             date: expenseToEdit ? new Date(expenseToEdit.date) : new Date(),
-            // Map legacy types to Vendor Purchase if necessary
-            expenseType: (expenseToEdit?.expenseType === 'Advance' || expenseToEdit?.expenseType === 'Maintenance' || expenseToEdit?.expenseType === 'Loan Repayment') 
-                ? expenseToEdit.expenseType 
-                : (expenseToEdit?.expenseType ? 'Vendor Purchase' : 'Advance'),
+            expenseType: expenseToEdit?.expenseType || 'Advance',
             paymentMode: expenseToEdit?.paymentMode || 'Cash',
             amount: expenseToEdit?.amount || 0,
             extraAmount: expenseToEdit?.extraAmount || 0,
@@ -159,6 +136,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
             destination: expenseToEdit?.destination || '',
             cashAmount: expenseToEdit?.cashAmount || 0,
             bankAmount: expenseToEdit?.bankAmount || 0,
+            invoiceNumber: (expenseToEdit as any)?.invoiceNumber || '',
+            invoiceDate: (expenseToEdit as any)?.invoiceDate ? new Date((expenseToEdit as any).invoiceDate) : null,
         }
     });
 
@@ -182,20 +161,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const watchedExtraAmount = form.watch('extraAmount');
     const watchedCashAmount = form.watch('cashAmount');
     const watchedBankAmount = form.watch('bankAmount');
-
-    useEffect(() => {
-        if (watchedType !== 'Advance') {
-            if (form.getValues('extraAmount')) {
-                form.setValue('extraAmount', 0);
-                form.setValue('extraRemarks', '');
-                if (form.getValues('paymentMode') === 'Mixed') {
-                    form.setValue('cashAmount', form.getValues('amount') || 0);
-                    form.setValue('bankAmount', 0);
-                }
-            }
-            setShowExtraFields(false);
-        }
-    }, [watchedType, form]);
 
     useEffect(() => {
         const unsubDest = onDestinationsUpdate(setDestinations);
@@ -243,6 +208,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 cashAmount: values.paymentMode === 'Mixed' ? (values.cashAmount || 0) : 0,
                 bankAmount: values.paymentMode === 'Mixed' ? (values.bankAmount || 0) : 0,
                 date: values.date.toISOString(),
+                invoiceDate: values.invoiceDate?.toISOString() || null,
                 ownership: 'Sijan'
             };
 
@@ -310,20 +276,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <FormField control={form.control} name="voucherNo" render={({ field }) => (
-                        <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono text-sm" /></FormControl></FormItem>
-                    )} />
-                    <FormField control={form.control} name="date" render={({ field }) => (
-                        <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-10", !field.value && "text-muted-foreground")}>
-                            <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : "Select Date"}
-                        </Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>
-                    )} />
-                    <FormField control={form.control} name="vehicleId" render={({ field }) => (
-                        <FormItem><FormLabel>Truck (Vehicle) <span className="text-destructive">*</span></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-10"><SelectValue placeholder="Select a truck" /></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select></FormItem>
-                    )} />
-                </div>
-
+                {/* 1. Category Selection */}
                 <div className="space-y-4">
                     <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Expense Category <span className="text-destructive">*</span></FormLabel>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -341,6 +294,22 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     </div>
                 </div>
 
+                {/* 2. Metadata Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <FormField control={form.control} name="voucherNo" render={({ field }) => (
+                        <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono text-sm" /></FormControl></FormItem>
+                    )} />
+                    <FormField control={form.control} name="date" render={({ field }) => (
+                        <FormItem className="flex flex-col"><FormLabel>Payment Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-10", !field.value && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : "Select Date"}
+                        </Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>
+                    )} />
+                    <FormField control={form.control} name="vehicleId" render={({ field }) => (
+                        <FormItem><FormLabel>Truck (Vehicle) <span className="text-destructive">*</span></FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-10"><SelectValue placeholder="Select a truck" /></SelectTrigger></FormControl><SelectContent>{sortedVehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select></FormItem>
+                    )} />
+                </div>
+
+                {/* 3. Settlement Mode */}
                 <div className="space-y-6 pt-4 pb-6 border-y border-dashed bg-muted/5 px-4 rounded-xl">
                     <FormField control={form.control} name="paymentMode" render={({ field }) => (
                         <FormItem className="space-y-2">
@@ -367,6 +336,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 </div>
 
+                {/* 4. Payee & Financials */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {watchedType === 'Advance' ? (
                         <FormField control={form.control} name="destination" render={({ field }) => (
@@ -403,30 +373,47 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                             </FormItem>
                         )} />
                     ) : (
-                        <FormField control={form.control} name="partyId" render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                                <FormLabel>Recipient / Payee <span className="text-destructive">*</span></FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <FormControl><Button variant="outline" role="combobox" className={cn("w-full justify-between h-10 font-normal text-sm", !field.value && "text-muted-foreground")}><div className="flex items-center gap-2 truncate"><Briefcase className="h-4 w-4 opacity-50 shrink-0" /><span className="truncate">{field.value ? sortedParties.find(p => p.id === field.value)?.name : "Search or select payee..."}</span></div><ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                        <Command>
-                                            <CommandInput placeholder="Search party..." onValueChange={setPartySearch} />
-                                            <CommandList>
-                                                <CommandEmpty><Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setPartyForm(p => ({ ...p, name: partySearch })); setIsPartyDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"</Button></CommandEmpty>
-                                                <CommandGroup>{sortedParties.map(p => (
-                                                    <CommandItem key={p.id} value={p.name} onSelect={() => field.onChange(p.id)} className="text-xs">
-                                                        <Check className={cn("mr-2 h-4 w-4", field.value === p.id ? "opacity-100" : "opacity-0")} />{p.name}
-                                                    </CommandItem>
-                                                ))}</CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
+                        <div className="space-y-4">
+                            <FormField control={form.control} name="partyId" render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>Recipient / Payee <span className="text-destructive">*</span></FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <FormControl><Button variant="outline" role="combobox" className={cn("w-full justify-between h-10 font-normal text-sm", !field.value && "text-muted-foreground")}><div className="flex items-center gap-2 truncate"><Briefcase className="h-4 w-4 opacity-50 shrink-0" /><span className="truncate">{field.value ? sortedParties.find(p => p.id === field.value)?.name : "Search or select payee..."}</span></div><ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                            <Command>
+                                                <CommandInput placeholder="Search party..." onValueChange={setPartySearch} />
+                                                <CommandList>
+                                                    <CommandEmpty><Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setPartyForm(p => ({ ...p, name: partySearch })); setIsPartyDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"</Button></CommandEmpty>
+                                                    <CommandGroup>{sortedParties.map(p => (
+                                                        <CommandItem key={p.id} value={p.name} onSelect={() => field.onChange(p.id)} className="text-xs">
+                                                            <Check className={cn("mr-2 h-4 w-4", field.value === p.id ? "opacity-100" : "opacity-0")} />{p.name}
+                                                        </CommandItem>
+                                                    ))}</CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+
+                            {watchedType === 'Vendor Purchase' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                                    <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                        <FormItem><FormLabel className="text-xs">Invoice Number (Optional)</FormLabel><FormControl><Input placeholder="Invoice #" className="h-9 text-xs" {...field} /></FormControl></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="invoiceDate" render={({ field }) => (
+                                        <FormItem className="flex flex-col"><FormLabel className="text-xs">Invoice Date (Optional)</FormLabel>
+                                            <Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("h-9 justify-start text-left font-normal text-xs px-3", !field.value && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-3 w-3" />{field.value ? toNepaliDate(field.value.toISOString()) : "Select Date"}
+                                            </Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={field.value || undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                        </FormItem>
+                                    )} />
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     <div className="space-y-4">
@@ -467,7 +454,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 {watchedMode === 'Mixed' && (
                     <div className="grid grid-cols-2 gap-6 p-4 rounded-xl border-2 border-dashed border-primary/10 animate-in fade-in zoom-in-95">
                         <FormField control={form.control} name="cashAmount" render={({ field }) => (
-                            <FormItem><FormLabel className="text-xs">Cash Portion</Label><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-emerald-100 bg-white" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('bankAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel className="text-xs">Cash Portion</FormLabel><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-emerald-100 bg-white" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('bankAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="bankAmount" render={({ field }) => (
                             <FormItem><FormLabel className="text-xs">Bank Portion</FormLabel><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-blue-100 bg-white" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('cashAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>

@@ -18,10 +18,8 @@ import {
   Truck,
   ChevronLeft,
   ChevronRight,
-  History,
   Tag,
   Wallet,
-  Eye
 } from 'lucide-react';
 import type { Vehicle, Party } from '@/lib/types';
 import type { Expense } from '@/lib/expense-types';
@@ -52,7 +50,6 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType';
 type SortDirection = 'asc' | 'desc';
 
-// Helper component for multi-select with "All" support
 const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
     const isAll = values.length === 0;
 
@@ -123,7 +120,6 @@ export default function ExpenseLogsPage() {
     const [parties, setParties] = useState<Party[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
-    // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     
@@ -287,7 +283,7 @@ export default function ExpenseLogsPage() {
             <header className="flex flex-col md:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-gray-900">Expense History</h1>
-                    <p className="text-muted-foreground text-sm">Log of truck-related payment outflows (Advances, Maintenance, etc).</p>
+                    <p className="text-muted-foreground text-sm">Log of truck-related payment outflows.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="relative">
@@ -303,83 +299,27 @@ export default function ExpenseLogsPage() {
             </header>
 
             <div className="bg-muted/20 p-4 rounded-lg border border-dashed flex flex-wrap gap-4 items-end">
-                <MultiSelect 
-                    label="Year (BS)" 
-                    values={filterBsYears} 
-                    onSelect={setFilterBsYears} 
-                    items={availableYears.map(y => ({ id: String(y), name: String(y) }))} 
-                    placeholder="Year" 
-                />
-                <MultiSelect 
-                    label="Month (BS)" 
-                    values={filterBsMonths} 
-                    onSelect={setFilterBsMonths} 
-                    items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} 
-                    placeholder="Month" 
-                />
-                <MultiSelect 
-                    label="Vehicle" 
-                    values={filterVehicleIds} 
-                    onSelect={setFilterVehicleIds} 
-                    items={vehicles} 
-                    placeholder="Vehicle" 
-                    icon={Truck}
-                />
-                <MultiSelect 
-                    label="Party / Recipient" 
-                    values={filterPartyIds} 
-                    onSelect={setFilterPartyIds} 
-                    items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} 
-                    placeholder="Party" 
-                    icon={Users}
-                />
-                <MultiSelect 
-                    label="Expense Category" 
-                    values={filterExpenseTypes} 
-                    onSelect={setFilterExpenseTypes} 
-                    items={[
-                        { id: 'Advance', name: 'Advance' },
-                        { id: 'Maintenance', name: 'Maintenance' },
-                        { id: 'Loan Repayment', name: 'Loan Repayment' },
-                        { id: 'Vendor Purchase', name: 'Vendor Purchase' }
-                    ]} 
-                    placeholder="Category" 
-                    icon={Tag}
-                />
-                <MultiSelect 
-                    label="Mode" 
-                    values={filterPaymentModes} 
-                    onSelect={setFilterPaymentModes} 
-                    items={[
-                        { id: 'Cash', name: 'Cash' },
-                        { id: 'Bank', name: 'Bank' },
-                        { id: 'Mixed', name: 'Mixed' }
-                    ]} 
-                    placeholder="Mode" 
-                    icon={Wallet}
-                />
+                <MultiSelect label="Year (BS)" values={filterBsYears} onSelect={setFilterBsYears} items={availableYears.map(y => ({ id: String(y), name: String(y) }))} placeholder="Year" />
+                <MultiSelect label="Month (BS)" values={filterBsMonths} onSelect={setFilterBsMonths} items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} placeholder="Month" />
+                <MultiSelect label="Vehicle" values={filterVehicleIds} onSelect={setFilterVehicleIds} items={vehicles} placeholder="Vehicle" icon={Truck} />
+                <MultiSelect label="Party" values={filterPartyIds} onSelect={setFilterPartyIds} items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} placeholder="Party" icon={Users} />
+                <MultiSelect label="Category" values={filterExpenseTypes} onSelect={setFilterExpenseTypes} items={[{ id: 'Advance', name: 'Advance' }, { id: 'Maintenance', name: 'Maintenance' }, { id: 'Loan Repayment', name: 'Loan Repayment' }, { id: 'Vendor Purchase', name: 'Vendor Purchase' }]} placeholder="Category" icon={Tag} />
+                <MultiSelect label="Mode" values={filterPaymentModes} onSelect={setFilterPaymentModes} items={[{ id: 'Cash', name: 'Cash' }, { id: 'Bank', name: 'Bank' }, { id: 'Mixed', name: 'Mixed' }]} placeholder="Mode" icon={Wallet} />
+                
                 <div className="space-y-1.5 w-full md:w-[180px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                <span className="truncate">
-                                    {dateRange?.from ? (
-                                        dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")
-                                    ) : 'Pick AD Range'}
-                                </span>
+                                <span className="truncate">{dateRange?.from ? (dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")) : 'Pick AD Range'}</span>
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
-                        </PopoverContent>
+                        <PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent>
                     </Popover>
                 </div>
                 {isFiltered && (
-                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs">
-                        <FilterX className="mr-2 h-3.5 w-3.5" /> Reset
-                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs"><FilterX className="mr-2 h-3.5 w-3.5" /> Reset</Button>
                 )}
             </div>
 
@@ -405,47 +345,18 @@ export default function ExpenseLogsPage() {
                                 <TableRow key={e.id} className="hover:bg-muted/30 h-14">
                                     <TableCell className="pl-6 font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
                                     <TableCell className="font-mono text-[11px] font-bold text-blue-600">{e.voucherNo}</TableCell>
-                                    <TableCell>
-                                        <span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">
-                                            {vehiclesById.get(e.vehicleId) || 'N/A'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline" className={cn(
-                                            "text-[9px] uppercase font-bold shadow-none border-none",
-                                            e.expenseType === 'Maintenance' && "bg-amber-50 text-amber-700",
-                                            e.expenseType === 'Advance' && "bg-emerald-50 text-emerald-700",
-                                            e.expenseType === 'Loan Repayment' && "bg-orange-50 text-orange-700",
-                                            e.expenseType === 'Vendor Purchase' && "bg-cyan-50 text-cyan-700",
-                                        )}>
-                                            {e.expenseType}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/50 border-none">{e.paymentMode}</Badge>
-                                    </TableCell>
-                                    <TableCell className="py-3">
-                                        <div className="flex flex-col">
-                                            <span className="text-[11px] font-semibold text-gray-900">
-                                                {e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}
-                                            </span>
-                                            {e.remarks && (
-                                                <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right font-black text-red-600 text-[11px] tabular-nums">
-                                        Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </TableCell>
+                                    <TableCell><span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">{vehiclesById.get(e.vehicleId) || 'N/A'}</span></TableCell>
+                                    <TableCell><Badge variant="outline" className={cn("text-[9px] uppercase font-bold", e.expenseType === 'Maintenance' && "bg-amber-50 text-amber-700", e.expenseType === 'Advance' && "bg-emerald-50 text-emerald-700", e.expenseType === 'Loan Repayment' && "bg-orange-50 text-orange-700", e.expenseType === 'Vendor Purchase' && "bg-cyan-50 text-cyan-700")}>{e.expenseType}</Badge></TableCell>
+                                    <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/50 border-none">{e.paymentMode}</Badge></TableCell>
+                                    <TableCell className="py-3"><div className="flex flex-col"><span className="text-[11px] font-semibold text-gray-900">{e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}</span>{e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}</div></TableCell>
+                                    <TableCell className="text-right font-black text-red-600 text-[11px] tabular-nums">Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right pr-6">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/edit?id=${e.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/new`)}><PlusCircle className="mr-2 h-4 w-4" /> New Entry</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
-                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the record and its financial impact. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)} className="bg-destructive text-white hover:bg-destructive/90">Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                                <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the record. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)} className="bg-destructive text-white">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
@@ -458,53 +369,18 @@ export default function ExpenseLogsPage() {
                 {(totalPages > 1 || itemsPerPage !== -1) && (
                     <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
                         <div className="text-xs text-muted-foreground font-medium">
-                            {itemsPerPage === -1 ? (
-                                <>Showing all <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span> entries</>
-                            ) : (
-                                <>
-                                    Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span>–<span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedExpenses.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span>
-                                </>
-                            )}
+                            {itemsPerPage === -1 ? <>Showing all <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span> entries</> : <>Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span>–<span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedExpenses.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span></>}
                         </div>
                         <div className="flex items-center gap-6">
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground whitespace-nowrap">Rows</span>
-                                <Select value={String(itemsPerPage)} onValueChange={(v) => {
-                                    setItemsPerPage(parseInt(v));
-                                    setCurrentPage(1);
-                                }}>
-                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="10">10</SelectItem>
-                                        <SelectItem value="25">25</SelectItem>
-                                        <SelectItem value="50">50</SelectItem>
-                                        <SelectItem value="-1">All</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(parseInt(v)); setCurrentPage(1); }}><SelectTrigger className="h-8 w-[70px] bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="25">25</SelectItem><SelectItem value="50">50</SelectItem><SelectItem value="-1">All</SelectItem></SelectContent></Select>
                             </div>
                             {itemsPerPage !== -1 && (
                                 <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                        disabled={currentPage === 1}
-                                        className="h-8 w-8 p-0"
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="h-8 w-8 p-0"><ChevronLeft className="h-4 w-4" /></Button>
                                     <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                        disabled={currentPage === totalPages}
-                                        className="h-8 w-8 p-0"
-                                    >
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="h-8 w-8 p-0"><ChevronRight className="h-4 w-4" /></Button>
                                 </div>
                             )}
                         </div>
