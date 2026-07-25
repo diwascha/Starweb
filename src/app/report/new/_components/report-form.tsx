@@ -588,7 +588,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                         <FormField
                           control={form.control}
                           name={`${key}.value` as any}
-                          render={({ field }: any) => (
+                          render={({ field }) => (
                             <FormItem>
                               <FormLabel>{formatLabel(key)}</Label>
                               <FormControl>
