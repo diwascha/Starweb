@@ -20,6 +20,8 @@ import {
   ChevronRight,
   Tag,
   Wallet,
+  Eye,
+  Printer
 } from 'lucide-react';
 import type { Vehicle, Party } from '@/lib/types';
 import type { Expense } from '@/lib/expense-types';
@@ -277,7 +279,7 @@ export default function ExpenseLogsPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Expense History</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-gray-900 uppercase">Expense History</h1>
                     <p className="text-muted-foreground text-sm">Log of operational cash/bank payment outflows.</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -323,13 +325,13 @@ export default function ExpenseLogsPage() {
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
-                                <TableHead className="pl-6"><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Date <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'date' ? "opacity-100 text-primary" : "opacity-30")} /></Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Voucher # <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'voucherNo' ? "opacity-100 text-primary" : "opacity-30")} /></Button></TableHead>
+                                <TableHead className="pl-6"><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Date <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'date' ? "opacity-100" : "opacity-30")} /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Voucher # <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'voucherNo' ? "opacity-100" : "opacity-30")} /></Button></TableHead>
                                 <TableHead className="text-[11px] font-black uppercase tracking-wider">Vehicle</TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Type <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'expenseType' ? "opacity-100 text-primary" : "opacity-30")} /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Type <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'expenseType' ? "opacity-100" : "opacity-30")} /></Button></TableHead>
                                 <TableHead className="text-[11px] font-black uppercase tracking-wider">Settlement</TableHead>
                                 <TableHead className="text-[11px] font-black uppercase tracking-wider">Payee / Detail</TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider text-right w-full">Total NPR <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'amount' ? "opacity-100 text-primary" : "opacity-30")} /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider text-right w-full">Total NPR <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'amount' ? "opacity-100" : "opacity-30")} /></Button></TableHead>
                                 <TableHead className="text-right pr-6 text-[11px] font-black uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -349,7 +351,9 @@ export default function ExpenseLogsPage() {
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/view?id=${e.id}`)}><Eye className="mr-2 h-4 w-4" /> View Voucher</DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/edit?id=${e.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => window.open(`/fleet/transactions/expenses/view?id=${e.id}`, '_blank')}><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                 <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the record. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)} className="bg-destructive text-white">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                                             </DropdownMenuContent>

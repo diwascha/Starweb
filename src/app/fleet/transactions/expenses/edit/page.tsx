@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, Suspense, use } from 'react';
@@ -9,11 +8,10 @@ import { ExpenseForm } from '../_components/expense-form';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
-import { onTransactionsUpdate, getTransactions } from '@/services/transaction-service';
-import { getExpense, onExpensesUpdate } from '@/services/expense-service';
+import { getTransactions } from '@/services/transaction-service';
+import { getExpense, getExpenseByVoucherNo } from '@/services/expense-service';
 import type { Vehicle, Party, Account, Transaction } from '@/lib/types';
 import type { Expense } from '@/lib/expense-types';
-import { Skeleton } from '@/components/ui/skeleton';
 
 function EditExpenseContent({ searchParams }: { searchParams: Promise<any> }) {
     const router = useRouter();
@@ -53,15 +51,14 @@ function EditExpenseContent({ searchParams }: { searchParams: Promise<any> }) {
                 let eData = await getExpense(id);
                 
                 // Fallback: If the ID passed was a Transaction ID (e.g. from the ledger), 
-                // try to find the linked Expense record using the referenceId/voucherId.
+                // try to find the linked Expense record.
                 if (!eData) {
                     const matchedTxn = tData.find(t => t.id === id);
                     if (matchedTxn && matchedTxn.expenseId) {
                         eData = await getExpense(matchedTxn.expenseId);
                     } else if (matchedTxn && matchedTxn.referenceId) {
-                         // Search all expenses for one with a matching voucher number
-                         const allExpenses = await new Promise<Expense[]>(resolve => onExpensesUpdate(resolve));
-                         eData = allExpenses.find(e => e.voucherNo === matchedTxn.referenceId) || null;
+                         // Search by voucher number
+                         eData = await getExpenseByVoucherNo(matchedTxn.referenceId);
                     }
                 }
 
@@ -77,9 +74,9 @@ function EditExpenseContent({ searchParams }: { searchParams: Promise<any> }) {
     }, [id]);
 
     if (isLoading) {
-        return <div className="p-12 text-center flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <p>Authorizing record lookup...</p>
+        return <div className="p-12 text-center flex flex-col items-center justify-center h-[70vh] gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Authorizing record lookup...</p>
         </div>;
     }
 

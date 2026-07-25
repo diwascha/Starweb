@@ -17,7 +17,9 @@ import {
     getDoc, 
     writeBatch, 
     setDoc,
-    deleteDoc
+    deleteDoc,
+    where,
+    limit
 } from 'firebase/firestore';
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
@@ -224,6 +226,16 @@ export const getExpense = async (id: string): Promise<Expense | null> => {
     try {
         const snap = await getDoc(docRef);
         return snap.exists() ? fromFirestore(snap as QueryDocumentSnapshot<DocumentData>) : null;
+    } catch {
+        return null;
+    }
+};
+
+export const getExpenseByVoucherNo = async (voucherNo: string): Promise<Expense | null> => {
+    const q = query(getExpensesCollection(), where("voucherNo", "==", voucherNo), limit(1));
+    try {
+        const snap = await getDocs(q);
+        return snap.empty ? null : fromFirestore(snap.docs[0] as QueryDocumentSnapshot<DocumentData>);
     } catch {
         return null;
     }
