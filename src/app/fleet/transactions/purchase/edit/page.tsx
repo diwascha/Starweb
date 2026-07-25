@@ -101,9 +101,16 @@ function EditPurchasePageContent(props: { searchParams: Promise<any> }) {
 
     if (!transaction) return <div className="p-12 text-center">Purchase record not found.</div>;
 
-    // Adapt transaction to form values
+    // Adapt transaction to form values - strictly normalize nulls to undefined for required string fields
     const initialValues = {
         ...transaction,
+        purchaseNumber: transaction.purchaseNumber ?? undefined,
+        vehicleId: transaction.vehicleId ?? undefined,
+        partyId: transaction.partyId ?? undefined,
+        invoiceNumber: transaction.invoiceNumber ?? undefined,
+        remarks: transaction.remarks ?? undefined,
+        chequeNumber: transaction.chequeNumber ?? undefined,
+        accountId: transaction.accountId ?? undefined,
         date: new Date(transaction.date),
         invoiceDate: transaction.invoiceDate ? new Date(transaction.invoiceDate) : null,
         chequeDate: transaction.chequeDate ? new Date(transaction.chequeDate) : null,
