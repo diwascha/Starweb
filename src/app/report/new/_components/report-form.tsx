@@ -1,4 +1,3 @@
-
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -589,7 +588,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                         <FormField
                           control={form.control}
                           name={`${key}.value` as any}
-                      render={({ field }: any) => (
+                          render={({ field }: any) => (
                             <FormItem>
                               <FormLabel>{formatLabel(key)}</Label>
                               <FormControl>
@@ -597,7 +596,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                                   placeholder={`Result for ${formatLabel(key)}`}
                                   {...field}
                                   readOnly={staticFields.includes(key)}
-                              className={staticFields.includes(key as any) ? "bg-muted/50 cursor-not-allowed" : ""}
+                                  className={staticFields.includes(key as any) ? "bg-muted/50 cursor-not-allowed" : ""}
                                 />
                               </FormControl>
                               <FormDescription>

@@ -5,10 +5,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   output: 'export',
   trailingSlash: true,
-  experimental: {
-    // @ts-ignore - Valid property for monorepo/tauri builds but missing in some Next.js 15 type definitions
-    outputFileTracingRoot: path.join(__dirname, '../'),
-  },
+  outputFileTracingRoot: path.join(__dirname, '../'),
   typescript: {
     ignoreBuildErrors: true,
   },
