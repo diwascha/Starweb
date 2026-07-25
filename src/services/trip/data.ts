@@ -27,6 +27,7 @@ export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => 
 };
 
 export const getTrip = async (id: string): Promise<Trip | null> => {
+    if (!id || typeof id !== 'string' || id.includes('/')) return null;
     const docRef = doc(getTripsCollection(), id);
     try {
         const snap = await getDoc(docRef);

@@ -222,6 +222,7 @@ export const deleteExpense = async (id: string): Promise<void> => {
 };
 
 export const getExpense = async (id: string): Promise<Expense | null> => {
+    if (!id || typeof id !== 'string' || id.includes('/')) return null;
     const docRef = doc(getExpensesCollection(), id);
     try {
         const snap = await getDoc(docRef);

@@ -94,7 +94,7 @@ export const getEmployees = async (): Promise<Employee[]> => {
 };
 
 export const getEmployee = async (id: string): Promise<Employee | null> => {
-    if (!id || typeof id !== 'string') return null;
+    if (!id || typeof id !== 'string' || id.includes('/')) return null;
     const employeeDoc = doc(getEmployeesCollection(), id);
     try {
         const docSnap = await getDoc(employeeDoc);

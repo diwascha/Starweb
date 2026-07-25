@@ -44,7 +44,7 @@ export const getEstimatedInvoices = async (): Promise<EstimatedInvoice[]> => {
 };
 
 export const getEstimatedInvoice = async (id: string): Promise<EstimatedInvoice | null> => {
-    if (!id || typeof id !== 'string') return null;
+    if (!id || typeof id !== 'string' || id.includes('/')) return null;
     const docRef = doc(getInvoicesCollection(), id);
     try {
         const docSnap = await getDoc(docRef);

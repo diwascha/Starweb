@@ -50,6 +50,59 @@ function EditExpenseContent({ searchParams }: { searchParams: Promise<any> }) {
                 // Attempt to load the primary expense record
                 let eData = await getExpense(id);
                 
+                // Fallback 1: If the ID passed was a Transaction ID (e.g. from the ledger), 
+                // try to find the linked Expense record.
+                if (!eData) {
+                    const matchedTxn = tData.find(t => t.id === id);
+                    if (matchedTxn && matchedTxn.expenseId) {
+                        eData = await getExpense(matchedTxn.expenseId);
+                    } else if (matchedTxn && matchedTxn.referenceId) {
+                         // Search by voucher number
+                         eData = await getExpenseByVoucherNo(matchedTxn.referenceId);
+                    }
+                }
+
+                // Fallback 2: try id itself as voucher number (handles slashes in URL)
+                if (!eData) {
+                    eData = await getExpenseByVoucherNo(id);
+                }
+
+                setExpense(eData);
+            } catch (err) {
+                console.error("Failed to load edit data", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [id]);
+
+    useEffect(() => {
+        if (!id) {
+            setIsLoading(false);
+            return;
+        }
+
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                // Fetch basic dependencies
+                const [vData, pData, aData, tData] = await Promise.all([
+                    new Promise<Vehicle[]>(resolve => onVehiclesUpdate(resolve)),
+                    new Promise<Party[]>(resolve => onPartiesUpdate(resolve)),
+                    new Promise<Account[]>(resolve => onAccountsUpdate(resolve)),
+                    getTransactions()
+                ]);
+                
+                setVehicles(vData);
+                setParties(pData);
+                setAccounts(aData);
+                setTransactions(tData);
+
+                // Attempt to load the primary expense record
+                let eData = await getExpense(id);
+                
                 // Fallback: If the ID passed was a Transaction ID (e.g. from the ledger), 
                 // try to find the linked Expense record.
                 if (!eData) {

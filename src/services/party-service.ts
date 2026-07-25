@@ -61,7 +61,7 @@ export const getParties = async (useCache = false): Promise<Party[]> => {
 };
 
 export const getParty = async (id: string): Promise<Party | null> => {
-    if (!id) return null;
+    if (!id || typeof id !== 'string' || id.includes('/')) return null;
     const docRef = doc(getPartiesCollection(), id);
     try {
         const snap = await getDoc(docRef);

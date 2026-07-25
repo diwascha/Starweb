@@ -60,6 +60,7 @@ export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | an
 }
 
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
+    if (!id || typeof id !== 'string' || id.includes('/')) return null;
     const docRef = doc(transactionsCollection(), id);
     try {
         const snap = await getDoc(docRef);

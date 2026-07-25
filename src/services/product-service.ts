@@ -144,7 +144,7 @@ export const deleteProduct = async (id: string): Promise<void> => {
 };
 
 export const getProduct = async (id: string): Promise<Product | null> => {
-    if (!id || typeof id !== 'string') return null;
+    if (!id || typeof id !== 'string' || id.includes('/')) return null;
     const docRef = doc(getProductsCollection(), id);
     try {
         const docSnap = await getDoc(docRef);

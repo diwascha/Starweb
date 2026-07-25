@@ -66,6 +66,12 @@ function ExpenseViewContent({ searchParams }: { searchParams: Promise<any> }) {
                         eData = await getExpenseByVoucherNo(matchedTxn.referenceId);
                     }
                 }
+                
+                // Final fallback: try id itself as voucher number (handles slashes in URL)
+                if (!eData) {
+                    eData = await getExpenseByVoucherNo(id);
+                }
+
                 setExpense(eData);
 
             } catch (err) {
