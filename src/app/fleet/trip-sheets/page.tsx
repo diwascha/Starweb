@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -92,7 +93,6 @@ interface CalculationDetails {
     netPay: number;
 }
 
-// Helper component for multi-select with "All" support
 const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
     const isAll = values.length === 0;
 
@@ -162,11 +162,9 @@ export default function TripSheetsPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
   
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
-  // Filtering & Sorting State
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
@@ -506,7 +504,7 @@ export default function TripSheetsPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     {hasPermission('fleet', 'view') && (
-                                        <DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}>
+                                        <DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/view?id=${trip.id}`)}>
                                             <View className="mr-2 h-4 w-4" /> View
                                         </DropdownMenuItem>
                                     )}

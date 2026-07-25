@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -205,8 +206,6 @@ export default function FleetTransactionsPage() {
         let vouchers = Array.from(groups.entries()).map(([key, legs]) => {
             const rep = legs[0];
             
-            // DYNAMIC CALCULATION: If payment mode filters are active, 
-            // only sum the legs that match the filter.
             const filteredLegs = filterBillingTypes.length > 0 
                 ? legs.filter(l => filterBillingTypes.some(val => {
                     if (val === 'Cash') return l.billingType === 'Cash';
@@ -233,7 +232,6 @@ export default function FleetTransactionsPage() {
             };
         });
 
-        // Filter out rows that have NO matching legs (only if billing filters are active)
         if (filterBillingTypes.length > 0) {
             vouchers = vouchers.filter(v => v.matchedLegsCount > 0);
         }
@@ -374,10 +372,10 @@ export default function FleetTransactionsPage() {
     ], [sijanBankAccounts]);
 
     const editEntry = (entry: any) => {
-        if (entry.referenceType === 'Expense Entry') {
+        if (entry.referenceType === 'Expense Entry' || entry.expenseId) {
             router.push(`/fleet/transactions/expenses/edit?id=${entry.expenseId || entry.id}`);
-        } else if (entry.referenceType === 'Trip Sheet') {
-            router.push(`/fleet/trip-sheets/edit?id=${entry.tripId}`);
+        } else if (entry.referenceType === 'Trip Sheet' || entry.tripId) {
+            router.push(`/fleet/trip-sheets/edit?id=${entry.tripId || entry.id}`);
         } else if (entry.voucherId) {
             router.push(`/fleet/transactions/payment-receipt/edit?voucherId=${entry.voucherId}`);
         } else {
@@ -386,10 +384,10 @@ export default function FleetTransactionsPage() {
     };
 
     const viewEntry = (entry: any) => {
-        if (entry.referenceType === 'Expense Entry') {
+        if (entry.referenceType === 'Expense Entry' || entry.expenseId) {
             router.push(`/fleet/transactions/expenses/view?id=${entry.expenseId || entry.id}`);
-        } else if (entry.referenceType === 'Trip Sheet') {
-            router.push(`/fleet/trip-sheets/${entry.tripId}`);
+        } else if (entry.referenceType === 'Trip Sheet' || entry.tripId) {
+            router.push(`/fleet/trip-sheets/view?id=${entry.tripId || entry.id}`);
         } else if (entry.voucherId) {
             router.push(`/fleet/transactions/payment-receipt?voucherId=${entry.voucherId}`);
         } else {

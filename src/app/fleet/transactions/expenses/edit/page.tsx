@@ -1,23 +1,24 @@
+
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense, use } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, History, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ExpenseForm } from '../_components/expense-form';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
-import { onTransactionsUpdate } from '@/services/transaction-service';
-import { getExpense } from '@/services/expense-service';
+import { onTransactionsUpdate, getTransactions } from '@/services/transaction-service';
+import { getExpense, onExpensesUpdate } from '@/services/expense-service';
 import type { Vehicle, Party, Account, Transaction } from '@/lib/types';
 import type { Expense } from '@/lib/expense-types';
 import { Skeleton } from '@/components/ui/skeleton';
 
-function EditExpenseContent() {
+function EditExpenseContent({ searchParams }: { searchParams: Promise<any> }) {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const expenseId = searchParams.get('id');
+    const params = use(searchParams);
+    const id = params.id;
 
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
@@ -27,23 +28,43 @@ function EditExpenseContent() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!expenseId) return;
+        if (!id) {
+            setIsLoading(false);
+            return;
+        }
 
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const [vData, pData, aData, tData, eData] = await Promise.all([
+                // Fetch basic dependencies
+                const [vData, pData, aData, tData] = await Promise.all([
                     new Promise<Vehicle[]>(resolve => onVehiclesUpdate(resolve)),
                     new Promise<Party[]>(resolve => onPartiesUpdate(resolve)),
                     new Promise<Account[]>(resolve => onAccountsUpdate(resolve)),
-                    new Promise<Transaction[]>(resolve => onTransactionsUpdate(resolve)),
-                    getExpense(expenseId)
+                    getTransactions()
                 ]);
                 
                 setVehicles(vData);
                 setParties(pData);
                 setAccounts(aData);
                 setTransactions(tData);
+
+                // Attempt to load the primary expense record
+                let eData = await getExpense(id);
+                
+                // Fallback: If the ID passed was a Transaction ID (e.g. from the ledger), 
+                // try to find the linked Expense record using the referenceId/voucherId.
+                if (!eData) {
+                    const matchedTxn = tData.find(t => t.id === id);
+                    if (matchedTxn && matchedTxn.expenseId) {
+                        eData = await getExpense(matchedTxn.expenseId);
+                    } else if (matchedTxn && matchedTxn.referenceId) {
+                         // Search all expenses for one with a matching voucher number
+                         const allExpenses = await new Promise<Expense[]>(resolve => onExpensesUpdate(resolve));
+                         eData = allExpenses.find(e => e.voucherNo === matchedTxn.referenceId) || null;
+                    }
+                }
+
                 setExpense(eData);
             } catch (err) {
                 console.error("Failed to load edit data", err);
@@ -53,17 +74,22 @@ function EditExpenseContent() {
         };
 
         fetchData();
-    }, [expenseId]);
+    }, [id]);
 
     if (isLoading) {
         return <div className="p-12 text-center flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin" />
-            <p>Loading expense record...</p>
+            <p>Authorizing record lookup...</p>
         </div>;
     }
 
     if (!expense) {
-        return <div className="p-12 text-center">Expense record not found.</div>;
+        return (
+            <div className="p-12 text-center space-y-4">
+                <p className="text-muted-foreground font-medium">Expense record not found or inaccessible.</p>
+                <Button variant="outline" onClick={() => router.back()}>Go Back</Button>
+            </div>
+        );
     }
 
     return (
@@ -95,10 +121,10 @@ function EditExpenseContent() {
     );
 }
 
-export default function EditExpensePage() {
+export default function EditExpensePage(props: { params: Promise<any>, searchParams: Promise<any> }) {
     return (
         <Suspense fallback={<div className="p-12 text-center">Initializing...</div>}>
-            <EditExpenseContent />
+            <EditExpenseContent searchParams={props.searchParams} />
         </Suspense>
     );
 }

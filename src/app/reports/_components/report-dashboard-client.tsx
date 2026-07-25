@@ -113,11 +113,11 @@ export default function ReportDashboardClient({ initialReports, initialProducts 
                     <CardDescription>The 5 most recently created test reports.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ScrollArea className="h-[300px]">
+                    <div className="h-[300px]">
                         {recentReports.length > 0 ? (
                             <div className="space-y-4">
                                 {recentReports.map(report => (
-                                    <Link href={`/report/${report.id}`} key={report.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                                    <Link href={`/report?id=${report.id}`} key={report.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                                         <div>
                                             <p className="font-medium">Report #{report.serialNumber}</p>
                                             <p className="text-sm text-muted-foreground">For {report.product.name}</p>
@@ -131,7 +131,7 @@ export default function ReportDashboardClient({ initialReports, initialProducts 
                                 No recent reports found.
                             </div>
                         )}
-                    </ScrollArea>
+                    </div>
                 </CardContent>
             </Card>
        </div>
