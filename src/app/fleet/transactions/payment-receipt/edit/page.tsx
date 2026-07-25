@@ -2,22 +2,22 @@
 
 import { Suspense, useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { getVoucherTransactions } from '@/services/transaction-service';
-import { getVehicles } from '@/services/vehicle-service';
-import { getParties } from '@/services/party-service';
-import { getAccounts } from '@/services/account-service';
-import { getTransactions, updateVoucher } from '@/services/transaction-service';
+import { getVoucherTransactions, updateVoucher } from '@/services/transaction-service';
+import { onVehiclesUpdate } from '@/services/vehicle-service';
+import { onPartiesUpdate } from '@/services/party-service';
+import { onAccountsUpdate } from '@/services/account-service';
 import { PaymentReceiptForm } from '../../_components/payment-receipt-form';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2 } from 'lucide-react';
 
-function EditVoucherComponent(props: { params: Promise<any>, searchParams: Promise<any> }) {
+/**
+ * @fileOverview Consolidated Edit page for Payment/Receipt vouchers.
+ */
+
+function EditVoucherComponent(props: { searchParams: Promise<any> }) {
     const router = useRouter();
-    // Next.js 15: Unwrap dynamic params and searchParams
-    use(props.params);
     const searchParams = use(props.searchParams);
-    
     const voucherId = searchParams.voucherId;
     const { toast } = useToast();
     const { user } = useAuth();
@@ -26,21 +26,24 @@ function EditVoucherComponent(props: { params: Promise<any>, searchParams: Promi
     const [vehicles, setVehicles] = useState<any[]>([]);
     const [parties, setParties] = useState<any[]>([]);
     const [accounts, setAccounts] = useState<any[]>([]);
-    const [allTransactions, setAllTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (voucherId) {
-            Promise.all([
-                getVoucherTransactions(voucherId),
-                getVehicles(true),
-                getParties(true),
-                getAccounts(true),
-                getTransactions(),
-            ]).then(([initialTransactions, vehicleData, partyData, accountData, allTxnsData]) => {
-                if (initialTransactions && initialTransactions.length > 0) {
-                    const base = initialTransactions[0];
-                    const items = initialTransactions.map(t => ({
+        if (!voucherId) return;
+
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [vouchers, vData, pData, aData] = await Promise.all([
+                    getVoucherTransactions(voucherId),
+                    new Promise<any[]>(resolve => onVehiclesUpdate(resolve)),
+                    new Promise<any[]>(resolve => onPartiesUpdate(resolve)),
+                    new Promise<any[]>(resolve => onAccountsUpdate(resolve))
+                ]);
+
+                if (vouchers.length > 0) {
+                    const base = vouchers[0];
+                    const items = vouchers.map(t => ({
                         ledgerId: t.partyId || '',
                         vehicleId: t.vehicleId || '',
                         recAmount: t.type === 'Receipt' ? t.amount : 0,
@@ -49,7 +52,7 @@ function EditVoucherComponent(props: { params: Promise<any>, searchParams: Promi
                     }));
 
                     setInitialValues({
-                        voucherNo: base.items[0]?.particular.replace(/ .*/,'') || 'N/A',
+                        voucherNo: base.referenceId || 'N/A',
                         date: new Date(base.date),
                         billingType: base.billingType,
                         accountId: base.accountId,
@@ -59,42 +62,37 @@ function EditVoucherComponent(props: { params: Promise<any>, searchParams: Promi
                         remarks: base.remarks,
                     });
                 }
-                setVehicles(vehicleData);
-                setParties(partyData);
-                setAccounts(accountData);
-                setAllTransactions(allTxnsData);
+                setVehicles(vData);
+                setParties(pData);
+                setAccounts(aData);
+            } finally {
                 setLoading(false);
-            });
-        }
+            }
+        };
+
+        fetchData();
     }, [voucherId]);
     
     const handleFormSubmit = async (values: any) => {
         if (!user || !voucherId) return;
         try {
             await updateVoucher(voucherId, values, user.username);
-            toast({ title: 'Success', description: 'Voucher updated successfully.' });
+            toast({ title: 'Success', description: 'Voucher updated.' });
             router.push('/fleet/transactions/payment-receipt/list');
         } catch (error) {
-            console.error('Failed to update voucher:', error);
             toast({ title: 'Error', description: 'Could not update voucher.', variant: 'destructive' });
         }
     };
 
-
-    if (loading) {
-        return <Skeleton className="h-[500px] w-full" />;
-    }
-    
-    if (!initialValues) {
-        return <div>Voucher not found.</div>;
-    }
+    if (loading) return <div className="p-12 text-center flex flex-col items-center gap-4"><Loader2 className="animate-spin h-8 w-8 text-primary"/><p>Fetching voucher data...</p></div>;
+    if (!initialValues) return <div className="p-12 text-center">Voucher not found.</div>;
     
     return (
         <PaymentReceiptForm
             accounts={accounts}
             parties={parties}
             vehicles={vehicles}
-            transactions={allTransactions}
+            transactions={[]} // Form handles next number internally now
             onFormSubmit={handleFormSubmit}
             onCancel={() => router.push('/fleet/transactions/payment-receipt/list')}
             initialValues={initialValues}
@@ -102,17 +100,16 @@ function EditVoucherComponent(props: { params: Promise<any>, searchParams: Promi
     );
 }
 
-
 export default function EditVoucherPage(props: { params: Promise<any>, searchParams: Promise<any> }) {
   return (
     <div className="flex flex-col gap-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Edit Voucher</h1>
-        <p className="text-muted-foreground">Modify the details for this payment/receipt voucher.</p>
+        <p className="text-muted-foreground">Modify payment/receipt records.</p>
       </header>
-        <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
-            <EditVoucherComponent {...props} />
-        </Suspense>
+      <Suspense fallback={<div className="p-12 text-center">Initializing form...</div>}>
+          <EditVoucherComponent searchParams={props.searchParams} />
+      </Suspense>
     </div>
   );
 }

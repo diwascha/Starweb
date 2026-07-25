@@ -1,26 +1,29 @@
-
 'use client';
 
 import { useState, useEffect, Suspense, use } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, History, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import EditPurchaseClientPage from '../_components/EditPurchaseClientPage';
+import { PurchaseForm } from '../../_components/purchase-form';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { onUomsUpdate } from '@/services/uom-service';
-import { getTransaction } from '@/services/transaction-service';
+import { getTransaction, updateTransaction } from '@/services/transaction-service';
 import type { Vehicle, Party, Account, Transaction, UnitOfMeasurement } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 
 /**
- * @fileOverview Dedicated edit page for Purchase transactions.
+ * @fileOverview Consolidated Edit page for Purchase transactions.
  */
 
 function EditPurchasePageContent(props: { searchParams: Promise<any> }) {
     const router = useRouter();
     const searchParams = use(props.searchParams);
     const id = searchParams.id;
+    const { toast } = useToast();
+    const { user } = useAuth();
 
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
@@ -61,6 +64,32 @@ function EditPurchasePageContent(props: { searchParams: Promise<any> }) {
         fetchData();
     }, [id]);
 
+    const handleFormSubmit = async (values: any) => {
+        if (!user || !id) return;
+        
+        const subtotal = (values.items || []).reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
+        const vat = values.invoiceType === 'Taxable' ? subtotal * 0.13 : 0;
+        const total = subtotal + vat;
+        
+        const transactionData: Partial<Transaction> = {
+            ...values,
+            date: values.date.toISOString(),
+            invoiceDate: values.invoiceDate?.toISOString() || null,
+            chequeDate: values.chequeDate?.toISOString() || null,
+            dueDate: values.dueDate?.toISOString() || null,
+            amount: total,
+            lastModifiedBy: user.username,
+        };
+
+        try {
+            await updateTransaction(id, transactionData);
+            toast({ title: 'Success', description: 'Purchase updated.' });
+            router.push('/fleet/transactions/purchase');
+        } catch (error) {
+             toast({ title: 'Update Failed', variant: 'destructive' });
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="flex h-[70vh] flex-col items-center justify-center gap-4">
@@ -70,9 +99,7 @@ function EditPurchasePageContent(props: { searchParams: Promise<any> }) {
         );
     }
 
-    if (!transaction) {
-        return <div className="p-12 text-center">Purchase record not found.</div>;
-    }
+    if (!transaction) return <div className="p-12 text-center">Purchase record not found.</div>;
 
     // Adapt transaction to form values
     const initialValues = {
@@ -100,13 +127,14 @@ function EditPurchasePageContent(props: { searchParams: Promise<any> }) {
                 </Button>
             </header>
             
-            <EditPurchaseClientPage 
+            <PurchaseForm 
                 accounts={accounts}
                 parties={parties}
                 vehicles={vehicles}
                 uoms={uoms}
+                onFormSubmit={handleFormSubmit}
+                onCancel={() => router.push('/fleet/transactions/purchase')}
                 initialValues={initialValues}
-                transactionId={transaction.id}
             />
         </div>
     );
