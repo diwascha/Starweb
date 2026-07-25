@@ -123,7 +123,10 @@ function ExpenseViewContent({ searchParams }: { searchParams: Promise<any> }) {
                     <div className="space-y-1.5">
                         <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Voucher No:</span> <span className="font-black">{expense.voucherNo}</span></p>
                         <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Vehicle:</span> <span className="font-bold text-blue-900">{vehicle?.name || 'N/A'}</span></p>
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Expense Class:</span> <Badge variant="outline" className="font-black uppercase text-[10px] h-5">{expense.expenseType}</Badge></p>
+                        <div className="flex items-center gap-2">
+                            <span className="font-bold uppercase text-[10px] text-muted-foreground">Expense Class:</span> 
+                            <Badge variant="outline" className="font-black uppercase text-[10px] h-5">{expense.expenseType}</Badge>
+                        </div>
                     </div>
                     <div className="text-right space-y-1.5">
                         <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Date (BS):</span> <span className="font-black">{toNepaliDate(expense.date)}</span></p>
