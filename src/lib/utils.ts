@@ -154,7 +154,7 @@ export const generateNextNumber = async (
 };
 
 export const generateNextSerialNumber = (reports: Pick<Report, 'serialNumber'>[], date?: string) =>
-  generateNextNumber(reports, 'serialNumber', 'report', '2082/083-', date);
+  generateNextNumber(reports, 'serialNumber', 'report', '2082-083-', date);
 
 export const generateNextPONumber = (items: Pick<PurchaseOrder, 'poNumber'>[], date?: string) =>
   generateNextNumber(items, 'poNumber', 'purchaseOrder', 'SPI-', date);

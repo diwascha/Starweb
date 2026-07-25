@@ -50,7 +50,8 @@ import {
   ShoppingCart,
   Truck,
   Calculator,
-  Home
+  Home,
+  AlertTriangle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -119,6 +120,7 @@ export default function GeneralSettingsPage() {
       effectiveTo: '',
       startingNumber: 1
   });
+  const [prefixError, setPrefixError] = useState<string | null>(null);
 
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [historyKey, setHistoryKey] = useState<DocumentType | null>(null);
@@ -269,6 +271,7 @@ export default function GeneralSettingsPage() {
 
   const openNumberingDialog = (key: DocumentType) => {
     setActiveNumberingKey(key);
+    setPrefixError(null);
     const rawRules = prefixes[key];
     const rules = Array.isArray(rawRules) ? (rawRules as any) : [];
     const active = rules.find((r: any) => r.status === 'Active');
@@ -285,6 +288,11 @@ export default function GeneralSettingsPage() {
   const handleSaveNumbering = async () => {
     if (!activeNumberingKey || !numberingForm.prefix) return;
     
+    if (numberingForm.prefix.includes('/')) {
+        setPrefixError("Forward slashes (/) are not allowed in prefixes. Use '-' or '\\' instead.");
+        return;
+    }
+
     const rawRules = prefixes[activeNumberingKey];
     const rules = Array.isArray(rawRules) ? [...rawRules] : [];
     const activeIndex = rules.findIndex(r => r.status === 'Active');
@@ -326,6 +334,7 @@ export default function GeneralSettingsPage() {
 
   const openEditRuleDialog = (idx: number) => {
     if (!historyKey) return;
+    setPrefixError(null);
     const raw = prefixes[historyKey];
 
     if (idx === -99) {
@@ -356,6 +365,11 @@ export default function GeneralSettingsPage() {
   const handleSaveEditRule = async () => {
     if (!historyKey || editingRuleIndex === null) return;
     
+    if (editRuleForm.prefix.includes('/')) {
+        setPrefixError("Forward slashes (/) are not allowed. Use '-' or '\\' instead.");
+        return;
+    }
+
     const rawRules = prefixes[historyKey];
     let updatedRules: NumberingRule[];
     
@@ -705,10 +719,15 @@ export default function GeneralSettingsPage() {
                         <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">New Prefix</Label>
                         <Input 
                             value={numberingForm.prefix} 
-                            onChange={e => setNumberingForm(p => ({...p, prefix: e.target.value}))} 
-                            className="h-10 font-mono text-blue-600 font-black border-2" 
+                            onChange={e => { setNumberingForm(p => ({...p, prefix: e.target.value})); setPrefixError(null); }} 
+                            className={cn("h-10 font-mono text-blue-600 font-black border-2", prefixError && "border-destructive")} 
                             placeholder="e.g. SPI-2024-"
                         />
+                         {prefixError && (
+                            <p className="flex items-center gap-1.5 text-[10px] font-bold text-destructive uppercase animate-in shake-horizontal duration-200">
+                                <AlertTriangle className="h-3 w-3" /> {prefixError}
+                            </p>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -859,9 +878,14 @@ export default function GeneralSettingsPage() {
                         <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Rule Prefix</Label>
                         <Input 
                             value={editRuleForm.prefix} 
-                            onChange={e => setEditRuleForm(p => ({...p, prefix: e.target.value}))} 
-                            className="h-10 font-mono text-blue-600 font-black border-2" 
+                            onChange={e => { setEditRuleForm(p => ({...p, prefix: e.target.value})); setPrefixError(null); }} 
+                            className={cn("h-10 font-mono text-blue-600 font-black border-2", prefixError && "border-destructive")} 
                         />
+                         {prefixError && (
+                            <p className="flex items-center gap-1.5 text-[10px] font-bold text-destructive uppercase animate-in shake-horizontal duration-200">
+                                <AlertTriangle className="h-3 w-3" /> {prefixError}
+                            </p>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
