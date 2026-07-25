@@ -108,7 +108,12 @@ export default function GeneralSettingsPage() {
   
   const [isNumberingDialogOpen, setIsNumberingDialogOpen] = useState(false);
   const [activeNumberingKey, setActiveNumberingKey] = useState<DocumentType | null>(null);
-  const [numberingForm, setNumberingForm] = useState({
+  const [numberingForm, setNumberingForm] = useState<{
+      prefix: string;
+      effectiveFrom: string;
+      effectiveTo: string | null;
+      startingNumber: number;
+  }>({
       prefix: '',
       effectiveFrom: new Date().toISOString().split('T')[0],
       effectiveTo: '',
@@ -537,10 +542,10 @@ export default function GeneralSettingsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right pr-6 space-x-1">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => openOwnershipDialog(cat)}><Edit className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-4 w-4 text-primary" onClick={() => openOwnershipDialog(cat)}><Edit className="h-4 w-4" /></Button>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive"><Trash2 className="h-4 w-4" /></Button>
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
@@ -724,7 +729,7 @@ export default function GeneralSettingsPage() {
                                 <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                 <Input 
                                     type="date" 
-                                    value={numberingForm.effectiveTo} 
+                                    value={numberingForm.effectiveTo || ''} 
                                     onChange={e => setNumberingForm(p => ({...p, effectiveTo: e.target.value || null}))} 
                                     className="h-10 pl-9 font-bold text-xs"
                                 />
