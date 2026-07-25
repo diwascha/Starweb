@@ -318,7 +318,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           };
           await updateReport(reportToEdit.id, updatedReportData);
           toast({ title: 'Success', description: 'Report updated successfully.' });
-          router.push(`/report/${reportToEdit.id}`);
+          router.push(`/report?id=${reportToEdit.id}`);
       } else {
         const now = new Date().toISOString();
 
@@ -347,7 +347,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
 
         const newReportId = await addReport(newReportData);
         toast({ title: 'Success', description: 'Report generated successfully.' });
-        router.push(`/report/${newReportId}`);
+        router.push(`/report?id=${newReportId}`);
       }
     } catch (error) {
       console.error('Failed to generate report:', error);
@@ -591,7 +591,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                           name={`${key}.value` as any}
                       render={({ field }: any) => (
                             <FormItem>
-                              <FormLabel>{formatLabel(key)}</FormLabel>
+                              <FormLabel>{formatLabel(key)}</Label>
                               <FormControl>
                                 <Input
                                   placeholder={`Result for ${formatLabel(key)}`}
