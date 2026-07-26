@@ -6,7 +6,19 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
-import { Scale, Ruler, Calculator, Save, Loader2, CalendarIcon, History as HistoryIcon, Plus, Trash2, ChevronsUpDown, Check } from 'lucide-react';
+import { 
+    Scale, 
+    Ruler, 
+    Calculator, 
+    Save, 
+    Loader2, 
+    CalendarIcon, 
+    History as HistoryIcon, 
+    Plus, 
+    Trash2, 
+    ChevronsUpDown, 
+    Check 
+} from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate } from '@/services/party-service';
@@ -17,6 +29,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 const numFieldProps = {
     type: 'number' as const,
@@ -59,31 +73,43 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
         return () => { unsubParties(); unsubReports(); };
     }, []);
 
-    // Handle Edit population
+    // 1. Initial/Edit population: Run ONLY when reportToEdit changes
     useEffect(() => {
         if (reportToEdit) {
             setVoucherNo(reportToEdit.voucherNo);
             setDate(new Date(reportToEdit.date));
-            setUnit(reportToEdit.entries?.[0]?.unit || 'cm');
+            const firstEntryUnit = reportToEdit.entries?.[0]?.unit || 'cm';
+            setUnit(firstEntryUnit);
             setEntries(reportToEdit.entries.map(e => ({
                 ...e,
                 weight: String(e.weight),
                 length: String(e.length),
                 width: String(e.width),
             })));
+        }
+    }, [reportToEdit]);
+
+    // 2. Resolve vendor separately to avoid loop
+    useEffect(() => {
+        if (reportToEdit && parties.length > 0 && !vendor) {
             const matchedVendor = parties.find(p => p.id === reportToEdit.vendorId);
             if (matchedVendor) setVendor(matchedVendor);
-        } else if (allReports.length >= 0) {
+        }
+    }, [reportToEdit, parties, vendor]);
+
+    // 3. Voucher number generation for NEW reports
+    useEffect(() => {
+        if (!reportToEdit && allReports.length >= 0) {
             generateNextGsmNumber(allReports, date.toISOString()).then(setVoucherNo);
         }
-    }, [reportToEdit, allReports, date, parties]);
+    }, [reportToEdit, allReports, date]);
 
     const calculateGsm = useCallback((weight: any, length: any, width: any, unitType: 'cm' | 'in') => {
         const w = parseFloat(weight);
         const l = parseFloat(length);
         const wd = parseFloat(width);
         if (!w || !l || !wd || l <= 0 || wd <= 0) return 0;
-        // Standard formula then multiplied by 100 per user requirement
+        // Standard formula then multiplied by 100 per requirement
         const res = unitType === 'cm' ? (w * 10000) / (l * wd) : (w * 1550) / (l * wd);
         return parseFloat((res * 100).toFixed(2));
     }, []);
@@ -99,6 +125,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
         }));
     };
 
+    // Update GSM if unit changes
     useEffect(() => {
         setEntries(prev => prev.map(entry => ({
             ...entry,
