@@ -49,7 +49,8 @@ import {
   Settings2,
   Terminal,
   ShieldAlert,
-  Server
+  Server,
+  Scale
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -215,6 +216,9 @@ export function AppSidebar() {
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/finance/cheque-generator')}><Link href="/finance/cheque-generator" className="flex items-center gap-2"><Receipt className="h-4 w-4" /><span>Cheque Generator</span></Link></SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/finance/gsm-calculator')}><Link href="/finance/gsm-calculator" className="flex items-center gap-2"><Scale className="h-4 w-4" /><span>GSM Calculator</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>

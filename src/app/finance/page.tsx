@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Calculator, FileText, Receipt } from 'lucide-react';
+import { Calculator, FileText, Receipt, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function FinanceDashboardPage() {
@@ -8,46 +8,71 @@ export default function FinanceDashboardPage() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Finance Dashboard</h1>
-            <p className="text-muted-foreground">An overview of your financial tools and records.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Finance Dashboard</h1>
+            <p className="text-muted-foreground text-sm font-medium">An overview of your financial tools and records.</p>
         </div>
       </header>
-       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
+       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-                <CardTitle>Estimate Invoice</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Estimate Invoice
+                </CardTitle>
                 <CardDescription>Create and manage pro-forma invoices.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Button asChild>
+                <Button asChild className="w-full">
                     <Link href="/finance/estimate-invoice">
-                        <FileText className="mr-2 h-4 w-4" /> Go to Estimate Invoice
+                        Go to Invoices
                     </Link>
                 </Button>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <CardTitle>TDS Calculator</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Calculator className="h-5 w-5 text-primary" />
+                TDS Calculator
+              </CardTitle>
               <CardDescription>Calculate TDS and view historical records.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Button asChild>
+                <Button asChild variant="outline" className="w-full">
                     <Link href="/finance/tds-calculator">
-                        <Calculator className="mr-2 h-4 w-4" /> Go to TDS Calculator
+                        Launch Calculator
                     </Link>
                 </Button>
             </CardContent>
          </Card>
-           <Card>
+           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <CardTitle>Cheque Generator</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-primary" />
+                Cheque Generator
+              </CardTitle>
               <CardDescription>Generate and print cheques for your parties.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button asChild>
+              <Button asChild variant="outline" className="w-full">
                     <Link href="/finance/cheque-generator">
-                        <Receipt className="mr-2 h-4 w-4" /> Go to Cheque Generator
+                        Go to Generator
+                    </Link>
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow border-primary/20 bg-primary/[0.02]">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Scale className="h-5 w-5 text-primary" />
+                GSM Calculator
+              </CardTitle>
+              <CardDescription>Quick grammage verification for paper samples.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="secondary" className="w-full">
+                    <Link href="/finance/gsm-calculator">
+                        Open Utility
                     </Link>
               </Button>
             </CardContent>
