@@ -65,8 +65,9 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
         const l = parseFloat(length);
         const wd = parseFloat(width);
         if (!w || !l || !wd || l <= 0 || wd <= 0) return 0;
+        // Standard formula then multiplied by 100 per user requirement
         const res = unitType === 'cm' ? (w * 10000) / (l * wd) : (w * 1550) / (l * wd);
-        return parseFloat(res.toFixed(2));
+        return parseFloat((res * 100).toFixed(2));
     }, []);
 
     const handleEntryChange = (id: string, field: string, value: any) => {
