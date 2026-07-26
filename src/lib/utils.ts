@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { 
@@ -13,7 +14,8 @@ import type {
   EstimatedInvoice, 
   DocumentType, 
   NumberingRule,
-  Cheque
+  Cheque,
+  GsmReport
 } from './types';
 import type { Expense } from './expense-types';
 import NepaliDate from 'nepali-date-converter';
@@ -141,7 +143,7 @@ export const generateNextNumber = async (
   
   const numberStrings = items.map(item => {
       // Handle complex items like Transactions which store the ID in specific fields or narratives
-      if (settingKey === 'paymentReceipt' || settingKey === 'tdsVoucher' || settingKey === 'chequeVoucher') {
+      if (settingKey === 'paymentReceipt' || settingKey === 'tdsVoucher' || settingKey === 'chequeVoucher' || settingKey === 'gsmVoucher') {
           if ('voucherNo' in item) return item.voucherNo;
           if ('referenceId' in item) return item.referenceId;
           // For generic transactions, extract from particular narrative
@@ -170,6 +172,9 @@ export const generateNextSalesNumber = (items: Pick<Trip, 'tripNumber'>[], date?
 
 export const generateNextExpenseNumber = (items: Pick<Expense, 'voucherNo'>[], date?: string) =>
   generateNextNumber(items, 'voucherNo', 'expense', 'EXP-', date);
+
+export const generateNextGsmNumber = (items: Pick<GsmReport, 'voucherNo'>[], date?: string) =>
+  generateNextNumber(items, 'voucherNo', 'gsmVoucher', 'GSM-', date);
 
 export const generateNextVoucherNumber = async (items: (TdsCalculation | Transaction | Cheque)[], prefix: string): Promise<string> => {
     // Note: This is now a wrapper for the standardized generateNextNumber but maintains prefix compatibility

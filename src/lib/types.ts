@@ -1,3 +1,4 @@
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -776,7 +777,7 @@ export interface AppSetting {
     value: any;
 }
 
-export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense', 'rentalBill', 'chequeVoucher'] as const;
+export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense', 'rentalBill', 'chequeVoucher', 'gsmVoucher'] as const;
 export type DocumentType = typeof documentTypes[number];
 
 export interface NumberingRule {
@@ -813,6 +814,8 @@ export const getDocumentName = (type: DocumentType): string => {
             return 'Rental Bill';
         case 'chequeVoucher':
             return 'Cheque Voucher (PDC)';
+        case 'gsmVoucher':
+            return 'GSM Verification Report';
         default:
             return 'Document';
     }
@@ -930,6 +933,25 @@ export interface EstimatedInvoice {
     createdBy: string;
     createdAt: string; // ISO
     ownership: string; // Added for scope enforcement
+}
+
+export interface GsmReport {
+    id: string;
+    voucherNo: string;
+    date: string; // ISO
+    vendorId: string;
+    vendorName: string;
+    reelNumber: string;
+    weight: number;
+    length: number;
+    width: number;
+    unit: 'cm' | 'in';
+    gsm: number;
+    createdBy: string;
+    createdAt: string;
+    lastModifiedBy?: string;
+    lastModifiedAt?: string;
+    ownership: string;
 }
 
 // CRM Types

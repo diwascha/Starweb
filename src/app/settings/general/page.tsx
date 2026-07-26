@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -25,10 +26,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -95,7 +96,7 @@ const groupedDocumentTypes: { label: string; icon: any; types: DocumentType[] }[
     { label: "Manufacturing Module", icon: FileText, types: ['report'] },
     { label: "Procurement Module", icon: ShoppingCart, types: ['purchaseOrder'] },
     { label: "Fleet Module", icon: Truck, types: ['sales', 'expense', 'paymentReceipt', 'purchase'] },
-    { label: "Finance Module", icon: Calculator, types: ['estimateInvoice', 'tdsVoucher', 'chequeVoucher'] },
+    { label: "Finance Module", icon: Calculator, types: ['estimateInvoice', 'tdsVoucher', 'chequeVoucher', 'gsmVoucher'] },
     { label: "Rental Module", icon: Home, types: ['rentalBill'] }
 ];
 

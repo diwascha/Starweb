@@ -1,3 +1,4 @@
+
 /**
  * Centralized constants for the application to ensure consistency and DRY principles.
  */
@@ -42,6 +43,7 @@ export const COLLECTIONS = {
   ANALYTICS_REPORTS: 'analytics_reports',
   HR_SHIFTS: 'hr_shifts',
   LEAVE_REQUESTS: 'leave_requests',
+  GSM_REPORTS: 'gsm_reports',
 } as const;
 
 export const NEPALI_MONTHS = [

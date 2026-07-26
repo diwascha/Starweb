@@ -66,6 +66,25 @@
         "wageAmount": { "type": "number" }
       },
       "required": ["name", "status", "wageBasis", "wageAmount"]
+    },
+    "GsmReport": {
+      "title": "GSM Quality Report",
+      "description": "Paper grammage verification record.",
+      "type": "object",
+      "properties": {
+        "voucherNo": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "vendorId": { "type": "string" },
+        "vendorName": { "type": "string" },
+        "reelNumber": { "type": "string" },
+        "weight": { "type": "number" },
+        "length": { "type": "number" },
+        "width": { "type": "number" },
+        "unit": { "type": "string", "enum": ["cm", "in"] },
+        "gsm": { "type": "number" },
+        "ownership": { "type": "string" }
+      },
+      "required": ["voucherNo", "date", "vendorId", "gsm", "ownership"]
     }
   },
   "auth": {
@@ -95,6 +114,10 @@
     "/employees/{id}": {
       "schema": { "$ref": "#/entities/Employee" },
       "description": "Workforce master data."
+    },
+    "/gsm_reports/{id}": {
+      "schema": { "$ref": "#/entities/GsmReport" },
+      "description": "Grammage verification logs."
     },
     "/attendance/{id}": {
       "schema": { "type": "object" },
