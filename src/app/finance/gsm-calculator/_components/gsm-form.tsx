@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
-import { Scale, Ruler, Calculator, Save, Loader2, CalendarIcon, User, Hash, ChevronsUpDown, Check, PlusCircle, History as HistoryIcon, Plus, Trash2 } from 'lucide-react';
+import { Scale, Ruler, Calculator, Save, Loader2, CalendarIcon, History as HistoryIcon, Plus, Trash2, ChevronsUpDown, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate } from '@/services/party-service';
@@ -16,10 +16,7 @@ import type { Party, GsmReport, GsmEntry } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 
 const numFieldProps = {
     type: 'number' as const,
@@ -312,23 +309,7 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
                         </TableBody>
                     </Table>
                 </CardContent>
-                <CardFooter className="bg-muted/10 border-t py-6 px-8 flex justify-between items-center">
-                    <div className="flex items-center gap-6">
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Average Calculation</p>
-                            <div className="flex items-baseline gap-2">
-                                <span className={cn("text-3xl font-black tabular-nums", avgGsm > 0 ? "text-blue-900" : "text-muted-foreground/30")}>
-                                    {avgGsm.toFixed(2)}
-                                </span>
-                                <span className="text-[10px] font-black uppercase text-muted-foreground">GSM</span>
-                            </div>
-                        </div>
-                        <Separator orientation="vertical" className="h-10" />
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Selected Unit</p>
-                            <Badge variant="outline" className="font-black uppercase text-[9px]">{unit === 'cm' ? 'Metric' : 'Imperial'}</Badge>
-                        </div>
-                    </div>
+                <CardFooter className="bg-muted/10 border-t py-6 px-8 flex justify-end items-center">
                     <Button onClick={handleSave} disabled={isSaving || !vendor || avgGsm <= 0} size="lg" className="h-12 px-12 font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20">
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                         Archive Batch Report
