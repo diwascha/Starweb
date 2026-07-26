@@ -10,7 +10,7 @@ import { Scale, Ruler, Calculator, Save, Loader2, CalendarIcon, History as Histo
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate } from '@/services/party-service';
-import { onGsmReportsUpdate, addGsmReport } from '@/services/gsm-service';
+import { onGsmReportsUpdate, addGsmReport, updateGsmReport } from '@/services/gsm-service';
 import { generateNextGsmNumber, toNepaliDate, cn, generateId } from '@/lib/utils';
 import type { Party, GsmReport, GsmEntry } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -24,7 +24,12 @@ const numFieldProps = {
     onWheel: (e: React.WheelEvent<HTMLInputElement>) => e.currentTarget.blur(),
 };
 
-export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void }) {
+interface GsmGeneratorFormProps {
+    reportToEdit?: GsmReport | null;
+    onSaveSuccess: () => void;
+}
+
+export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFormProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
@@ -54,11 +59,24 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
         return () => { unsubParties(); unsubReports(); };
     }, []);
 
+    // Handle Edit population
     useEffect(() => {
-        if (allReports.length >= 0) {
+        if (reportToEdit) {
+            setVoucherNo(reportToEdit.voucherNo);
+            setDate(new Date(reportToEdit.date));
+            setUnit(reportToEdit.entries?.[0]?.unit || 'cm');
+            setEntries(reportToEdit.entries.map(e => ({
+                ...e,
+                weight: String(e.weight),
+                length: String(e.length),
+                width: String(e.width),
+            })));
+            const matchedVendor = parties.find(p => p.id === reportToEdit.vendorId);
+            if (matchedVendor) setVendor(matchedVendor);
+        } else if (allReports.length >= 0) {
             generateNextGsmNumber(allReports, date.toISOString()).then(setVoucherNo);
         }
-    }, [allReports, date]);
+    }, [reportToEdit, allReports, date, parties]);
 
     const calculateGsm = useCallback((weight: any, length: any, width: any, unitType: 'cm' | 'in') => {
         const w = parseFloat(weight);
@@ -129,18 +147,25 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
                     gsm: e.gsm
                 }));
 
-            await addGsmReport({
+            const reportData: Omit<GsmReport, 'id' | 'createdAt'> = {
                 voucherNo,
                 date: date.toISOString(),
                 vendorId: vendor.id,
                 vendorName: vendor.name,
                 entries: reportEntries,
                 avgGsm,
-                createdBy: user.username,
+                createdBy: reportToEdit?.createdBy || user.username,
                 ownership: 'Both'
-            });
+            };
+
+            if (reportToEdit) {
+                await updateGsmReport(reportToEdit.id, { ...reportData, lastModifiedBy: user.username });
+                toast({ title: 'Report Updated', description: `Voucher ${voucherNo} modified.` });
+            } else {
+                await addGsmReport(reportData);
+                toast({ title: 'Report Saved', description: `Voucher ${voucherNo} archived.` });
+            }
             
-            toast({ title: 'Report Saved', description: `Voucher ${voucherNo} archived.` });
             setEntries([{ id: generateId(), reelNumber: '', weight: '', length: '', width: '', gsm: 0 }]);
             onSaveSuccess();
         } catch {
@@ -313,7 +338,7 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
                 <CardFooter className="bg-muted/10 border-t py-6 px-8 flex justify-end items-center">
                     <Button onClick={handleSave} disabled={isSaving || !vendor || avgGsm <= 0} size="lg" className="h-12 px-12 font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20">
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                        Archive Batch Report
+                        {reportToEdit ? 'Update Batch Report' : 'Archive Batch Report'}
                     </Button>
                 </CardFooter>
             </Card>

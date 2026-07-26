@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -6,7 +5,7 @@ import type { GsmReport } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Printer, Trash2, Eye, Search, FilterX, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { MoreHorizontal, Printer, Trash2, Eye, Search, FilterX, ChevronLeft, ChevronRight, User, Edit } from 'lucide-react';
 import { toNepaliDate, generateId } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +24,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { deleteGsmReport } from '@/services/gsm-service';
 
-export function GsmReportsList({ reports, onPrint }: { reports: GsmReport[], onPrint: (r: GsmReport) => void }) {
+interface GsmReportsListProps {
+    reports: GsmReport[];
+    onPrint: (r: GsmReport) => void;
+    onEdit: (r: GsmReport) => void;
+}
+
+export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 15;
@@ -84,6 +89,7 @@ export function GsmReportsList({ reports, onPrint }: { reports: GsmReport[], onP
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onSelect={() => onPrint(r)}><Printer className="mr-2 h-4 w-4" /> View / Print</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => onEdit(r)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>

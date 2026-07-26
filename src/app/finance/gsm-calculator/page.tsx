@@ -21,6 +21,7 @@ export default function GsmCalculatorPage() {
 
     const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState<GsmReport | null>(null);
+    const [reportToEdit, setReportToEdit] = useState<GsmReport | null>(null);
 
     useEffect(() => {
         const unsub = onGsmReportsUpdate((data) => {
@@ -33,6 +34,16 @@ export default function GsmCalculatorPage() {
     const handlePrint = (report: GsmReport) => {
         setSelectedReport(report);
         setIsPrintDialogOpen(true);
+    };
+
+    const handleEdit = (report: GsmReport) => {
+        setReportToEdit(report);
+        setActiveTab('calculator');
+    };
+
+    const handleSaveSuccess = () => {
+        setReportToEdit(null);
+        setActiveTab('history');
     };
 
     const executePrint = () => {
@@ -63,7 +74,7 @@ export default function GsmCalculatorPage() {
                 </div>
             </header>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={(v) => { if(v === 'calculator' && activeTab !== 'calculator') setReportToEdit(null); setActiveTab(v); }} className="w-full">
                 <TabsList className="bg-muted/50 p-1 mb-6">
                     <TabsTrigger value="calculator" className="gap-2 px-8 py-2 font-bold text-[10px] uppercase tracking-widest">
                         <Calculator className="h-3.5 w-3.5"/>
@@ -76,11 +87,18 @@ export default function GsmCalculatorPage() {
                 </TabsList>
 
                 <TabsContent value="calculator" className="animate-in fade-in slide-in-from-left-2 duration-300">
-                    <GsmGeneratorForm onSaveSuccess={() => setActiveTab('history')} />
+                    <GsmGeneratorForm 
+                        reportToEdit={reportToEdit} 
+                        onSaveSuccess={handleSaveSuccess} 
+                    />
                 </TabsContent>
 
                 <TabsContent value="history" className="animate-in fade-in slide-in-from-right-2 duration-300">
-                    <GsmReportsList reports={reports} onPrint={handlePrint} />
+                    <GsmReportsList 
+                        reports={reports} 
+                        onPrint={handlePrint} 
+                        onEdit={handleEdit}
+                    />
                 </TabsContent>
             </Tabs>
 
