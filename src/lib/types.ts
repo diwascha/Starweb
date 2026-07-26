@@ -935,18 +935,24 @@ export interface EstimatedInvoice {
     ownership: string; // Added for scope enforcement
 }
 
-export interface GsmReport {
+export interface GsmEntry {
     id: string;
-    voucherNo: string;
-    date: string; // ISO
-    vendorId: string;
-    vendorName: string;
     reelNumber: string;
     weight: number;
     length: number;
     width: number;
     unit: 'cm' | 'in';
     gsm: number;
+}
+
+export interface GsmReport {
+    id: string;
+    voucherNo: string;
+    date: string; // ISO
+    vendorId: string;
+    vendorName: string;
+    entries: GsmEntry[];
+    avgGsm: number;
     createdBy: string;
     createdAt: string;
     lastModifiedBy?: string;

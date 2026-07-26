@@ -69,22 +69,18 @@
     },
     "GsmReport": {
       "title": "GSM Quality Report",
-      "description": "Paper grammage verification record.",
+      "description": "Paper grammage verification record with multiple entries.",
       "type": "object",
       "properties": {
         "voucherNo": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "vendorId": { "type": "string" },
         "vendorName": { "type": "string" },
-        "reelNumber": { "type": "string" },
-        "weight": { "type": "number" },
-        "length": { "type": "number" },
-        "width": { "type": "number" },
-        "unit": { "type": "string", "enum": ["cm", "in"] },
-        "gsm": { "type": "number" },
+        "entries": { "type": "array" },
+        "avgGsm": { "type": "number" },
         "ownership": { "type": "string" }
       },
-      "required": ["voucherNo", "date", "vendorId", "gsm", "ownership"]
+      "required": ["voucherNo", "date", "vendorId", "avgGsm", "ownership"]
     }
   },
   "auth": {

@@ -15,7 +15,7 @@ import {
     query, 
     orderBy 
 } from 'firebase/firestore';
-import type { GsmReport } from '@/lib/types';
+import type { GsmReport, GsmEntry } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -33,12 +33,14 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): GsmReport
         date: data.date,
         vendorId: data.vendorId || '',
         vendorName: data.vendorName || '',
-        reelNumber: data.reelNumber || '',
-        weight: Number(data.weight) || 0,
-        length: Number(data.length) || 0,
-        width: Number(data.width) || 0,
-        unit: (data.unit || 'cm') as 'cm' | 'in',
-        gsm: Number(data.gsm) || 0,
+        entries: (data.entries || []).map((e: any) => ({
+            ...e,
+            weight: Number(e.weight) || 0,
+            length: Number(e.length) || 0,
+            width: Number(e.width) || 0,
+            gsm: Number(e.gsm) || 0,
+        })),
+        avgGsm: Number(data.avgGsm) || 0,
         createdBy: data.createdBy || 'System',
         createdAt: data.createdAt || new Date().toISOString(),
         ownership: data.ownership || 'Both',

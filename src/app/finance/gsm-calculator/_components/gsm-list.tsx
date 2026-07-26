@@ -35,7 +35,7 @@ export function GsmReportsList({ reports, onPrint }: { reports: GsmReport[], onP
         return reports.filter(r => 
             r.voucherNo.toLowerCase().includes(q) || 
             r.vendorName.toLowerCase().includes(q) ||
-            (r.reelNumber || '').toLowerCase().includes(q)
+            (r.entries || []).some(e => (e.reelNumber || '').toLowerCase().includes(q))
         );
     }, [reports, searchQuery]);
 
@@ -66,8 +66,8 @@ export function GsmReportsList({ reports, onPrint }: { reports: GsmReport[], onP
                             <TableHead className="pl-6 font-bold uppercase">Date (BS)</TableHead>
                             <TableHead className="font-bold uppercase">Report #</TableHead>
                             <TableHead className="font-bold uppercase">Supplier</TableHead>
-                            <TableHead className="font-bold uppercase">Reel #</TableHead>
-                            <TableHead className="text-right font-bold uppercase">Result (GSM)</TableHead>
+                            <TableHead className="font-bold uppercase text-center">Entries</TableHead>
+                            <TableHead className="text-right font-bold uppercase">Avg Result (GSM)</TableHead>
                             <TableHead className="text-right pr-6 font-bold uppercase">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -77,8 +77,8 @@ export function GsmReportsList({ reports, onPrint }: { reports: GsmReport[], onP
                                 <TableCell className="pl-6 font-mono">{toNepaliDate(r.date)}</TableCell>
                                 <TableCell className="font-bold text-blue-700">{r.voucherNo}</TableCell>
                                 <TableCell className="font-black text-gray-900 uppercase tracking-tighter">{r.vendorName}</TableCell>
-                                <TableCell>{r.reelNumber || '-'}</TableCell>
-                                <TableCell className="text-right"><Badge variant="outline" className="font-black tabular-nums bg-gray-50">{r.gsm.toFixed(2)}</Badge></TableCell>
+                                <TableCell className="text-center font-bold text-muted-foreground">{(r.entries || []).length} Reels</TableCell>
+                                <TableCell className="text-right"><Badge variant="outline" className="font-black tabular-nums bg-gray-50">{r.avgGsm.toFixed(2)}</Badge></TableCell>
                                 <TableCell className="text-right pr-6">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
