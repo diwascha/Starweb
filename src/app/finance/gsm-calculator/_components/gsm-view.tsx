@@ -6,8 +6,7 @@ import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { onSettingUpdate } from '@/services/settings-service';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
-import { Separator } from '@/components/ui/separator';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export function GsmReportView({ report }: { report: GsmReport }) {
     const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
@@ -57,12 +56,6 @@ export function GsmReportView({ report }: { report: GsmReport }) {
                         </TableRow>
                     ))}
                 </TableBody>
-                <TableFooter className="bg-neutral-50 border-t-2 border-neutral-900">
-                    <TableRow className="h-12 hover:bg-transparent">
-                        <TableCell colSpan={4} className="text-right font-black uppercase text-[10px]">Batch Average Result</TableCell>
-                        <TableCell className="text-right font-black text-lg tabular-nums">{report.avgGsm.toFixed(2)} GSM</TableCell>
-                    </TableRow>
-                </TableFooter>
             </Table>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10 pt-6">
