@@ -119,8 +119,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
             res = (w * 1550) / (l * wd);
         }
         
-        // Scaled by 100 per requirement
-        return parseFloat((res * 100).toFixed(2));
+        return parseFloat(res.toFixed(2));
     }, []);
 
     const handleEntryChange = (id: string, field: string, value: any) => {
