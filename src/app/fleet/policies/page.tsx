@@ -679,7 +679,7 @@ export default function PoliciesPage() {
                                             <CommandInput 
                                                 placeholder="Search or add type..."
                                                 value={formState.type}
-                                                onValueChange={(value) => setFormState(prev => ({...prev, type: value}))}
+                                                onValueChange={(value: string) => setFormState(prev => ({...prev, type: value}))}
                                             />
                                             <CommandList>
                                                 <CommandEmpty>
@@ -714,7 +714,7 @@ export default function PoliciesPage() {
                                             <CommandInput 
                                                 placeholder="Search or add provider..."
                                                 value={formState.provider}
-                                                onValueChange={(value) => setFormState(prev => ({...prev, provider: value}))}
+                                                onValueChange={(value: string) => setFormState(prev => ({...prev, provider: value}))}
                                             />
                                             <CommandList>
                                                 <CommandEmpty>

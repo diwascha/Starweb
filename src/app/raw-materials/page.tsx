@@ -28,8 +28,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogDescription,
+  DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -582,7 +582,7 @@ export default function RawMaterialsPage() {
                                     <Command>
                                         <CommandInput 
                                             placeholder="Search or add category..."
-                                            onValueChange={(val) => setNewMaterialType(val)}
+                                            onValueChange={(val: string) => setNewMaterialType(val)}
                                         />
                                         <CommandList>
                                             <CommandEmpty>
@@ -660,7 +660,7 @@ export default function RawMaterialsPage() {
                                  <Popover open={isUnitPopoverOpen} onOpenChange={setIsUnitPopoverOpen}>
                                     <PopoverTrigger asChild>
                                         <div className="flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                            <div className="flex flex-wrap gap-1 flex-1">
+                                            <div className="flex wrap gap-1 flex-1">
                                                 {newMaterialUnits.map(unit => (
                                                     <Badge key={unit} variant="secondary" className="gap-1">
                                                         {unit}
@@ -673,7 +673,16 @@ export default function RawMaterialsPage() {
                                                     placeholder={newMaterialUnits.length === 0 ? "e.g. Kg, Ton, Piece..." : ""}
                                                     value={unitInputValue}
                                                     onChange={e => setUnitInputValue(e.target.value)}
-                                                    onKeyDown={handleUnitKeyDown}
+                                                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                                        if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
+                                                            e.preventDefault();
+                                                            const newUnit = e.currentTarget.value.trim();
+                                                            if (newUnit && !newMaterialUnits.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
+                                                                setNewMaterialUnits([...newMaterialUnits, newUnit]);
+                                                            }
+                                                            setUnitInputValue('');
+                                                        }
+                                                    }}
                                                     className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm min-w-[80px]"
                                                 />
                                             </div>
@@ -685,8 +694,8 @@ export default function RawMaterialsPage() {
                                             <CommandInput 
                                                 placeholder="Search or add unit..."
                                                 value={unitInputValue}
-                                                onValueChange={setUnitInputValue}
-                                                onKeyDown={(e) => {
+                                                onValueChange={(val: string) => setUnitInputValue(val)}
+                                                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                                                      if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
                                                         e.preventDefault();
                                                         const newUnit = e.currentTarget.value.trim();
