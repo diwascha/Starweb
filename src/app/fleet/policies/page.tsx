@@ -753,7 +753,7 @@ export default function PoliciesPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="memberId">{formState.memberType}</Label>
-                                <Select value={formState.memberId} onValueChange={(value) => handleSelectChange('memberId', value)} disabled={!formState.memberType}>
+                                <Select value={formState.memberId} onValueChange={(value: string) => handleSelectChange('memberId', value)} disabled={!formState.memberType}>
                                     <SelectTrigger id="memberId"><SelectValue placeholder={`Select a ${formState.memberType.toLowerCase()}`} /></SelectTrigger>
                                     <SelectContent>
                                         {formState.memberType === 'Vehicle' ? (

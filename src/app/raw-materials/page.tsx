@@ -290,16 +290,6 @@ export default function RawMaterialsPage() {
   
   const isPaperTypeSelectedInDialog = paperTypes.includes(newMaterialType);
 
-  const allUnits = useMemo(() => {
-    const unitsSet = new Set<string>();
-    rawMaterials.forEach(material => {
-      if (Array.isArray(material.units)) {
-        material.units.forEach(unit => unitsSet.add(unit));
-      }
-    });
-    return Array.from(unitsSet).sort();
-  }, [rawMaterials]);
-  
   const handleUnitSelect = (unit: string) => {
     if (!newMaterialUnits.includes(unit)) {
         setNewMaterialUnits([...newMaterialUnits, unit]);
@@ -310,18 +300,6 @@ export default function RawMaterialsPage() {
   const handleUnitRemove = (unit: string) => {
     setNewMaterialUnits(newMaterialUnits.filter(u => u !== unit));
   };
-
-  const handleUnitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
-        e.preventDefault();
-        const newUnit = e.currentTarget.value.trim();
-        if (newUnit && !newMaterialUnits.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
-            setNewMaterialUnits([...newMaterialUnits, newUnit]);
-        }
-        setUnitInputValue('');
-    }
-  };
-
 
   const renderContent = () => {
     if (isLoading) {
@@ -407,9 +385,11 @@ export default function RawMaterialsPage() {
                              <TableCell>
                                 <TooltipProvider>
                                     <Tooltip>
-                                        <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                            {material.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                            <span>{material.lastModifiedBy || material.createdBy}</span>
+                                        <TooltipTrigger asChild>
+                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                                {material.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                <span>{material.lastModifiedBy || material.createdBy}</span>
+                                            </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
                                             {material.createdBy && (
@@ -573,12 +553,12 @@ export default function RawMaterialsPage() {
                             <Label htmlFor="material-type">Type / Category</Label>
                             <Popover open={isQuickAddTypePopoverOpen} onOpenChange={setIsQuickAddTypePopoverOpen}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                                    <Button variant="outline" role="combobox" className="w-full justify-between h-10">
                                         {newMaterialType || "Select or type a category..."}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="p-0">
+                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                                     <Command>
                                         <CommandInput 
                                             placeholder="Search or add category..."
@@ -595,7 +575,7 @@ export default function RawMaterialsPage() {
                                                     <CommandItem key={cat} value={cat} onSelect={() => {
                                                         setNewMaterialType(cat);
                                                         setIsQuickAddTypePopoverOpen(false);
-                                                    }}>
+                                                    }} className="text-xs">
                                                         <Check className={cn("mr-2 h-4 w-4", newMaterialType === cat ? "opacity-100" : "opacity-0")} />
                                                         {cat}
                                                     </CommandItem>
@@ -641,7 +621,7 @@ export default function RawMaterialsPage() {
                                </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="material-bf">BF</Label>
-                                    <Select value={normalizeBF(newMaterialBf)} onValueChange={(val) => setNewMaterialBf(normalizeBF(val))}>
+                                    <Select value={normalizeBF(newMaterialBf)} onValueChange={(val: string) => setNewMaterialBf(normalizeBF(val))}>
                                         <SelectTrigger id="material-bf">
                                             <SelectValue placeholder="Select BF" />
                                         </SelectTrigger>
@@ -659,32 +639,17 @@ export default function RawMaterialsPage() {
                                 <Label htmlFor="material-units">Units of Measurement</Label>
                                  <Popover open={isUnitPopoverOpen} onOpenChange={setIsUnitPopoverOpen}>
                                     <PopoverTrigger asChild>
-                                        <div className="flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                        <div className="flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer">
                                             <div className="flex wrap gap-1 flex-1">
                                                 {newMaterialUnits.map(unit => (
                                                     <Badge key={unit} variant="secondary" className="gap-1">
                                                         {unit}
-                                                        <button type="button" onClick={() => handleUnitRemove(unit)} className="rounded-full hover:bg-background/50">
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleUnitRemove(unit); }} className="rounded-full hover:bg-background/50">
                                                             <X className="h-3 w-3" />
                                                         </button>
                                                     </Badge>
                                                 ))}
-                                                <input
-                                                    placeholder={newMaterialUnits.length === 0 ? "e.g. Kg, Ton, Piece..." : ""}
-                                                    value={unitInputValue}
-                                                    onChange={e => setUnitInputValue(e.target.value)}
-                                                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                                        if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
-                                                            e.preventDefault();
-                                                            const newUnit = e.currentTarget.value.trim();
-                                                            if (newUnit && !newMaterialUnits.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
-                                                                setNewMaterialUnits([...newMaterialUnits, newUnit]);
-                                                            }
-                                                            setUnitInputValue('');
-                                                        }
-                                                    }}
-                                                    className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm min-w-[80px]"
-                                                />
+                                                {newMaterialUnits.length === 0 && <span className="text-muted-foreground">Select units...</span>}
                                             </div>
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </div>
@@ -695,15 +660,6 @@ export default function RawMaterialsPage() {
                                                 placeholder="Search or add unit..."
                                                 value={unitInputValue}
                                                 onValueChange={(val: string) => setUnitInputValue(val)}
-                                                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                                     if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
-                                                        e.preventDefault();
-                                                        const newUnit = e.currentTarget.value.trim();
-                                                        if (newUnit) {
-                                                            handleUnitSelect(newUnit);
-                                                        }
-                                                    }
-                                                }}
                                             />
                                             <CommandList>
                                                 <CommandEmpty>
@@ -737,13 +693,13 @@ export default function RawMaterialsPage() {
       </header>
        {isLoading ? renderContent() : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+          <TabsList className="mb-4 bg-muted/50 p-1">
               {tabs.map(tab => (
                    <TabsTrigger key={tab} value={tab} className="font-bold text-xs uppercase tracking-widest">{tab}</TabsTrigger>
               ))}
           </TabsList>
           {tabs.map(tab => (
-              <TabsContent key={tab} value={tab} className="mt-4">
+              <TabsContent key={tab} value={tab} className="mt-0">
                   {renderContent()}
               </TabsContent>
           ))}

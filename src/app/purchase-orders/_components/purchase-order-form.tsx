@@ -470,17 +470,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     setQuickAddForm(prev => ({...prev, units: prev.units.filter(u => u !== unit)}));
   };
 
-  const handleQuickAddUnitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
-        e.preventDefault();
-        const newUnit = e.currentTarget.value.trim();
-        if (newUnit && !quickAddForm.units.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
-            setQuickAddForm(prev => ({...prev, units: [...prev.units, newUnit]}));
-        }
-        setUnitInputValue('');
-    }
-  };
-  
   const handleToggleCategory = (category: string) => {
     setSelectedCategories(prev => {
         if (category === 'All') return ['All'];
@@ -526,7 +515,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
-                          <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                          <Button variant="outline" className={cn("pl-3 text-left font-normal h-10", !field.value && "text-muted-foreground")}>
                             {field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
@@ -549,7 +538,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     <Popover open={isCompanyPopoverOpen} onOpenChange={setIsCompanyPopoverOpen}>
                         <PopoverTrigger asChild>
                             <FormControl>
-                            <Button variant="outline" role="combobox" className="w-full justify-between">
+                            <Button variant="outline" role="combobox" className="w-full justify-between h-10">
                                 {field.value ? companies.find(c => c.id === field.value)?.name : "Select or type a company..."}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
@@ -566,7 +555,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                     <CommandEmpty>
                                         <Button
                                             variant="ghost"
-                                            className="w-full justify-start"
+                                            className="w-full justify-start h-10"
                                             onClick={() => {
                                                 handleOpenPartyDialog(null, companySearch);
                                                 setCompanySearch('');
@@ -732,7 +721,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                                     <CommandEmpty>
                                                                         <Button
                                                                             variant="ghost"
-                                                                            className="w-full justify-start text-xs"
+                                                                            className="w-full justify-start text-xs h-10"
                                                                             onClick={() => setIsQuickAddMaterialDialogOpen(true)}
                                                                         >
                                                                             <PlusCircle className="mr-2 h-3 w-3"/> Add "{quickAddMaterialSearch}"
@@ -924,7 +913,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="p-0">
+                            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                                 <Command>
                                     <CommandInput 
                                         placeholder="Search or add category..."
