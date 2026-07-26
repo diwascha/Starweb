@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -19,6 +18,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 const numFieldProps = {
     type: 'number' as const,
@@ -156,7 +157,7 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2 shadow-sm border-gray-100">
                     <CardHeader className="bg-muted/10 border-b py-4 px-6">
-                        <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
+                        <CardTitle className="text-sm font-black uppercase flex items-center gap-2">
                             <HistoryIcon className="h-4 w-4 text-primary" />
                             Report Identity
                         </CardTitle>
@@ -299,9 +300,9 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
                                         <Button 
                                             variant="ghost" 
                                             size="icon" 
+                                            className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" 
                                             onClick={() => handleRemoveRow(entry.id)} 
                                             disabled={entries.length === 1}
-                                            className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
                                             <Trash2 className="h-4 w-4"/>
                                         </Button>
