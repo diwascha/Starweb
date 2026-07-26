@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -74,17 +73,6 @@ export function GsmReportView({ report }: { report: GsmReport }) {
                     </p>
                 </div>
             </div>
-
-            <footer className="mt-auto pt-20 grid grid-cols-2 gap-24 text-center">
-                <div className="space-y-3">
-                    <div className="border-t-2 border-neutral-900 w-full" />
-                    <p className="font-black uppercase text-[10px] tracking-widest">Quality Control Inspector</p>
-                </div>
-                <div className="space-y-3">
-                    <div className="border-t-2 border-neutral-900 w-full" />
-                    <p className="font-black uppercase text-[10px] tracking-widest">Authorized Signature</p>
-                </div>
-            </footer>
         </div>
     );
 }
