@@ -3,7 +3,16 @@
 import { useState, useEffect, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calculator, History as HistoryIcon, Printer, X, Loader2 } from 'lucide-react';
+import { 
+    ArrowLeft, 
+    Calculator, 
+    History as HistoryIcon, 
+    Printer, 
+    X, 
+    Loader2,
+    FileDown,
+    Image as ImageIcon
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { GsmGeneratorForm } from './_components/gsm-form';
 import { GsmReportsList } from './_components/gsm-list';
@@ -12,9 +21,11 @@ import type { GsmReport } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { GsmReportView } from './_components/gsm-view';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 
 export default function GsmCalculatorPage() {
     const router = useRouter();
+    const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('calculator');
     const [reports, setReports] = useState<GsmReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -22,6 +33,7 @@ export default function GsmCalculatorPage() {
     const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState<GsmReport | null>(null);
     const [reportToEdit, setReportToEdit] = useState<GsmReport | null>(null);
+    const [isExporting, setIsExporting] = useState(false);
 
     useEffect(() => {
         const unsub = onGsmReportsUpdate((data) => {
@@ -58,6 +70,65 @@ export default function GsmCalculatorPage() {
         win.document.close();
         win.focus();
         setTimeout(() => { win.print(); win.close(); }, 500);
+    };
+
+    const handleExportPdf = async () => {
+        if (!selectedReport) return;
+        setIsExporting(true);
+        try {
+            const element = document.querySelector('.gsm-voucher') as HTMLElement;
+            if (!element) return;
+
+            const html2canvas = (await import('html2canvas')).default;
+            const { jsPDF } = await import('jspdf');
+
+            const canvas = await html2canvas(element, { 
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+            
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`GSM-Report-${selectedReport.voucherNo}.pdf`);
+            toast({ title: 'PDF Export Successful' });
+        } catch (error) {
+            console.error(error);
+            toast({ title: 'PDF Export Failed', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportImage = async () => {
+        if (!selectedReport) return;
+        setIsExporting(true);
+        try {
+            const element = document.querySelector('.gsm-voucher') as HTMLElement;
+            if (!element) return;
+
+            const html2canvas = (await import('html2canvas')).default;
+            const canvas = await html2canvas(element, { 
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+            
+            const link = document.createElement('a');
+            link.download = `GSM-Report-${selectedReport.voucherNo}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+            toast({ title: 'Image Export Successful' });
+        } catch (error) {
+            console.error(error);
+            toast({ title: 'Image Export Failed', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     return (
@@ -107,7 +178,7 @@ export default function GsmCalculatorPage() {
                     <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
                         <div className="flex items-center justify-between">
                             <DialogTitle className="text-xl font-black uppercase tracking-tight">Report Preview</DialogTitle>
-                            <Button variant="ghost" size="icon" onClick={() => setIsPrintDialogOpen(false)}><X className="h-4 w-4"/></Button>
+                            <Button variant="ghost" size="icon" onClick={() => setIsPrintDialogOpen(false)} className="h-8 w-8"><X className="h-4 w-4"/></Button>
                         </div>
                     </DialogHeader>
                     <ScrollArea className="flex-1 bg-muted/20 p-4 sm:p-12">
@@ -119,10 +190,24 @@ export default function GsmCalculatorPage() {
                         <ScrollBar orientation="horizontal" />
                     </ScrollArea>
                     <DialogFooter className="p-6 border-t bg-white shrink-0">
-                        <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)} className="h-10 px-8 font-bold uppercase text-[10px]">Close Preview</Button>
-                        <Button onClick={executePrint} className="h-10 px-10 font-black uppercase text-[10px] shadow-lg">
-                            <Printer className="mr-2 h-4 w-4" /> Direct Print
-                        </Button>
+                        <div className="flex w-full justify-between items-center">
+                            <div className="flex gap-2">
+                                <Button variant="outline" onClick={handleExportImage} disabled={isExporting} className="h-10 px-6 font-bold text-[10px] uppercase tracking-widest">
+                                    {isExporting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <ImageIcon className="mr-2 h-3.5 w-3.5"/>}
+                                    Export Image
+                                </Button>
+                                <Button variant="outline" onClick={handleExportPdf} disabled={isExporting} className="h-10 px-6 font-bold text-[10px] uppercase tracking-widest">
+                                    {isExporting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <FileDown className="mr-2 h-3.5 w-3.5 text-red-600"/>}
+                                    Export PDF
+                                </Button>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="secondary" onClick={() => setIsPrintDialogOpen(false)} className="h-10 px-6 font-bold uppercase text-[10px]">Close Preview</Button>
+                                <Button onClick={executePrint} className="h-10 px-10 font-black uppercase text-[10px] shadow-lg">
+                                    <Printer className="mr-2 h-4 w-4" /> Direct Print
+                                </Button>
+                            </div>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
