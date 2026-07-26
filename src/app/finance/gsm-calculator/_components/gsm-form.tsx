@@ -56,7 +56,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
     const [voucherNo, setVoucherNo] = useState('');
     const [date, setDate] = useState<Date>(new Date());
     const [vendor, setVendor] = useState<Party | null>(null);
-    const [unit, setUnit] = useState<'cm' | 'in'>('cm');
+    const [unit, setUnit] = useState<'cm' | 'in' | 'mm'>('cm');
 
     // Dynamic Entries State
     const [entries, setEntries] = useState<any[]>([
@@ -104,13 +104,22 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
         }
     }, [reportToEdit, allReports, date]);
 
-    const calculateGsm = useCallback((weight: any, length: any, width: any, unitType: 'cm' | 'in') => {
+    const calculateGsm = useCallback((weight: any, length: any, width: any, unitType: 'cm' | 'in' | 'mm') => {
         const w = parseFloat(weight);
         const l = parseFloat(length);
         const wd = parseFloat(width);
         if (!w || !l || !wd || l <= 0 || wd <= 0) return 0;
-        // Standard formula then multiplied by 100 per requirement
-        const res = unitType === 'cm' ? (w * 10000) / (l * wd) : (w * 1550) / (l * wd);
+        
+        let res = 0;
+        if (unitType === 'cm') {
+            res = (w * 10000) / (l * wd);
+        } else if (unitType === 'mm') {
+            res = (w * 1000000) / (l * wd);
+        } else {
+            res = (w * 1550) / (l * wd);
+        }
+        
+        // Scaled by 100 per requirement
         return parseFloat((res * 100).toFixed(2));
     }, []);
 
@@ -264,8 +273,9 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                 <Card className="shadow-sm border-gray-100 h-fit">
                     <CardHeader className="py-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black">Dimension System</CardTitle></CardHeader>
                     <CardContent className="p-4">
-                        <RadioGroup value={unit} onValueChange={(v: any) => setUnit(v)} className="flex gap-4 p-2 bg-muted/30 rounded-lg border border-dashed">
+                        <RadioGroup value={unit} onValueChange={(v: any) => setUnit(v)} className="flex flex-col gap-2 p-2 bg-muted/30 rounded-lg border border-dashed">
                             <div className="flex items-center space-x-2"><RadioGroupItem value="cm" id="unit-cm" /><Label htmlFor="unit-cm" className="text-xs font-bold cursor-pointer">Metric (cm)</Label></div>
+                            <div className="flex items-center space-x-2"><RadioGroupItem value="mm" id="unit-mm" /><Label htmlFor="unit-mm" className="text-xs font-bold cursor-pointer">Millimeter (mm)</Label></div>
                             <div className="flex items-center space-x-2"><RadioGroupItem value="in" id="unit-in" /><Label htmlFor="unit-in" className="text-xs font-bold cursor-pointer">Imperial (in)</Label></div>
                         </RadioGroup>
                     </CardContent>

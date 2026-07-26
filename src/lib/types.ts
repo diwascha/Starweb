@@ -1,4 +1,3 @@
-
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -941,7 +940,7 @@ export interface GsmEntry {
     weight: number;
     length: number;
     width: number;
-    unit: 'cm' | 'in';
+    unit: 'cm' | 'in' | 'mm';
     gsm: number;
 }
 
