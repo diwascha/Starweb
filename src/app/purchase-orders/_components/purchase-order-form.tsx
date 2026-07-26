@@ -137,12 +137,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     name: "items",
   });
   
-  // useWatch returns a fresh (cloned) value on every change, so useMemo
-  // below actually recomputes. form.watch("items") returns a mutated-in-place
-  // reference, which caused the Total footer to stay stale.
   const watchedItems = useWatch({ control: form.control, name: "items" });
   const watchedPoDate = useWatch({ control: form.control, name: "poDate" });
-  const watchedPartyId = useWatch({ control: form.control, name: "partyId" });
   
   const quantityTotalsByUnit = useMemo(() => {
     return (watchedItems || []).reduce((acc, item) => {
@@ -564,7 +560,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 <CommandInput 
                                     placeholder="Search or add company..."
                                     value={companySearch}
-                                    onValueChange={setCompanySearch}
+                                    onValueChange={(val: string) => setCompanySearch(val)}
                                 />
                                 <CommandList>
                                     <CommandEmpty>
@@ -1075,15 +1071,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                         placeholder="Search or add unit..."
                                         value={unitInputValue}
                                         onValueChange={(val: string) => setUnitInputValue(val)}
-                                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                             if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
-                                                e.preventDefault();
-                                                const newUnit = e.currentTarget.value.trim();
-                                                if (newUnit) {
-                                                    handleQuickAddUnitSelect(newUnit);
-                                                }
-                                            }
-                                        }}
                                     />
                                     <CommandList>
                                         <CommandEmpty>
