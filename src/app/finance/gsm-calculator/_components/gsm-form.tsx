@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -7,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
-import { Scale, Ruler, Calculator, Save, Loader2, CalendarIcon, User, Hash, ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
+import { Scale, Ruler, Calculator, Save, Loader2, CalendarIcon, User, Hash, ChevronsUpDown, Check, PlusCircle, History } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate } from '@/services/party-service';
