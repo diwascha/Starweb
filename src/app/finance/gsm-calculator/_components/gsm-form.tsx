@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
-import { Scale, Ruler, Calculator, Save, Loader2, CalendarIcon, User, Hash, ChevronsUpDown, Check, PlusCircle, History } from 'lucide-react';
+import { Scale, Ruler, Calculator, Save, Loader2, CalendarIcon, User, Hash, ChevronsUpDown, Check, PlusCircle, History as HistoryIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate } from '@/services/party-service';
@@ -115,11 +115,11 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
                 <Card className="shadow-sm border-gray-100">
                     <CardHeader className="bg-muted/10 border-b py-4 px-6">
                         <CardTitle className="text-sm font-black uppercase flex items-center gap-2">
-                            <History className="h-4 w-4 text-primary" />
+                            <HistoryIcon className="h-4 w-4 text-primary" />
                             Report Identity
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <CardContent className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground">Report No.</Label>
                             <Input value={voucherNo} readOnly className="bg-muted/50 font-mono text-sm h-10" />
@@ -143,7 +143,7 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
                             <Popover open={isVendorPopoverOpen} onOpenChange={setIsVendorPopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" role="combobox" className="w-full justify-between h-10">
-                                        {vendor ? vendor.name : "Select vendor..."}
+                                        <span className="truncate">{vendor ? vendor.name : "Select vendor..."}</span>
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
@@ -165,10 +165,6 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
                                 </PopoverContent>
                             </Popover>
                         </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Reel / Batch Number</Label>
-                            <Input value={reelNumber} onChange={e => setReelNumber(e.target.value)} placeholder="e.g. 5422-A" className="h-10" />
-                        </div>
                     </CardContent>
                 </Card>
 
@@ -188,7 +184,11 @@ export function GsmGeneratorForm({ onSaveSuccess }: { onSaveSuccess: () => void 
                             </RadioGroup>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Reel / Batch Number</Label>
+                                <Input value={reelNumber} onChange={e => setReelNumber(e.target.value)} placeholder="e.g. 5422-A" className="h-11 font-bold text-blue-900 border-primary/30" />
+                            </div>
                             <div className="space-y-1.5">
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground">Sample Weight (g)</Label>
                                 <div className="relative">

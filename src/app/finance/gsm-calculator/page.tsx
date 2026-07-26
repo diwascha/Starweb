@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calculator, History, Printer, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calculator, History as HistoryIcon, Printer, X, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { GsmGeneratorForm } from './_components/gsm-form';
 import { GsmReportsList } from './_components/gsm-list';
@@ -71,7 +70,7 @@ export default function GsmCalculatorPage() {
                         Verification Form
                     </TabsTrigger>
                     <TabsTrigger value="history" className="gap-2 px-8 py-2 font-bold text-[10px] uppercase tracking-widest">
-                        <History className="h-3.5 w-3.5"/>
+                        <HistoryIcon className="h-3.5 w-3.5"/>
                         Archived Logs
                     </TabsTrigger>
                 </TabsList>
