@@ -29,6 +29,7 @@ import {
   RotateCcw,
   CalendarIcon,
   CreditCard,
+  Receipt,
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -62,13 +63,14 @@ import { Badge } from '@/components/ui/badge';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { onAccountsUpdate } from '@/services/account-service';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
+import { ChequeLedger } from './_components/cheque-ledger';
 
 type SortKey = 'chequeDate' | 'payeeName' | 'amount' | 'chequeNumber' | 'status' | 'dueStatus';
 type SortDirection = 'asc' | 'desc';
@@ -619,7 +621,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
   return (
     <div className="space-y-4">
-      <Card className="border-gray-100 shadow-sm overflow-hidden">
+      <Card className="border-gray-100 shadow-sm overflow-hidden bg-white">
         <CardHeader className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 py-5 px-6 bg-muted/20 border-b">
           <div>
             <CardTitle className="text-xl font-bold text-gray-900">Cheque History</CardTitle>
@@ -926,71 +928,75 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               )}
             </div>
 
-            <ScrollArea className="flex-1">
-              <div className="p-6">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-4">Payment history</h4>
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="p-4 border-b flex items-center justify-between bg-muted/10 shrink-0">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Payment history</h4>
+                </div>
+                <ScrollArea className="flex-1">
+                    <div className="p-6">
+                        <Table className="text-xs border rounded-lg overflow-hidden">
+                        <TableHeader className="bg-muted/50">
+                            <TableRow className="h-10 hover:bg-transparent">
+                            <TableHead className="pl-4 font-bold">Date</TableHead>
+                            <TableHead className="font-bold">Amount</TableHead>
+                            <TableHead className="font-bold">Remarks</TableHead>
+                            <TableHead className="text-right pr-4 font-bold" />
+                            </TableRow>
+                        </TableHeader>
 
-                <Table className="text-xs border rounded-lg overflow-hidden">
-                  <TableHeader className="bg-muted/50">
-                    <TableRow className="h-10 hover:bg-transparent">
-                      <TableHead className="pl-4 font-bold">Date</TableHead>
-                      <TableHead className="font-bold">Amount</TableHead>
-                      <TableHead className="font-bold">Remarks</TableHead>
-                      <TableHead className="text-right pr-4 font-bold" />
-                    </TableRow>
-                  </TableHeader>
+                        <TableBody>
+                            {(payingSplit?.partialPayments || []).length > 0 ? (
+                            (payingSplit?.partialPayments || []).map((p) => (
+                                <TableRow key={p.id} className="h-11">
+                                <TableCell className="pl-4">
+                                    <div className="flex flex-col">
+                                    <span className="font-bold text-blue-900">{toNepaliDate(p.date)}</span>
+                                    <span className="text-[9px] text-muted-foreground">{format(new Date(p.date), 'yyyy-MM-dd')}</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="font-black">Rs. {money(Number(p.amount))}</TableCell>
+                                <TableCell className="italic text-muted-foreground">{p.remarks || '—'}</TableCell>
+                                <TableCell className="text-right pr-4">
+                                    <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:bg-red-50"
+                                    onClick={() => handleDeletePartialPayment(p.id)}
+                                    aria-label="Remove payment"
+                                    >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                </TableCell>
+                                </TableRow>
+                            ))
+                            ) : (
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground italic">
+                                No payments recorded yet.
+                                </TableCell>
+                            </TableRow>
+                            )}
+                        </TableBody>
 
-                  <TableBody>
-                    {(payingSplit?.partialPayments || []).length > 0 ? (
-                      (payingSplit?.partialPayments || []).map((p) => (
-                        <TableRow key={p.id} className="h-11">
-                          <TableCell className="pl-4">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-blue-900">{toNepaliDate(p.date)}</span>
-                              <span className="text-[9px] text-muted-foreground">{format(new Date(p.date), 'yyyy-MM-dd')}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-black">Rs. {money(Number(p.amount))}</TableCell>
-                          <TableCell className="italic text-muted-foreground">{p.remarks || '—'}</TableCell>
-                          <TableCell className="text-right pr-4">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:bg-red-50"
-                              onClick={() => handleDeletePartialPayment(p.id)}
-                              aria-label="Remove payment"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground italic">
-                          No payments recorded yet.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-
-                  {(payingSplit?.partialPayments || []).length > 0 && (
-                    <TableFooter className="bg-muted/30">
-                      <TableRow className="h-11 font-black">
-                        <TableCell className="pl-4 text-right">Total settled</TableCell>
-                        <TableCell className="text-emerald-700">Rs. {money(payingSplit?.paidAmount ?? 0)}</TableCell>
-                        <TableCell colSpan={2} />
-                      </TableRow>
-                      <TableRow className="h-11 font-black bg-red-50/50">
-                        <TableCell className="pl-4 text-right">Balance due</TableCell>
-                        <TableCell className="text-red-700">Rs. {money(payingSplit?.remainingAmount ?? 0)}</TableCell>
-                        <TableCell colSpan={2} />
-                      </TableRow>
-                    </TableFooter>
-                  )}
-                </Table>
-              </div>
-            </ScrollArea>
+                        {(payingSplit?.partialPayments || []).length > 0 && (
+                            <TableFooter className="bg-muted/30">
+                            <TableRow className="h-11 font-black">
+                                <TableCell className="pl-4 text-right">Total settled</TableCell>
+                                <TableCell className="text-emerald-700">Rs. {money(payingSplit?.paidAmount ?? 0)}</TableCell>
+                                <TableCell colSpan={2} />
+                            </TableRow>
+                            <TableRow className="h-11 font-black bg-red-50/50">
+                                <TableCell className="pl-4 text-right">Balance due</TableCell>
+                                <TableCell className="text-red-700">Rs. {money(payingSplit?.remainingAmount ?? 0)}</TableCell>
+                                <TableCell colSpan={2} />
+                            </TableRow>
+                            </TableFooter>
+                        )}
+                        </Table>
+                    </div>
+                    <ScrollBar orientation="vertical" />
+                </ScrollArea>
+            </div>
           </div>
 
           <DialogFooter className="p-6 border-t bg-white shrink-0">
@@ -1128,7 +1134,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
           </DialogHeader>
 
           <ScrollArea className="flex-1 bg-muted/20 p-8">
-            <div ref={printRef} className="mx-auto w-[210mm] shadow-2xl">
+            <div ref={printRef} className="mx-auto w-[210mm] shadow-2xl bg-white">
               {chequeToPrint && (
                 <ChequeView
                   voucherNo={chequeToPrint.voucherNo}
@@ -1139,6 +1145,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 />
               )}
             </div>
+            <ScrollBar orientation="horizontal" />
+            <ScrollBar orientation="vertical" />
           </ScrollArea>
 
           <DialogFooter className="p-6 border-t bg-white">
@@ -1271,6 +1279,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 </p>
               </div>
             </div>
+            <ScrollBar orientation="horizontal" />
+            <ScrollBar orientation="vertical" />
           </ScrollArea>
 
           <DialogFooter className="p-6 bg-white border-t shrink-0">
@@ -1321,6 +1331,9 @@ export default function ChequeGeneratorPage() {
           <TabsTrigger value="history" className="gap-2 px-6">
             <History className="h-4 w-4" /> History
           </TabsTrigger>
+          <TabsTrigger value="ledger" className="gap-2 px-6">
+            <Receipt className="h-4 w-4" /> Payment Ledger
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="generator">
@@ -1343,6 +1356,10 @@ export default function ChequeGeneratorPage() {
               setActiveTab('generator');
             }}
           />
+        </TabsContent>
+
+        <TabsContent value="ledger">
+          <ChequeLedger />
         </TabsContent>
       </Tabs>
     </div>

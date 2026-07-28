@@ -1,7 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, getDoc, setDoc, onSnapshot, query, where, getDocs, writeBatch, orderBy } from 'firebase/firestore';
-import type { AppSetting, CostSetting, DocumentType, NumberingRule } from '@/lib/types';
+import type { AppSetting, CostSetting, DocumentType, NumberingRule, DocumentPrefixes } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { COLLECTIONS } from '@/lib/constants';
@@ -84,16 +84,17 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
 
 /**
  * Robust bulk update for existing record numbering when rules change.
+ * Handles grouping for multi-entry vouchers (like Payment/Receipt) and synchronization to ledgers.
  */
 export const updateExistingRecordsNumbering = async (type: DocumentType, rule: NumberingRule, modifiedBy: string) => {
     const { db } = getFirebase();
     
-    const mapping: Record<string, { collection: string, field: string, dateField: string, filter?: any }> = {
+    const mapping: Record<string, { collection: string, field: string, dateField: string, groupField?: string }> = {
         'report': { collection: 'reports', field: 'serialNumber', dateField: 'date' },
         'purchaseOrder': { collection: 'purchaseOrders', field: 'poNumber', dateField: 'poDate' },
         'sales': { collection: 'trips', field: 'tripNumber', dateField: 'date' },
-        'purchase': { collection: 'transactions', field: 'purchaseNumber', dateField: 'date', filter: where('referenceType', '==', 'Purchase Entry') },
-        'paymentReceipt': { collection: 'transactions', field: 'referenceId', dateField: 'date', filter: where('referenceType', '==', 'Payment/Receipt Voucher') },
+        'purchase': { collection: 'transactions', field: 'purchaseNumber', dateField: 'date' },
+        'paymentReceipt': { collection: 'transactions', field: 'referenceId', dateField: 'date', groupField: 'voucherId' },
         'tdsVoucher': { collection: 'tdsCalculations', field: 'voucherNo', dateField: 'date' },
         'estimateInvoice': { collection: 'estimatedInvoices', field: 'invoiceNumber', dateField: 'date' },
         'expense': { collection: 'expenses', field: 'voucherNo', dateField: 'date' },
@@ -108,6 +109,7 @@ export const updateExistingRecordsNumbering = async (type: DocumentType, rule: N
     const from = rule.effectiveFrom;
     const to = rule.effectiveTo;
 
+    // Use a basic date query to avoid complex index requirements (equality + inequality filters)
     let q = query(
         collection(db, config.collection),
         where(config.dateField, '>=', from)
@@ -117,38 +119,75 @@ export const updateExistingRecordsNumbering = async (type: DocumentType, rule: N
         q = query(q, where(config.dateField, '<=', to));
     }
 
-    if (config.filter) {
-        q = query(q, config.filter);
-    }
-
     try {
         const snapshot = await getDocs(q);
         if (snapshot.empty) return;
 
-        // Sort by date ascending to ensure sequence follows chronological order
-        const sortedDocs = snapshot.docs.map(d => ({ id: d.id, data: d.data(), ref: d.ref }));
-        sortedDocs.sort((a, b) => new Date(a.data[config.dateField]).getTime() - new Date(b.data[config.dateField]).getTime());
+        let docs = snapshot.docs.map(d => ({ id: d.id, data: d.data(), ref: d.ref }));
+        
+        // Manual filter for transaction subtypes to avoid strict index requirements in Firestore
+        if (type === 'purchase') {
+            docs = docs.filter(d => d.data.referenceType === 'Purchase Entry');
+        } else if (type === 'paymentReceipt') {
+            docs = docs.filter(d => d.data.referenceType === 'Payment/Receipt Voucher');
+        }
+
+        if (docs.length === 0) return;
+
+        // Group by groupField if defined (crucial for Payment/Receipt Vouchers with multiple entries)
+        const groups: Map<string, typeof docs> = new Map();
+        if (config.groupField) {
+            docs.forEach(d => {
+                const key = d.data[config.groupField!] || d.id;
+                const arr = groups.get(key) || [];
+                arr.push(d);
+                groups.set(key, arr);
+            });
+        } else {
+            docs.forEach(d => groups.set(d.id, [d]));
+        }
+
+        // Sort groups chronologically
+        const sortedGroups = Array.from(groups.values());
+        sortedGroups.sort((a, b) => 
+            new Date(a[0].data[config.dateField]).getTime() - 
+            new Date(b[0].data[config.dateField]).getTime()
+        );
 
         const batch = writeBatch(db);
         let currentNum = rule.startingNumber;
         const now = new Date().toISOString();
 
-        sortedDocs.forEach(d => {
+        for (const groupDocs of sortedGroups) {
             const newNum = `${rule.prefix}${currentNum.toString().padStart(3, '0')}`;
-            const updates: any = {
-                [config.field]: newNum,
-                lastModifiedBy: modifiedBy,
-                lastModifiedAt: now
-            };
             
-            // For purchases in transaction ledger, sync referenceId as well
-            if (type === 'purchase') {
-                updates.referenceId = newNum;
-            }
+            for (const d of groupDocs) {
+                const updates: any = {
+                    [config.field]: newNum,
+                    lastModifiedBy: modifiedBy,
+                    lastModifiedAt: now
+                };
+                
+                // For purchases in transaction ledger, sync both fields
+                if (type === 'purchase') {
+                    updates.referenceId = newNum;
+                }
 
-            batch.update(d.ref, updates);
+                batch.update(d.ref, updates);
+
+                // SYNC CROSS-COLLECTION SIDE EFFECTS
+                if (type === 'sales') {
+                    // Update matching transaction in ledger
+                    const tSnap = await getDocs(query(collection(db, 'transactions'), where('tripId', '==', d.id)));
+                    tSnap.forEach(tdoc => batch.update(tdoc.ref, { referenceId: newNum, lastModifiedAt: now, lastModifiedBy: modifiedBy }));
+                } else if (type === 'expense') {
+                    // Update matching transaction in ledger
+                    const tSnap = await getDocs(query(collection(db, 'transactions'), where('expenseId', '==', d.id)));
+                    tSnap.forEach(tdoc => batch.update(tdoc.ref, { referenceId: newNum, lastModifiedAt: now, lastModifiedBy: modifiedBy }));
+                }
+            }
             currentNum++;
-        });
+        }
 
         await batch.commit();
     } catch (error: any) {
