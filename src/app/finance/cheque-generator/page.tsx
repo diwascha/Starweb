@@ -165,6 +165,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
     const [isPaidDialogOpen, setIsPaidDialogOpen] = useState(false);
     const [paidRemark, setPaidRemark] = useState('');
+    const [paidDate, setPaidDate] = useState<Date>(new Date());
     const [splitToPay, setSplitToPay] = useState<{cheque: Cheque, splitId: string} | null>(null);
 
     const [isExporting, setIsExporting] = useState(false);
@@ -225,7 +226,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         return Math.ceil(sortedAndFilteredSplits.length / itemsPerPage);
     }, [sortedAndFilteredSplits, itemsPerPage]);
 
-    const handleStatusUpdate = useCallback(async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, remark?: string) => {
+    const handleStatusUpdate = useCallback(async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, remark?: string, customDate?: Date) => {
         if (!user) return;
         const updatedSplits = cheque.splits.map(s => {
             if (s.id === splitId) {
@@ -235,7 +236,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     const paid = (s.partialPayments || []).reduce((sum, p) => sum + p.amount, 0);
                     const remaining = totalAmount - paid;
                     if (remaining > 0) {
-                        updated.partialPayments = [...(s.partialPayments || []), { id: `m-${Date.now()}`, date: new Date().toISOString(), amount: remaining, remarks: remark || 'Paid manually' }];
+                        updated.partialPayments = [...(s.partialPayments || []), { id: `m-${Date.now()}`, date: (customDate || new Date()).toISOString(), amount: remaining, remarks: remark || 'Paid manually' }];
                     }
                 } else if (newStatus === 'Due') {
                     updated.partialPayments = [];
@@ -425,7 +426,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                         }}
                                         onEditVoucher={onEdit}
                                         onPrintVoucher={(c) => { setChequeToPrint(c); setIsPrintPreviewOpen(true); }}
-                                        onMarkAsPaid={(c, id) => { setSplitToPay({cheque: c, splitId: id}); setIsPaidDialogOpen(true); }}
+                                        onMarkAsPaid={(c, id) => { setSplitToPay({cheque: c, splitId: id}); setPaidDate(new Date()); setIsPaidDialogOpen(true); }}
                                         onMarkAsCanceled={(c, id) => { setSplitToCancel({cheque: c, splitId: id}); setIsCancelDialogOpen(true); }}
                                         onMarkAsDue={(c, id) => handleStatusUpdate(c, id, 'Due')}
                                         onDeleteVoucher={(id) => deleteCheque(id)}
@@ -620,12 +621,28 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle>Confirm Full Payment</DialogTitle></DialogHeader>
                     <div className="py-4 space-y-4">
-                        <Label>Remarks / Internal Notes</Label>
-                        <Input value={paidRemark} onChange={e => setPaidRemark(e.target.value)} placeholder="e.g. Paid via mobile banking..." />
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Payment Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full justify-start text-left font-normal h-10 bg-white">
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {paidDate ? `${toNepaliDate(paidDate.toISOString())} (${format(paidDate, "PP")})` : <span>Pick date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <DualCalendar selected={paidDate} onSelect={(d) => d && setPaidDate(d)} />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Remarks / Internal Notes</Label>
+                            <Input value={paidRemark} onChange={e => setPaidRemark(e.target.value)} placeholder="e.g. Paid via mobile banking..." />
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPaidDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={() => { if(splitToPay) handleStatusUpdate(splitToPay.cheque, splitToPay.splitId, 'Paid', paidRemark); setIsPaidDialogOpen(false); }}>Mark as Paid</Button>
+                        <Button onClick={() => { if(splitToPay) handleStatusUpdate(splitToPay.cheque, splitToPay.splitId, 'Paid', paidRemark, paidDate); setIsPaidDialogOpen(false); }}>Mark as Paid</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
