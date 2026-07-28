@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2, Trash2, Plus, Image as ImageIcon } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2, Trash2, Plus, X } from 'lucide-react';
 import { cn, toWords, generateNextVoucherNumber, toNepaliDate, generateId } from '@/lib/utils';
-import { format, addDays, parseISO } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
-import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account, BankAccountType, AccountOwnership, PartialPayment } from '@/lib/types';
+import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account, BankAccountType, AccountOwnership } from '@/lib/types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -20,9 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addCheque, onChequesUpdate, updateCheque } from '@/services/cheque-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -65,8 +63,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     
     const [cheques, setCheques] = useState<any[]>([]);
     const [voucherNo, setVoucherNo] = useState('');
-
-    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     useEffect(() => {
         const unsubParties = onPartiesUpdate(setParties);
@@ -154,7 +150,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         setChequeSplits(newSplits);
     }, [numberOfSplits, invoiceAmount, paymentDate, invoiceDate]);
 
-    // Centralized filtering
     const filteredParties = useMemo(() => {
         return parties
             .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
@@ -475,9 +470,14 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             </div>
             
             <div className="flex justify-end gap-2">
-                 <Button onClick={handleSave} variant="outline" disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    {chequeToEdit ? 'Save Changes' : 'Save Voucher'}
+                 {chequeToEdit && (
+                    <Button variant="ghost" onClick={onSaveSuccess} className="font-bold text-muted-foreground uppercase text-[10px]">
+                        <X className="mr-2 h-3.5 w-3.5" /> Cancel Edits
+                    </Button>
+                 )}
+                 <Button onClick={handleSave} variant="outline" disabled={isSaving} className="font-black uppercase text-[10px] tracking-widest shadow-sm">
+                    {isSaving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
+                    {chequeToEdit ? 'Commit Changes' : 'Post Voucher'}
                 </Button>
             </div>
             

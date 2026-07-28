@@ -29,7 +29,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  CalendarIcon
+  CalendarIcon,
+  CreditCard
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { format, differenceInDays, startOfToday } from 'date-fns';
 import { ChequeView } from './_components/cheque-view';
+import { NepalChequeView } from './_components/nepal-cheque-print';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
@@ -70,6 +72,7 @@ const ChequeSplitRow = React.memo(({
     onManagePayments, 
     onEditVoucher, 
     onPrintVoucher, 
+    onPrintNepalCheque,
     onMarkAsPaid, 
     onMarkAsCanceled, 
     onMarkAsDue, 
@@ -79,6 +82,7 @@ const ChequeSplitRow = React.memo(({
     onManagePayments: (s: AugmentedChequeSplit) => void,
     onEditVoucher: (c: Cheque) => void,
     onPrintVoucher: (c: Cheque) => void,
+    onPrintNepalCheque: (s: AugmentedChequeSplit) => void,
     onMarkAsPaid: (c: Cheque, id: string) => void,
     onMarkAsCanceled: (c: Cheque, id: string) => void,
     onMarkAsDue: (c: Cheque, id: string) => void,
@@ -113,7 +117,8 @@ const ChequeSplitRow = React.memo(({
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => onManagePayments(split)}><History className="mr-2 h-4 w-4 text-primary" /> Payment Ledger</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => onEditVoucher(split.parentCheque)}><Edit className="mr-2 h-4 w-4" /> Edit Voucher</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => onPrintVoucher(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> View & Print</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onPrintVoucher(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> View & Print Voucher</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onPrintNepalCheque(split)} className="font-bold text-primary"><CreditCard className="mr-2 h-4 w-4"/> Print Nepal Cheque</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => onMarkAsPaid(split.parentCheque, split.id)} className="text-emerald-600 font-bold"><Check className="mr-2 h-4 w-4" /> Mark Fully Paid</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => onMarkAsCanceled(split.parentCheque, split.id)} className="text-red-600"><X className="mr-2 h-4 w-4" /> Cancel Issue</DropdownMenuItem>
@@ -151,7 +156,12 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     
     const [chequeToPrint, setChequeToPrint] = useState<Cheque | null>(null);
     const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
+    
+    const [nepalChequeToPrint, setNepalChequeToPrint] = useState<AugmentedChequeSplit | null>(null);
+    const [isNepalPrintOpen, setIsNepalPrintOpen] = useState(false);
+
     const printRef = useRef<HTMLDivElement>(null);
+    const nepalPrintRef = useRef<HTMLDivElement>(null);
     
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [payingSplit, setPayingSplit] = useState<AugmentedChequeSplit | null>(null);
@@ -189,7 +199,6 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         const q = searchQuery.toLowerCase();
         
         let res = cheques.flatMap(c => {
-            // Apply document-level ownership filter first
             if (c.ownership !== 'Both' && !allowedOwnerships.includes(c.ownership)) return [];
             
             return c.splits.map(s => {
@@ -426,6 +435,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                         }}
                                         onEditVoucher={onEdit}
                                         onPrintVoucher={(c) => { setChequeToPrint(c); setIsPrintPreviewOpen(true); }}
+                                        onPrintNepalCheque={(s) => { setNepalChequeToPrint(s); setIsNepalPrintOpen(true); }}
                                         onMarkAsPaid={(c, id) => { setSplitToPay({cheque: c, splitId: id}); setPaidDate(new Date()); setIsPaidDialogOpen(true); }}
                                         onMarkAsCanceled={(c, id) => { setSplitToCancel({cheque: c, splitId: id}); setIsCancelDialogOpen(true); }}
                                         onMarkAsDue={(c, id) => handleStatusUpdate(c, id, 'Due')}
@@ -691,6 +701,89 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         }}>
                             <Printer className="mr-2 h-4 w-4" /> Print Document
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Nepal Cheque Specific Print Dialog */}
+            <Dialog open={isNepalPrintOpen} onOpenChange={setIsNepalPrintOpen}>
+                <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 border-none shadow-2xl overflow-hidden bg-neutral-100">
+                    <DialogHeader className="p-6 border-b bg-white shrink-0">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <DialogTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                                    <CreditCard className="h-5 w-5 text-primary"/>
+                                    Nepal Cheque Alignment Preview
+                                </DialogTitle>
+                                <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                                    Scale: 1:1 Standard (176mm x 88mm)
+                                </DialogDescription>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => setIsNepalPrintOpen(false)}><X className="h-4 w-4"/></Button>
+                        </div>
+                    </DialogHeader>
+
+                    <ScrollArea className="flex-1 p-12">
+                        <div className="flex flex-col items-center gap-8">
+                            <div ref={nepalPrintRef} className="shadow-[0_20px_50px_rgba(0,0,0,0.2)] ring-1 ring-black/10">
+                                {nepalChequeToPrint && (
+                                    <NepalChequeView 
+                                        payeeName={nepalChequeToPrint.parentCheque.payeeName}
+                                        amount={Number(nepalChequeToPrint.amount) || 0}
+                                        date={nepalChequeToPrint.chequeDate.toISOString()}
+                                        isAcPayee={true}
+                                    />
+                                )}
+                            </div>
+                            
+                            <div className="max-w-2xl bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-3">
+                                <div className="flex items-center gap-2 text-amber-800">
+                                    <AlertTriangle className="h-5 w-5" />
+                                    <h4 className="font-black uppercase text-xs tracking-widest">Printer Calibration Advice</h4>
+                                </div>
+                                <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                                    Before printing on actual cheque leaves, please print a sample on A4 paper and align it behind your cheque leaf. 
+                                    Ensure <b>"Scale: 100%"</b> or <b>"Actual Size"</b> is selected in your browser's print settings.
+                                </p>
+                            </div>
+                        </div>
+                        <ScrollBar orientation="horizontal" />
+                        <ScrollBar orientation="vertical" />
+                    </ScrollArea>
+
+                    <DialogFooter className="p-6 bg-white border-t shrink-0">
+                        <div className="flex w-full justify-between items-center">
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">Cheque Ref: {nepalChequeToPrint?.chequeNumber || 'N/A'}</p>
+                            <div className="flex gap-3">
+                                <Button variant="outline" onClick={() => setIsNepalPrintOpen(false)} className="h-11 px-8 font-bold text-[10px] uppercase tracking-widest">Close Preview</Button>
+                                <Button onClick={() => {
+                                    const win = window.open('', '', 'height=600,width=900');
+                                    if (!win) return;
+                                    const content = nepalPrintRef.current?.innerHTML || '';
+                                    win.document.write(`
+                                        <html>
+                                            <head>
+                                                <title>Cheque Print</title>
+                                                <script src="https://cdn.tailwindcss.com"></script>
+                                                <style>
+                                                    @page { size: landscape; margin: 0; }
+                                                    body { margin: 0; padding: 0; background: #fff; }
+                                                    .print-hidden { display: none !important; }
+                                                </style>
+                                            </head>
+                                            <body onload="window.print(); window.close();">
+                                                <div style="width: 176mm; height: 88mm; position: relative; overflow: hidden;">
+                                                    ${content}
+                                                </div>
+                                            </body>
+                                        </html>
+                                    `);
+                                    win.document.close();
+                                }} className="h-11 px-12 font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20">
+                                    <Printer className="mr-2 h-4 w-4" /> Start Direct Print
+                                </Button>
+                            </div>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
