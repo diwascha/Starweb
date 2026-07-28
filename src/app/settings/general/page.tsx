@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -61,7 +60,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
-import { onSettingUpdate, setSetting } from '@/services/settings-service';
+import { onSettingUpdate, setSetting, updateExistingRecordsNumbering } from '@/services/settings-service';
 import { 
     documentTypes, 
     getDocumentName,
@@ -287,10 +286,10 @@ export default function GeneralSettingsPage() {
   };
 
   const handleSaveNumbering = async () => {
-    if (!activeNumberingKey || !numberingForm.prefix) return;
+    if (!activeNumberingKey || !numberingForm.prefix || !user) return;
     
     if (numberingForm.prefix.includes('\\')) {
-        setPrefixError("Backslashes (\\) are not allowed in prefixes. Use '-' or '/' instead.");
+        setPrefixError("Backslashes (\\) are not allowed. Use '-' or '/' instead.");
         return;
     }
 
@@ -326,8 +325,13 @@ export default function GeneralSettingsPage() {
     
     try {
         await setSetting('documentPrefixes', newConfig);
+        
+        // Background Process: Sync existing records to the new rule
+        toast({ title: 'Updating History...', description: 'Applying new sequence to existing records.' });
+        await updateExistingRecordsNumbering(activeNumberingKey, newRule, user.username);
+        
         setIsNumberingDialogOpen(false);
-        toast({ title: 'Numbering Rule Updated' });
+        toast({ title: 'Numbering Rule Updated', description: 'All historical records for this period have been re-sequenced.' });
     } catch {
         toast({ title: 'Error', variant: 'destructive' });
     }
@@ -364,7 +368,7 @@ export default function GeneralSettingsPage() {
   };
 
   const handleSaveEditRule = async () => {
-    if (!historyKey || editingRuleIndex === null) return;
+    if (!historyKey || editingRuleIndex === null || !user) return;
     
     if (editRuleForm.prefix.includes('\\')) {
         setPrefixError("Backslashes (\\) are not allowed. Use '-' or '/' instead.");
@@ -374,8 +378,10 @@ export default function GeneralSettingsPage() {
     const rawRules = prefixes[historyKey];
     let updatedRules: NumberingRule[];
     
-    const newRuleBase = {
-        ...editRuleForm,
+    const newRuleBase: NumberingRule = {
+        prefix: editRuleForm.prefix,
+        status: editRuleForm.status,
+        startingNumber: editRuleForm.startingNumber,
         effectiveFrom: new Date(editRuleForm.effectiveFrom).toISOString(),
         effectiveTo: editRuleForm.effectiveTo ? new Date(editRuleForm.effectiveTo).toISOString() : null
     };
@@ -392,8 +398,13 @@ export default function GeneralSettingsPage() {
     
     try {
         await setSetting('documentPrefixes', newConfig);
+        
+        // Background Process: Sync existing records to the edited rule
+        toast({ title: 'Updating History...', description: 'Applying changes to existing records.' });
+        await updateExistingRecordsNumbering(historyKey, newRuleBase, user.username);
+        
         setIsEditRuleDialogOpen(false);
-        toast({ title: 'Record Updated' });
+        toast({ title: 'Record Updated', description: 'Ledger sequence successfully modified.' });
     } catch {
         toast({ title: 'Update Failed', variant: 'destructive' });
     }
@@ -624,7 +635,7 @@ export default function GeneralSettingsPage() {
             <TabsContent value="numbering" className="animate-in fade-in slide-in-from-left-2 space-y-6">
                 <div className="bg-muted/10 p-4 rounded-xl border border-dashed mb-4 flex items-center gap-3">
                     <Info className="h-4 w-4 text-primary" />
-                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Document prefixes are automatically selected based on the entry date.</p>
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Document prefixes are automatically selected based on the entry date. Updating a rule will re-sequence existing records in that range.</p>
                 </div>
                 {groupedDocumentTypes.map((group) => (
                     <Card key={group.label} className="shadow-sm border-gray-100 bg-white overflow-hidden">
