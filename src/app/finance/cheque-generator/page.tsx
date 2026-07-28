@@ -47,7 +47,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { onAccountsUpdate } from '@/services/account-service';
@@ -232,7 +232,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
     const totalPages = useMemo(() => {
         if (itemsPerPage === -1) return 1;
-        return Math.ceil(sortedAndFilteredSplits.length / itemsPerPage);
+        return Math.ceil(sortedAndFilteredPolicies.length / itemsPerPage);
     }, [sortedAndFilteredSplits, itemsPerPage]);
 
     const handleStatusUpdate = useCallback(async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, remark?: string, customDate?: Date) => {
