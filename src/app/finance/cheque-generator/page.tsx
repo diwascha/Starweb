@@ -43,7 +43,7 @@ import { format, differenceInDays, startOfToday } from 'date-fns';
 import { ChequeView } from './_components/cheque-view';
 import { NepalChequeView } from './_components/nepal-cheque-print';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/badge';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Label } from '@/components/ui/label';
@@ -232,7 +232,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
     const totalPages = useMemo(() => {
         if (itemsPerPage === -1) return 1;
-        return Math.ceil(sortedAndFilteredPolicies.length / itemsPerPage);
+        return Math.ceil(sortedAndFilteredSplits.length / itemsPerPage);
     }, [sortedAndFilteredSplits, itemsPerPage]);
 
     const handleStatusUpdate = useCallback(async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, remark?: string, customDate?: Date) => {
