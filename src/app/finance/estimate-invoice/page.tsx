@@ -31,7 +31,6 @@ import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { useRouter } from 'next/navigation';
 import { onProductsUpdate, updateProduct } from '@/services/product-service';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
@@ -39,9 +38,6 @@ import { toNepaliDate, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { InvoiceView } from './_components/invoice-view';
 import { onPartiesUpdate } from '@/services/party-service';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import html2canvas from 'html2canvas';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
@@ -217,8 +213,9 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
         }
 
         try {
-            const doc = new jsPDF();
+            const { jsPDF } = await import('jspdf');
             const { default: autoTable } = await import('jspdf-autotable');
+            const doc = new jsPDF();
             
             // Header
             doc.setFont('Helvetica', 'bold');
@@ -245,7 +242,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
             const adDate = format(new Date(invoice.date), 'yyyy-MM-dd');
             doc.text(`Date: ${nepaliDate} BS (${adDate})`, doc.internal.pageSize.getWidth() - 14, 42, { align: 'right' });
 
-            (doc as any).autoTable({
+            autoTable(doc, {
                 startY: 65,
                 head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
                 body: invoice.items.map((item, index) => [
@@ -308,6 +305,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                 return;
             }
             try {
+                const html2canvas = (await import('html2canvas')).default;
                 const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
                 const link = document.createElement('a');
                 link.download = `Estimate-${invoice.invoiceNumber}.jpg`;
@@ -473,7 +471,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    onClick={() => setCurrentPage(prev => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
                                     className="h-8 w-8 p-0"
                                 >
@@ -483,7 +481,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, p + 1))}
                                     disabled={currentPage === totalPages}
                                     className="h-8 w-8 p-0"
                                 >
@@ -796,7 +794,7 @@ function SavedRatesList() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    onClick={() => setCurrentPage(prev => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
                                     className="h-8 w-8 p-0"
                                 >
@@ -806,7 +804,7 @@ function SavedRatesList() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, p + 1))}
                                     disabled={currentPage === totalPages}
                                     className="h-8 w-8 p-0"
                                 >

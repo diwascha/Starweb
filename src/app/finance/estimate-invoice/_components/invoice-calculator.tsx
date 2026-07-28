@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import { onProductsUpdate, addProduct } from '@/services/product-service';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList, CommandItem } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -21,9 +21,6 @@ import { addEstimatedInvoice, onEstimatedInvoicesUpdate, updateEstimatedInvoice 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { InvoiceView } from './invoice-view';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface InvoiceCalculatorProps {
@@ -74,19 +71,30 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         return () => unsubs.forEach(u => u());
     }, [invoiceToEdit]);
     
+    // 1. Initialize core data for EDIT mode
     useEffect(() => {
         if (invoiceToEdit) {
           setDate(new Date(invoiceToEdit.date));
           setInvoiceNumber(invoiceToEdit.invoiceNumber);
           setItems(invoiceToEdit.items);
-          const existingParty = parties.find(p => p.name === invoiceToEdit.partyName);
-          if (existingParty) setParty(existingParty);
-        } else if (allInvoices.length > 0) {
-          generateNextEstimateInvoiceNumber(allInvoices, date.toISOString()).then(setInvoiceNumber);
         }
-    }, [invoiceToEdit, allInvoices, parties, date]);
+    }, [invoiceToEdit]);
+
+    // 2. Resolve party for EDIT mode
+    useEffect(() => {
+        if (invoiceToEdit && parties.length > 0 && !party) {
+            const matched = parties.find(p => p.name.toLowerCase().trim() === invoiceToEdit.partyName.toLowerCase().trim());
+            if (matched) setParty(matched);
+        }
+    }, [invoiceToEdit, parties, party]);
+
+    // 3. Auto-generate for NEW mode
+    useEffect(() => {
+        if (!invoiceToEdit && allInvoices.length >= 0) {
+            generateNextEstimateInvoiceNumber(allInvoices, date.toISOString()).then(setInvoiceNumber);
+        }
+    }, [invoiceToEdit, allInvoices, date]);
     
-    // Centralized filtering logic
     const filteredParties = useMemo(() => {
         return parties
             .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
@@ -242,6 +250,8 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         if (!invoiceData.party) return;
         setIsExporting(true);
         try {
+            const { jsPDF } = await import('jspdf');
+            const { default: autoTable } = await import('jspdf-autotable');
             const doc = new jsPDF();
             autoTable(doc, {
                 startY: 65,
@@ -257,16 +267,12 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
 
     return (
         <div className="space-y-6">
-            <header className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold tracking-tight">{invoiceToEdit ? `Edit Invoice #${invoiceToEdit.invoiceNumber}` : 'New Estimate Invoice'}</h1>
-                {invoiceToEdit && <Button variant="outline" onClick={onSaveSuccess}>Cancel Edit</Button>}
-            </header>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                 <div className="space-y-2"><Label>Document No.</Label><Input value={invoiceNumber} readOnly className="bg-muted/50 h-10 font-mono text-sm" /></div>
                 <div className="space-y-2"><Label>Date</Label>
                     <Popover>
                         <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start text-left font-normal h-10"><CalendarIcon className="mr-2 h-4 w-4" />{date ? toNepaliDate(date.toISOString()) : 'Select Date'}</Button></PopoverTrigger>
-                        <PopoverContent className="w-auto p-0"><DualCalendar selected={date} onSelect={d => d && setDate(d)} /></PopoverContent>
+                        <PopoverContent className="w-auto p-0"><DualCalendar selected={date} onSelect={(d: any) => d && setDate(d)} /></PopoverContent>
                     </Popover>
                 </div>
                 <div className="space-y-2"><Label>Party Name</Label>
@@ -276,7 +282,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                             <Command>
                                 <CommandInput placeholder="Search party..." value={partySearch} onValueChange={setPartySearch} />
                                 <CommandList>
-                                    <CommandEmpty><Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}><PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"</Button></CommandEmpty>
+                                    <CommandEmpty><Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, 'Customer', partySearch)}><PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"</Button></CommandEmpty>
                                     <CommandGroup>{filteredParties.map(p => (<CommandItem key={p.id} value={p.name} onSelect={() => handlePartySelect(p.id)}><Check className={cn("mr-2 h-4 w-4", party?.id === p.id ? "opacity-100" : "opacity-0")}/>{p.name}</CommandItem>))}</CommandGroup>
                                 </CommandList>
                             </Command>
