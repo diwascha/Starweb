@@ -1,77 +1,178 @@
 'use client';
 
+import React from 'react';
 import { toWords } from '@/lib/utils';
-import { format } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 
-interface NepalChequeViewProps {
+export interface NepalChequeViewProps {
   payeeName: string;
   amount: number;
-  date: string; // ISO
+  /** ISO date string */
+  date: string;
   isAcPayee?: boolean;
+  /** Fine-tune printer offsets in mm without editing layout constants */
+  offsetX?: number;
+  offsetY?: number;
 }
 
 /**
- * @fileOverview Specialized layout for standard Nepal Bank Cheques (approx 176mm x 88mm).
- * Designed for precise alignment on physical cheque leaves.
+ * @fileOverview Standard Nepal bank cheque leaf (176mm x 88mm).
+ *
+ * IMPORTANT: every style in here is INLINE on purpose. This markup is cloned
+ * via `innerHTML` into a blank print window that has no stylesheet attached.
+ * If you convert any of these to Tailwind utility classes, the preview will
+ * still look correct on screen but the printed output will silently collapse
+ * into unpositioned text — on a real cheque leaf.
  */
-export function NepalChequeView({ payeeName, amount, date, isAcPayee = true }: NepalChequeViewProps) {
+export function NepalChequeView({
+  payeeName,
+  amount,
+  date,
+  isAcPayee = true,
+  offsetX = 0,
+  offsetY = 0,
+}: NepalChequeViewProps) {
   const nd = new NepaliDate(new Date(date));
   const year = String(nd.getYear());
   const month = String(nd.getMonth() + 1).padStart(2, '0');
   const day = String(nd.getDate()).padStart(2, '0');
-  
-  // Character arrays for boxed date printing
+
+  // YYYYMMDD, one character per box
   const dateChars = [...year, ...month, ...day];
-  const amountWords = toWords(amount).replace(' Only.', '');
-  const amountFigures = amount.toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+  const amountWords = toWords(amount).replace(/\s*only\.?\s*$/i, '').trim();
+
+  // Explicit locale. Never rely on the browser default here: an en-IN browser
+  // renders 1,00,000.00 and an en-US browser renders 100,000.00 for the same
+  // cheque. en-IN grouping is the convention used in Nepal.
+  const amountFigures = new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(amount) ? amount : 0);
+
+  const mm = (v: number) => `${v}mm`;
+
+  const root: React.CSSProperties = {
+    position: 'relative',
+    width: '176mm',
+    height: '88mm',
+    boxSizing: 'border-box',
+    background: '#ffffff',
+    color: '#000000',
+    overflow: 'hidden',
+    fontFamily: '"Courier New", Courier, monospace',
+    fontSize: '13px',
+    lineHeight: 1.2,
+    WebkitPrintColorAdjust: 'exact',
+    printColorAdjust: 'exact',
+  } as React.CSSProperties;
 
   return (
-    <div className="relative bg-white text-black overflow-hidden shadow-sm ring-1 ring-black/5" 
-         style={{ 
-           width: '176mm', 
-           height: '88mm', 
-           fontFamily: 'monospace',
-           fontSize: '13px',
-           lineHeight: '1.2'
-         }}>
-      
-      {/* Account Payee Crossing */}
+    <div style={root}>
+      {/* A/C Payee crossing (top-left, rotated) */}
       {isAcPayee && (
-        <div className="absolute top-4 left-6 border-y border-black w-24 -rotate-[35deg] flex flex-col items-center justify-center py-0.5">
-           <span className="text-[9px] font-bold uppercase tracking-tighter">A/C Payee Only</span>
+        <div
+          style={{
+            position: 'absolute',
+            top: mm(6 + offsetY),
+            left: mm(8 + offsetX),
+            width: '32mm',
+            borderTop: '1px solid #000000',
+            borderBottom: '1px solid #000000',
+            transform: 'rotate(-35deg)',
+            transformOrigin: 'left top',
+            textAlign: 'center',
+            padding: '1px 0',
+            fontSize: '9px',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '-0.02em',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          A/C Payee Only
         </div>
       )}
 
-      {/* Date Field - Aligned to standard top-right boxed date */}
-      <div className="absolute top-[8mm] right-[8mm] flex gap-[2.8mm]">
+      {/* Boxed date, top-right */}
+      <div
+        style={{
+          position: 'absolute',
+          top: mm(8 + offsetY),
+          right: mm(8 - offsetX),
+          display: 'flex',
+          gap: '2.8mm',
+        }}
+      >
         {dateChars.map((char, i) => (
-          <span key={i} className="w-[3mm] text-center font-bold text-[14px]">
+          <span
+            key={i}
+            style={{
+              display: 'inline-block',
+              width: '3mm',
+              textAlign: 'center',
+              fontWeight: 700,
+              fontSize: '14px',
+            }}
+          >
             {char}
           </span>
         ))}
       </div>
 
-      {/* Payee Name */}
-      <div className="absolute top-[26mm] left-[22mm] font-bold text-[15px] uppercase">
+      {/* Payee name */}
+      <div
+        style={{
+          position: 'absolute',
+          top: mm(26 + offsetY),
+          left: mm(22 + offsetX),
+          right: mm(45 - offsetX),
+          fontWeight: 700,
+          fontSize: '15px',
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'clip',
+        }}
+      >
         {payeeName}
       </div>
 
-      {/* Amount in Words */}
-      <div className="absolute top-[36mm] left-[32mm] right-[40mm] font-bold leading-[8mm] text-[13px] capitalize">
-        {amountWords}
+      {/* Amount in words — line-height matches the ruled lines so a wrap
+          lands on the second line rather than between them */}
+      <div
+        style={{
+          position: 'absolute',
+          top: mm(36 + offsetY),
+          left: mm(32 + offsetX),
+          right: mm(40 - offsetX),
+          fontWeight: 700,
+          fontSize: '13px',
+          lineHeight: '8mm',
+          textTransform: 'capitalize',
+        }}
+      >
+        {amountWords} Only
       </div>
 
-      {/* Amount in Figures Box */}
-      <div className="absolute top-[48.5mm] right-[10mm] w-[45mm] h-[8mm] flex items-center justify-center font-black text-[16px]">
-        <span className="mr-1">**</span>
+      {/* Amount in figures */}
+      <div
+        style={{
+          position: 'absolute',
+          top: mm(48.5 + offsetY),
+          right: mm(10 - offsetX),
+          width: '45mm',
+          height: '8mm',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontWeight: 900,
+          fontSize: '16px',
+        }}
+      >
+        <span style={{ marginRight: '2px' }}>**</span>
         {amountFigures}
-        <span className="ml-1">/-</span>
-      </div>
-
-      {/* Security Markings (Optional visuals for positioning) */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-5 text-[8px] font-black uppercase tracking-[1em] pointer-events-none">
-        Nepal Cheque Standard Alignment
+        <span style={{ marginLeft: '2px' }}>/-</span>
       </div>
     </div>
   );

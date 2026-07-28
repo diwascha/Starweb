@@ -289,8 +289,8 @@ export default function GeneralSettingsPage() {
   const handleSaveNumbering = async () => {
     if (!activeNumberingKey || !numberingForm.prefix) return;
     
-    if (numberingForm.prefix.includes('/')) {
-        setPrefixError("Forward slashes (/) are not allowed in prefixes. Use '-' or '\\' instead.");
+    if (numberingForm.prefix.includes('\\')) {
+        setPrefixError("Backslashes (\\) are not allowed in prefixes. Use '-' or '/' instead.");
         return;
     }
 
@@ -366,8 +366,8 @@ export default function GeneralSettingsPage() {
   const handleSaveEditRule = async () => {
     if (!historyKey || editingRuleIndex === null) return;
     
-    if (editRuleForm.prefix.includes('/')) {
-        setPrefixError("Forward slashes (/) are not allowed. Use '-' or '\\' instead.");
+    if (editRuleForm.prefix.includes('\\')) {
+        setPrefixError("Backslashes (\\) are not allowed. Use '-' or '/' instead.");
         return;
     }
 
