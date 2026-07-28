@@ -51,7 +51,8 @@ import {
   Truck,
   Calculator,
   Home,
-  AlertTriangle
+  AlertTriangle,
+  SearchCheck
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -150,6 +151,8 @@ export default function GeneralSettingsPage() {
   const [isUomDialogOpen, setIsUomDialogOpen] = useState(false);
   const [editingUom, setEditingUom] = useState<UnitOfMeasurement | null>(null);
   const [uomForm, setUomForm] = useState({ name: '', abbreviation: '' });
+
+  const [isSyncing, setIsSyncing] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setIsLoading(true);
@@ -335,6 +338,27 @@ export default function GeneralSettingsPage() {
     } catch {
         toast({ title: 'Error', variant: 'destructive' });
     }
+  };
+
+  const handleManualSync = async (type: DocumentType) => {
+      const rawRules = prefixes[type];
+      const rules = Array.isArray(rawRules) ? (rawRules as any) : [];
+      const active = rules.find((r: any) => r.status === 'Active');
+      
+      if (!active || !user) {
+          toast({ title: 'No Active Rule', description: 'Define an active numbering rule first.', variant: 'destructive' });
+          return;
+      }
+
+      setIsSyncing(prev => ({ ...prev, [type]: true }));
+      try {
+          await updateExistingRecordsNumbering(type, active, user.username);
+          toast({ title: 'Sync Complete', description: `${getDocumentName(type)} numbering has been synchronized.` });
+      } catch (error) {
+          toast({ title: 'Sync Failed', variant: 'destructive' });
+      } finally {
+          setIsSyncing(prev => ({ ...prev, [type]: false }));
+      }
   };
 
   const openEditRuleDialog = (idx: number) => {
@@ -608,10 +632,10 @@ export default function GeneralSettingsPage() {
                         <TableBody>
                         {uoms.map(u => (
                             <TableRow key={u.id} className="h-12 border-b"><TableCell className="font-bold pl-6">{u.name}</TableCell><TableCell className="font-black text-primary">{u.abbreviation}</TableCell><TableCell className="text-right pr-6 space-x-1">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingUom(u); setUomForm({name:u.name, abbreviation:u.abbreviation}); setIsUomDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon" className="h-3.5 w-3.5" onClick={() => { setEditingUom(u); setUomForm({name:u.name, abbreviation:u.abbreviation}); setIsUomDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                                        <Button variant="ghost" size="icon" className="h-3.5 w-3.5 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
@@ -678,6 +702,16 @@ export default function GeneralSettingsPage() {
                                                     ) : 'N/A'}
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6 space-x-1">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        className="h-7 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-emerald-600" 
+                                                        onClick={() => handleManualSync(t)}
+                                                        disabled={isSyncing[t]}
+                                                    >
+                                                        {isSyncing[t] ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <SearchCheck className="mr-1 h-3 w-3" />}
+                                                        Scan & Sync
+                                                    </Button>
                                                     <Button 
                                                         variant="ghost" 
                                                         size="sm" 
