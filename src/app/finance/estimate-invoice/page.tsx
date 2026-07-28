@@ -187,7 +187,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
             
             const printWindow = window.open('', '', 'height=800,width=800');
             printWindow?.document.write('<html><head><title>Print Invoice</title>');
-            printWindow?.document.write('<style>@media print{@page{size: A4;margin: 0;}body{margin: 1.6cm;}}body{font-family:sans-serif;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;}.text-right{text-align:right;}.font-bold{font-weight:bold;}</style>');
+            printWindow?.document.write('<style>@media print{@page{size: A4;margin: 0;}body{margin: 1.6cm;}}body{font-family:sans-serif;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;}.text-right{text-align:right;}.font-bold{font-bold:bold;}</style>');
             printWindow?.document.write('</head><body>');
             printWindow?.document.write(printableArea.innerHTML);
             printWindow?.document.write('</body></html>');
@@ -471,7 +471,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.max(1, p - 1))}
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                     disabled={currentPage === 1}
                                     className="h-8 w-8 p-0"
                                 >
@@ -481,7 +481,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, p + 1))}
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                     disabled={currentPage === totalPages}
                                     className="h-8 w-8 p-0"
                                 >
@@ -623,19 +623,19 @@ function SavedRatesList() {
     };
 
     const filteredAndSortedProducts = useMemo(() => {
-        let filtered = products.filter(p => {
+        let filtered = products.filter(prod => {
              // Basic product filtering by allowed ownership of its associated party
-             const partyOwnership = p.partyName ? parties.find(x => x.name === p.partyName)?.ownership : 'Both';
+             const partyOwnership = prod.partyName ? parties.find(x => x.name === prod.partyName)?.ownership : 'Both';
              return partyOwnership === 'Both' || allowedOwnerships.includes(partyOwnership || 'Both');
         });
 
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
-            filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || (p.partyName || '').toLowerCase().includes(q));
+            filtered = filtered.filter(prod => prod.name.toLowerCase().includes(q) || (prod.partyName || '').toLowerCase().includes(q));
         }
 
         if (filterPartyId !== 'All') {
-            filtered = filtered.filter(p => p.partyId === filterPartyId);
+            filtered = filtered.filter(prod => prod.partyId === filterPartyId);
         }
 
         filtered.sort((a, b) => {
@@ -737,16 +737,16 @@ function SavedRatesList() {
                    </TableHeader>
                    <TableBody>
                        {paginatedProducts.length > 0 ? (
-                           paginatedProducts.map(p => (
-                               <TableRow key={p.id} className="h-14">
-                                   <TableCell className="pl-6 font-bold">{p.name}</TableCell>
-                                   <TableCell>{p.partyName}</TableCell>
-                                   <TableCell className="font-mono text-xs">Rs. {p.rate ? p.rate.toLocaleString() : 'Not Set'}</TableCell>
+                           paginatedProducts.map(prod => (
+                               <TableRow key={prod.id} className="h-14">
+                                   <TableCell className="pl-6 font-bold">{prod.name}</TableCell>
+                                   <TableCell>{prod.partyName}</TableCell>
+                                   <TableCell className="font-mono text-xs">Rs. {prod.rate ? prod.rate.toLocaleString() : 'Not Set'}</TableCell>
                                    <TableCell className="text-right pr-6 space-x-1">
-                                       <Button variant="ghost" size="sm" onClick={() => handleOpenHistoryDialog(p)} className="h-8 text-[10px] uppercase font-black">
+                                       <Button variant="ghost" size="sm" onClick={() => handleOpenHistoryDialog(prod)} className="h-8 text-[10px] uppercase font-black">
                                            <History className="mr-1.5 h-3.5 w-3.5" /> History
                                        </Button>
-                                       <Button variant="outline" size="sm" onClick={() => handleOpenRateDialog(p)} className="h-8 text-[10px] uppercase font-black border-primary/20 text-primary">
+                                       <Button variant="outline" size="sm" onClick={() => handleOpenRateDialog(prod)} className="h-8 text-[10px] uppercase font-black border-primary/20 text-primary">
                                            <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit Rate
                                        </Button>
                                    </TableCell>
@@ -794,7 +794,7 @@ function SavedRatesList() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.max(1, p - 1))}
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                     disabled={currentPage === 1}
                                     className="h-8 w-8 p-0"
                                 >
@@ -804,7 +804,7 @@ function SavedRatesList() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, p + 1))}
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                     disabled={currentPage === totalPages}
                                     className="h-8 w-8 p-0"
                                 >

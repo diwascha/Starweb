@@ -117,7 +117,7 @@ const CostingTableRow = React.memo(({
                             </PopoverTrigger>
                             <PopoverContent className="p-0 w-[300px]">
                                 <Command>
-                                    <CommandInput placeholder="Search catalog..." onValueChange={setQuickProductSearch} />
+                                    <CommandInput placeholder="Search catalog..." value={quickProductSearch} onValueChange={setQuickProductSearch} />
                                     <CommandList>
                                         <CommandEmpty>
                                             <Button 
@@ -765,7 +765,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                     </div>
                     <div className="space-y-1"><Label className="text-[10px] font-bold">Virgin Rate</Label><Input type="number" value={virginPaperCost ?? ''} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
                     <div className="space-y-1"><Label className="text-[10px] font-bold">Conversion</Label><Input type="number" value={conversionCost ?? ''} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
-                    <div className="space-y-1 col-span-2"><Label className="text-[10px] font-bold">Acc. Conversion</Label><Input type="number" value={accessoryConversionCost ?? ''} onChange={e => setAccessoryConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" placeholder="Rate for honeycomb, plates, etc." /></div>
+                    <div className="space-y-1"><Label className="text-[10px] font-bold">Acc. Conversion</Label><Input type="number" value={accessoryConversionCost ?? ''} onChange={e => setAccessoryConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" placeholder="Rate for honeycomb, plates, etc." /></div>
                 </CardContent>
             </Card>
 

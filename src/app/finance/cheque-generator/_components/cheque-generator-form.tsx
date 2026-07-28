@@ -377,7 +377,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     if (!isBalanced) {
       toast({
         title: 'Splits do not balance',
-        description: `The cheques add up to Rs. ${money(totalSplitAmount)}. Adjust by Rs. ${money(Math.abs(remainingAmount))}.`,
+        description: `The cheques add up to Rs. {money(totalSplitAmount)}. Adjust by Rs. {money(Math.abs(remainingAmount))}.`,
         variant: 'destructive',
       });
       return;
@@ -652,7 +652,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             Cheque total: <b className="text-foreground">Rs. {money(totalSplitAmount)}</b>
           </span>
           <span className={cn('font-bold', isBalanced ? 'text-emerald-700' : 'text-destructive')}>
-            {isBalanced ? 'Balanced' : `Off by Rs. ${money(Math.abs(remainingAmount))}`}
+            {isBalanced ? 'Balanced' : `Off by Rs. {money(Math.abs(remainingAmount))}`}
           </span>
         </div>
       </div>
@@ -664,7 +664,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
           </Button>
         )}
         <Button onClick={handleSave} disabled={isSaving || !isBalanced} className="font-black uppercase text-[10px] tracking-widest">
-          {isSaving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
+          {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
           {chequeToEdit ? 'Save changes' : 'Create voucher'}
         </Button>
       </div>

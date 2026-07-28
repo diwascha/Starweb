@@ -44,11 +44,11 @@ const CommandInput = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Input>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, ...props }, ref) => {
-  const Input = CommandPrimitive.Input as any
+  const PrimitiveInput = CommandPrimitive.Input as any
   return (
     <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
       <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-      <Input
+      <PrimitiveInput
         ref={ref}
         className={cn(
           "flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
@@ -66,9 +66,9 @@ const CommandList = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.List>
 >(({ className, ...props }, ref) => {
-  const List = CommandPrimitive.List as any
+  const PrimitiveList = CommandPrimitive.List as any
   return (
-    <List
+    <PrimitiveList
       ref={ref}
       className={cn("max-h-[300px] overflow-y-auto overflow-x-hidden", className)}
       {...props}
@@ -82,9 +82,9 @@ const CommandEmpty = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Empty>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Empty>
 >((props, ref) => {
-  const Empty = CommandPrimitive.Empty as any
+  const PrimitiveEmpty = CommandPrimitive.Empty as any
   return (
-    <Empty
+    <PrimitiveEmpty
       ref={ref}
       className="py-6 text-center text-sm"
       {...props}
@@ -98,9 +98,9 @@ const CommandGroup = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Group>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Group>
 >(({ className, ...props }, ref) => {
-  const Group = CommandPrimitive.Group as any
+  const PrimitiveGroup = CommandPrimitive.Group as any
   return (
-    <Group
+    <PrimitiveGroup
       ref={ref}
       className={cn(
         "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground",
@@ -117,9 +117,9 @@ const CommandSeparator = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Separator>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Separator>
 >(({ className, ...props }, ref) => {
-  const Separator = CommandPrimitive.Separator as any
+  const PrimitiveSeparator = CommandPrimitive.Separator as any
   return (
-    <Separator
+    <PrimitiveSeparator
       ref={ref}
       className={cn("-mx-1 h-px bg-border", className)}
       {...props}
@@ -132,9 +132,9 @@ const CommandItem = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Item>
 >(({ className, ...props }, ref) => {
-  const Item = CommandPrimitive.Item as any
+  const PrimitiveItem = CommandPrimitive.Item as any
   return (
-    <Item
+    <PrimitiveItem
       ref={ref}
       className={cn(
         "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",

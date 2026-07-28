@@ -17,10 +17,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
@@ -46,6 +46,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { onRawMaterialsUpdate, addRawMaterial, updateRawMaterial, deleteRawMaterial } from '@/services/raw-material-service';
 import { format } from 'date-fns';
+import { onUomsUpdate } from '@/services/uom-service';
 
 const materialTypes = [
     'Kraft Paper', 'Virgin Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
@@ -71,6 +72,7 @@ const generateMaterialName = (type: string, size: string, gsm: string, bf: strin
 
 export default function RawMaterialsPage() {
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
+  const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Pagination State
@@ -103,12 +105,20 @@ export default function RawMaterialsPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    const unsubscribe = onRawMaterialsUpdate((materials) => {
+    const unsubMaterials = onRawMaterialsUpdate((materials) => {
         setRawMaterials(materials);
         setIsLoading(false);
     });
-    return () => unsubscribe();
+    const unsubUoms = onUomsUpdate(setUoms);
+    return () => {
+        unsubMaterials();
+        unsubUoms();
+    };
   }, []);
+
+  const allUnits = useMemo(() => {
+    return uoms.map(u => u.abbreviation).sort();
+  }, [uoms]);
 
   useEffect(() => {
     setCurrentPage(1);

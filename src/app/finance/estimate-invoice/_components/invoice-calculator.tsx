@@ -282,7 +282,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                             <Command>
                                 <CommandInput placeholder="Search party..." value={partySearch} onValueChange={setPartySearch} />
                                 <CommandList>
-                                    <CommandEmpty><Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, 'Customer', partySearch)}><PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"</Button></CommandEmpty>
+                                    <CommandEmpty><Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}><PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"</Button></CommandEmpty>
                                     <CommandGroup>{filteredParties.map(p => (<CommandItem key={p.id} value={p.name} onSelect={() => handlePartySelect(p.id)}><Check className={cn("mr-2 h-4 w-4", party?.id === p.id ? "opacity-100" : "opacity-0")}/>{p.name}</CommandItem>))}</CommandGroup>
                                 </CommandList>
                             </Command>
