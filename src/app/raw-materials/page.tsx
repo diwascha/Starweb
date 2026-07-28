@@ -341,20 +341,20 @@ export default function RawMaterialsPage() {
     const isCurrentTabPaper = paperTypes.includes(activeTab);
 
     return (
-        <Card>
+        <Card shadow-none border-none ring-1 ring-black/5 bg-white>
             <CardContent className="p-0">
                 <Table>
                 <TableHeader>
-                    <TableRow>
-                    <TableHead>
-                        <Button variant="ghost" onClick={() => requestSort('name')} className="text-xs">
+                    <TableRow className="hover:bg-transparent bg-muted/50 border-b">
+                    <TableHead className="pl-6 font-bold uppercase text-[11px] tracking-widest text-muted-foreground">
+                        <Button variant="ghost" onClick={() => requestSort('name')} className="-ml-4 h-8 px-2 hover:bg-transparent font-bold">
                         Material Description
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                        <ArrowUpDown className="ml-2 h-3 w-3" />
                         </Button>
                     </TableHead>
                     {activeTab === 'All' &&
-                        <TableHead>
-                            <Button variant="ghost" onClick={() => requestSort('type')} className="text-xs">
+                        <TableHead className="font-bold uppercase text-[11px] tracking-widest text-muted-foreground">
+                            <Button variant="ghost" onClick={() => requestSort('type')} className="-ml-4 h-8 px-2 hover:bg-transparent font-bold">
                             Type
                             <ArrowUpDown className="ml-2 h-4 w-4" />
                             </Button>
@@ -362,58 +362,60 @@ export default function RawMaterialsPage() {
                     }
                     {isCurrentTabPaper && (
                         <>
-                            <TableHead className="text-center font-bold text-[11px] uppercase">Size (Inch)</TableHead>
-                            <TableHead className="text-center font-bold text-[11px] uppercase">GSM</TableHead>
-                            <TableHead className="text-center font-bold text-[11px] uppercase">BF</TableHead>
+                            <TableHead className="text-center font-bold text-[11px] uppercase tracking-widest text-muted-foreground">Size (Inch)</TableHead>
+                            <TableHead className="text-center font-bold text-[11px] uppercase tracking-widest text-muted-foreground">GSM</TableHead>
+                            <TableHead className="text-center font-bold text-[11px] uppercase tracking-widest text-muted-foreground">BF</TableHead>
                         </>
                     )}
-                    <TableHead className="font-bold text-[11px] uppercase">Units</TableHead>
-                     <TableHead>
-                        <Button variant="ghost" onClick={() => requestSort('authorship')} className="text-xs">
+                    <TableHead className="font-bold text-[11px] uppercase tracking-widest text-muted-foreground">Units</TableHead>
+                     <TableHead className="font-bold uppercase text-[11px] tracking-widest text-muted-foreground">
+                        <Button variant="ghost" onClick={() => requestSort('authorship')} className="-ml-4 h-8 px-2 hover:bg-transparent font-bold">
                             Authorship
                             <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                     </TableHead>
-                    <TableHead className="text-right pr-6 font-bold text-[11px] uppercase">Actions</TableHead>
+                    <TableHead className="text-right pr-6 font-bold text-[11px] uppercase tracking-widest text-muted-foreground">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {paginatedMaterials.map(material => {
                         const isRowPaper = paperTypes.includes(material.type);
                         return (
-                        <TableRow key={material.id}>
-                            <TableCell className="font-medium">{material.name}</TableCell>
-                            {activeTab === 'All' && <TableCell>{material.type}</TableCell>}
+                        <TableRow key={material.id} className="h-14 border-b hover:bg-muted/30 transition-colors">
+                            <TableCell className="font-bold text-gray-900 pl-6">{material.name}</TableCell>
+                            {activeTab === 'All' && <TableCell className="text-xs uppercase font-medium">{material.type}</TableCell>}
                             {isCurrentTabPaper && (
                                 <>
-                                    <TableCell className="text-center">{isRowPaper ? (material.size || '-') : '-'}</TableCell>
-                                    <TableCell className="text-center">{isRowPaper ? (material.gsm || '-') : '-'}</TableCell>
-                                    <TableCell className="text-center">{isRowPaper ? (normalizeBF(material.bf) || '-') : '-'}</TableCell>
+                                    <TableCell className="text-center font-medium text-xs">{isRowPaper ? (material.size || '-') : '-'}</TableCell>
+                                    <TableCell className="text-center font-medium text-xs">{isRowPaper ? (material.gsm || '-') : '-'}</TableCell>
+                                    <TableCell className="text-center font-medium text-xs">{isRowPaper ? (normalizeBF(material.bf) || '-') : '-'}</TableCell>
                                 </>
                             )}
-                            <TableCell>{Array.isArray(material.units) ? material.units.join(', ') : ''}</TableCell>
+                            <TableCell>
+                                <div className="flex flex-wrap gap-1">
+                                    {Array.isArray(material.units) ? material.units.map(u => (
+                                        <Badge key={u} variant="secondary" className="text-[9px] uppercase font-black px-1.5 h-4">{u}</Badge>
+                                    )) : ''}
+                                </div>
+                            </TableCell>
                              <TableCell>
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                                {material.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-muted-foreground cursor-help">
+                                                {material.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
                                                 <span>{material.lastModifiedBy || material.createdBy}</span>
                                             </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            {material.createdBy && (
-                                                <p>
-                                                Created by: {material.createdBy}
-                                                {material.createdAt ? ` on ${format(new Date(material.createdAt), "PP")}` : ''}
-                                                </p>
-                                            )}
-                                            {material.lastModifiedBy && material.lastModifiedAt && (
-                                            <p>
-                                                Modified by: {material.lastModifiedBy}
-                                                {material.lastModifiedAt ? ` on ${format(new Date(material.lastModifiedAt), "PP")}` : ''}
-                                            </p>
-                                            )}
+                                            <div className="text-xs space-y-1">
+                                                {material.createdBy && (
+                                                    <p><span className="font-semibold">Created:</span> {material.createdBy} ({format(new Date(material.createdAt), "PP")})</p>
+                                                )}
+                                                {material.lastModifiedBy && material.lastModifiedAt && (
+                                                <p><span className="font-semibold">Modified:</span> {material.lastModifiedBy} ({format(new Date(material.lastModifiedAt), "PP")})</p>
+                                                )}
+                                            </div>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -425,7 +427,7 @@ export default function RawMaterialsPage() {
                                     <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
+                                <DropdownMenuContent align="end" className="w-48">
                                 {hasPermission('rawMaterials', 'edit') && (
                                     <DropdownMenuItem onSelect={() => openEditMaterialDialog(material)}>
                                         <Edit className="mr-2 h-4 w-4" /> Edit
@@ -449,7 +451,7 @@ export default function RawMaterialsPage() {
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteMaterial(material.id)}>Delete</AlertDialogAction>
+                                            <AlertDialogAction onClick={() => handleDeleteMaterial(material.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
                                     </AlertDialog>
@@ -523,10 +525,10 @@ export default function RawMaterialsPage() {
   
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Raw Materials</h1>
-            <p className="text-muted-foreground">Add, view, and manage your raw materials for purchase orders.</p>
+            <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">Procurement Registry</h1>
+            <p className="text-muted-foreground text-sm font-medium">Manage your raw material inventory and paper specifications.</p>
         </div>
         <div className="flex items-center gap-2">
             <div className="relative">
@@ -534,7 +536,7 @@ export default function RawMaterialsPage() {
                 <Input
                     type="search"
                     placeholder="Search materials..."
-                    className="pl-8 sm:w-[250px]"
+                    className="pl-8 sm:w-[250px] bg-white h-10 border-gray-300"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -542,14 +544,14 @@ export default function RawMaterialsPage() {
           {hasPermission('rawMaterials', 'create') && (
             <Dialog open={isMaterialDialogOpen} onOpenChange={setIsMaterialDialogOpen}>
                 <DialogTrigger asChild>
-                <Button onClick={openAddMaterialDialog}>
+                <Button onClick={openAddMaterialDialog} className="h-10 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">
                     <Plus className="mr-2 h-4 w-4" /> Add Raw Material
                 </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{dialogTitle}</DialogTitle>
-                    <DialogDescription>{dialogDescription}</DialogDescription>
+                    <DialogTitle className="text-xl font-black uppercase text-gray-900">{dialogTitle}</DialogTitle>
+                    <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{dialogDescription}</DialogDescription>
                 </DialogHeader>
                 <form
                     id="add-material-form"
@@ -558,13 +560,13 @@ export default function RawMaterialsPage() {
                     handleMaterialSubmit();
                     }}
                 >
-                    <div className="grid gap-4 py-4">
+                    <div className="grid gap-5 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="material-type">Type / Category</Label>
+                            <Label htmlFor="material-type" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Type / Category <span className="text-destructive">*</span></Label>
                             <Popover open={isQuickAddTypePopoverOpen} onOpenChange={setIsQuickAddTypePopoverOpen}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" role="combobox" className="w-full justify-between h-10">
-                                        {newMaterialType || "Select or type a category..."}
+                                    <Button variant="outline" role="combobox" className="w-full justify-between h-11 bg-gray-50 border-gray-300">
+                                        {newMaterialType || "Select or type category..."}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
@@ -576,8 +578,8 @@ export default function RawMaterialsPage() {
                                         />
                                         <CommandList>
                                             <CommandEmpty>
-                                                <button type="button" className="p-2 text-xs text-left w-full hover:bg-muted" onClick={() => setIsQuickAddTypePopoverOpen(false)}>
-                                                    Add new category: "{newMaterialType}"
+                                                <button type="button" className="p-2 text-xs text-left w-full hover:bg-muted font-bold text-primary" onClick={() => setIsQuickAddTypePopoverOpen(false)}>
+                                                    <PlusCircle className="inline mr-2 h-3.5 w-3.5"/> Add "{newMaterialType}"
                                                 </button>
                                             </CommandEmpty>
                                             <CommandGroup>
@@ -599,46 +601,47 @@ export default function RawMaterialsPage() {
                         
                         {!isPaperTypeSelectedInDialog && newMaterialType && (
                             <div className="space-y-2">
-                                <Label htmlFor="material-name">Name / Description</Label>
+                                <Label htmlFor="material-name" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Name / Description <span className="text-destructive">*</span></Label>
                                 <Input
                                 id="material-name"
                                 value={newMaterialName}
                                 onChange={e => setNewMaterialName(e.target.value)}
-                                placeholder={"Product description, Part No, or Specifications"}
+                                placeholder={"e.g. Gum, Stitching Wire, Part #123"}
+                                className="h-11 font-bold"
                                 />
                             </div>
                         )}
                         
                         {isPaperTypeSelectedInDialog && (
                             <>
-                               <div className="space-y-2">
-                                 <Label htmlFor="material-size">Size (Inch)</Label>
-                                 <Input
-                                    id="material-size"
-                                    value={newMaterialSize}
-                                    onChange={e => setNewMaterialSize(e.target.value)}
-                                    placeholder="e.g. 42.5"
-                                  />
+                               <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="material-size" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Size (Inch)</Label>
+                                        <Input
+                                            id="material-size"
+                                            value={newMaterialSize}
+                                            onChange={e => setNewMaterialSize(e.target.value)}
+                                            placeholder="e.g. 42.5"
+                                            className="h-10"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="material-gsm" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">GSM</Label>
+                                        <Input
+                                            id="material-gsm"
+                                            value={newMaterialGsm}
+                                            onChange={e => setNewMaterialGsm(e.target.value)}
+                                            placeholder="e.g. 150"
+                                            className="h-10"
+                                        />
+                                    </div>
                                </div>
                                 <div className="space-y-2">
-                                 <Label htmlFor="material-gsm">GSM</Label>
-                                 <Input
-                                    id="material-gsm"
-                                    value={newMaterialGsm}
-                                    onChange={e => setNewMaterialGsm(e.target.value)}
-                                    placeholder="e.g. 150"
-                                  />
-                               </div>
-                                 <div className="space-y-2">
-                                    <Label htmlFor="material-bf">BF</Label>
-                                    <Select value={normalizeBF(newMaterialBf)} onValueChange={(val: string) => setNewMaterialBf(normalizeBF(val))}>
-                                        <SelectTrigger id="material-bf">
-                                            <SelectValue placeholder="Select BF" />
-                                        </SelectTrigger>
+                                    <Label htmlFor="material-bf" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Bursting Factor (BF)</Label>
+                                    <Select value={normalizeBF(newMaterialBf)} onValueChange={(val: string) => setNewMaterialBf(val)}>
+                                        <SelectTrigger id="material-bf" className="h-11"><SelectValue placeholder="Select BF" /></SelectTrigger>
                                         <SelectContent>
-                                            {bfOptions.map(option => (
-                                                <SelectItem key={option} value={option}>{option}</SelectItem>
-                                            ))}
+                                            {bfOptions.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -646,20 +649,20 @@ export default function RawMaterialsPage() {
                         )}
                          {newMaterialType && (
                             <div className="space-y-2">
-                                <Label htmlFor="material-units">Units of Measurement</Label>
+                                <Label htmlFor="material-units" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Units of Measurement <span className="text-destructive">*</span></Label>
                                  <Popover open={isUnitPopoverOpen} onOpenChange={setIsUnitPopoverOpen}>
                                     <PopoverTrigger asChild>
-                                        <div className="flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer">
-                                            <div className="flex wrap gap-1 flex-1">
+                                        <div className="flex min-h-11 w-full items-center justify-between rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm cursor-pointer shadow-inner">
+                                            <div className="flex wrap gap-1.5 flex-1">
                                                 {newMaterialUnits.map(unit => (
-                                                    <Badge key={unit} variant="secondary" className="gap-1">
+                                                    <Badge key={unit} variant="secondary" className="gap-1 px-2 h-6 font-black uppercase text-[9px]">
                                                         {unit}
                                                         <button type="button" onClick={(e) => { e.stopPropagation(); handleUnitRemove(unit); }} className="rounded-full hover:bg-background/50">
                                                             <X className="h-3 w-3" />
                                                         </button>
                                                     </Badge>
                                                 ))}
-                                                {newMaterialUnits.length === 0 && <span className="text-muted-foreground">Select units...</span>}
+                                                {newMaterialUnits.length === 0 && <span className="text-muted-foreground text-xs font-bold opacity-50 uppercase tracking-tighter">Choose units...</span>}
                                             </div>
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </div>
@@ -673,9 +676,9 @@ export default function RawMaterialsPage() {
                                             />
                                             <CommandList>
                                                 <CommandEmpty>
-                                                    <div className="p-2 text-sm text-center">
-                                                        No results. Type and press space twice to add.
-                                                    </div>
+                                                    <button type="button" className="p-2 text-xs text-left w-full hover:bg-muted font-bold text-primary" onClick={() => handleUnitSelect(unitInputValue)}>
+                                                        <PlusCircle className="inline mr-2 h-3 w-3"/> Add "{unitInputValue}"
+                                                    </button>
                                                 </CommandEmpty>
                                                 <CommandGroup>
                                                     {allUnits.filter(u => !newMaterialUnits.includes(u)).map(unit => (
@@ -693,8 +696,9 @@ export default function RawMaterialsPage() {
                         )}
                     </div>
                 </form>
-                <DialogFooter>
-                    <Button type="submit" form="add-material-form">{dialogButtonText}</Button>
+                <DialogFooter className="bg-muted/30 p-6 border-t">
+                    <Button variant="outline" onClick={() => setIsMaterialDialogOpen(false)} className="h-11 font-bold uppercase text-[10px] tracking-widest px-8">Cancel</Button>
+                    <Button type="submit" form="add-material-form" className="h-11 font-black uppercase text-[10px] tracking-widest px-12 shadow-xl shadow-primary/20">{dialogButtonText}</Button>
                 </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -703,13 +707,13 @@ export default function RawMaterialsPage() {
       </header>
        {isLoading ? renderContent() : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4 bg-muted/50 p-1">
+          <TabsList className="mb-4 bg-muted/50 p-1 h-11 border">
               {tabs.map(tab => (
-                   <TabsTrigger key={tab} value={tab} className="font-bold text-xs uppercase tracking-widest">{tab}</TabsTrigger>
+                   <TabsTrigger key={tab} value={tab} className="font-bold text-[10px] uppercase tracking-[0.2em] px-8 h-full data-[state=active]:bg-white data-[state=active]:shadow-sm">{tab}</TabsTrigger>
               ))}
           </TabsList>
           {tabs.map(tab => (
-              <TabsContent key={tab} value={tab} className="mt-0">
+              <TabsContent key={tab} value={tab} className="mt-0 border-none p-0 animate-in fade-in zoom-in-95">
                   {renderContent()}
               </TabsContent>
           ))}

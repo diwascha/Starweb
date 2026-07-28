@@ -353,7 +353,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Parties</SelectItem>
-                            {uniqueParties.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                            {uniqueParties.map(pName => <SelectItem key={pName} value={pName}>{pName}</SelectItem>)}
                         </SelectContent>
                     </Select>
 
@@ -676,7 +676,7 @@ function SavedRatesList() {
                     <CardDescription>Manage the rates for each product.</CardDescription>
                 </div>
                 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex wrap items-center gap-2">
                     <div className="relative">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -907,7 +907,7 @@ export default function EstimateInvoicePage() {
        <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4 bg-muted/50 p-1">
                 <TabsTrigger value="calculator" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">Generator</TabsTrigger>
-                <TabsTrigger value="history" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">History</TabsTrigger>
+                <TabsTrigger value="history" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">History Logs</TabsTrigger>
                 <TabsTrigger value="rates" className="gap-2 px-6 font-bold text-xs uppercase tracking-widest">Rate Manager</TabsTrigger>
             </TabsList>
             <TabsContent value="calculator">
