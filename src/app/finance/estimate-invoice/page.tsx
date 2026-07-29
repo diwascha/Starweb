@@ -29,7 +29,17 @@ import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
 import type { EstimatedInvoice, Party, Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger,
+  AlertDialogDescription,
+  AlertDialogFooter
+} from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { onProductsUpdate, updateProduct } from '@/services/product-service';
@@ -420,8 +430,14 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                                     <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> <span>Delete</span></DropdownMenuItem>
                                   </AlertDialogTrigger>
                                   <AlertDialogContent>
-                                    <AlertDialogHeader><AlertDialogTitle>Delete this invoice?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteInvoice(inv.id)} className="bg-destructive text-white">Delete</AlertDialogAction></AlertDialogFooter>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete this invoice?</AlertDialogTitle>
+                                      <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteInvoice(inv.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
                            </DropdownMenuContent>
