@@ -553,7 +553,7 @@ function SavedRatesList() {
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // Sorting State
-    const [sortConfig, setSortConfig] = useState<{ key: RatesSortKey; direction: RatesSortDirection }>({
+    const [sortConfig, setSortConfig] = useState<{ key: RatesSortKey; direction: 'asc' | 'desc' }>({
         key: 'name',
         direction: 'asc'
     });

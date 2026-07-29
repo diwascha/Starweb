@@ -30,6 +30,7 @@ import {
   CalendarIcon,
   CreditCard,
   Receipt,
+  Building2,
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -243,6 +244,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterParty, setFilterParty] = useState('All');
+  const [filterAccountId, setFilterAccountId] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'chequeDate',
@@ -295,12 +297,17 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterParty, filterStatus, itemsPerPage]);
+  }, [searchQuery, filterParty, filterAccountId, filterStatus, itemsPerPage]);
 
   const uniqueParties = useMemo(() => {
     const parties = new Set(cheques.map((c) => c.payeeName).filter(Boolean));
     return Array.from(parties).sort();
   }, [cheques]);
+
+  const sijanBankAccounts = useMemo(() => {
+    return accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Both' || allowedOwnerships.includes(a.ownership)))
+        .sort((a, b) => (a.bankName || a.name).localeCompare(b.bankName || b.name));
+  }, [accounts, allowedOwnerships]);
 
   /**
    * Every visible split, augmented with derived balances.
@@ -361,11 +368,13 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
       const matchesParty = filterParty === 'All' || s.parentCheque.payeeName === filterParty;
 
+      const matchesAccount = filterAccountId === 'All' || s.parentCheque.accountId === filterAccountId;
+
       // "Overdue" is derived, not a stored status — handle it separately.
       const matchesStatus =
         filterStatus === 'All' || (filterStatus === 'Overdue' ? s.isOverdue : s.status === filterStatus);
 
-      return matchesSearch && matchesParty && matchesStatus;
+      return matchesSearch && matchesParty && matchesAccount && matchesStatus;
     });
 
     const dir = sortConfig.direction === 'asc' ? 1 : -1;
@@ -379,7 +388,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     });
 
     return res;
-  }, [allSplits, searchQuery, sortConfig, filterParty, filterStatus, getSortValue]);
+  }, [allSplits, searchQuery, sortConfig, filterParty, filterAccountId, filterStatus, getSortValue]);
 
   const totalPages = useMemo(() => {
     if (itemsPerPage === -1) return 1;
@@ -549,10 +558,11 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   const handleClearFilters = () => {
     setSearchQuery('');
     setFilterParty('All');
+    setFilterAccountId('All');
     setFilterStatus('All');
   };
 
-  const isFiltered = filterParty !== 'All' || filterStatus !== 'All' || searchQuery !== '';
+  const isFiltered = filterParty !== 'All' || filterAccountId !== 'All' || filterStatus !== 'All' || searchQuery !== '';
 
   /**
    * Nepal cheque print. The markup is fully inline-styled, so the clone needs
@@ -656,6 +666,20 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                       {p}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterAccountId} onValueChange={setFilterAccountId}>
+                <SelectTrigger className="h-9 w-[160px] text-xs bg-white border-gray-200 shadow-none">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <SelectValue placeholder="All banks" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Bank Sources</SelectItem>
+                  <SelectItem value="cash">Cash payment</SelectItem>
+                  {sijanBankAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
                 </SelectContent>
               </Select>
 
@@ -994,6 +1018,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         )}
                         </Table>
                     </div>
+                    <ScrollBar orientation="horizontal" />
                     <ScrollBar orientation="vertical" />
                 </ScrollArea>
             </div>
@@ -1116,7 +1141,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={() => {
                 if (splitToReset) handleStatusUpdate(splitToReset.parentCheque, splitToReset.id, 'Due');
-                setIsResetDialogOpen(false);
+                setIsResetDialogOpen(true);
                 setSplitToReset(null);
               }}
             >
