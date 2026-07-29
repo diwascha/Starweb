@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Trash2, Printer, Save, Loader2, Plus, Image as ImageIcon, ChevronDown } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Trash2, Printer, Save, Loader2, Plus, Image as ImageIcon, ChevronDown, X } from 'lucide-react';
 import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber, generateId } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -401,6 +401,11 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
             </Card>
 
             <div className="flex justify-end gap-3 pt-4">
+                 {invoiceToEdit && (
+                    <Button variant="ghost" size="lg" className="h-12 px-8 font-bold" onClick={onSaveSuccess}>
+                        <X className="mr-2 h-4 w-4" /> Cancel Edit
+                    </Button>
+                 )}
                  <Button variant="outline" size="lg" className="h-12 px-8" onClick={() => setIsPreviewOpen(true)} disabled={!party || items.length === 0}><Printer className="mr-2 h-4 w-4" /> Preview & Print</Button>
                  <Button size="lg" className="h-12 px-8 font-bold shadow-lg" onClick={handleSaveInvoice} disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save Document</Button>
             </div>
