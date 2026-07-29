@@ -19,31 +19,43 @@ import {
     ChevronRight,
     FilterX,
     Users,
-    CalendarIcon
+    CalendarIcon,
+    Building2
 } from 'lucide-react';
 import { onChequesUpdate } from '@/services/cheque-service';
-import type { Cheque } from '@/lib/types';
+import { onAccountsUpdate } from '@/services/account-service';
+import type { Cheque, Account } from '@/lib/types';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
+import { useAuth } from '@/hooks/use-auth';
 
 const money = (n: number) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function ChequeLedger() {
     const [cheques, setCheques] = useState<Cheque[]>([]);
+    const [accounts, setAccounts] = useState<Account[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterParty, setFilterParty] = useState('All');
+    const [filterAccountId, setFilterAccountId] = useState('All');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(15);
 
+    const { getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+
     useEffect(() => {
-        return onChequesUpdate(setCheques);
+        const unsubs = [
+            onChequesUpdate(setCheques),
+            onAccountsUpdate(setAccounts)
+        ];
+        return () => unsubs.forEach(u => u());
     }, []);
 
     const allPayments = useMemo(() => {
@@ -57,7 +69,9 @@ export function ChequeLedger() {
                         chequeNumber: s.chequeNumber,
                         voucherNo: c.voucherNo,
                         parentChequeId: c.id,
-                        splitId: s.id
+                        splitId: s.id,
+                        accountId: c.accountId,
+                        ownership: c.ownership
                     });
                 });
             });
@@ -66,7 +80,7 @@ export function ChequeLedger() {
     }, [cheques]);
 
     const filteredPayments = useMemo(() => {
-        let filtered = [...allPayments];
+        let filtered = allPayments.filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership));
 
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
@@ -82,6 +96,10 @@ export function ChequeLedger() {
             filtered = filtered.filter(p => p.payeeName === filterParty);
         }
 
+        if (filterAccountId !== 'All') {
+            filtered = filtered.filter(p => p.accountId === filterAccountId);
+        }
+
         if (dateRange?.from) {
             const start = startOfDay(dateRange.from);
             const end = endOfDay(dateRange.to || dateRange.from);
@@ -92,7 +110,7 @@ export function ChequeLedger() {
         }
 
         return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [allPayments, searchQuery, filterParty, dateRange]);
+    }, [allPayments, searchQuery, filterParty, filterAccountId, dateRange, allowedOwnerships]);
 
     const paginated = filteredPayments.slice((currentPage - 1) * itemsPerPage, itemsPerPage === -1 ? undefined : currentPage * itemsPerPage);
     const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(filteredPayments.length / itemsPerPage);
@@ -101,11 +119,17 @@ export function ChequeLedger() {
         return Array.from(new Set(allPayments.map(p => p.payeeName))).sort();
     }, [allPayments]);
 
+    const filteredBankAccounts = useMemo(() => {
+        return accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Both' || allowedOwnerships.includes(a.ownership)))
+            .sort((a, b) => (a.bankName || a.name).localeCompare(b.bankName || b.name));
+    }, [accounts, allowedOwnerships]);
+
     const totalAmount = useMemo(() => filteredPayments.reduce((sum, p) => sum + p.amount, 0), [filteredPayments]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
         setFilterParty('All');
+        setFilterAccountId('All');
         setDateRange(undefined);
     };
 
@@ -139,6 +163,19 @@ export function ChequeLedger() {
                                 {uniqueParties.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                             </SelectContent>
                         </Select>
+                        <Select value={filterAccountId} onValueChange={setFilterAccountId}>
+                            <SelectTrigger className="h-9 w-[150px] text-xs bg-white border-gray-200">
+                                <div className="flex items-center gap-2">
+                                    <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
+                                    <SelectValue placeholder="All banks" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Bank Sources</SelectItem>
+                                <SelectItem value="cash">Cash payment</SelectItem>
+                                {filteredBankAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button variant="outline" className={cn("h-9 w-[180px] justify-start text-left font-normal bg-white text-xs px-3 border-gray-200", !dateRange && "text-muted-foreground")}>
@@ -152,7 +189,7 @@ export function ChequeLedger() {
                                 <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
                             </PopoverContent>
                         </Popover>
-                        {(searchQuery || filterParty !== 'All' || dateRange) && (
+                        {(searchQuery || filterParty !== 'All' || filterAccountId !== 'All' || dateRange) && (
                             <Button variant="ghost" size="icon" onClick={handleClearFilters} className="h-9 w-9 text-muted-foreground" title="Clear Filters">
                                 <FilterX className="h-4 w-4"/>
                             </Button>
@@ -166,6 +203,7 @@ export function ChequeLedger() {
                                 <TableHead className="pl-6 font-bold uppercase text-[10px]">Payment Date (BS)</TableHead>
                                 <TableHead className="font-bold uppercase text-[10px]">Beneficiary / Payee</TableHead>
                                 <TableHead className="font-bold uppercase text-[10px]">Reference (Cheque/Voucher)</TableHead>
+                                <TableHead className="font-bold uppercase text-[10px]">Source Account</TableHead>
                                 <TableHead className="font-bold uppercase text-[10px]">Payment Note</TableHead>
                                 <TableHead className="text-right pr-6 font-bold uppercase text-[10px]">Amount (NPR)</TableHead>
                             </TableRow>
@@ -181,13 +219,23 @@ export function ChequeLedger() {
                                             <span className="text-[9px] uppercase text-muted-foreground">Voucher: #{p.voucherNo}</span>
                                         </div>
                                     </TableCell>
+                                    <TableCell>
+                                        {p.accountId === 'cash' ? (
+                                            <Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/20 border-none">Cash</Badge>
+                                        ) : (
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold text-gray-700">{accounts.find(a => a.id === p.accountId)?.bankName || 'Bank'}</span>
+                                                <span className="text-[9px] text-muted-foreground font-mono">{accounts.find(a => a.id === p.accountId)?.accountNumber}</span>
+                                            </div>
+                                        )}
+                                    </TableCell>
                                     <TableCell className="italic text-muted-foreground max-w-[200px] truncate" title={p.remarks}>{p.remarks || '—'}</TableCell>
                                     <TableCell className="text-right pr-6 font-black tabular-nums text-emerald-700 text-sm">Rs. {money(p.amount)}</TableCell>
                                 </TableRow>
                             ))}
                             {filteredPayments.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-40 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={6} className="h-40 text-center text-muted-foreground italic">
                                         No payment history found matching these filters.
                                     </TableCell>
                                 </TableRow>
@@ -196,7 +244,7 @@ export function ChequeLedger() {
                         {filteredPayments.length > 0 && (
                             <TableFooter className="bg-muted/40 font-black h-12 border-t-2">
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-right uppercase tracking-widest text-[10px]">Total Filtered Period Payments</TableCell>
+                                    <TableCell colSpan={5} className="text-right uppercase tracking-widest text-[10px]">Total Filtered Period Payments</TableCell>
                                     <TableCell className="text-right pr-6 text-base text-emerald-800 tabular-nums">Rs. {money(totalAmount)}</TableCell>
                                 </TableRow>
                             </TableFooter>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check, User, Loader2, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check, User, Loader2, ChevronsUpDown, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -21,7 +21,6 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -341,7 +340,7 @@ export default function RawMaterialsPage() {
     const isCurrentTabPaper = paperTypes.includes(activeTab);
 
     return (
-        <Card shadow-none border-none ring-1 ring-black/5 bg-white>
+        <Card className="shadow-none border-none ring-1 ring-black/5 bg-white">
             <CardContent className="p-0">
                 <Table>
                 <TableHeader>
@@ -349,14 +348,14 @@ export default function RawMaterialsPage() {
                     <TableHead className="pl-6 font-bold uppercase text-[11px] tracking-widest text-muted-foreground">
                         <Button variant="ghost" onClick={() => requestSort('name')} className="-ml-4 h-8 px-2 hover:bg-transparent font-bold">
                         Material Description
-                        <ArrowUpDown className="ml-2 h-3 w-3" />
+                        <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'name' ? "opacity-100 text-primary" : "opacity-30")} />
                         </Button>
                     </TableHead>
                     {activeTab === 'All' &&
                         <TableHead className="font-bold uppercase text-[11px] tracking-widest text-muted-foreground">
                             <Button variant="ghost" onClick={() => requestSort('type')} className="-ml-4 h-8 px-2 hover:bg-transparent font-bold">
                             Type
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'type' ? "opacity-100 text-primary" : "opacity-30")} />
                             </Button>
                         </TableHead>
                     }
@@ -371,7 +370,7 @@ export default function RawMaterialsPage() {
                      <TableHead className="font-bold uppercase text-[11px] tracking-widest text-muted-foreground">
                         <Button variant="ghost" onClick={() => requestSort('authorship')} className="-ml-4 h-8 px-2 hover:bg-transparent font-bold">
                             Authorship
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'authorship' ? "opacity-100 text-primary" : "opacity-30")} />
                         </Button>
                     </TableHead>
                     <TableHead className="text-right pr-6 font-bold text-[11px] uppercase tracking-widest text-muted-foreground">Actions</TableHead>
@@ -565,7 +564,7 @@ export default function RawMaterialsPage() {
                             <Label htmlFor="material-type" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Type / Category <span className="text-destructive">*</span></Label>
                             <Popover open={isQuickAddTypePopoverOpen} onOpenChange={setIsQuickAddTypePopoverOpen}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" role="combobox" className="w-full justify-between h-11 bg-gray-50 border-gray-300">
+                                    <Button variant="outline" role="combobox" className="w-full justify-between h-11 bg-gray-50 border-gray-300 font-normal">
                                         {newMaterialType || "Select or type category..."}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
@@ -676,13 +675,13 @@ export default function RawMaterialsPage() {
                                             />
                                             <CommandList>
                                                 <CommandEmpty>
-                                                    <button type="button" className="p-2 text-xs text-left w-full hover:bg-muted font-bold text-primary" onClick={() => handleUnitSelect(unitInputValue)}>
+                                                    <button type="button" className="p-2 text-sm text-left w-full hover:bg-muted font-bold text-primary" onClick={() => handleUnitSelect(unitInputValue)}>
                                                         <PlusCircle className="inline mr-2 h-3 w-3"/> Add "{unitInputValue}"
                                                     </button>
                                                 </CommandEmpty>
                                                 <CommandGroup>
                                                     {allUnits.filter(u => !newMaterialUnits.includes(u)).map(unit => (
-                                                        <CommandItem key={unit} onSelect={() => handleUnitSelect(unit)} className="text-xs">
+                                                        <CommandItem key={unit} value={unit} onSelect={() => handleUnitSelect(unit)} className="text-xs">
                                                             <Check className={cn("mr-2 h-4 w-4", newMaterialUnits.includes(unit) ? "opacity-100" : "opacity-0")} />
                                                             {unit}
                                                         </CommandItem>

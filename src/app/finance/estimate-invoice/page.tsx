@@ -26,13 +26,12 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
-import type { EstimatedInvoice, Product, RateHistoryEntry, Party } from '@/lib/types';
+import type { EstimatedInvoice, Party } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { onProductsUpdate, updateProduct } from '@/services/product-service';
-import { Label } from '@/components/ui/label';
+import { updateProduct } from '@/services/product-service';
 import { useAuth } from '@/hooks/use-auth';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -78,7 +77,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
-    const { user, getAllowedOwnerships } = useAuth();
+    const { getAllowedOwnerships } = useAuth();
     const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
     
     // Pagination State
@@ -562,7 +561,7 @@ function SavedRatesList() {
     const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
     const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [selectedHistory, setSelectedHistory] = useState<RateHistoryEntry[]>([]);
+    const [selectedHistory, setSelectedHistory] = useState<any[]>([]);
     const [newRate, setNewRate] = useState<string>('');
     const { toast } = useToast();
     const { user, getAllowedOwnerships } = useAuth();
@@ -720,17 +719,17 @@ function SavedRatesList() {
                            <TableHead className="pl-6">
                                <Button variant="ghost" onClick={() => requestSort('name')} className="-ml-4 h-8 px-2 text-xs font-bold uppercase tracking-widest text-foreground hover:bg-transparent">
                                     Product Name <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === 'name' ? "opacity-100 text-primary" : "opacity-30")} />
-                               </Button>
+                                </Button>
                            </TableHead>
                            <TableHead>
                                <Button variant="ghost" onClick={() => requestSort('partyName')} className="-ml-4 h-8 px-2 text-xs font-bold uppercase tracking-widest text-foreground hover:bg-transparent">
                                     Delivered To <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === 'partyName' ? "opacity-100 text-primary" : "opacity-30")} />
-                               </Button>
+                                </Button>
                            </TableHead>
                            <TableHead>
                                <Button variant="ghost" onClick={() => requestSort('rate')} className="-ml-4 h-8 px-2 text-xs font-bold uppercase tracking-widest text-foreground hover:bg-transparent">
                                     Current Rate <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === 'rate' ? "opacity-100 text-primary" : "opacity-30")} />
-                               </Button>
+                                </Button>
                            </TableHead>
                            <TableHead className="text-right pr-6 font-bold text-xs uppercase tracking-widest">Actions</TableHead>
                        </TableRow>
@@ -859,7 +858,7 @@ function SavedRatesList() {
                                     <TableHead className="font-bold">Authorized By</TableHead>
                                 </TableRow>
                             </TableHeader>
-                            <TableBody className="bg-white">
+                            <TableBody>
                                 {[...selectedHistory].reverse().map((entry, index) => (
                                     <TableRow key={index} className="h-11 border-b transition-colors hover:bg-muted/10">
                                         <TableCell className="pl-6 text-gray-500 font-mono">{toNepaliDate(entry.date)}</TableCell>
