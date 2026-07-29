@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -676,7 +677,7 @@ export default function RawMaterialsPage() {
                                             <CommandList>
                                                 <CommandEmpty>
                                                     <button type="button" className="p-2 text-sm text-left w-full hover:bg-muted font-bold text-primary" onClick={() => handleUnitSelect(unitInputValue)}>
-                                                        <PlusCircle className="inline mr-2 h-3 w-3"/> Add "{unitInputValue}"
+                                                        <PlusCircle className="inline mr-2 h-3.5 w-3.5"/> Add "{unitInputValue}"
                                                     </button>
                                                 </CommandEmpty>
                                                 <CommandGroup>
