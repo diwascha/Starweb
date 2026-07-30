@@ -16,6 +16,9 @@ import {
     Edit,
     Loader2,
     FileText,
+    ZoomIn,
+    ZoomOut,
+    RefreshCcw
 } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
@@ -41,6 +44,13 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { onSettingUpdate } from '@/services/settings-service';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const DEFAULT_COMPANY_PROFILE_LOCAL: CompanyProfile = {
   nameEn: "Shivam Packaging Industry Private Limited",
@@ -272,6 +282,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(initialPurchaseOrder);
   const [isExporting, setIsExporting] = useState<Record<string, boolean>>({});
   const [includeAmendments, setIncludeAmendments] = useState(true);
+  const [zoom, setZoom] = useState(1);
   const [selectedVersion, setSelectedVersion] = useState<PurchaseOrderVersion | null>(null);
   const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE_LOCAL);
@@ -431,6 +442,54 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         <div className="flex flex-wrap items-center gap-3">
             <Button variant="outline" size="sm" onClick={() => router.push(`/purchase-orders/edit?id=${purchaseOrder.id}`)} className="h-10 px-4 font-bold text-[10px] uppercase tracking-widest"><Edit className="mr-2 h-3.5 w-3.5"/> Amend Order</Button>
 
+            <div className="flex items-center gap-2 bg-white rounded-md border shadow-sm h-10 px-2">
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(prev => Math.max(0.25, prev - 0.25))}>
+                                <ZoomOut className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p className="text-[10px] uppercase font-black">Zoom Out</p></TooltipContent>
+                    </Tooltip>
+                    
+                    <Select value={String(zoom)} onValueChange={v => setZoom(parseFloat(v))}>
+                        <SelectTrigger className="h-8 w-20 text-[10px] font-black border-none bg-muted/30">
+                            <SelectValue>{Math.round(zoom * 100)}%</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="0.25">25%</SelectItem>
+                            <SelectItem value="0.5">50%</SelectItem>
+                            <SelectItem value="0.75">75%</SelectItem>
+                            <SelectItem value="1">100%</SelectItem>
+                            <SelectItem value="1.25">125%</SelectItem>
+                            <SelectItem value="1.5">150%</SelectItem>
+                            <SelectItem value="2">200%</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(prev => Math.min(3, prev + 0.25))}>
+                                <ZoomIn className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p className="text-[10px] uppercase font-black">Zoom In</p></TooltipContent>
+                    </Tooltip>
+                    
+                    <Separator orientation="vertical" className="h-4 mx-1" />
+                    
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setZoom(1)}>
+                                <RefreshCcw className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p className="text-[10px] uppercase font-black">Reset Zoom</p></TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            </div>
+
             <div className="flex border rounded-md overflow-hidden bg-white shadow-sm h-10">
                 <TooltipProvider>
                     <Tooltip>
@@ -467,14 +526,35 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         </div>
       </div>
 
-      <ScrollArea className="w-full">
-        <div className="mx-auto w-[210mm] shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-500 my-4 shrink-0 overflow-hidden">
-            <PurchaseOrderDocument
-                purchaseOrder={purchaseOrder}
-                includeAmendments={includeAmendments}
-                containerRef={mainPrintRef}
-                companyProfile={companyProfile}
-            />
+      <ScrollArea className="w-full border rounded-lg bg-muted/20">
+        <div className="flex justify-center p-8 min-h-[600px]">
+             <div 
+                style={{ 
+                    width: `${210 * zoom}mm`, 
+                    transition: 'width 0.2s ease-in-out',
+                    position: 'relative'
+                }}
+                className="shrink-0"
+             >
+                <div 
+                    style={{ 
+                        transform: `scale(${zoom})`, 
+                        transformOrigin: 'top left',
+                        width: '210mm',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0
+                    }}
+                    className="shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-500 overflow-hidden"
+                >
+                    <PurchaseOrderDocument
+                        purchaseOrder={purchaseOrder}
+                        includeAmendments={includeAmendments}
+                        containerRef={mainPrintRef}
+                        companyProfile={companyProfile}
+                    />
+                </div>
+            </div>
         </div>
         <ScrollBar orientation="horizontal" />
         <ScrollBar orientation="vertical" />
