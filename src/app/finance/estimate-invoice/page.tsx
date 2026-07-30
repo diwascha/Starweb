@@ -41,7 +41,6 @@ import {
   AlertDialogTrigger 
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { onProductsUpdate, updateProduct } from '@/services/product-service';
 import { useAuth } from '@/hooks/use-auth';
 import { toNepaliDate, cn } from '@/lib/utils';
@@ -398,7 +397,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
            </CardHeader>
            <CardContent className="p-0">
              <Table>
-               <TableHeader className="bg-muted/50">
+               <TableHeader>
                  <TableRow className="hover:bg-transparent">
                    <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="text-xs">Date (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                    <TableHead><Button variant="ghost" onClick={() => requestSort('invoiceNumber')} className="text-xs">Invoice # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -917,7 +916,7 @@ export default function EstimateInvoicePage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">Estimate / Pro-Forma Invoice</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Estimate / Pro-Forma Invoice</h1>
         <p className="text-muted-foreground">Create and manage estimate or pro-forma invoices for clients.</p>
       </header>
        <Tabs value={activeTab} onValueChange={setActiveTab}>

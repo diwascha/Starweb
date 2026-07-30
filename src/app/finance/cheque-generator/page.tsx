@@ -1189,7 +1189,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
       {/* ------------------------- Voucher preview ------------------------- */}
       <Dialog open={isPrintPreviewOpen} onOpenChange={setIsPrintPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogContent className="max-w-[95vw] w-full h-[95vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="p-6 border-b">
             <DialogTitle>Voucher preview</DialogTitle>
           </DialogHeader>
