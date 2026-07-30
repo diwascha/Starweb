@@ -468,7 +468,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
       </div>
 
       <ScrollArea className="w-full">
-        <div className="mx-auto w-full max-w-[210mm] shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-500">
+        <div className="mx-auto w-[210mm] shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-500 my-4 shrink-0 overflow-hidden">
             <PurchaseOrderDocument
                 purchaseOrder={purchaseOrder}
                 includeAmendments={includeAmendments}

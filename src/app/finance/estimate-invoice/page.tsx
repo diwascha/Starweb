@@ -41,6 +41,13 @@ import {
   AlertDialogTrigger 
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger, 
+  DropdownMenuSeparator 
+} from '@/components/ui/dropdown-menu';
 import { onProductsUpdate, updateProduct } from '@/services/product-service';
 import { useAuth } from '@/hooks/use-auth';
 import { toNepaliDate, cn } from '@/lib/utils';
@@ -52,13 +59,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger, 
-  DropdownMenuSeparator 
-} from '@/components/ui/dropdown-menu';
 
 
 function FormSkeleton() {
