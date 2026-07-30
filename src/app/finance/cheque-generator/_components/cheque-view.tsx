@@ -53,10 +53,22 @@ export function ChequeView({
     account, 
     splits 
 }: ChequeViewProps) {
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>({
+    ...DEFAULT_COMPANY_PROFILE,
+    nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+    pan: "301543310" // Assuming default if not set
+  });
 
   useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
+    const unsub = onSettingUpdate('companyProfile', (s) => {
+        if (s?.value) {
+            setCompanyProfile({
+                ...s.value,
+                nameNp: s.value.nameNp || "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+                pan: s.value.pan || "301543310"
+            });
+        }
+    });
     return () => unsub();
   }, []);
 
