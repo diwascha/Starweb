@@ -17,6 +17,9 @@ interface ChequeViewProps {
   voucherNo: string;
   voucherDate: Date;
   payeeName: string;
+  payeeAddress?: string;
+  payeePan?: string;
+  remarks?: string;
   account?: Account | null;
   splits: SplitDetail[];
 }
@@ -40,7 +43,16 @@ function MetaField({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits }: ChequeViewProps) {
+export function ChequeView({ 
+    voucherNo, 
+    voucherDate, 
+    payeeName, 
+    payeeAddress, 
+    payeePan, 
+    remarks, 
+    account, 
+    splits 
+}: ChequeViewProps) {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
 
   useEffect(() => {
@@ -69,9 +81,19 @@ export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits 
           <h1 className="text-[17px] font-bold uppercase leading-tight tracking-tight">
             {companyProfile.nameEn}
           </h1>
+          {companyProfile.nameNp && (
+            <h2 className="text-[15px] font-semibold mt-0.5">
+              {companyProfile.nameNp}
+            </h2>
+          )}
           <p className="mt-1 text-[10px] leading-relaxed" style={{ color: SUB }}>
             {companyProfile.address}
           </p>
+          {companyProfile.pan && (
+            <p className="text-[9px] font-mono mt-0.5" style={{ color: SUB }}>
+              PAN: {companyProfile.pan}
+            </p>
+          )}
         </div>
 
         <div className="shrink-0 text-right">
@@ -95,7 +117,11 @@ export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits 
       >
         <div className="col-span-2">
           <MetaField label="Paid to">
-            <span className="text-[13px] font-bold uppercase tracking-tight">{payeeName}</span>
+            <div className="flex flex-col">
+              <span className="text-[13px] font-bold uppercase tracking-tight">{payeeName}</span>
+              {payeeAddress && <span className="text-[10px] leading-tight mt-0.5 text-neutral-600">{payeeAddress}</span>}
+              {payeePan && <span className="text-[9px] font-mono mt-0.5 text-neutral-500">PAN: {payeePan}</span>}
+            </div>
           </MetaField>
         </div>
         <MetaField label="Payment mode">{isBank ? 'Bank / Cheque' : 'Cash'}</MetaField>
@@ -168,6 +194,16 @@ export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits 
         </div>
         <div className="mt-1 text-[11px] font-semibold leading-snug">{amountInWords}</div>
       </section>
+
+      {/* Remarks */}
+      {remarks && (
+        <section className="mt-5 pt-3" style={{ borderTop: `1px solid ${RULE}` }}>
+          <div className="text-[8px] font-bold uppercase tracking-[0.18em]" style={{ color: SUB }}>
+            Remarks / Notes
+          </div>
+          <div className="mt-1 text-[10px] leading-relaxed italic">{remarks}</div>
+        </section>
+      )}
 
       {/* Two signatures */}
       <section className="grid grid-cols-2 gap-16" style={{ marginTop: '26mm' }}>

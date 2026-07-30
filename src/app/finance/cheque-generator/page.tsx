@@ -38,7 +38,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
-import type { Cheque, ChequeSplit, ChequeStatus, PartialPayment, Account } from '@/lib/types';
+import type { Cheque, ChequeSplit, ChequeStatus, PartialPayment, Account, Party } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -71,6 +71,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { onAccountsUpdate } from '@/services/account-service';
+import { onPartiesUpdate } from '@/services/party-service';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
@@ -245,6 +246,7 @@ ChequeSplitRow.displayName = 'ChequeSplitRow';
 function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   const [cheques, setCheques] = useState<Cheque[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterParty, setFilterParty] = useState('All');
   const [filterAccountId, setFilterAccountId] = useState('All');
@@ -295,7 +297,11 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   const [splitToReset, setSplitToReset] = useState<AugmentedChequeSplit | null>(null);
 
   useEffect(() => {
-    const unsubs = [onChequesUpdate(setCheques), onAccountsUpdate(setAccounts)];
+    const unsubs = [
+        onChequesUpdate(setCheques), 
+        onAccountsUpdate(setAccounts),
+        onPartiesUpdate(setParties)
+    ];
     return () => unsubs.forEach((u) => u());
   }, []);
 
@@ -1196,15 +1202,23 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
           <ScrollArea className="flex-1 bg-muted/20 p-8">
             <div ref={printRef} className="mx-auto w-[210mm] shadow-2xl bg-white">
-              {chequeToPrint && (
-                <ChequeView
-                  voucherNo={chequeToPrint.voucherNo}
-                  voucherDate={new Date(chequeToPrint.paymentDate)}
-                  payeeName={chequeToPrint.payeeName}
-                  account={accounts.find((a) => a.id === chequeToPrint.accountId)}
-                  splits={chequeToPrint.splits.map((s) => ({ ...s, chequeDate: new Date(s.chequeDate) }))}
-                />
-              )}
+              {chequeToPrint && (() => {
+                  const party = parties.find(p => p.name === chequeToPrint.payeeName);
+                  const allRemarks = Array.from(new Set(chequeToPrint.splits.map(s => s.remarks).filter(Boolean))).join('; ');
+                  
+                  return (
+                    <ChequeView
+                      voucherNo={chequeToPrint.voucherNo}
+                      voucherDate={new Date(chequeToPrint.paymentDate)}
+                      payeeName={chequeToPrint.payeeName}
+                      payeeAddress={party?.address}
+                      payeePan={party?.panNumber}
+                      remarks={allRemarks}
+                      account={accounts.find((a) => a.id === chequeToPrint.accountId)}
+                      splits={chequeToPrint.splits.map((s) => ({ ...s, chequeDate: new Date(s.chequeDate) }))}
+                    />
+                  );
+              })()}
             </div>
             <ScrollBar orientation="horizontal" />
             <ScrollBar orientation="vertical" />
