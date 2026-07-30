@@ -33,8 +33,8 @@ import {
 } from '@/components/ui/dialog';
 import {
     Tooltip,
-    TooltipContent,
     TooltipProvider,
+    TooltipContent,
     TooltipTrigger
 } from "@/components/ui/tooltip";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -44,7 +44,7 @@ import { format } from 'date-fns';
 
 const DEFAULT_COMPANY_PROFILE_LOCAL: CompanyProfile = {
   nameEn: "Shivam Packaging Industry Private Limited",
-  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+  nameNp: "शिवम् प्याकेजिङ्ग इन्डष्ट्री प्राइभेट लिमिटेड",
   address: "Hetauda 08, Bagmati Province, Nepal",
   phone: "N/A",
   email: "N/A",
@@ -467,14 +467,18 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[210mm] shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-500">
-        <PurchaseOrderDocument
-            purchaseOrder={purchaseOrder}
-            includeAmendments={includeAmendments}
-            containerRef={mainPrintRef}
-            companyProfile={companyProfile}
-        />
-      </div>
+      <ScrollArea className="w-full">
+        <div className="mx-auto w-full max-w-[210mm] shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-500">
+            <PurchaseOrderDocument
+                purchaseOrder={purchaseOrder}
+                includeAmendments={includeAmendments}
+                containerRef={mainPrintRef}
+                companyProfile={companyProfile}
+            />
+        </div>
+        <ScrollBar orientation="horizontal" />
+        <ScrollBar orientation="vertical" />
+      </ScrollArea>
 
        <div id="po-history-section" className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 print:hidden">
             <Card className="shadow-sm border-gray-100 bg-white">

@@ -518,7 +518,10 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 
          <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
             <DialogContent className="max-w-4xl h-[90vh] overflow-hidden flex flex-col p-0">
-                 <DialogHeader className="p-6 border-b"><DialogTitle>Invoice Preview</DialogTitle></DialogHeader>
+                 <DialogHeader className="p-6 border-b">
+                    <DialogTitle>Invoice Preview</DialogTitle>
+                    <DialogDescription>Review and print your estimate invoice.</DialogDescription>
+                 </DialogHeader>
                 <ScrollArea className="flex-1 bg-muted/20 p-8">
                     <div className="mx-auto w-[210mm] shadow-2xl bg-white p-4">
                         {selectedInvoice && (
