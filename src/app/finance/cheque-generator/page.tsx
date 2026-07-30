@@ -31,6 +31,9 @@ import {
   CreditCard,
   Receipt,
   Building2,
+  FileDown,
+  Loader2,
+  Eye,
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -260,6 +263,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
   const [chequeToPrint, setChequeToPrint] = useState<Cheque | null>(null);
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Nepal cheque print — store identity only, derive the record live.
   const [nepalPrintKey, setNepalPrintKey] = useState<{ chequeId: string; splitId: string } | null>(null);
@@ -620,6 +624,38 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         `</body></html>`
     );
     win.document.close();
+  };
+
+  const handleExportVoucherPdf = async () => {
+    if (!chequeToPrint) return;
+    setIsExporting(true);
+    try {
+        const html2canvas = (await import('html2canvas')).default;
+        const { jsPDF } = await import('jspdf');
+        const element = printRef.current;
+        if (!element) return;
+
+        const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+        });
+        
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Voucher-${chequeToPrint.voucherNo}.pdf`);
+        toast({ title: 'Success', description: 'Voucher exported as PDF.' });
+    } catch (error) {
+        console.error("PDF export failed:", error);
+        toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
+    } finally {
+        setIsExporting(false);
+    }
   };
 
   const sortButton = (key: SortKey, label: string) => (
@@ -1151,7 +1187,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ------------------------- Voucher print ------------------------- */}
+      {/* ------------------------- Voucher preview ------------------------- */}
       <Dialog open={isPrintPreviewOpen} onOpenChange={setIsPrintPreviewOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="p-6 border-b">
@@ -1177,6 +1213,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
           <DialogFooter className="p-6 border-t bg-white">
             <Button variant="outline" onClick={() => setIsPrintPreviewOpen(false)}>
               Close
+            </Button>
+            <Button variant="outline" onClick={handleExportVoucherPdf} disabled={isExporting}>
+              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+              Save as PDF
             </Button>
             <Button onClick={printVoucher}>
               <Printer className="mr-2 h-4 w-4" /> Print voucher
