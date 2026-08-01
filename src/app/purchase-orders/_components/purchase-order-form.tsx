@@ -675,18 +675,18 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             </CardHeader>
             <CardContent>
                 <div className="overflow-x-auto">
-                    <Table className="min-w-[800px]">
+                    <Table className="min-w-[1000px]">
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[300px]">Material</TableHead>
                                 {showPaperSpecs && (
                                     <>
-                                        <TableHead className="text-center">Size (Inch)</TableHead>
-                                        <TableHead className="text-center">GSM</TableHead>
-                                        <TableHead className="text-center">BF</TableHead>
+                                        <TableHead className="text-center w-28">Size (Inch)</TableHead>
+                                        <TableHead className="text-center w-28">GSM</TableHead>
+                                        <TableHead className="text-center w-28">BF</TableHead>
                                     </>
                                 )}
-                                <TableHead className="w-[200px]">Quantity</TableHead>
+                                <TableHead className="w-[250px]">Quantity</TableHead>
                                 <TableHead className="w-[50px]"> </TableHead>
                             </TableRow>
                         </TableHeader>
@@ -776,7 +776,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                             <Input 
                                                                 placeholder="Qty"
                                                                 {...field}
-                                                                className="h-9 text-xs"
+                                                                className="h-9 text-xs font-bold"
                                                             />
                                                         </FormControl>
                                                         <FormMessage />
@@ -788,7 +788,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                     control={form.control}
                                                     name={`items.${index}.unit`}
                                                     render={({ field }) => (
-                                                        <FormItem className="w-[80px]">
+                                                        <FormItem className="w-[100px]">
                                                             <Select onValueChange={field.onChange} value={field.value}>
                                                                 <FormControl>
                                                                     <SelectTrigger className="h-9 text-[10px] px-2">
