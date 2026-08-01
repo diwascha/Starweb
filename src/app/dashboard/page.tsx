@@ -81,19 +81,6 @@ function parseDate(value: unknown): Date | null {
   return isValid(d) ? d : null;
 }
 
-function startOfBsMonthLocal(ref: Date): Date {
-  try {
-    const nd = new NepaliDate(ref);
-    const first = new NepaliDate(nd.getYear(), nd.getMonth(), 1);
-    const js = first.toJsDate();
-    return isValid(js) ? js : new Date(ref.getFullYear(), ref.getMonth(), 1);
-  } catch {
-    return new Date(ref.getFullYear(), ref.getMonth(), 1);
-  }
-}
-
-type PeriodKey = '7d' | '30d' | 'bsMonth' | '90d';
-
 /* ------------------------------------------------------------------ */
 /* Small presentational pieces                                         */
 /* ------------------------------------------------------------------ */
@@ -210,7 +197,7 @@ function ValueTile({
   return (
     <TileShell href={href} accent={accent}>
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-1">
+        <div className="w-full min-w-0 space-y-1">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
             {label}
           </p>
@@ -293,16 +280,13 @@ export default function DashboardPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
 
-  const [showCalendar, setShowCalendar] = useState(false);
-
   const [ready, setReady] = useState<Record<string, boolean>>({});
   const markReady = useCallback(
     (key: string) => setReady((r) => (r[key] ? r : { ...r, [key]: true })),
     []
   );
 
-  const REVENUE_KEYS = ['invoices', 'trips', 'rental'];
-  const revenueLoading = !REVENUE_KEYS.every((k) => ready[k]);
+  const revenueLoading = !ready['invoices'] || !ready['trips'] || !ready['rental'];
   const alertsLoading = !ready['policies'] || !ready['cheques'];
 
   useEffect(() => {
@@ -519,8 +503,8 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 w-full md:w-auto md:overflow-visible">
-          {hasPermission('fleet', 'create') && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 w-full md:w-auto md:overflow-visible text-right">
+           {hasPermission('fleet', 'create') && (
             <Button
               asChild
               size="sm"
@@ -694,7 +678,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Attention Required now below stats */}
+          {/* Attention Required now spans full width below stats */}
           {alertsLoading ? (
             <Skeleton className="h-16 w-full rounded-xl" />
           ) : (
@@ -703,7 +687,7 @@ export default function DashboardPage() {
                 <p className="text-[10px] font-black uppercase text-destructive tracking-widest px-1">
                   Attention Required
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-3">
                   {urgentActions.map((action) => (
                     <Link href={action.href} key={action.href} className="block">
                       <Card className="border-l-4 border-l-destructive hover:bg-destructive/5 transition-colors shadow-sm h-full">
@@ -757,35 +741,22 @@ export default function DashboardPage() {
 
           {/* Calendar */}
           <div className="space-y-2">
-            <button
-              onClick={() => setShowCalendar((s) => !s)}
-              className="flex w-full items-center justify-between px-1 lg:pointer-events-none"
-            >
-              <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+            <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">
                 Nepali Calendar
-              </span>
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 text-muted-foreground transition-transform lg:hidden',
-                  showCalendar && 'rotate-180'
-                )}
-              />
-            </button>
-            <div className={cn(showCalendar ? 'block' : 'hidden', 'lg:block')}>
-              <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">
-                <CardContent className="p-0 pb-16 flex justify-center">
-                  <iframe
-                    src="https://www.hamropatro.com/widgets/calender-small.php"
-                    width={240}
-                    height={460}
-                    style={{ border: 'none', maxWidth: '100%', height: '520px' }}
-                    scrolling="no"
-                    loading="lazy"
-                    title="Nepali Calendar"
-                  />
-                </CardContent>
-              </Card>
-            </div>
+            </span>
+            <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">
+            <CardContent className="p-0 pb-20 flex justify-center">
+                <iframe
+                src="https://www.hamropatro.com/widgets/calender-small.php"
+                width={240}
+                height={520}
+                style={{ border: 'none', maxWidth: '100%', height: '520px' }}
+                scrolling="no"
+                loading="lazy"
+                title="Nepali Calendar"
+                />
+            </CardContent>
+            </Card>
           </div>
         </div>
       </div>
