@@ -16,7 +16,8 @@ import {
   FileText,
   Briefcase,
   Scale,
-  Package
+  Package,
+  MousePointer2
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -583,82 +584,8 @@ export default function DashboardPage() {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:gap-8 items-start">
-        {/* ---------------- Left rail ---------------- */}
-        <div className="space-y-5 w-full">
-          <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">
-              Control Tower
-            </p>
-            <div className="p-4 rounded-xl border bg-card shadow-sm">
-              <LiveDateTime />
-            </div>
-          </div>
-
-          {alertsLoading ? (
-            <Skeleton className="h-16 w-full rounded-xl" />
-          ) : (
-            urgentActions.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase text-destructive tracking-widest px-1">
-                  Attention Required
-                </p>
-                <div className="space-y-2">
-                  {urgentActions.map((action) => (
-                    <Link href={action.href} key={action.href} className="block">
-                      <Card className="border-l-4 border-l-destructive hover:bg-destructive/5 transition-colors shadow-sm">
-                        <CardContent className="p-3 flex items-center justify-between min-h-[48px]">
-                          <div className="space-y-0.5">
-                            <p className="text-[10px] font-black text-destructive uppercase">
-                              {action.count} Items
-                            </p>
-                            <p className="text-xs font-bold">{action.label}</p>
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-destructive/50 shrink-0" />
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )
-          )}
-
-          {/* Calendar */}
-          <div className="space-y-2">
-            <button
-              onClick={() => setShowCalendar((s) => !s)}
-              className="flex w-full items-center justify-between px-1 lg:pointer-events-none"
-            >
-              <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
-                Nepali Calendar
-              </span>
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 text-muted-foreground transition-transform lg:hidden',
-                  showCalendar && 'rotate-180'
-                )}
-              />
-            </button>
-            <div className={cn(showCalendar ? 'block' : 'hidden', 'lg:block')}>
-              <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">
-                <CardContent className="p-0 pb-10 flex justify-center">
-                  <iframe
-                    src="https://www.hamropatro.com/widgets/calender-small.php"
-                    width={240}
-                    height={460}
-                    style={{ border: 'none', maxWidth: '100%' }}
-                    scrolling="no"
-                    loading="lazy"
-                    title="Nepali Calendar"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-
-        {/* ---------------- Main column ---------------- */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 lg:gap-8 items-start">
+        {/* ---------------- Main column (Left side now) ---------------- */}
         <div className="space-y-6 md:space-y-8 min-w-0">
           {/* Stat cards grid */}
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
@@ -771,7 +698,7 @@ export default function DashboardPage() {
             {canPO && (
               <ValueTile
                 href="/purchase-orders/list"
-                accent="border-l-amber-500"
+                accent="border-l-amber-50"
                 label="Open Procurement"
                 value={String(stats.openPOs)}
                 sub="Active Orders"
@@ -779,6 +706,90 @@ export default function DashboardPage() {
                 iconClass="text-amber-500"
               />
             )}
+
+            <ValueTile
+              href="/settings/system?tab=usage"
+              accent="border-l-indigo-400"
+              label="System Engagement"
+              value={stats.totalVisits.toLocaleString()}
+              sub="Views"
+              icon={MousePointer2}
+              iconClass="text-indigo-400"
+            />
+          </div>
+        </div>
+
+        {/* ---------------- Right rail (Swapped from left) ---------------- */}
+        <div className="space-y-5 w-full">
+          <div className="space-y-2">
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">
+              Control Tower
+            </p>
+            <div className="p-4 rounded-xl border bg-card shadow-sm">
+              <LiveDateTime />
+            </div>
+          </div>
+
+          {alertsLoading ? (
+            <Skeleton className="h-16 w-full rounded-xl" />
+          ) : (
+            urgentActions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase text-destructive tracking-widest px-1">
+                  Attention Required
+                </p>
+                <div className="space-y-2">
+                  {urgentActions.map((action) => (
+                    <Link href={action.href} key={action.href} className="block">
+                      <Card className="border-l-4 border-l-destructive hover:bg-destructive/5 transition-colors shadow-sm">
+                        <CardContent className="p-3 flex items-center justify-between min-h-[48px]">
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] font-black text-destructive uppercase">
+                              {action.count} Items
+                            </p>
+                            <p className="text-xs font-bold">{action.label}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-destructive/50 shrink-0" />
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
+
+          {/* Calendar */}
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowCalendar((s) => !s)}
+              className="flex w-full items-center justify-between px-1 lg:pointer-events-none"
+            >
+              <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+                Nepali Calendar
+              </span>
+              <ChevronDown
+                className={cn(
+                  'h-4 w-4 text-muted-foreground transition-transform lg:hidden',
+                  showCalendar && 'rotate-180'
+                )}
+              />
+            </button>
+            <div className={cn(showCalendar ? 'block' : 'hidden', 'lg:block')}>
+              <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">
+                <CardContent className="p-0 pb-16 flex justify-center">
+                  <iframe
+                    src="https://www.hamropatro.com/widgets/calender-small.php"
+                    width={240}
+                    height={460}
+                    style={{ border: 'none', maxWidth: '100%', height: '520px' }}
+                    scrolling="no"
+                    loading="lazy"
+                    title="Nepali Calendar"
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
