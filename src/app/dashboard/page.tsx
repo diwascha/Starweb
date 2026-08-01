@@ -24,6 +24,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/use-auth';
 import { onPoliciesUpdate } from '@/services/policy-service';
 import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
@@ -59,6 +60,10 @@ import {
   format,
   subDays,
   isValid,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  endOfDay
 } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
@@ -133,7 +138,7 @@ function DeltaBadge({ current, previous }: { current: number; previous: number }
     >
       <Icon className="h-3 w-3" />
       {flat ? '0%' : `${up ? '+' : ''}${pct.toFixed(1)}%`}
-      <span className="text-muted-foreground font-medium">vs prev</span>
+      <span className="text-muted-foreground font-medium ml-1">vs last mo</span>
     </span>
   );
 }
@@ -153,16 +158,14 @@ function StatCardSkeleton() {
 function TileShell({
   href,
   accent,
-  wide,
   children,
 }: {
   href: string;
   accent: string;
-  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <Link href={href} className={cn('block h-full', wide && 'col-span-2 sm:col-span-1')}>
+    <Link href={href} className="block h-full">
       <Card
         className={cn(
           'border-l-[3px] h-full shadow-sm hover:bg-accent transition-colors',
@@ -182,6 +185,7 @@ function ValueTile({
   value,
   sub,
   footer,
+  progress,
   icon: Icon,
   iconClass,
 }: {
@@ -191,6 +195,7 @@ function ValueTile({
   value: string;
   sub?: string;
   footer?: React.ReactNode;
+  progress?: number;
   icon: React.ElementType;
   iconClass?: string;
 }) {
@@ -209,6 +214,14 @@ function ValueTile({
               </span>
             )}
           </div>
+          {progress !== undefined && (
+            <div className="space-y-1 py-0.5">
+                <Progress value={Math.min(100, progress)} className="h-1 bg-muted" />
+                <p className="text-[8px] font-black uppercase tracking-tighter text-muted-foreground/70">
+                    {progress >= 100 ? 'Target Surpassed' : `${progress.toFixed(0)}% of last month`}
+                </p>
+            </div>
+          )}
           {footer}
         </div>
         <Icon className={cn('h-5 w-5 opacity-20 shrink-0', iconClass)} />
@@ -231,7 +244,7 @@ function TripleTile({
   icon: React.ElementType;
 }) {
   return (
-    <TileShell href={href} accent={accent} wide>
+    <TileShell href={href} accent={accent}>
       <div className="flex items-start justify-between gap-2">
         <div className="w-full min-w-0 space-y-1">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -318,16 +331,17 @@ export default function DashboardPage() {
     return () => unsubs.forEach((unsub) => unsub?.());
   }, [markReady]);
 
-  const { rangeStart, rangeEnd, prevStart, prevEnd } = useMemo(() => {
-    const end = startOfToday();
-    const days = 30;
-    const start = subDays(end, days - 1);
-    const span = days;
+  const { currentMonthStart, currentMonthEnd, lastMonthStart, lastMonthEnd } = useMemo(() => {
+    const now = new Date();
+    const curStart = startOfMonth(now);
+    const curEnd = endOfDay(now);
+    const prevStart = startOfMonth(subMonths(curStart, 1));
+    const prevEnd = endOfMonth(subMonths(curStart, 1));
     return {
-      rangeStart: start,
-      rangeEnd: end,
-      prevStart: subDays(start, span),
-      prevEnd: subDays(start, 1),
+      currentMonthStart: curStart,
+      currentMonthEnd: curEnd,
+      lastMonthStart: prevStart,
+      lastMonthEnd: prevEnd,
     };
   }, []);
 
@@ -358,8 +372,8 @@ export default function DashboardPage() {
       return { mfg, fleet, rental, total: mfg + fleet + rental };
     };
 
-    const currentRev = sumRange(rangeStart, rangeEnd);
-    const previousRev = sumRange(prevStart, prevEnd);
+    const currentRev = sumRange(currentMonthStart, currentMonthEnd);
+    const previousRev = sumRange(lastMonthStart, lastMonthEnd);
 
     const fleetStats = policies.reduce(
       (acc, p) => {
@@ -531,10 +545,10 @@ export default function DashboardPage() {
     gsmReports,
     vehicles,
     drivers,
-    rangeStart,
-    rangeEnd,
-    prevStart,
-    prevEnd,
+    currentMonthStart,
+    currentMonthEnd,
+    lastMonthStart,
+    lastMonthEnd,
     hasPermission,
   ]);
 
@@ -542,6 +556,11 @@ export default function DashboardPage() {
   const canFinance = hasPermission('finance', 'read');
   const canPO = hasPermission('purchaseOrders', 'read');
   const canCRM = hasPermission('crm', 'read');
+
+  const revProgress = useMemo(() => {
+    if (stats.prevRevenue.total <= 0) return 0;
+    return (stats.revenue.total / stats.prevRevenue.total) * 100;
+  }, [stats.revenue.total, stats.prevRevenue.total]);
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
@@ -604,7 +623,7 @@ export default function DashboardPage() {
         <div className="space-y-6 md:space-y-8 min-w-0">
           
           {/* Stat cards grid */}
-          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {canFinance &&
               (revenueLoading ? (
                 <StatCardSkeleton />
@@ -612,10 +631,11 @@ export default function DashboardPage() {
                 <ValueTile
                   href="/finance/estimate-invoice"
                   accent="border-l-emerald-600"
-                  label={`Revenue · Last 30 Days`}
+                  label="Revenue · Current Month"
                   value={`Rs.${nf(stats.revenue.total)}`}
                   icon={TrendingUp}
                   iconClass="text-emerald-600"
+                  progress={revProgress}
                   footer={
                     <DeltaBadge current={stats.revenue.total} previous={stats.prevRevenue.total} />
                   }
@@ -624,7 +644,7 @@ export default function DashboardPage() {
 
             {canFleet &&
               (alertsLoading ? (
-                <StatCardSkeleton wide />
+                <StatCardSkeleton />
               ) : (
                 <TripleTile
                   href="/fleet/policies"
@@ -655,7 +675,7 @@ export default function DashboardPage() {
 
             {canFinance &&
               (alertsLoading ? (
-                <StatCardSkeleton wide />
+                <StatCardSkeleton />
               ) : (
                 <TripleTile
                   href="/finance/cheque-generator"
@@ -702,7 +722,7 @@ export default function DashboardPage() {
             {canPO && (
               <ValueTile
                 href="/purchase-orders/list"
-                accent="border-l-amber-50"
+                accent="border-l-amber-500"
                 label="Open Procurement"
                 value={String(stats.openPOs)}
                 sub="Active Orders"
