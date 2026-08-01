@@ -99,8 +99,8 @@ function LiveDateTime() {
     return () => clearInterval(interval);
   }, []);
 
-  const quarters = useMemo(() => {
-    if (!now) return [];
+  const nextQuarter = useMemo(() => {
+    if (!now) return null;
     const nd = new NepaliDate(now);
     const currentYear = nd.getYear();
     const currentMonth = nd.getMonth();
@@ -114,7 +114,7 @@ function LiveDateTime() {
         { m: 2, y: currentMonth > 2 ? currentYear + 1 : currentYear, name: 'Ashadh' }
     ];
 
-    return ends.map(q => {
+    const sorted = ends.map(q => {
         const nextM = q.m === 11 ? 0 : q.m + 1;
         const nextY = q.m === 11 ? q.y + 1 : q.y;
         const endDate = new NepaliDate(nextY, nextM, 1).toJsDate();
@@ -123,6 +123,8 @@ function LiveDateTime() {
         const days = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
         return { name: q.name, days };
     }).filter(q => q.days >= 0).sort((a, b) => a.days - b.days);
+
+    return sorted[0] || null;
   }, [now]);
 
   if (!now) {
@@ -141,23 +143,18 @@ function LiveDateTime() {
           </div>
       </div>
       
-      <div className="mt-3 w-full space-y-1.5">
-          <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b border-dashed pb-1">Quarter Countdown</p>
-          <div className="grid grid-cols-2 gap-2">
-            {quarters.map((q, idx) => (
-                <div key={q.name} className={cn(
-                    "flex flex-col p-1.5 rounded border bg-white/50",
-                    idx === 0 ? "border-primary/40 bg-primary/5 shadow-sm" : "border-muted opacity-60"
-                )}>
-                    <span className="text-[7px] font-black uppercase leading-none text-muted-foreground mb-1">{q.name} End</span>
-                    <div className="flex items-baseline gap-0.5">
-                        <span className={cn("text-xs font-black leading-none", idx === 0 ? "text-primary" : "text-foreground")}>{q.days}</span>
-                        <span className="text-[7px] font-bold uppercase text-muted-foreground">Days</span>
-                    </div>
+      {nextQuarter && (
+        <div className="mt-3 w-full space-y-1.5">
+            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b border-dashed pb-1">Immediate Quarter Closing</p>
+            <div className="flex flex-col p-2 rounded border bg-primary/5 border-primary/40 shadow-sm">
+                <span className="text-[7px] font-black uppercase leading-none text-muted-foreground mb-1">{nextQuarter.name} End</span>
+                <div className="flex items-baseline gap-1">
+                    <span className="text-sm font-black leading-none text-primary">{nextQuarter.days}</span>
+                    <span className="text-[8px] font-bold uppercase text-muted-foreground">Days remaining</span>
                 </div>
-            ))}
-          </div>
-      </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 }
