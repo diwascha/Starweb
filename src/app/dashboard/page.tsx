@@ -333,15 +333,30 @@ export default function DashboardPage() {
 
   const { currentMonthStart, currentMonthEnd, lastMonthStart, lastMonthEnd } = useMemo(() => {
     const now = new Date();
-    const curStart = startOfMonth(now);
+    const nd = new NepaliDate(now);
+    
+    // Current BS Month boundaries in AD for accurate business tracking
+    const curBSMonthStartAD = new NepaliDate(nd.getYear(), nd.getMonth(), 1).toJsDate();
     const curEnd = endOfDay(now);
-    const prevStart = startOfMonth(subMonths(curStart, 1));
-    const prevEnd = endOfMonth(subMonths(curStart, 1));
+    
+    // Last BS Month boundaries in AD
+    let prevYear = nd.getYear();
+    let prevMonth = nd.getMonth() - 1;
+    if (prevMonth < 0) {
+      prevMonth = 11;
+      prevYear--;
+    }
+    const prevBSMonthStartAD = new NepaliDate(prevYear, prevMonth, 1).toJsDate();
+    
+    // The previous month ends right before the current one starts
+    const prevBSMonthEndAD = new Date(curBSMonthStartAD);
+    prevBSMonthEndAD.setMilliseconds(-1);
+
     return {
-      currentMonthStart: curStart,
+      currentMonthStart: curBSMonthStartAD,
       currentMonthEnd: curEnd,
-      lastMonthStart: prevStart,
-      lastMonthEnd: prevEnd,
+      lastMonthStart: prevBSMonthStartAD,
+      lastMonthEnd: prevBSMonthEndAD,
     };
   }, []);
 
@@ -357,11 +372,11 @@ export default function DashboardPage() {
       let rental = 0;
       
       invoices.forEach(inv => {
-          const d = parseDate((inv as any).date);
-          if (d && d >= from && d <= to) mfg += Number((inv as any).netTotal) || 0;
+          const d = parseDate((inv as any).date) || parseDate((inv as any).createdAt);
+          if (d && d >= from && d <= to) mfg += Number((inv as any).netTotal) || Number((inv as any).amount) || 0;
       });
       trips.forEach(t => {
-          const d = parseDate((t as any).date);
+          const d = parseDate((t as any).date) || parseDate((t as any).createdAt);
           if (d && d >= from && d <= to) fleet += Number((t as any).transport) || 0;
       });
       rentalBills.forEach(b => {
@@ -552,8 +567,8 @@ export default function DashboardPage() {
     hasPermission,
   ]);
 
-  const canFleet = hasPermission('fleet', 'read');
   const canFinance = hasPermission('finance', 'read');
+  const canFleet = hasPermission('fleet', 'read');
   const canPO = hasPermission('purchaseOrders', 'read');
   const canCRM = hasPermission('crm', 'read');
 
