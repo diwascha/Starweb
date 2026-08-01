@@ -26,6 +26,7 @@ import { normalizeBF } from '@/lib/utils';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import {
     Dialog,
     DialogContent,

@@ -471,7 +471,7 @@ export default function DashboardPage() {
 
     const actions: { label: string; count: number; href: string; items?: { text: string, tag: string, tagColor: string }[] }[] = [];
     
-    if (fleetStats.expired > 0 && hasPermission('fleet', 'read')) {
+    if (fleetStats.expired > 0 && hasPermission('fleet', 'view')) {
         const expiredCases = policies
             .filter(p => {
                 if (p.status === 'Renewed' || p.status === 'Archived') return false;
@@ -498,7 +498,7 @@ export default function DashboardPage() {
     }
 
     const totalUrgentCheques = chequeStats.overdue + chequeStats.soon;
-    if (totalUrgentCheques > 0 && hasPermission('finance', 'read')) {
+    if (totalUrgentCheques > 0 && hasPermission('finance', 'view')) {
         const urgentCases = cheques.flatMap(c => 
             (c.splits || []).filter(s => {
                 if (s.status === 'Paid' || s.status === 'Canceled') return false;
@@ -532,7 +532,7 @@ export default function DashboardPage() {
         });
     }
 
-    if (pendingPOs.length > 0 && hasPermission('purchaseOrders', 'read')) {
+    if (pendingPOs.length > 0 && hasPermission('purchaseOrders', 'view')) {
         const poCases = pendingPOs
             .map(po => {
                 const poDate = parseDate(po.poDate);
@@ -555,7 +555,7 @@ export default function DashboardPage() {
     }
 
     const unpaidRentBills = rentalBills.filter((b) => b.status === 'Unpaid');
-    if (unpaidRentBills.length > 0 && hasPermission('rental', 'read')) {
+    if (unpaidRentBills.length > 0 && hasPermission('rental', 'view')) {
         const unpaidCases = unpaidRentBills
             .map(b => {
                 const dueDate = parseDate((b as any).dueDate);
@@ -610,10 +610,10 @@ export default function DashboardPage() {
     hasPermission,
   ]);
 
-  const canFinance = hasPermission('finance', 'read');
-  const canFleet = hasPermission('fleet', 'read');
-  const canPO = hasPermission('purchaseOrders', 'read');
-  const canCRM = hasPermission('crm', 'read');
+  const canFinance = hasPermission('finance', 'view');
+  const canFleet = hasPermission('fleet', 'view');
+  const canPO = hasPermission('purchaseOrders', 'view');
+  const canCRM = hasPermission('crm', 'view');
 
   const revProgress = useMemo(() => {
     if (stats.prevRevenue.total <= 0) return 0;
