@@ -44,7 +44,6 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { onSettingUpdate } from '@/services/settings-service';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
