@@ -397,7 +397,7 @@ export default function DashboardPage() {
 
     const totalVisits = pageVisits.reduce((sum, v) => sum + (Number(v.count) || 0), 0);
 
-    const actions: { label: string; count: number; href: string; items?: string[] }[] = [];
+    const actions: { label: string; count: number; href: string; items?: { text: string, tag: string, tagColor: string }[] }[] = [];
     
     if (fleetStats.expired > 0 && hasPermission('fleet', 'read')) {
         const expiredCases = policies
@@ -406,7 +406,15 @@ export default function DashboardPage() {
                 const end = parseDate((p as any).endDate);
                 return end && differenceInDays(end, today) < 0;
             })
-            .map(p => `${p.type} for ${membersById.get(p.memberId)?.name || 'Member'}`)
+            .map(p => {
+                const end = parseDate((p as any).endDate)!;
+                const overdueDays = Math.abs(differenceInDays(end, today));
+                return {
+                    text: `${p.type} for ${membersById.get(p.memberId)?.name || 'Member'}`,
+                    tag: `${overdueDays}d overdue`,
+                    tagColor: 'text-destructive bg-destructive/10'
+                };
+            })
             .slice(0, 3);
 
         actions.push({
@@ -423,7 +431,15 @@ export default function DashboardPage() {
                 if (s.status === 'Paid' || s.status === 'Canceled') return false;
                 const cd = parseDate(s.chequeDate);
                 return cd && differenceInDays(cd, today) < 0;
-            }).map(s => `${c.payeeName} - Due: ${toNepaliDate(s.chequeDate)}`)
+            }).map(s => {
+                const cd = parseDate(s.chequeDate)!;
+                const overdueDays = Math.abs(differenceInDays(cd, today));
+                return {
+                    text: `${c.payeeName} - Due: ${toNepaliDate(s.chequeDate)}`,
+                    tag: `${overdueDays}d late`,
+                    tagColor: 'text-destructive bg-destructive/10'
+                };
+            })
         ).slice(0, 3);
 
         actions.push({
@@ -438,14 +454,14 @@ export default function DashboardPage() {
         const poCases = pendingPOs
             .map(po => {
                 const poDate = parseDate(po.poDate);
-                const leadTime = poDate ? differenceInDays(today, poDate) : 0;
-                return `PO #${po.poNumber} (${po.companyName}) - ${leadTime}d lead`;
+                const leadTime = poDate ? Math.abs(differenceInDays(today, poDate)) : 0;
+                return {
+                    text: `PO #${po.poNumber} (${po.companyName})`,
+                    tag: `${leadTime}d lead`,
+                    tagColor: leadTime > 14 ? 'text-red-600 bg-red-100' : (leadTime > 7 ? 'text-amber-600 bg-amber-100' : 'text-blue-600 bg-blue-100')
+                };
             })
-            .sort((a, b) => {
-                const leadA = parseInt(a.split(' - ')[1]);
-                const leadB = parseInt(b.split(' - ')[1]);
-                return leadB - leadA;
-            })
+            .sort((a, b) => parseInt(b.tag) - parseInt(a.tag))
             .slice(0, 3);
 
         actions.push({
@@ -459,7 +475,15 @@ export default function DashboardPage() {
     const unpaidRentBills = rentalBills.filter((b) => b.status === 'Unpaid');
     if (unpaidRentBills.length > 0 && hasPermission('rental', 'read')) {
         const unpaidCases = unpaidRentBills
-            .map(b => `${b.tenantName} - Unit ${b.unitNumber}`)
+            .map(b => {
+                const dueDate = parseDate((b as any).dueDate);
+                const overdueDays = dueDate ? Math.abs(differenceInDays(today, dueDate)) : 0;
+                return {
+                    text: `${b.tenantName} - Unit ${b.unitNumber}`,
+                    tag: overdueDays > 0 ? `${overdueDays}d overdue` : 'Due today',
+                    tagColor: overdueDays > 0 ? 'text-destructive bg-destructive/10' : 'text-amber-600 bg-amber-100'
+                };
+            })
             .slice(0, 3);
 
         actions.push({
@@ -688,7 +712,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Attention Required now spans full width below stats */}
+          {/* Attention Required section */}
           {alertsLoading ? (
             <Skeleton className="h-16 w-full rounded-xl" />
           ) : (
@@ -699,7 +723,7 @@ export default function DashboardPage() {
                 </p>
                 <div className="flex flex-col gap-3">
                   {urgentActions.map((action) => (
-                    <Link href={action.href} key={action.href} className="block">
+                    <Link href={action.href} key={action.label} className="block">
                       <Card className="border-l-4 border-l-destructive hover:bg-destructive/5 transition-colors shadow-sm h-full">
                         <CardContent className="p-4 flex flex-col justify-between h-full">
                           <div className="space-y-1">
@@ -716,13 +740,18 @@ export default function DashboardPage() {
                               <div className="mt-3 pt-3 border-t border-destructive/10 space-y-1.5">
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase">Top cases:</p>
                                   {action.items.map((item, idx) => (
-                                      <div key={idx} className="flex items-center gap-2 text-[10px] font-medium text-gray-700">
-                                          <div className="w-1 h-1 rounded-full bg-destructive/40" />
-                                          <span className="truncate">{item}</span>
+                                      <div key={idx} className="flex items-center justify-between gap-2 text-[10px] font-medium text-gray-700">
+                                          <div className="flex items-center gap-2 overflow-hidden">
+                                            <div className="w-1 h-1 rounded-full bg-destructive/40 shrink-0" />
+                                            <span className="truncate">{item.text}</span>
+                                          </div>
+                                          <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-black uppercase whitespace-nowrap", item.tagColor)}>
+                                            {item.tag}
+                                          </span>
                                       </div>
                                   ))}
                                   {action.count > action.items.length && (
-                                      <p className="text-[9px] italic text-muted-foreground mt-1">
+                                      <p className="text-[9px] italic text-muted-foreground mt-1 text-center">
                                           + {action.count - action.items.length} more cases...
                                       </p>
                                   )}
