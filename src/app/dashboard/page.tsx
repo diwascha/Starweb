@@ -9,17 +9,13 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  MousePointerClick,
   Clock,
   Calendar as CalendarIcon,
   ChevronRight,
   ChevronDown,
   FileText,
-  Layers,
-  LineChart as LineChartIcon,
   Briefcase,
   Scale,
-  AlertCircle,
   Package
 } from 'lucide-react';
 
@@ -57,20 +53,10 @@ import {
   startOfMonth,
   format,
   subDays,
-  eachDayOfInterval,
   isValid,
 } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -91,8 +77,6 @@ function parseDate(value: unknown): Date | null {
   const d = new Date(anyVal);
   return isValid(d) ? d : null;
 }
-
-const dayKey = (d: Date) => format(d, 'yyyy-MM-dd');
 
 /** First day of the current Bikram Sambat month, as a JS Date. */
 function startOfBsMonth(ref: Date): Date {
@@ -316,7 +300,6 @@ function TripleTile({
 
 export default function DashboardPage() {
   const { hasPermission } = useAuth();
-  const isMobile = useIsMobile();
 
   const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -331,7 +314,6 @@ export default function DashboardPage() {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
 
   const [period, setPeriod] = useState<PeriodKey>('30d');
-  const [chartMode, setChartMode] = useState<'stacked' | 'total'>('stacked');
   const [showCalendar, setShowCalendar] = useState(false);
 
   // Real loading state: a stream is "ready" only once its first snapshot lands.
@@ -398,70 +380,32 @@ export default function DashboardPage() {
   }, [period]);
 
   /* ---------------- Single-pass aggregation ---------------- */
-  const { stats, chartData, urgentActions } = useMemo(() => {
+  const { stats, urgentActions } = useMemo(() => {
     const today = startOfToday();
-
-    /* Bucket every revenue record ONCE by day key. */
-    type Bucket = { Manufacturing: number; Fleet: number; Rental: number };
-    const buckets = new Map<string, Bucket>();
-    const bucketFor = (k: string): Bucket => {
-      let b = buckets.get(k);
-      if (!b) {
-        b = { Manufacturing: 0, Fleet: 0, Rental: 0 };
-        buckets.set(k, b);
-      }
-      return b;
-    };
-
-    for (const inv of invoices) {
-      const d = parseDate((inv as any).date);
-      if (!d) continue;
-      bucketFor(dayKey(d)).Manufacturing += Number((inv as any).netTotal) || 0;
-    }
-
-    for (const t of trips) {
-      const d = parseDate((t as any).date);
-      if (!d) continue;
-      bucketFor(dayKey(d)).Fleet += Number((t as any).transport) || 0;
-    }
-
-    for (const b of rentalBills) {
-      const d =
-        parseDate((b as any).billDate) ??
-        parseDate((b as any).date) ??
-        parseDate((b as any).createdAt);
-      if (!d) continue;
-      bucketFor(dayKey(d)).Rental += Number((b as any).amount) || 0;
-    }
 
     const sumRange = (from: Date, to: Date) => {
       let mfg = 0;
       let fleet = 0;
       let rental = 0;
-      for (const d of eachDayOfInterval({ start: from, end: to })) {
-        const b = buckets.get(dayKey(d));
-        if (!b) continue;
-        mfg += b.Manufacturing;
-        fleet += b.Fleet;
-        rental += b.Rental;
-      }
+      
+      invoices.forEach(inv => {
+          const d = parseDate((inv as any).date);
+          if (d && d >= from && d <= to) mfg += Number((inv as any).netTotal) || 0;
+      });
+      trips.forEach(t => {
+          const d = parseDate((t as any).date);
+          if (d && d >= from && d <= to) fleet += Number((t as any).transport) || 0;
+      });
+      rentalBills.forEach(b => {
+          const d = parseDate((b as any).billDate) ?? parseDate((b as any).date) ?? parseDate((b as any).createdAt);
+          if (d && d >= from && d <= to) rental += Number((b as any).amount) || 0;
+      });
+
       return { mfg, fleet, rental, total: mfg + fleet + rental };
     };
 
     const currentRev = sumRange(rangeStart, rangeEnd);
     const previousRev = sumRange(prevStart, prevEnd);
-
-    const trendData = eachDayOfInterval({ start: rangeStart, end: rangeEnd }).map((date) => {
-      const b = buckets.get(dayKey(date)) ?? { Manufacturing: 0, Fleet: 0, Rental: 0 };
-      return {
-        name: format(date, 'MMM dd'),
-        dateBS: toNepaliDate(date.toISOString()),
-        revenue: b.Manufacturing + b.Fleet + b.Rental,
-        Manufacturing: b.Manufacturing,
-        Fleet: b.Fleet,
-        Rental: b.Rental,
-      };
-    });
 
     /* ---- Alert counts ---- */
     const fleetStats = policies.reduce(
@@ -534,7 +478,6 @@ export default function DashboardPage() {
         costReportCount: costReports.length,
         gsmReportCount: gsmReports.length
       },
-      chartData: trendData,
       urgentActions: actions,
     };
   }, [
@@ -554,24 +497,6 @@ export default function DashboardPage() {
     prevEnd,
     hasPermission,
   ]);
-
-  const chartConfig = {
-    revenue: { label: 'Total Revenue', color: 'hsl(var(--chart-1))' },
-    Manufacturing: { label: 'Manufacturing', color: 'hsl(var(--chart-1))' },
-    Fleet: { label: 'Fleet', color: 'hsl(var(--chart-2))' },
-    Rental: { label: 'Rental', color: 'hsl(var(--chart-3))' },
-  } as const;
-
-  const hasRevenue = chartData.some((d) => d.revenue > 0);
-  const tickInterval = isMobile
-    ? Math.max(0, Math.ceil(chartData.length / 4) - 1)
-    : Math.max(0, Math.ceil(chartData.length / 12) - 1);
-
-  const yTick = (v: number) => {
-    if (v >= 100000) return `${(v / 100000).toFixed(1)}L`;
-    if (v >= 1000) return `${Math.round(v / 1000)}k`;
-    return String(v);
-  };
 
   const canFleet = hasPermission('fleet', 'read');
   const canFinance = hasPermission('finance', 'read');
@@ -717,13 +642,13 @@ export default function DashboardPage() {
             </button>
             <div className={cn(showCalendar ? 'block' : 'hidden', 'lg:block')}>
               <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">
-                <CardContent className="p-2 flex justify-center">
+                <CardContent className="p-0 flex justify-center">
                   <iframe
                     src="https://www.hamropatro.com/widgets/calender-small.php"
-                    width={200}
-                    height={340}
+                    width={240}
+                    height={380}
                     style={{ border: 'none', maxWidth: '100%' }}
-                    scrolling="auto"
+                    scrolling="no"
                     loading="lazy"
                     title="Nepali Calendar"
                   />
@@ -855,161 +780,6 @@ export default function DashboardPage() {
               />
             )}
           </div>
-
-          {/* ---------------- Revenue chart ---------------- */}
-          <Card className="shadow-lg bg-card overflow-hidden">
-            <CardHeader className="bg-primary/5 border-b py-4 px-4 md:px-6 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="min-w-0">
-                  <CardTitle className="text-sm font-black uppercase tracking-tight">
-                    Revenue Pulse
-                  </CardTitle>
-                  <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
-                    {periodLabel} · all units
-                  </CardDescription>
-                </div>
-                <div className="inline-flex rounded-lg border bg-background p-0.5 self-start">
-                  <button
-                    onClick={() => setChartMode('stacked')}
-                    className={cn(
-                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-black uppercase',
-                      chartMode === 'stacked' ? 'bg-muted' : 'text-muted-foreground'
-                    )}
-                  >
-                    <Layers className="h-3 w-3" /> By unit
-                  </button>
-                  <button
-                    onClick={() => setChartMode('total')}
-                    className={cn(
-                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-black uppercase',
-                      chartMode === 'total' ? 'bg-muted' : 'text-muted-foreground'
-                    )}
-                  >
-                    <LineChartIcon className="h-3 w-3" /> Total
-                  </button>
-                </div>
-              </div>
-
-              {/* Legend + per-unit subtotals */}
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {(['Manufacturing', 'Fleet', 'Rental'] as const).map((source) => {
-                  const value =
-                    source === 'Manufacturing'
-                      ? stats.revenue.mfg
-                      : source === 'Fleet'
-                      ? stats.revenue.fleet
-                      : stats.revenue.rental;
-                  return (
-                    <div key={source} className="flex items-center gap-1.5">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ backgroundColor: chartConfig[source].color }}
-                      />
-                      <span className="text-[10px] font-black uppercase text-muted-foreground tracking-tight">
-                        {source}
-                      </span>
-                      <span className="text-[10px] font-bold tabular-nums">Rs.{nf(value)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-2 md:p-6">
-              {revenueLoading ? (
-                <Skeleton className="h-[200px] md:h-[320px] w-full rounded-lg" />
-              ) : !hasRevenue ? (
-                <div className="h-[200px] md:h-[320px] flex flex-col items-center justify-center text-center gap-2">
-                  <TrendingUp className="h-8 w-8 text-muted-foreground/30" />
-                  <p className="text-sm font-bold">No revenue recorded in this period</p>
-                  <p className="text-xs text-muted-foreground">
-                    Try a wider range, or add a trip / estimate to get started.
-                  </p>
-                </div>
-              ) : (
-                <ChartContainer
-                  config={chartConfig}
-                  className="h-[200px] md:h-[320px] w-full"
-                >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                      <XAxis
-                        dataKey="name"
-                        axisLine={false}
-                        tickLine={false}
-                        interval={tickInterval}
-                        tick={{ fontSize: 10, fontWeight: 700 }}
-                        dy={8}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        width={isMobile ? 38 : 56}
-                        tick={{ fontSize: 10, fontWeight: 700 }}
-                        tickFormatter={yTick}
-                      />
-                      <ChartTooltip
-                        content={
-                          <ChartTooltipContent
-                            className="bg-background/95 backdrop-blur shadow-xl border-none ring-1 ring-black/5"
-                            labelFormatter={(label, payload) => {
-                              const bs = (payload?.[0] as any)?.payload?.dateBS;
-                              return bs ? `${label} · ${bs} BS` : String(label);
-                            }}
-                            formatter={(value: any, name: any) => [`Rs. ${nf(Number(value))}`, name]}
-                          />
-                        }
-                      />
-                      {chartMode === 'total' ? (
-                        <Area
-                          type="monotone"
-                          dataKey="revenue"
-                          stroke="hsl(var(--primary))"
-                          strokeWidth={2.5}
-                          fillOpacity={1}
-                          fill="url(#colorRevenue)"
-                        />
-                      ) : (
-                        <>
-                          <Area
-                            type="monotone"
-                            dataKey="Manufacturing"
-                            stackId="1"
-                            stroke={chartConfig.Manufacturing.color}
-                            fill={chartConfig.Manufacturing.color}
-                            fillOpacity={0.45}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="Fleet"
-                            stackId="1"
-                            stroke={chartConfig.Fleet.color}
-                            fill={chartConfig.Fleet.color}
-                            fillOpacity={0.45}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="Rental"
-                            stackId="1"
-                            stroke={chartConfig.Rental.color}
-                            fill={chartConfig.Rental.color}
-                            fillOpacity={0.45}
-                          />
-                        </>
-                      )}
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
