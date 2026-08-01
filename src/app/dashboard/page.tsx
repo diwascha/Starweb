@@ -17,7 +17,8 @@ import {
   Briefcase,
   Scale,
   Package,
-  MousePointer2
+  MousePointer2,
+  AlertCircle
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -35,6 +36,8 @@ import { onRentalBillsUpdate } from '@/services/rental-billing-service';
 import { onProductsUpdate } from '@/services/product-service';
 import { onCostReportsUpdate } from '@/services/cost-report-service';
 import { onGsmReportsUpdate } from '@/services/gsm-service';
+import { onVehiclesUpdate } from '@/services/vehicle-service';
+import { onDriversUpdate } from '@/services/driver-service';
 import type {
   PolicyOrMembership,
   PurchaseOrder,
@@ -46,12 +49,13 @@ import type {
   RentalBill,
   Product,
   CostReport,
-  GsmReport
+  GsmReport,
+  Vehicle,
+  Driver
 } from '@/lib/types';
 import {
   differenceInDays,
   startOfToday,
-  startOfBsMonth,
   format,
   subDays,
   isValid,
@@ -66,10 +70,8 @@ import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 const NUM = new Intl.NumberFormat('en-IN');
 const nf = (n: number) => NUM.format(Math.round(n));
 
-/** Safe date parse: returns null instead of an Invalid Date. */
 function parseDate(value: unknown): Date | null {
   if (!value) return null;
-  // Firestore Timestamp support
   const anyVal = value as any;
   if (typeof anyVal?.toDate === 'function') {
     const d = anyVal.toDate();
@@ -79,7 +81,6 @@ function parseDate(value: unknown): Date | null {
   return isValid(d) ? d : null;
 }
 
-/** First day of the current Bikram Sambat month, as a JS Date. */
 function startOfBsMonthLocal(ref: Date): Date {
   try {
     const nd = new NepaliDate(ref);
@@ -87,22 +88,8 @@ function startOfBsMonthLocal(ref: Date): Date {
     const js = first.toJsDate();
     return isValid(js) ? js : new Date(ref.getFullYear(), ref.getMonth(), 1);
   } catch {
-    // Fallback keeps the dashboard alive if the converter throws on an edge year.
     return new Date(ref.getFullYear(), ref.getMonth(), 1);
   }
-}
-
-/** Tiny matchMedia hook — avoids depending on a specific shadcn use-mobile path. */
-function useIsMobile(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
-    const onChange = () => setIsMobile(mql.matches);
-    onChange();
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
-  }, [breakpoint]);
-  return isMobile;
 }
 
 type PeriodKey = '7d' | '30d' | 'bsMonth' | '90d';
@@ -183,7 +170,6 @@ function StatCardSkeleton() {
   );
 }
 
-/** Compact shell shared by every stat tile. */
 function TileShell({
   href,
   accent,
@@ -209,7 +195,6 @@ function TileShell({
   );
 }
 
-/** Single headline number. */
 function ValueTile({
   href,
   accent,
@@ -252,7 +237,6 @@ function ValueTile({
   );
 }
 
-/** Three sub-counts in one row (fleet / cheque alerts). */
 function TripleTile({
   href,
   accent,
@@ -312,12 +296,13 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [costReports, setCostReports] = useState<CostReport[]>([]);
   const [gsmReports, setGsmReports] = useState<GsmReport[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
 
   const [period, setPeriod] = useState<PeriodKey>('30d');
   const [showCalendar, setShowCalendar] = useState(false);
 
-  // Real loading state: a stream is "ready" only once its first snapshot lands.
   const [ready, setReady] = useState<Record<string, boolean>>({});
   const markReady = useCallback(
     (key: string) => setReady((r) => (r[key] ? r : { ...r, [key]: true })),
@@ -347,6 +332,8 @@ export default function DashboardPage() {
       onProductsUpdate(wrap('products', setProducts)),
       onCostReportsUpdate(wrap('costReports', setCostReports)),
       onGsmReportsUpdate(wrap('gsmReports', setGsmReports)),
+      onVehiclesUpdate(wrap('vehicles', setVehicles)),
+      onDriversUpdate(wrap('drivers', setDrivers)),
       onSettingUpdate('companyProfile', (s: any) => {
         if (s?.value) setCompanyProfile(s.value);
       }),
@@ -355,7 +342,6 @@ export default function DashboardPage() {
     return () => unsubs.forEach((unsub) => unsub?.());
   }, [markReady]);
 
-  /* ---------------- Period window ---------------- */
   const { rangeStart, rangeEnd, prevStart, prevEnd, periodLabel } = useMemo(() => {
     const end = startOfToday();
     let start: Date;
@@ -380,9 +366,11 @@ export default function DashboardPage() {
     };
   }, [period]);
 
-  /* ---------------- Single-pass aggregation ---------------- */
   const { stats, urgentActions } = useMemo(() => {
     const today = startOfToday();
+    const membersById = new Map();
+    vehicles.forEach(v => membersById.set(v.id, { name: v.name, type: 'Vehicle' }));
+    drivers.forEach(d => membersById.set(d.id, { name: d.name, type: 'Driver' }));
 
     const sumRange = (from: Date, to: Date) => {
       let mfg = 0;
@@ -408,7 +396,6 @@ export default function DashboardPage() {
     const currentRev = sumRange(rangeStart, rangeEnd);
     const previousRev = sumRange(prevStart, prevEnd);
 
-    /* ---- Alert counts ---- */
     const fleetStats = policies.reduce(
       (acc, p) => {
         if (p.status === 'Renewed' || p.status === 'Archived') return acc;
@@ -445,27 +432,56 @@ export default function DashboardPage() {
 
     const totalVisits = pageVisits.reduce((sum, v) => sum + (Number(v.count) || 0), 0);
 
-    /* ---- Urgent actions (permission-aware) ---- */
-    const actions: { label: string; count: number; href: string }[] = [];
-    if (fleetStats.expired > 0 && hasPermission('fleet', 'read'))
-      actions.push({
-        label: 'Renew Expired Fleet Policies',
-        count: fleetStats.expired,
-        href: '/fleet/policies',
-      });
-    if (chequeStats.overdue > 0 && hasPermission('finance', 'read'))
-      actions.push({
-        label: 'Settle Overdue Cheques',
-        count: chequeStats.overdue,
-        href: '/finance/cheque-generator',
-      });
-    const unpaidRentCount = rentalBills.filter((b) => b.status === 'Unpaid').length;
-    if (unpaidRentCount > 0 && hasPermission('rental', 'read'))
-      actions.push({
-        label: 'Collect Unpaid Rent',
-        count: unpaidRentCount,
-        href: '/rental/billing',
-      });
+    const actions: { label: string; count: number; href: string; items?: string[] }[] = [];
+    
+    if (fleetStats.expired > 0 && hasPermission('fleet', 'read')) {
+        const expiredCases = policies
+            .filter(p => {
+                if (p.status === 'Renewed' || p.status === 'Archived') return false;
+                const end = parseDate((p as any).endDate);
+                return end && differenceInDays(end, today) < 0;
+            })
+            .map(p => `${p.type} for ${membersById.get(p.memberId)?.name || 'Member'}`)
+            .slice(0, 3);
+
+        actions.push({
+            label: 'Renew Expired Fleet Policies',
+            count: fleetStats.expired,
+            href: '/fleet/policies',
+            items: expiredCases
+        });
+    }
+
+    if (chequeStats.overdue > 0 && hasPermission('finance', 'read')) {
+        const overdueCases = cheques.flatMap(c => 
+            (c.splits || []).filter(s => {
+                if (s.status === 'Paid' || s.status === 'Canceled') return false;
+                const cd = parseDate(s.chequeDate);
+                return cd && differenceInDays(cd, today) < 0;
+            }).map(s => `${c.payeeName} - Chq: ${s.chequeNumber || 'N/A'}`)
+        ).slice(0, 3);
+
+        actions.push({
+            label: 'Settle Overdue Cheques',
+            count: chequeStats.overdue,
+            href: '/finance/cheque-generator',
+            items: overdueCases
+        });
+    }
+
+    const unpaidRentBills = rentalBills.filter((b) => b.status === 'Unpaid');
+    if (unpaidRentBills.length > 0 && hasPermission('rental', 'read')) {
+        const unpaidCases = unpaidRentBills
+            .map(b => `${b.tenantName} - Unit ${b.unitNumber}`)
+            .slice(0, 3);
+
+        actions.push({
+            label: 'Collect Unpaid Rent',
+            count: unpaidRentBills.length,
+            href: '/rental/billing',
+            items: unpaidCases
+        });
+    }
 
     return {
       stats: {
@@ -492,6 +508,8 @@ export default function DashboardPage() {
     products,
     costReports,
     gsmReports,
+    vehicles,
+    drivers,
     rangeStart,
     rangeEnd,
     prevStart,
@@ -560,7 +578,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ---------------- Period switcher ---------------- */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-lg border bg-muted/40 p-1">
           {PERIODS.map((p) => (
@@ -585,8 +602,58 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 lg:gap-8 items-start">
-        {/* ---------------- Main column (Left side now) ---------------- */}
+        {/* ---------------- Main column ---------------- */}
         <div className="space-y-6 md:space-y-8 min-w-0">
+          
+          {/* Attention Required moved to Left */}
+          {alertsLoading ? (
+            <Skeleton className="h-16 w-full rounded-xl" />
+          ) : (
+            urgentActions.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-[10px] font-black uppercase text-destructive tracking-widest px-1">
+                  Attention Required
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {urgentActions.map((action) => (
+                    <Link href={action.href} key={action.href} className="block">
+                      <Card className="border-l-4 border-l-destructive hover:bg-destructive/5 transition-colors shadow-sm h-full">
+                        <CardContent className="p-4 flex flex-col justify-between h-full">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-black text-destructive uppercase">
+                                {action.count} Items pending
+                                </p>
+                                <ChevronRight className="h-4 w-4 text-destructive/50 shrink-0" />
+                            </div>
+                            <p className="text-sm font-black">{action.label}</p>
+                          </div>
+                          
+                          {action.items && action.items.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-destructive/10 space-y-1.5">
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Top cases:</p>
+                                  {action.items.map((item, idx) => (
+                                      <div key={idx} className="flex items-center gap-2 text-[10px] font-medium text-gray-700">
+                                          <div className="w-1 h-1 rounded-full bg-destructive/40" />
+                                          <span className="truncate">{item}</span>
+                                      </div>
+                                  ))}
+                                  {action.count > action.items.length && (
+                                      <p className="text-[9px] italic text-muted-foreground mt-1">
+                                          + {action.count - action.items.length} more cases...
+                                      </p>
+                                  )}
+                              </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
+
           {/* Stat cards grid */}
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
             {canFinance &&
@@ -719,7 +786,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ---------------- Right rail (Swapped from left) ---------------- */}
+        {/* ---------------- Right rail ---------------- */}
         <div className="space-y-5 w-full">
           <div className="space-y-2">
             <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">
@@ -729,35 +796,6 @@ export default function DashboardPage() {
               <LiveDateTime />
             </div>
           </div>
-
-          {alertsLoading ? (
-            <Skeleton className="h-16 w-full rounded-xl" />
-          ) : (
-            urgentActions.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase text-destructive tracking-widest px-1">
-                  Attention Required
-                </p>
-                <div className="space-y-2">
-                  {urgentActions.map((action) => (
-                    <Link href={action.href} key={action.href} className="block">
-                      <Card className="border-l-4 border-l-destructive hover:bg-destructive/5 transition-colors shadow-sm">
-                        <CardContent className="p-3 flex items-center justify-between min-h-[48px]">
-                          <div className="space-y-0.5">
-                            <p className="text-[10px] font-black text-destructive uppercase">
-                              {action.count} Items
-                            </p>
-                            <p className="text-xs font-bold">{action.label}</p>
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-destructive/50 shrink-0" />
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )
-          )}
 
           {/* Calendar */}
           <div className="space-y-2">
