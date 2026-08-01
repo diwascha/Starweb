@@ -99,18 +99,64 @@ function LiveDateTime() {
     return () => clearInterval(interval);
   }, []);
 
+  const quarters = useMemo(() => {
+    if (!now) return [];
+    const nd = new NepaliDate(now);
+    const currentYear = nd.getYear();
+    const currentMonth = nd.getMonth();
+    const today = startOfToday();
+
+    // Standard BS quarter ends: Ashwin (5), Poush (8), Chaitra (11), Ashadh (2)
+    const ends = [
+        { m: 5, y: currentYear, name: 'Ashwin' },
+        { m: 8, y: currentYear, name: 'Poush' },
+        { m: 11, y: currentYear, name: 'Chaitra' },
+        { m: 2, y: currentMonth > 2 ? currentYear + 1 : currentYear, name: 'Ashadh' }
+    ];
+
+    return ends.map(q => {
+        const nextM = q.m === 11 ? 0 : q.m + 1;
+        const nextY = q.m === 11 ? q.y + 1 : q.y;
+        const endDate = new NepaliDate(nextY, nextM, 1).toJsDate();
+        endDate.setHours(0, 0, 0, 0);
+        endDate.setDate(endDate.getDate() - 1);
+        const days = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+        return { name: q.name, days };
+    }).filter(q => q.days >= 0).sort((a, b) => a.days - b.days);
+  }, [now]);
+
   if (!now) {
     return <Skeleton className="h-[52px] w-full rounded-lg" />;
   }
 
   return (
     <div className="flex flex-col items-start bg-muted/30 border border-dashed rounded-lg px-3 py-2 shadow-sm w-full">
-      <div className="text-xl font-black tabular-nums tracking-tighter leading-none">
-        {format(now, 'HH:mm:ss')}
+      <div className="flex items-center justify-between w-full">
+          <div className="text-xl font-black tabular-nums tracking-tighter leading-none">
+            {format(now, 'HH:mm:ss')}
+          </div>
+          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+            <CalendarIcon className="h-3 w-3" />
+            {toNepaliDate(now.toISOString())} BS
+          </div>
       </div>
-      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5 flex items-center gap-1">
-        <CalendarIcon className="h-3 w-3" />
-        {toNepaliDate(now.toISOString())} BS
+      
+      <div className="mt-3 w-full space-y-1.5">
+          <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b border-dashed pb-1">Quarter Countdown</p>
+          <div className="grid grid-cols-2 gap-2">
+            {quarters.map((q, idx) => (
+                <div key={q.name} className={cn(
+                    "flex flex-col p-1.5 rounded border bg-white/50",
+                    idx === 0 ? "border-primary/40 bg-primary/5 shadow-sm" : "border-muted opacity-60"
+                )}>
+                    <span className="text-[7px] font-black uppercase leading-none text-muted-foreground mb-1">{q.name} End</span>
+                    <div className="flex items-baseline gap-0.5">
+                        <span className={cn("text-xs font-black leading-none", idx === 0 ? "text-primary" : "text-foreground")}>{q.days}</span>
+                        <span className="text-[7px] font-bold uppercase text-muted-foreground">Days</span>
+                    </div>
+                </div>
+            ))}
+          </div>
       </div>
     </div>
   );
