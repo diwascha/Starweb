@@ -665,18 +665,6 @@ export default function DashboardPage() {
               />
             )}
 
-            {canFinance && (
-              <ValueTile
-                href="/finance/gsm-calculator"
-                accent="border-l-purple-400"
-                label="Quality Control"
-                value={String(stats.gsmReportCount)}
-                sub="GSM Logs"
-                icon={Scale}
-                iconClass="text-purple-400"
-              />
-            )}
-
             {canPO && (
               <ValueTile
                 href="/purchase-orders/list"
