@@ -423,7 +423,7 @@ export default function DashboardPage() {
                 if (s.status === 'Paid' || s.status === 'Canceled') return false;
                 const cd = parseDate(s.chequeDate);
                 return cd && differenceInDays(cd, today) < 0;
-            }).map(s => `${c.payeeName} - Chq: ${s.chequeNumber || 'N/A'}`)
+            }).map(s => `${c.payeeName} - Due: ${toNepaliDate(s.chequeDate)}`)
         ).slice(0, 3);
 
         actions.push({
