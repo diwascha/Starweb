@@ -287,7 +287,7 @@ export default function DashboardPage() {
   );
 
   const revenueLoading = !ready['invoices'] || !ready['trips'] || !ready['rental'];
-  const alertsLoading = !ready['policies'] || !ready['cheques'];
+  const alertsLoading = !ready['policies'] || !ready['cheques'] || !ready['pos'];
 
   useEffect(() => {
     const wrap =
@@ -391,9 +391,9 @@ export default function DashboardPage() {
       { overdue: 0, soon: 0, notDue: 0 }
     );
 
-    const openPOs = purchaseOrders.filter(
+    const pendingPOs = purchaseOrders.filter(
       (po) => po.status === 'Ordered' || po.status === 'Amended'
-    ).length;
+    );
 
     const totalVisits = pageVisits.reduce((sum, v) => sum + (Number(v.count) || 0), 0);
 
@@ -434,6 +434,28 @@ export default function DashboardPage() {
         });
     }
 
+    if (pendingPOs.length > 0 && hasPermission('purchaseOrders', 'read')) {
+        const poCases = pendingPOs
+            .map(po => {
+                const poDate = parseDate(po.poDate);
+                const leadTime = poDate ? differenceInDays(today, poDate) : 0;
+                return `PO #${po.poNumber} (${po.companyName}) - ${leadTime}d lead`;
+            })
+            .sort((a, b) => {
+                const leadA = parseInt(a.split(' - ')[1]);
+                const leadB = parseInt(b.split(' - ')[1]);
+                return leadB - leadA;
+            })
+            .slice(0, 3);
+
+        actions.push({
+            label: 'Track Pending Procurement',
+            count: pendingPOs.length,
+            href: '/purchase-orders/list',
+            items: poCases
+        });
+    }
+
     const unpaidRentBills = rentalBills.filter((b) => b.status === 'Unpaid');
     if (unpaidRentBills.length > 0 && hasPermission('rental', 'read')) {
         const unpaidCases = unpaidRentBills
@@ -452,7 +474,7 @@ export default function DashboardPage() {
       stats: {
         fleetStats,
         chequeStats,
-        openPOs,
+        openPOs: pendingPOs.length,
         totalVisits,
         revenue: currentRev,
         prevRevenue: previousRev,
