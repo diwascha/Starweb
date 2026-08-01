@@ -293,14 +293,14 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
 
             <Card className="p-0 overflow-hidden shadow-sm border-gray-200">
                 <ScrollArea className="w-full">
-                    <Table className="min-w-[800px]">
+                    <Table className="min-w-[900px]">
                         <TableHeader className="bg-muted/50">
                             <TableRow>
                                 <TableHead className="w-12"></TableHead>
                                 <TableHead>Product / Particulars</TableHead>
-                                <TableHead className="w-24">Qty</TableHead>
-                                <TableHead className="w-28">Rate</TableHead>
-                                <TableHead className="w-32 text-right pr-6">Amount</TableHead>
+                                <TableHead className="w-32">Qty</TableHead>
+                                <TableHead className="w-36">Rate</TableHead>
+                                <TableHead className="w-40 text-right pr-6">Amount</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
