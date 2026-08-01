@@ -50,7 +50,7 @@ import type {
 import {
   differenceInDays,
   startOfToday,
-  startOfMonth,
+  startOfBsMonth,
   format,
   subDays,
   isValid,
@@ -79,15 +79,15 @@ function parseDate(value: unknown): Date | null {
 }
 
 /** First day of the current Bikram Sambat month, as a JS Date. */
-function startOfBsMonth(ref: Date): Date {
+function startOfBsMonthLocal(ref: Date): Date {
   try {
     const nd = new NepaliDate(ref);
     const first = new NepaliDate(nd.getYear(), nd.getMonth(), 1);
     const js = first.toJsDate();
-    return isValid(js) ? js : startOfMonth(ref);
+    return isValid(js) ? js : new Date(ref.getFullYear(), ref.getMonth(), 1);
   } catch {
     // Fallback keeps the dashboard alive if the converter throws on an edge year.
-    return startOfMonth(ref);
+    return new Date(ref.getFullYear(), ref.getMonth(), 1);
   }
 }
 
@@ -361,7 +361,7 @@ export default function DashboardPage() {
     let label: string;
 
     if (period === 'bsMonth') {
-      start = startOfBsMonth(end);
+      start = startOfBsMonthLocal(end);
       label = `${toNepaliDate(start.toISOString())} → today`;
     } else {
       const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
@@ -642,7 +642,7 @@ export default function DashboardPage() {
             </button>
             <div className={cn(showCalendar ? 'block' : 'hidden', 'lg:block')}>
               <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">
-                <CardContent className="p-0 pb-8 flex justify-center">
+                <CardContent className="p-0 pb-16 flex justify-center">
                   <iframe
                     src="https://www.hamropatro.com/widgets/calender-small.php"
                     width={240}
