@@ -642,11 +642,11 @@ export default function DashboardPage() {
             </button>
             <div className={cn(showCalendar ? 'block' : 'hidden', 'lg:block')}>
               <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">
-                <CardContent className="p-0 pb-16 flex justify-center">
+                <CardContent className="p-0 pb-10 flex justify-center">
                   <iframe
                     src="https://www.hamropatro.com/widgets/calender-small.php"
                     width={240}
-                    height={400}
+                    height={460}
                     style={{ border: 'none', maxWidth: '100%' }}
                     scrolling="no"
                     loading="lazy"
