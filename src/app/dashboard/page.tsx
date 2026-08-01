@@ -563,55 +563,6 @@ export default function DashboardPage() {
         {/* ---------------- Main column ---------------- */}
         <div className="space-y-6 md:space-y-8 min-w-0">
           
-          {/* Attention Required moved to Left */}
-          {alertsLoading ? (
-            <Skeleton className="h-16 w-full rounded-xl" />
-          ) : (
-            urgentActions.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-[10px] font-black uppercase text-destructive tracking-widest px-1">
-                  Attention Required
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {urgentActions.map((action) => (
-                    <Link href={action.href} key={action.href} className="block">
-                      <Card className="border-l-4 border-l-destructive hover:bg-destructive/5 transition-colors shadow-sm h-full">
-                        <CardContent className="p-4 flex flex-col justify-between h-full">
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-black text-destructive uppercase">
-                                {action.count} Items pending
-                                </p>
-                                <ChevronRight className="h-4 w-4 text-destructive/50 shrink-0" />
-                            </div>
-                            <p className="text-sm font-black">{action.label}</p>
-                          </div>
-                          
-                          {action.items && action.items.length > 0 && (
-                              <div className="mt-3 pt-3 border-t border-destructive/10 space-y-1.5">
-                                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Top cases:</p>
-                                  {action.items.map((item, idx) => (
-                                      <div key={idx} className="flex items-center gap-2 text-[10px] font-medium text-gray-700">
-                                          <div className="w-1 h-1 rounded-full bg-destructive/40" />
-                                          <span className="truncate">{item}</span>
-                                      </div>
-                                  ))}
-                                  {action.count > action.items.length && (
-                                      <p className="text-[9px] italic text-muted-foreground mt-1">
-                                          + {action.count - action.items.length} more cases...
-                                      </p>
-                                  )}
-                              </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )
-          )}
-
           {/* Stat cards grid */}
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
             {canFinance &&
@@ -742,6 +693,55 @@ export default function DashboardPage() {
               iconClass="text-indigo-400"
             />
           </div>
+
+          {/* Attention Required now below stats */}
+          {alertsLoading ? (
+            <Skeleton className="h-16 w-full rounded-xl" />
+          ) : (
+            urgentActions.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-[10px] font-black uppercase text-destructive tracking-widest px-1">
+                  Attention Required
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {urgentActions.map((action) => (
+                    <Link href={action.href} key={action.href} className="block">
+                      <Card className="border-l-4 border-l-destructive hover:bg-destructive/5 transition-colors shadow-sm h-full">
+                        <CardContent className="p-4 flex flex-col justify-between h-full">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-black text-destructive uppercase">
+                                {action.count} Items pending
+                                </p>
+                                <ChevronRight className="h-4 w-4 text-destructive/50 shrink-0" />
+                            </div>
+                            <p className="text-sm font-black">{action.label}</p>
+                          </div>
+                          
+                          {action.items && action.items.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-destructive/10 space-y-1.5">
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Top cases:</p>
+                                  {action.items.map((item, idx) => (
+                                      <div key={idx} className="flex items-center gap-2 text-[10px] font-medium text-gray-700">
+                                          <div className="w-1 h-1 rounded-full bg-destructive/40" />
+                                          <span className="truncate">{item}</span>
+                                      </div>
+                                  ))}
+                                  {action.count > action.items.length && (
+                                      <p className="text-[9px] italic text-muted-foreground mt-1">
+                                          + {action.count - action.items.length} more cases...
+                                      </p>
+                                  )}
+                              </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
         </div>
 
         {/* ---------------- Right rail ---------------- */}
