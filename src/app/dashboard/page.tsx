@@ -170,9 +170,9 @@ function DeltaBadge({ current, previous }: { current: number; previous: number }
   );
 }
 
-function StatCardSkeleton({ wide = false }: { wide?: boolean }) {
+function StatCardSkeleton() {
   return (
-    <Card className={cn('h-full shadow-sm', wide && 'col-span-2 sm:col-span-1')}>
+    <Card className="h-full shadow-sm">
       <CardContent className="p-3 space-y-2">
         <Skeleton className="h-2.5 w-20" />
         <Skeleton className="h-6 w-28" />
@@ -642,11 +642,11 @@ export default function DashboardPage() {
             </button>
             <div className={cn(showCalendar ? 'block' : 'hidden', 'lg:block')}>
               <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">
-                <CardContent className="p-0 flex justify-center">
+                <CardContent className="p-0 pb-8 flex justify-center">
                   <iframe
                     src="https://www.hamropatro.com/widgets/calender-small.php"
                     width={240}
-                    height={380}
+                    height={400}
                     style={{ border: 'none', maxWidth: '100%' }}
                     scrolling="no"
                     loading="lazy"
