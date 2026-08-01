@@ -624,8 +624,8 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6 md:gap-8">
       {/* ---------------- Header ---------------- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 border-b pb-4 md:pb-6">
-        <div className="space-y-1 min-w-0">
-          <h1 className="text-xl md:text-2xl font-black tracking-tighter uppercase leading-tight truncate">
+        <div className="space-y-1.5 min-w-0">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight uppercase leading-none text-gray-900">
             {companyProfile.nameEn}
           </h1>
           <h2 className="text-base md:text-lg font-bold text-muted-foreground truncate">
