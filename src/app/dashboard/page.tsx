@@ -17,6 +17,10 @@ import {
   FileText,
   Layers,
   LineChart as LineChartIcon,
+  Briefcase,
+  Scale,
+  AlertCircle,
+  Package
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -31,6 +35,9 @@ import { onSettingUpdate } from '@/services/settings-service';
 import { onChequesUpdate } from '@/services/cheque-service';
 import { onTripsUpdate } from '@/services/trip-service';
 import { onRentalBillsUpdate } from '@/services/rental-billing-service';
+import { onProductsUpdate } from '@/services/product-service';
+import { onCostReportsUpdate } from '@/services/cost-report-service';
+import { onGsmReportsUpdate } from '@/services/gsm-service';
 import type {
   PolicyOrMembership,
   PurchaseOrder,
@@ -40,6 +47,9 @@ import type {
   Cheque,
   Trip,
   RentalBill,
+  Product,
+  CostReport,
+  GsmReport
 } from '@/lib/types';
 import {
   differenceInDays,
@@ -315,6 +325,9 @@ export default function DashboardPage() {
   const [cheques, setCheques] = useState<Cheque[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [rentalBills, setRentalBills] = useState<RentalBill[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [costReports, setCostReports] = useState<CostReport[]>([]);
+  const [gsmReports, setGsmReports] = useState<GsmReport[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
 
   const [period, setPeriod] = useState<PeriodKey>('30d');
@@ -348,6 +361,9 @@ export default function DashboardPage() {
       onChequesUpdate(wrap('cheques', setCheques)),
       onTripsUpdate(wrap('trips', setTrips)),
       onRentalBillsUpdate(wrap('rental', setRentalBills)),
+      onProductsUpdate(wrap('products', setProducts)),
+      onCostReportsUpdate(wrap('costReports', setCostReports)),
+      onGsmReportsUpdate(wrap('gsmReports', setGsmReports)),
       onSettingUpdate('companyProfile', (s: any) => {
         if (s?.value) setCompanyProfile(s.value);
       }),
@@ -406,13 +422,10 @@ export default function DashboardPage() {
     for (const t of trips) {
       const d = parseDate((t as any).date);
       if (!d) continue;
-      // NOTE: `transport` is gross freight. If you want net (own-truck profit),
-      // swap this for your net-amount field so it is comparable to invoice netTotal.
       bucketFor(dayKey(d)).Fleet += Number((t as any).transport) || 0;
     }
 
     for (const b of rentalBills) {
-      // Prefer the business date; fall back to createdAt only if absent.
       const d =
         parseDate((b as any).billDate) ??
         parseDate((b as any).date) ??
@@ -517,6 +530,9 @@ export default function DashboardPage() {
         totalVisits,
         revenue: currentRev,
         prevRevenue: previousRev,
+        productCount: products.length,
+        costReportCount: costReports.length,
+        gsmReportCount: gsmReports.length
       },
       chartData: trendData,
       urgentActions: actions,
@@ -529,6 +545,9 @@ export default function DashboardPage() {
     cheques,
     trips,
     rentalBills,
+    products,
+    costReports,
+    gsmReports,
     rangeStart,
     rangeEnd,
     prevStart,
@@ -537,7 +556,7 @@ export default function DashboardPage() {
   ]);
 
   const chartConfig = {
-    revenue: { label: 'Total Revenue', color: 'hsl(var(--primary))' },
+    revenue: { label: 'Total Revenue', color: 'hsl(var(--chart-1))' },
     Manufacturing: { label: 'Manufacturing', color: 'hsl(var(--chart-1))' },
     Fleet: { label: 'Fleet', color: 'hsl(var(--chart-2))' },
     Rental: { label: 'Rental', color: 'hsl(var(--chart-3))' },
@@ -557,6 +576,7 @@ export default function DashboardPage() {
   const canFleet = hasPermission('fleet', 'read');
   const canFinance = hasPermission('finance', 'read');
   const canPO = hasPermission('purchaseOrders', 'read');
+  const canCRM = hasPermission('crm', 'read');
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
@@ -574,7 +594,6 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Quick actions — horizontally scrollable on mobile instead of wrapping into 3 rows */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 w-full md:w-auto md:overflow-visible">
           {hasPermission('fleet', 'create') && (
             <Button
@@ -680,7 +699,7 @@ export default function DashboardPage() {
             )
           )}
 
-          {/* Calendar: collapsed by default on mobile so the iframe never blocks first paint */}
+          {/* Calendar */}
           <div className="space-y-2">
             <button
               onClick={() => setShowCalendar((s) => !s)}
@@ -699,12 +718,6 @@ export default function DashboardPage() {
             <div className={cn(showCalendar ? 'block' : 'hidden', 'lg:block')}>
               <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">
                 <CardContent className="p-2 flex justify-center">
-                  {/*
-                    Hamropatro's "small" widget is a fixed 200x290 layout, and it
-                    fills itself over AJAX after mount. Forcing width:100% while
-                    holding height at 290 + scrolling="no" clipped the bottom.
-                    Native width + headroom + scrolling="auto" = nothing is lost.
-                  */}
                   <iframe
                     src="https://www.hamropatro.com/widgets/calender-small.php"
                     width={200}
@@ -722,7 +735,7 @@ export default function DashboardPage() {
 
         {/* ---------------- Main column ---------------- */}
         <div className="space-y-6 md:space-y-8 min-w-0">
-          {/* Stat cards — one compact grid */}
+          {/* Stat cards grid */}
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
             {canFinance &&
               (revenueLoading ? (
@@ -803,6 +816,33 @@ export default function DashboardPage() {
                 />
               ))}
 
+            {canCRM && (
+               <ValueTile
+                href="/crm/pack-spec"
+                accent="border-l-blue-400"
+                label="CRM Catalog"
+                value={String(stats.productCount)}
+                sub="Products"
+                icon={Package}
+                iconClass="text-blue-400"
+                footer={
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">{stats.costReportCount} Cost Reports</p>
+                }
+              />
+            )}
+
+            {canFinance && (
+              <ValueTile
+                href="/finance/gsm-calculator"
+                accent="border-l-purple-400"
+                label="Quality Control"
+                value={String(stats.gsmReportCount)}
+                sub="GSM Logs"
+                icon={Scale}
+                iconClass="text-purple-400"
+              />
+            )}
+
             {canPO && (
               <ValueTile
                 href="/purchase-orders/list"
@@ -812,18 +852,6 @@ export default function DashboardPage() {
                 sub="Active Orders"
                 icon={ShoppingCart}
                 iconClass="text-amber-500"
-              />
-            )}
-
-            {hasPermission('settings', 'read') && (
-              <ValueTile
-                href="/settings/system"
-                accent="border-l-purple-500"
-                label="System Visibility"
-                value={nf(stats.totalVisits)}
-                sub="Total Views"
-                icon={MousePointerClick}
-                iconClass="text-purple-500"
               />
             )}
           </div>
