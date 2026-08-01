@@ -1,29 +1,27 @@
-
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { 
-  ShoppingCart, 
-  Truck, 
-  TrendingUp, 
+import NepaliDate from 'nepali-date-converter';
+import {
+  ShoppingCart,
+  Truck,
+  TrendingUp,
+  TrendingDown,
+  Minus,
   MousePointerClick,
   Clock,
-  ArrowRightLeft,
-  Wallet,
   Calendar as CalendarIcon,
-  AlertTriangle,
-  CheckCircle2,
   ChevronRight,
-  ArrowUpRight,
+  ChevronDown,
   FileText,
-  Receipt
+  Layers,
+  LineChart as LineChartIcon,
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
 import { onPoliciesUpdate } from '@/services/policy-service';
 import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
@@ -33,37 +31,97 @@ import { onSettingUpdate } from '@/services/settings-service';
 import { onChequesUpdate } from '@/services/cheque-service';
 import { onTripsUpdate } from '@/services/trip-service';
 import { onRentalBillsUpdate } from '@/services/rental-billing-service';
-import type { 
-    PolicyOrMembership, 
-    PurchaseOrder, 
-    EstimatedInvoice, 
-    PageVisit, 
-    CompanyProfile, 
-    Cheque, 
-    Trip, 
-    RentalBill 
+import type {
+  PolicyOrMembership,
+  PurchaseOrder,
+  EstimatedInvoice,
+  PageVisit,
+  CompanyProfile,
+  Cheque,
+  Trip,
+  RentalBill,
 } from '@/lib/types';
-import { 
-    differenceInDays, 
-    startOfToday, 
-    startOfMonth, 
-    format, 
-    subDays, 
-    isWithinInterval, 
-    eachDayOfInterval 
+import {
+  differenceInDays,
+  startOfToday,
+  startOfMonth,
+  format,
+  subDays,
+  eachDayOfInterval,
+  isValid,
 } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
-import { 
-    AreaChart, 
-    Area, 
-    XAxis, 
-    YAxis, 
-    CartesianGrid, 
-    Tooltip, 
-    ResponsiveContainer 
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+const NUM = new Intl.NumberFormat('en-IN');
+const nf = (n: number) => NUM.format(Math.round(n));
+
+/** Safe date parse: returns null instead of an Invalid Date. */
+function parseDate(value: unknown): Date | null {
+  if (!value) return null;
+  // Firestore Timestamp support
+  const anyVal = value as any;
+  if (typeof anyVal?.toDate === 'function') {
+    const d = anyVal.toDate();
+    return isValid(d) ? d : null;
+  }
+  const d = new Date(anyVal);
+  return isValid(d) ? d : null;
+}
+
+const dayKey = (d: Date) => format(d, 'yyyy-MM-dd');
+
+/** First day of the current Bikram Sambat month, as a JS Date. */
+function startOfBsMonth(ref: Date): Date {
+  try {
+    const nd = new NepaliDate(ref);
+    const first = new NepaliDate(nd.getYear(), nd.getMonth(), 1);
+    const js = first.toJsDate();
+    return isValid(js) ? js : startOfMonth(ref);
+  } catch {
+    // Fallback keeps the dashboard alive if the converter throws on an edge year.
+    return startOfMonth(ref);
+  }
+}
+
+/** Tiny matchMedia hook — avoids depending on a specific shadcn use-mobile path. */
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const onChange = () => setIsMobile(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+type PeriodKey = '7d' | '30d' | 'bsMonth' | '90d';
+
+const PERIODS: { key: PeriodKey; label: string; short: string }[] = [
+  { key: '7d', label: '7 Days', short: '7D' },
+  { key: '30d', label: '30 Days', short: '30D' },
+  { key: 'bsMonth', label: 'This BS Month', short: 'BS' },
+  { key: '90d', label: '90 Days', short: '90D' },
+];
+
+/* ------------------------------------------------------------------ */
+/* Small presentational pieces                                         */
+/* ------------------------------------------------------------------ */
 
 function LiveDateTime() {
   const [now, setNow] = useState<Date | null>(null);
@@ -74,23 +132,182 @@ function LiveDateTime() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!now) return null;
+  if (!now) {
+    return <Skeleton className="h-[52px] w-full rounded-lg" />;
+  }
 
   return (
-    <div className="flex flex-col items-start bg-muted/30 border border-dashed rounded-lg px-3 py-1.5 shadow-sm w-full">
-        <div className="text-lg font-black tabular-nums tracking-tighter text-black leading-none">
-            {format(now, 'HH:mm:ss')}
-        </div>
-        <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1 flex items-center gap-1">
-            <CalendarIcon className="h-2.5 w-2.5" />
-            {toNepaliDate(now.toISOString())} BS
-        </div>
+    <div className="flex flex-col items-start bg-muted/30 border border-dashed rounded-lg px-3 py-2 shadow-sm w-full">
+      <div className="text-xl font-black tabular-nums tracking-tighter leading-none">
+        {format(now, 'HH:mm:ss')}
+      </div>
+      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5 flex items-center gap-1">
+        <CalendarIcon className="h-3 w-3" />
+        {toNepaliDate(now.toISOString())} BS
+      </div>
     </div>
   );
 }
 
+function DeltaBadge({ current, previous }: { current: number; previous: number }) {
+  if (previous <= 0) {
+    return (
+      <span className="text-[10px] font-bold text-muted-foreground uppercase">
+        No prior data
+      </span>
+    );
+  }
+  const pct = ((current - previous) / previous) * 100;
+  const flat = Math.abs(pct) < 0.5;
+  const up = pct > 0;
+  const Icon = flat ? Minus : up ? TrendingUp : TrendingDown;
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 text-[10px] font-bold tabular-nums',
+        flat ? 'text-muted-foreground' : up ? 'text-emerald-600' : 'text-destructive'
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {flat ? '0%' : `${up ? '+' : ''}${pct.toFixed(1)}%`}
+      <span className="text-muted-foreground font-medium">vs prev</span>
+    </span>
+  );
+}
+
+function StatCardSkeleton({ wide = false }: { wide?: boolean }) {
+  return (
+    <Card className={cn('h-full shadow-sm', wide && 'col-span-2 sm:col-span-1')}>
+      <CardContent className="p-3 space-y-2">
+        <Skeleton className="h-2.5 w-20" />
+        <Skeleton className="h-6 w-28" />
+        <Skeleton className="h-2.5 w-16" />
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Compact shell shared by every stat tile. */
+function TileShell({
+  href,
+  accent,
+  wide,
+  children,
+}: {
+  href: string;
+  accent: string;
+  wide?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link href={href} className={cn('block h-full', wide && 'col-span-2 sm:col-span-1')}>
+      <Card
+        className={cn(
+          'border-l-[3px] h-full shadow-sm hover:bg-accent transition-colors',
+          accent
+        )}
+      >
+        <CardContent className="p-3">{children}</CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+/** Single headline number. */
+function ValueTile({
+  href,
+  accent,
+  label,
+  value,
+  sub,
+  footer,
+  icon: Icon,
+  iconClass,
+}: {
+  href: string;
+  accent: string;
+  label: string;
+  value: string;
+  sub?: string;
+  footer?: React.ReactNode;
+  icon: React.ElementType;
+  iconClass?: string;
+}) {
+  return (
+    <TileShell href={href} accent={accent}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 space-y-1">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
+            {label}
+          </p>
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-lg font-black tabular-nums leading-none">{value}</span>
+            {sub && (
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold">
+                {sub}
+              </span>
+            )}
+          </div>
+          {footer}
+        </div>
+        <Icon className={cn('h-5 w-5 opacity-20 shrink-0', iconClass)} />
+      </div>
+    </TileShell>
+  );
+}
+
+/** Three sub-counts in one row (fleet / cheque alerts). */
+function TripleTile({
+  href,
+  accent,
+  label,
+  items,
+  icon: Icon,
+}: {
+  href: string;
+  accent: string;
+  label: string;
+  items: { v: number; l: string; c: string }[];
+  icon: React.ElementType;
+}) {
+  return (
+    <TileShell href={href} accent={accent} wide>
+      <div className="flex items-start justify-between gap-2">
+        <div className="w-full min-w-0 space-y-1">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+            {label}
+          </p>
+          <div className="grid grid-cols-3 gap-1">
+            {items.map((s, i) => (
+              <div
+                key={s.l}
+                className={cn('flex flex-col text-center', i === 1 && 'border-x px-1')}
+              >
+                <span className={cn('text-base font-bold tabular-nums leading-none', s.c)}>
+                  {s.v}
+                </span>
+                <span className="text-[9px] text-muted-foreground uppercase leading-tight mt-1">
+                  {s.l}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <Icon className="h-5 w-5 text-muted-foreground opacity-20 shrink-0" />
+      </div>
+    </TileShell>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
+
 export default function DashboardPage() {
-  const { user, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
+  const isMobile = useIsMobile();
+
   const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [invoices, setInvoices] = useState<EstimatedInvoice[]>([]);
@@ -99,369 +316,672 @@ export default function DashboardPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [rentalBills, setRentalBills] = useState<RentalBill[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const [period, setPeriod] = useState<PeriodKey>('30d');
+  const [chartMode, setChartMode] = useState<'stacked' | 'total'>('stacked');
+  const [showCalendar, setShowCalendar] = useState(false);
+
+  // Real loading state: a stream is "ready" only once its first snapshot lands.
+  const [ready, setReady] = useState<Record<string, boolean>>({});
+  const markReady = useCallback(
+    (key: string) => setReady((r) => (r[key] ? r : { ...r, [key]: true })),
+    []
+  );
+
+  const REVENUE_KEYS = ['invoices', 'trips', 'rental'];
+  const revenueLoading = !REVENUE_KEYS.every((k) => ready[k]);
+  const alertsLoading = !ready['policies'] || !ready['cheques'];
 
   useEffect(() => {
-    setIsLoading(true);
+    const wrap =
+      <T,>(key: string, setter: (v: T) => void) =>
+      (v: T) => {
+        setter(v);
+        markReady(key);
+      };
+
     const unsubs = [
-      onPoliciesUpdate(setPolicies),
-      onPurchaseOrdersUpdate(setPurchaseOrders),
-      onEstimatedInvoicesUpdate(setInvoices),
-      onPageVisitsUpdate(setPageVisits),
-      onChequesUpdate(setCheques),
-      onTripsUpdate(setTrips),
-      onRentalBillsUpdate(setRentalBills),
-      onSettingUpdate('companyProfile', (s) => {
-          if (s?.value) setCompanyProfile(s.value);
-      })
+      onPoliciesUpdate(wrap('policies', setPolicies)),
+      onPurchaseOrdersUpdate(wrap('pos', setPurchaseOrders)),
+      onEstimatedInvoicesUpdate(wrap('invoices', setInvoices)),
+      onPageVisitsUpdate(wrap('visits', setPageVisits)),
+      onChequesUpdate(wrap('cheques', setCheques)),
+      onTripsUpdate(wrap('trips', setTrips)),
+      onRentalBillsUpdate(wrap('rental', setRentalBills)),
+      onSettingUpdate('companyProfile', (s: any) => {
+        if (s?.value) setCompanyProfile(s.value);
+      }),
     ];
 
-    setIsLoading(false);
-    return () => unsubs.forEach(unsub => unsub());
-  }, []);
+    return () => unsubs.forEach((unsub) => unsub?.());
+  }, [markReady]);
 
+  /* ---------------- Period window ---------------- */
+  const { rangeStart, rangeEnd, prevStart, prevEnd, periodLabel } = useMemo(() => {
+    const end = startOfToday();
+    let start: Date;
+    let label: string;
+
+    if (period === 'bsMonth') {
+      start = startOfBsMonth(end);
+      label = `${toNepaliDate(start.toISOString())} → today`;
+    } else {
+      const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+      start = subDays(end, days - 1);
+      label = `Last ${days} days`;
+    }
+
+    const span = Math.max(1, differenceInDays(end, start) + 1);
+    return {
+      rangeStart: start,
+      rangeEnd: end,
+      prevStart: subDays(start, span),
+      prevEnd: subDays(start, 1),
+      periodLabel: label,
+    };
+  }, [period]);
+
+  /* ---------------- Single-pass aggregation ---------------- */
   const { stats, chartData, urgentActions } = useMemo(() => {
     const today = startOfToday();
-    
-    // --- 1. Stats Calculation ---
-    const fleetStats = policies.reduce((acc, p) => {
-      if (p.status === 'Renewed' || p.status === 'Archived') return acc;
-      const daysLeft = differenceInDays(new Date(p.endDate), today);
-      if (daysLeft < 0) acc.expired++;
-      else if (daysLeft <= 7) acc.comingSoon++;
-      else acc.ok++;
-      return acc;
-    }, { expired: 0, comingSoon: 0, ok: 0 });
 
-    const chequeStats = cheques.reduce((acc, c) => {
-      (c.splits || []).forEach(s => {
-        if (s.status === 'Paid' || s.status === 'Canceled') return;
-        const daysLeft = differenceInDays(new Date(s.chequeDate), today);
-        if (daysLeft < 0) acc.overdue++;
-        else if (daysLeft <= 7) acc.soon++;
-        else acc.notDue++;
-      });
-      return acc;
-    }, { overdue: 0, soon: 0, notDue: 0 });
+    /* Bucket every revenue record ONCE by day key. */
+    type Bucket = { Manufacturing: number; Fleet: number; Rental: number };
+    const buckets = new Map<string, Bucket>();
+    const bucketFor = (k: string): Bucket => {
+      let b = buckets.get(k);
+      if (!b) {
+        b = { Manufacturing: 0, Fleet: 0, Rental: 0 };
+        buckets.set(k, b);
+      }
+      return b;
+    };
 
-    const openPOs = purchaseOrders.filter(po => po.status === 'Ordered' || po.status === 'Amended').length;
+    for (const inv of invoices) {
+      const d = parseDate((inv as any).date);
+      if (!d) continue;
+      bucketFor(dayKey(d)).Manufacturing += Number((inv as any).netTotal) || 0;
+    }
 
-    const monthStart = startOfMonth(new Date());
-    const mtdRevenue = invoices
-      .filter(inv => new Date(inv.date) >= monthStart)
-      .reduce((sum, inv) => sum + (Number(inv.netTotal) || 0), 0);
+    for (const t of trips) {
+      const d = parseDate((t as any).date);
+      if (!d) continue;
+      // NOTE: `transport` is gross freight. If you want net (own-truck profit),
+      // swap this for your net-amount field so it is comparable to invoice netTotal.
+      bucketFor(dayKey(d)).Fleet += Number((t as any).transport) || 0;
+    }
+
+    for (const b of rentalBills) {
+      // Prefer the business date; fall back to createdAt only if absent.
+      const d =
+        parseDate((b as any).billDate) ??
+        parseDate((b as any).date) ??
+        parseDate((b as any).createdAt);
+      if (!d) continue;
+      bucketFor(dayKey(d)).Rental += Number((b as any).amount) || 0;
+    }
+
+    const sumRange = (from: Date, to: Date) => {
+      let mfg = 0;
+      let fleet = 0;
+      let rental = 0;
+      for (const d of eachDayOfInterval({ start: from, end: to })) {
+        const b = buckets.get(dayKey(d));
+        if (!b) continue;
+        mfg += b.Manufacturing;
+        fleet += b.Fleet;
+        rental += b.Rental;
+      }
+      return { mfg, fleet, rental, total: mfg + fleet + rental };
+    };
+
+    const currentRev = sumRange(rangeStart, rangeEnd);
+    const previousRev = sumRange(prevStart, prevEnd);
+
+    const trendData = eachDayOfInterval({ start: rangeStart, end: rangeEnd }).map((date) => {
+      const b = buckets.get(dayKey(date)) ?? { Manufacturing: 0, Fleet: 0, Rental: 0 };
+      return {
+        name: format(date, 'MMM dd'),
+        dateBS: toNepaliDate(date.toISOString()),
+        revenue: b.Manufacturing + b.Fleet + b.Rental,
+        Manufacturing: b.Manufacturing,
+        Fleet: b.Fleet,
+        Rental: b.Rental,
+      };
+    });
+
+    /* ---- Alert counts ---- */
+    const fleetStats = policies.reduce(
+      (acc, p) => {
+        if (p.status === 'Renewed' || p.status === 'Archived') return acc;
+        const end = parseDate((p as any).endDate);
+        if (!end) return acc;
+        const daysLeft = differenceInDays(end, today);
+        if (daysLeft < 0) acc.expired++;
+        else if (daysLeft <= 7) acc.comingSoon++;
+        else acc.ok++;
+        return acc;
+      },
+      { expired: 0, comingSoon: 0, ok: 0 }
+    );
+
+    const chequeStats = cheques.reduce(
+      (acc, c) => {
+        for (const s of (c as any).splits || []) {
+          if (s.status === 'Paid' || s.status === 'Canceled') continue;
+          const cd = parseDate(s.chequeDate);
+          if (!cd) continue;
+          const daysLeft = differenceInDays(cd, today);
+          if (daysLeft < 0) acc.overdue++;
+          else if (daysLeft <= 7) acc.soon++;
+          else acc.notDue++;
+        }
+        return acc;
+      },
+      { overdue: 0, soon: 0, notDue: 0 }
+    );
+
+    const openPOs = purchaseOrders.filter(
+      (po) => po.status === 'Ordered' || po.status === 'Amended'
+    ).length;
 
     const totalVisits = pageVisits.reduce((sum, v) => sum + (Number(v.count) || 0), 0);
 
-    // --- 2. Chart Data Generation (Last 30 Days) ---
-    const last30Days = eachDayOfInterval({ start: subDays(today, 29), end: today });
-    const trendData = last30Days.map(date => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        
-        // Sum from Manufacturing
-        const mfgRev = invoices
-            .filter(inv => format(new Date(inv.date), 'yyyy-MM-dd') === dateStr)
-            .reduce((sum, inv) => sum + (Number(inv.netTotal) || 0), 0);
-            
-        // Sum from Fleet (Trips)
-        const fleetRev = trips
-            .filter(t => format(new Date(t.date), 'yyyy-MM-dd') === dateStr)
-            .reduce((sum, t) => sum + (Number(t.transport) || 0), 0);
-            
-        // Sum from Rental (Bills - status Unpaid or Paid)
-        const rentalRev = rentalBills
-            .filter(b => format(new Date(b.createdAt), 'yyyy-MM-dd') === dateStr)
-            .reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+    /* ---- Urgent actions (permission-aware) ---- */
+    const actions: { label: string; count: number; href: string }[] = [];
+    if (fleetStats.expired > 0 && hasPermission('fleet', 'read'))
+      actions.push({
+        label: 'Renew Expired Fleet Policies',
+        count: fleetStats.expired,
+        href: '/fleet/policies',
+      });
+    if (chequeStats.overdue > 0 && hasPermission('finance', 'read'))
+      actions.push({
+        label: 'Settle Overdue Cheques',
+        count: chequeStats.overdue,
+        href: '/finance/cheque-generator',
+      });
+    const unpaidRentCount = rentalBills.filter((b) => b.status === 'Unpaid').length;
+    if (unpaidRentCount > 0 && hasPermission('rental', 'read'))
+      actions.push({
+        label: 'Collect Unpaid Rent',
+        count: unpaidRentCount,
+        href: '/rental/billing',
+      });
 
-        return {
-            name: format(date, 'MMM dd'),
-            dateBS: toNepaliDate(date.toISOString()),
-            revenue: mfgRev + fleetRev + rentalRev,
-            Manufacturing: mfgRev,
-            Fleet: fleetRev,
-            Rental: rentalRev
-        };
-    });
-
-    // --- 3. Urgent Actions ---
-    const actions = [];
-    if (fleetStats.expired > 0) actions.push({ label: 'Renew Expired Fleet Policies', type: 'fleet', count: fleetStats.expired, href: '/fleet/policies' });
-    if (chequeStats.overdue > 0) actions.push({ label: 'Settle Overdue Cheques', type: 'finance', count: chequeStats.overdue, href: '/finance/cheque-generator' });
-    
-    const unpaidRentCount = rentalBills.filter(b => b.status === 'Unpaid').length;
-    if (unpaidRentCount > 0) actions.push({ label: 'Collect Unpaid Rent', type: 'rental', count: unpaidRentCount, href: '/rental/billing' });
-
-    return { 
-        stats: { fleetStats, chequeStats, openPOs, mtdRevenue, totalVisits }, 
-        chartData: trendData,
-        urgentActions: actions
+    return {
+      stats: {
+        fleetStats,
+        chequeStats,
+        openPOs,
+        totalVisits,
+        revenue: currentRev,
+        prevRevenue: previousRev,
+      },
+      chartData: trendData,
+      urgentActions: actions,
     };
-  }, [policies, purchaseOrders, invoices, pageVisits, cheques, trips, rentalBills]);
+  }, [
+    policies,
+    purchaseOrders,
+    invoices,
+    pageVisits,
+    cheques,
+    trips,
+    rentalBills,
+    rangeStart,
+    rangeEnd,
+    prevStart,
+    prevEnd,
+    hasPermission,
+  ]);
 
   const chartConfig = {
     revenue: { label: 'Total Revenue', color: 'hsl(var(--primary))' },
     Manufacturing: { label: 'Manufacturing', color: 'hsl(var(--chart-1))' },
     Fleet: { label: 'Fleet', color: 'hsl(var(--chart-2))' },
-    Rental: { label: 'Rental', color: 'hsl(var(--chart-3))' }
+    Rental: { label: 'Rental', color: 'hsl(var(--chart-3))' },
+  } as const;
+
+  const hasRevenue = chartData.some((d) => d.revenue > 0);
+  const tickInterval = isMobile
+    ? Math.max(0, Math.ceil(chartData.length / 4) - 1)
+    : Math.max(0, Math.ceil(chartData.length / 12) - 1);
+
+  const yTick = (v: number) => {
+    if (v >= 100000) return `${(v / 100000).toFixed(1)}L`;
+    if (v >= 1000) return `${Math.round(v / 1000)}k`;
+    return String(v);
   };
 
+  const canFleet = hasPermission('fleet', 'read');
+  const canFinance = hasPermission('finance', 'read');
+  const canPO = hasPermission('purchaseOrders', 'read');
+
   return (
-    <div className="flex flex-col gap-8">
-      {/* Top Section: Company Branding & Quick Actions */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b pb-6">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-black tracking-tighter uppercase text-gray-900 leading-tight">
+    <div className="flex flex-col gap-6 md:gap-8">
+      {/* ---------------- Header ---------------- */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 border-b pb-4 md:pb-6">
+        <div className="space-y-1 min-w-0">
+          <h1 className="text-xl md:text-2xl font-black tracking-tighter uppercase leading-tight truncate">
             {companyProfile.nameEn}
           </h1>
-          <h2 className="text-lg font-bold text-muted-foreground">{companyProfile.nameNp}</h2>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">{companyProfile.address}</p>
+          <h2 className="text-base md:text-lg font-bold text-muted-foreground truncate">
+            {companyProfile.nameNp}
+          </h2>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] truncate">
+            {companyProfile.address}
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+
+        {/* Quick actions — horizontally scrollable on mobile instead of wrapping into 3 rows */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 w-full md:w-auto md:overflow-visible">
           {hasPermission('fleet', 'create') && (
-            <Button asChild size="sm" variant="secondary" className="h-9 text-[10px] font-black uppercase tracking-widest px-4 border shadow-sm">
+            <Button
+              asChild
+              size="sm"
+              variant="secondary"
+              className="h-10 shrink-0 text-[11px] font-black uppercase tracking-wider px-4 border shadow-sm"
+            >
               <Link href="/fleet/trip-sheets/new">
-                <Truck className="mr-2 h-3.5 w-3.5" /> Sales Entry
+                <Truck className="mr-2 h-4 w-4" /> Sales Entry
               </Link>
             </Button>
           )}
           {hasPermission('finance', 'create') && (
-            <Button asChild size="sm" variant="secondary" className="h-9 text-[10px] font-black uppercase tracking-widest px-4 border shadow-sm">
+            <Button
+              asChild
+              size="sm"
+              variant="secondary"
+              className="h-10 shrink-0 text-[11px] font-black uppercase tracking-wider px-4 border shadow-sm"
+            >
               <Link href="/finance/estimate-invoice">
-                <FileText className="mr-2 h-3.5 w-3.5" /> New Estimate
+                <FileText className="mr-2 h-4 w-4" /> New Estimate
               </Link>
             </Button>
           )}
           {hasPermission('purchaseOrders', 'create') && (
-            <Button asChild size="sm" variant="secondary" className="h-9 text-[10px] font-black uppercase tracking-widest px-4 border shadow-sm">
+            <Button
+              asChild
+              size="sm"
+              variant="secondary"
+              className="h-10 shrink-0 text-[11px] font-black uppercase tracking-wider px-4 border shadow-sm"
+            >
               <Link href="/purchase-orders/new">
-                <ShoppingCart className="mr-2 h-3.5 w-3.5" /> New PO
+                <ShoppingCart className="mr-2 h-4 w-4" /> New PO
               </Link>
             </Button>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
-        {/* Left Column: Clock & Calendar */}
-        <div className="space-y-6">
+      {/* ---------------- Period switcher ---------------- */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border bg-muted/40 p-1">
+          {PERIODS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-[11px] font-black uppercase tracking-wider transition-colors',
+                period === p.key
+                  ? 'bg-background shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <span className="md:hidden">{p.short}</span>
+              <span className="hidden md:inline">{p.label}</span>
+            </button>
+          ))}
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          {periodLabel}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:gap-8 items-start">
+        {/* ---------------- Left rail ---------------- */}
+        <div className="space-y-5 w-full">
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Control Tower</p>
-            <div className="p-4 rounded-xl border bg-white shadow-sm">
-                <LiveDateTime />
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">
+              Control Tower
+            </p>
+            <div className="p-4 rounded-xl border bg-card shadow-sm">
+              <LiveDateTime />
             </div>
           </div>
 
-          {urgentActions.length > 0 && (
+          {alertsLoading ? (
+            <Skeleton className="h-16 w-full rounded-xl" />
+          ) : (
+            urgentActions.length > 0 && (
               <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase text-destructive tracking-widest px-1">Attention Required</p>
+                <p className="text-[10px] font-black uppercase text-destructive tracking-widest px-1">
+                  Attention Required
+                </p>
                 <div className="space-y-2">
-                    {urgentActions.map((action, i) => (
-                        <Link href={action.href} key={i}>
-                            <Card className="border-l-4 border-l-destructive hover:bg-destructive/5 transition-colors cursor-pointer shadow-sm">
-                                <CardContent className="p-3 flex items-center justify-between">
-                                    <div className="space-y-0.5">
-                                        <p className="text-[10px] font-black text-destructive uppercase">{action.count} Items</p>
-                                        <p className="text-xs font-bold text-gray-900">{action.label}</p>
-                                    </div>
-                                    <ChevronRight className="h-4 w-4 text-destructive/50" />
-                                </CardContent>
-                            </Card>
-                        </Link>
-                    ))}
+                  {urgentActions.map((action) => (
+                    <Link href={action.href} key={action.href} className="block">
+                      <Card className="border-l-4 border-l-destructive hover:bg-destructive/5 transition-colors shadow-sm">
+                        <CardContent className="p-3 flex items-center justify-between min-h-[48px]">
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] font-black text-destructive uppercase">
+                              {action.count} Items
+                            </p>
+                            <p className="text-xs font-bold">{action.label}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-destructive/50 shrink-0" />
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
                 </div>
               </div>
+            )
           )}
 
+          {/* Calendar: collapsed by default on mobile so the iframe never blocks first paint */}
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Nepali Calendar</p>
-            <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-white">
-              <CardContent className="p-0 flex justify-center">
-                <iframe 
-                  src="https://www.hamropatro.com/widgets/calender-small.php" 
-                  style={{ border: 'none', overflow: 'hidden', width: '100%', height: 290 }}
-                  scrolling="no" 
-                  title="Nepali Calendar">
-                </iframe>
-              </CardContent>
-            </Card>
+            <button
+              onClick={() => setShowCalendar((s) => !s)}
+              className="flex w-full items-center justify-between px-1 lg:pointer-events-none"
+            >
+              <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+                Nepali Calendar
+              </span>
+              <ChevronDown
+                className={cn(
+                  'h-4 w-4 text-muted-foreground transition-transform lg:hidden',
+                  showCalendar && 'rotate-180'
+                )}
+              />
+            </button>
+            <div className={cn(showCalendar ? 'block' : 'hidden', 'lg:block')}>
+              <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">
+                <CardContent className="p-2 flex justify-center">
+                  {/*
+                    Hamropatro's "small" widget is a fixed 200x290 layout, and it
+                    fills itself over AJAX after mount. Forcing width:100% while
+                    holding height at 290 + scrolling="no" clipped the bottom.
+                    Native width + headroom + scrolling="auto" = nothing is lost.
+                  */}
+                  <iframe
+                    src="https://www.hamropatro.com/widgets/calender-small.php"
+                    width={200}
+                    height={340}
+                    style={{ border: 'none', maxWidth: '100%' }}
+                    scrolling="auto"
+                    loading="lazy"
+                    title="Nepali Calendar"
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
 
-        {/* Right Column: Statistics Grid & Chart */}
-        <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            <Link href="/fleet/policies" className="block">
-                <Card className={cn(
-                "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm", 
-                stats.fleetStats.expired > 0 ? "border-l-destructive bg-destructive/5" : (stats.fleetStats.comingSoon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-green-500")
-                )}>
-                <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                    <div className="space-y-1 w-full text-left">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fleet Alerts</p>
-                        <div className="grid grid-cols-3 gap-1 mt-2">
-                        <div className="flex flex-col text-center">
-                            <span className={cn("text-lg font-bold", stats.fleetStats.expired > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.fleetStats.expired}</span>
-                            <span className="text-[8px] text-muted-foreground uppercase leading-none">Expired</span>
-                        </div>
-                        <div className="flex flex-col text-center border-x px-1">
-                            <span className={cn("text-lg font-bold", stats.fleetStats.comingSoon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.fleetStats.comingSoon}</span>
-                            <span className="text-[8px] text-muted-foreground uppercase leading-none">Soon</span>
-                        </div>
-                        <div className="flex flex-col text-center pl-1">
-                            <span className="text-lg font-bold text-green-600">{stats.fleetStats.ok}</span>
-                            <span className="text-[8px] text-muted-foreground uppercase leading-none">OK</span>
-                        </div>
-                        </div>
-                    </div>
-                    <Truck className="h-6 w-6 text-muted-foreground opacity-20" />
-                    </div>
-                </CardContent>
-                </Card>
-            </Link>
+        {/* ---------------- Main column ---------------- */}
+        <div className="space-y-6 md:space-y-8 min-w-0">
+          {/* Stat cards — one compact grid */}
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+            {canFinance &&
+              (revenueLoading ? (
+                <StatCardSkeleton />
+              ) : (
+                <ValueTile
+                  href="/finance/estimate-invoice"
+                  accent="border-l-emerald-600"
+                  label={`Revenue · ${PERIODS.find((p) => p.key === period)?.short}`}
+                  value={`Rs.${nf(stats.revenue.total)}`}
+                  icon={TrendingUp}
+                  iconClass="text-emerald-600"
+                  footer={
+                    <DeltaBadge current={stats.revenue.total} previous={stats.prevRevenue.total} />
+                  }
+                />
+              ))}
 
-            <Link href="/finance/cheque-generator" className="block">
-                <Card className={cn(
-                "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm", 
-                stats.chequeStats.overdue > 0 ? "border-l-destructive bg-destructive/5" : (stats.chequeStats.soon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-blue-500")
-                )}>
-                <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                    <div className="space-y-1 w-full text-left">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Cheque Alerts</p>
-                        <div className="grid grid-cols-3 gap-1 mt-2">
-                        <div className="flex flex-col text-center">
-                            <span className={cn("text-lg font-bold", stats.chequeStats.overdue > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.chequeStats.overdue}</span>
-                            <span className="text-[8px] text-muted-foreground uppercase leading-none">Overdue</span>
-                        </div>
-                        <div className="flex flex-col text-center border-x px-1">
-                            <span className={cn("text-lg font-bold", stats.chequeStats.soon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.chequeStats.soon}</span>
-                            <span className="text-[8px] text-muted-foreground uppercase leading-none">Soon</span>
-                        </div>
-                        <div className="flex flex-col text-center pl-1">
-                            <span className="text-lg font-bold text-blue-600">{stats.chequeStats.notDue}</span>
-                            <span className="text-[8px] text-muted-foreground uppercase leading-none">Not Due</span>
-                        </div>
-                        </div>
-                    </div>
-                    <Clock className="h-6 w-6 text-muted-foreground opacity-20" />
-                    </div>
-                </CardContent>
-                </Card>
-            </Link>
+            {canFleet &&
+              (alertsLoading ? (
+                <StatCardSkeleton wide />
+              ) : (
+                <TripleTile
+                  href="/fleet/policies"
+                  label="Fleet Alerts"
+                  icon={Truck}
+                  accent={
+                    stats.fleetStats.expired > 0
+                      ? 'border-l-destructive bg-destructive/5'
+                      : stats.fleetStats.comingSoon > 0
+                      ? 'border-l-amber-500 bg-amber-50/50'
+                      : 'border-l-green-500'
+                  }
+                  items={[
+                    {
+                      v: stats.fleetStats.expired,
+                      l: 'Expired',
+                      c: stats.fleetStats.expired > 0 ? 'text-destructive' : 'text-muted-foreground',
+                    },
+                    {
+                      v: stats.fleetStats.comingSoon,
+                      l: 'Soon',
+                      c: stats.fleetStats.comingSoon > 0 ? 'text-amber-600' : 'text-muted-foreground',
+                    },
+                    { v: stats.fleetStats.ok, l: 'OK', c: 'text-green-600' },
+                  ]}
+                />
+              ))}
 
-            <Link href="/finance/estimate-invoice" className="block">
-                <Card className="border-l-4 border-l-emerald-600 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
-                <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                    <div className="space-y-1 text-left">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">MTD Revenue Pulse</p>
-                        <div className="flex items-baseline gap-2">
-                        <span className="text-xl font-black">Rs.{stats.mtdRevenue.toLocaleString()}</span>
-                        <ArrowUpRight className="h-3 w-3 text-emerald-600" />
-                        </div>
-                    </div>
-                    <TrendingUp className="h-6 w-6 text-emerald-600 opacity-20" />
-                    </div>
-                </CardContent>
-                </Card>
-            </Link>
-            </div>
+            {canFinance &&
+              (alertsLoading ? (
+                <StatCardSkeleton wide />
+              ) : (
+                <TripleTile
+                  href="/finance/cheque-generator"
+                  label="Cheque Alerts"
+                  icon={Clock}
+                  accent={
+                    stats.chequeStats.overdue > 0
+                      ? 'border-l-destructive bg-destructive/5'
+                      : stats.chequeStats.soon > 0
+                      ? 'border-l-amber-500 bg-amber-50/50'
+                      : 'border-l-blue-500'
+                  }
+                  items={[
+                    {
+                      v: stats.chequeStats.overdue,
+                      l: 'Overdue',
+                      c: stats.chequeStats.overdue > 0 ? 'text-destructive' : 'text-muted-foreground',
+                    },
+                    {
+                      v: stats.chequeStats.soon,
+                      l: 'Soon',
+                      c: stats.chequeStats.soon > 0 ? 'text-amber-600' : 'text-muted-foreground',
+                    },
+                    { v: stats.chequeStats.notDue, l: 'Not Due', c: 'text-blue-600' },
+                  ]}
+                />
+              ))}
 
-            <Card className="shadow-lg border-gray-100 bg-white overflow-hidden">
-                <CardHeader className="bg-primary/5 border-b py-4 px-6 flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle className="text-sm font-black uppercase tracking-tight">Revenue Pulse (Last 30 Days)</CardTitle>
-                        <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Aggregated daily income across all functional units.</CardDescription>
-                    </div>
-                    <div className="flex gap-4">
-                        {['Manufacturing', 'Fleet', 'Rental'].map(source => (
-                            <div key={source} className="flex items-center gap-1.5">
-                                <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: (chartConfig as any)[source].color }} />
-                                <span className="text-[9px] font-black uppercase text-muted-foreground tracking-tighter">{source}</span>
-                            </div>
-                        ))}
-                    </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <div className="h-[350px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
-                                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                                <XAxis 
-                                    dataKey="name" 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{ fontSize: 9, fontWeight: 700 }} 
-                                    dy={10}
-                                />
-                                <YAxis 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{ fontSize: 9, fontWeight: 700 }} 
-                                    tickFormatter={(v) => `Rs.${v / 1000}k`}
-                                />
-                                <Tooltip 
-                                    content={<ChartTooltipContent className="bg-white/95 backdrop-blur shadow-xl border-none ring-1 ring-black/5" />} 
-                                />
-                                <Area 
-                                    type="monotone" 
-                                    dataKey="revenue" 
-                                    stroke="hsl(var(--primary))" 
-                                    strokeWidth={3}
-                                    fillOpacity={1} 
-                                    fill="url(#colorRevenue)" 
-                                />
-                                <Area type="monotone" dataKey="Manufacturing" stackId="1" stroke={chartConfig.Manufacturing.color} fill={chartConfig.Manufacturing.color} fillOpacity={0.4} />
-                                <Area type="monotone" dataKey="Fleet" stackId="1" stroke={chartConfig.Fleet.color} fill={chartConfig.Fleet.color} fillOpacity={0.4} />
-                                <Area type="monotone" dataKey="Rental" stackId="1" stroke={chartConfig.Rental.color} fill={chartConfig.Rental.color} fillOpacity={0.4} />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </CardContent>
-            </Card>
+            {canPO && (
+              <ValueTile
+                href="/purchase-orders/list"
+                accent="border-l-amber-500"
+                label="Open Procurement"
+                value={String(stats.openPOs)}
+                sub="Active Orders"
+                icon={ShoppingCart}
+                iconClass="text-amber-500"
+              />
+            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <Link href="/purchase-orders/list" className="block">
-                    <Card className="border-l-4 border-l-amber-500 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                            <div className="space-y-1 text-left">
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Open Procurement</p>
-                                <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-bold">{stats.openPOs}</span>
-                                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Active Orders</span>
-                                </div>
-                            </div>
-                            <ShoppingCart className="h-6 w-6 text-amber-500 opacity-20" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </Link>
+            {hasPermission('settings', 'read') && (
+              <ValueTile
+                href="/settings/system"
+                accent="border-l-purple-500"
+                label="System Visibility"
+                value={nf(stats.totalVisits)}
+                sub="Total Views"
+                icon={MousePointerClick}
+                iconClass="text-purple-500"
+              />
+            )}
+          </div>
 
-                <Link href="/settings/system" className="block">
-                    <Card className="border-l-4 border-l-purple-500 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                            <div className="space-y-1 text-left">
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">System Visibility</p>
-                                <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-bold">{stats.totalVisits.toLocaleString()}</span>
-                                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Total Views</span>
-                                </div>
-                            </div>
-                            <MousePointerClick className="h-6 w-6 text-purple-500 opacity-20" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </Link>
-            </div>
+          {/* ---------------- Revenue chart ---------------- */}
+          <Card className="shadow-lg bg-card overflow-hidden">
+            <CardHeader className="bg-primary/5 border-b py-4 px-4 md:px-6 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="min-w-0">
+                  <CardTitle className="text-sm font-black uppercase tracking-tight">
+                    Revenue Pulse
+                  </CardTitle>
+                  <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
+                    {periodLabel} · all units
+                  </CardDescription>
+                </div>
+                <div className="inline-flex rounded-lg border bg-background p-0.5 self-start">
+                  <button
+                    onClick={() => setChartMode('stacked')}
+                    className={cn(
+                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-black uppercase',
+                      chartMode === 'stacked' ? 'bg-muted' : 'text-muted-foreground'
+                    )}
+                  >
+                    <Layers className="h-3 w-3" /> By unit
+                  </button>
+                  <button
+                    onClick={() => setChartMode('total')}
+                    className={cn(
+                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-black uppercase',
+                      chartMode === 'total' ? 'bg-muted' : 'text-muted-foreground'
+                    )}
+                  >
+                    <LineChartIcon className="h-3 w-3" /> Total
+                  </button>
+                </div>
+              </div>
+
+              {/* Legend + per-unit subtotals */}
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {(['Manufacturing', 'Fleet', 'Rental'] as const).map((source) => {
+                  const value =
+                    source === 'Manufacturing'
+                      ? stats.revenue.mfg
+                      : source === 'Fleet'
+                      ? stats.revenue.fleet
+                      : stats.revenue.rental;
+                  return (
+                    <div key={source} className="flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: chartConfig[source].color }}
+                      />
+                      <span className="text-[10px] font-black uppercase text-muted-foreground tracking-tight">
+                        {source}
+                      </span>
+                      <span className="text-[10px] font-bold tabular-nums">Rs.{nf(value)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-2 md:p-6">
+              {revenueLoading ? (
+                <Skeleton className="h-[200px] md:h-[320px] w-full rounded-lg" />
+              ) : !hasRevenue ? (
+                <div className="h-[200px] md:h-[320px] flex flex-col items-center justify-center text-center gap-2">
+                  <TrendingUp className="h-8 w-8 text-muted-foreground/30" />
+                  <p className="text-sm font-bold">No revenue recorded in this period</p>
+                  <p className="text-xs text-muted-foreground">
+                    Try a wider range, or add a trip / estimate to get started.
+                  </p>
+                </div>
+              ) : (
+                <ChartContainer
+                  config={chartConfig}
+                  className="h-[200px] md:h-[320px] w-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                      <XAxis
+                        dataKey="name"
+                        axisLine={false}
+                        tickLine={false}
+                        interval={tickInterval}
+                        tick={{ fontSize: 10, fontWeight: 700 }}
+                        dy={8}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        width={isMobile ? 38 : 56}
+                        tick={{ fontSize: 10, fontWeight: 700 }}
+                        tickFormatter={yTick}
+                      />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            className="bg-background/95 backdrop-blur shadow-xl border-none ring-1 ring-black/5"
+                            labelFormatter={(label, payload) => {
+                              const bs = (payload?.[0] as any)?.payload?.dateBS;
+                              return bs ? `${label} · ${bs} BS` : String(label);
+                            }}
+                            formatter={(value: any, name: any) => [`Rs. ${nf(Number(value))}`, name]}
+                          />
+                        }
+                      />
+                      {chartMode === 'total' ? (
+                        <Area
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="hsl(var(--primary))"
+                          strokeWidth={2.5}
+                          fillOpacity={1}
+                          fill="url(#colorRevenue)"
+                        />
+                      ) : (
+                        <>
+                          <Area
+                            type="monotone"
+                            dataKey="Manufacturing"
+                            stackId="1"
+                            stroke={chartConfig.Manufacturing.color}
+                            fill={chartConfig.Manufacturing.color}
+                            fillOpacity={0.45}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="Fleet"
+                            stackId="1"
+                            stroke={chartConfig.Fleet.color}
+                            fill={chartConfig.Fleet.color}
+                            fillOpacity={0.45}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="Rental"
+                            stackId="1"
+                            stroke={chartConfig.Rental.color}
+                            fill={chartConfig.Rental.color}
+                            fillOpacity={0.45}
+                          />
+                        </>
+                      )}
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
