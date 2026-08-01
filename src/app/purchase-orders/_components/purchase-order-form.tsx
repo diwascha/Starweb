@@ -675,7 +675,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             </CardHeader>
             <CardContent>
                 <div className="overflow-x-auto">
-                    <Table>
+                    <Table className="min-w-[800px]">
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[300px]">Material</TableHead>
