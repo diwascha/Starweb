@@ -425,28 +425,38 @@ export default function DashboardPage() {
         });
     }
 
-    if (chequeStats.overdue > 0 && hasPermission('finance', 'read')) {
-        const overdueCases = cheques.flatMap(c => 
+    const totalUrgentCheques = chequeStats.overdue + chequeStats.soon;
+    if (totalUrgentCheques > 0 && hasPermission('finance', 'read')) {
+        const urgentCases = cheques.flatMap(c => 
             (c.splits || []).filter(s => {
                 if (s.status === 'Paid' || s.status === 'Canceled') return false;
                 const cd = parseDate(s.chequeDate);
-                return cd && differenceInDays(cd, today) < 0;
+                if (!cd) return false;
+                const days = differenceInDays(cd, today);
+                return days <= 7; // overdue or due within 7 days
             }).map(s => {
                 const cd = parseDate(s.chequeDate)!;
-                const overdueDays = Math.abs(differenceInDays(cd, today));
+                const days = differenceInDays(cd, today);
+                const isOverdue = days < 0;
                 return {
                     text: `${c.payeeName} - Due: ${toNepaliDate(s.chequeDate)}`,
-                    tag: `${overdueDays}d late`,
-                    tagColor: 'text-destructive bg-destructive/10'
+                    tag: isOverdue ? `${Math.abs(days)}d late` : (days === 0 ? 'Due today' : `Due in ${days}d`),
+                    tagColor: isOverdue ? 'text-destructive bg-destructive/10' : 'text-amber-600 bg-amber-100'
                 };
             })
-        ).slice(0, 3);
+        ).sort((a, b) => {
+            const aLate = a.tag.includes('late');
+            const bLate = b.tag.includes('late');
+            if (aLate && !bLate) return -1;
+            if (!aLate && bLate) return 1;
+            return 0;
+        }).slice(0, 3);
 
         actions.push({
-            label: 'Settle Overdue Cheques',
-            count: chequeStats.overdue,
+            label: 'Settle Overdue & Upcoming Cheques',
+            count: totalUrgentCheques,
             href: '/finance/cheque-generator',
-            items: overdueCases
+            items: urgentCases
         });
     }
 
