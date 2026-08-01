@@ -94,13 +94,6 @@ function startOfBsMonthLocal(ref: Date): Date {
 
 type PeriodKey = '7d' | '30d' | 'bsMonth' | '90d';
 
-const PERIODS: { key: PeriodKey; label: string; short: string }[] = [
-  { key: '7d', label: '7 Days', short: '7D' },
-  { key: '30d', label: '30 Days', short: '30D' },
-  { key: 'bsMonth', label: 'This BS Month', short: 'BS' },
-  { key: '90d', label: '90 Days', short: '90D' },
-];
-
 /* ------------------------------------------------------------------ */
 /* Small presentational pieces                                         */
 /* ------------------------------------------------------------------ */
@@ -300,7 +293,6 @@ export default function DashboardPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
 
-  const [period, setPeriod] = useState<PeriodKey>('30d');
   const [showCalendar, setShowCalendar] = useState(false);
 
   const [ready, setReady] = useState<Record<string, boolean>>({});
@@ -342,29 +334,18 @@ export default function DashboardPage() {
     return () => unsubs.forEach((unsub) => unsub?.());
   }, [markReady]);
 
-  const { rangeStart, rangeEnd, prevStart, prevEnd, periodLabel } = useMemo(() => {
+  const { rangeStart, rangeEnd, prevStart, prevEnd } = useMemo(() => {
     const end = startOfToday();
-    let start: Date;
-    let label: string;
-
-    if (period === 'bsMonth') {
-      start = startOfBsMonthLocal(end);
-      label = `${toNepaliDate(start.toISOString())} → today`;
-    } else {
-      const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
-      start = subDays(end, days - 1);
-      label = `Last ${days} days`;
-    }
-
-    const span = Math.max(1, differenceInDays(end, start) + 1);
+    const days = 30;
+    const start = subDays(end, days - 1);
+    const span = days;
     return {
       rangeStart: start,
       rangeEnd: end,
       prevStart: subDays(start, span),
       prevEnd: subDays(start, 1),
-      periodLabel: label,
     };
-  }, [period]);
+  }, []);
 
   const { stats, urgentActions } = useMemo(() => {
     const today = startOfToday();
@@ -578,29 +559,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-lg border bg-muted/40 p-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setPeriod(p.key)}
-              className={cn(
-                'px-3 py-1.5 rounded-md text-[11px] font-black uppercase tracking-wider transition-colors',
-                period === p.key
-                  ? 'bg-background shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <span className="md:hidden">{p.short}</span>
-              <span className="hidden md:inline">{p.label}</span>
-            </button>
-          ))}
-        </div>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-          {periodLabel}
-        </span>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 lg:gap-8 items-start">
         {/* ---------------- Main column ---------------- */}
         <div className="space-y-6 md:space-y-8 min-w-0">
@@ -663,7 +621,7 @@ export default function DashboardPage() {
                 <ValueTile
                   href="/finance/estimate-invoice"
                   accent="border-l-emerald-600"
-                  label={`Revenue · ${PERIODS.find((p) => p.key === period)?.short}`}
+                  label={`Revenue · Last 30 Days`}
                   value={`Rs.${nf(stats.revenue.total)}`}
                   icon={TrendingUp}
                   iconClass="text-emerald-600"
