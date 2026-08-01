@@ -21,7 +21,7 @@ import { addEstimatedInvoice, onEstimatedInvoicesUpdate, updateEstimatedInvoice 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { InvoiceView } from './invoice-view';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 interface InvoiceCalculatorProps {
   invoiceToEdit?: EstimatedInvoice;
@@ -292,91 +292,94 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
             </div>
 
             <Card className="p-0 overflow-hidden shadow-sm border-gray-200">
-                <Table>
-                    <TableHeader className="bg-muted/50">
-                        <TableRow>
-                            <TableHead className="w-12"></TableHead>
-                            <TableHead>Product / Particulars</TableHead>
-                            <TableHead className="w-32">Qty</TableHead>
-                            <TableHead className="w-32">Rate</TableHead>
-                            <TableHead className="w-32 text-right pr-6">Amount</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {items.map((item, index) => (
-                            <TableRow key={item.id} className="h-14">
-                                <TableCell className="pl-4">
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        onClick={() => setItems(items.filter((_, i) => i !== index))} 
-                                        className="text-destructive h-8 w-8 hover:bg-red-50"
-                                        disabled={items.length === 1}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </TableCell>
-                                <TableCell>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" className="w-full justify-between h-10 text-xs font-normal bg-white">
-                                                {item.productName || "Select product..."}
-                                                <ChevronDown className="h-3 w-3 opacity-50"/>
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="p-0 w-[400px]">
-                                            <Command>
-                                                <CommandInput 
-                                                    placeholder="Search catalog..." 
-                                                    value={productSearch} 
-                                                    onValueChange={setProductSearch}
-                                                />
-                                                <CommandList>
-                                                    <CommandEmpty>
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            className="w-full justify-start text-xs text-primary font-bold" 
-                                                            onClick={() => {
-                                                                if (!party) {
-                                                                    toast({ title: 'Selection Required', description: 'Select a customer first.', variant: 'destructive' });
-                                                                    return;
-                                                                }
-                                                                setProductForm({ name: productSearch, rate: '' });
-                                                                setActiveRowIndex(index);
-                                                                setIsProductDialogOpen(true);
-                                                            }}
-                                                        >
-                                                            <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}" to catalog
-                                                        </Button>
-                                                    </CommandEmpty>
-                                                    <CommandGroup>
-                                                        {filteredProducts.map(p => (
-                                                            <CommandItem 
-                                                                key={p.id} 
-                                                                value={p.name} 
-                                                                onSelect={() => handleItemChange(index, 'productName', p.name)} 
-                                                                className="text-xs flex items-center justify-between"
-                                                            >
-                                                                <div className="flex items-center">
-                                                                    <Check className={cn("mr-2 h-3 w-3", item.productName === p.name ? "opacity-100" : "opacity-0")} />
-                                                                    <span>{p.name}</span>
-                                                                </div>
-                                                                <span className="text-[10px] text-muted-foreground font-mono">Rs. {p.rate}</span>
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-                                </TableCell>
-                                <TableCell><Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} className="h-10 font-bold" /></TableCell>
-                                <TableCell><Input type="number" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)} className="h-10" /></TableCell>
-                                <TableCell className="text-right pr-6 font-bold tabular-nums">Rs. {item.gross.toLocaleString()}</TableCell>
+                <ScrollArea className="w-full">
+                    <Table className="min-w-[800px]">
+                        <TableHeader className="bg-muted/50">
+                            <TableRow>
+                                <TableHead className="w-12"></TableHead>
+                                <TableHead>Product / Particulars</TableHead>
+                                <TableHead className="w-24">Qty</TableHead>
+                                <TableHead className="w-28">Rate</TableHead>
+                                <TableHead className="w-32 text-right pr-6">Amount</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {items.map((item, index) => (
+                                <TableRow key={item.id} className="h-14">
+                                    <TableCell className="pl-4">
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            onClick={() => setItems(items.filter((_, i) => i !== index))} 
+                                            className="text-destructive h-8 w-8 hover:bg-red-50"
+                                            disabled={items.length === 1}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className="w-full justify-between h-10 text-xs font-normal bg-white">
+                                                    <span className="truncate">{item.productName || "Select product..."}</span>
+                                                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0"/>
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="p-0 w-[min(calc(100vw-2rem),400px)]">
+                                                <Command>
+                                                    <CommandInput 
+                                                        placeholder="Search catalog..." 
+                                                        value={productSearch} 
+                                                        onValueChange={setProductSearch}
+                                                    />
+                                                    <CommandList>
+                                                        <CommandEmpty>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                className="w-full justify-start text-xs text-primary font-bold" 
+                                                                onClick={() => {
+                                                                    if (!party) {
+                                                                        toast({ title: 'Selection Required', description: 'Select a customer first.', variant: 'destructive' });
+                                                                        return;
+                                                                    }
+                                                                    setProductForm({ name: productSearch, rate: '' });
+                                                                    setActiveRowIndex(index);
+                                                                    setIsProductDialogOpen(true);
+                                                                }}
+                                                            >
+                                                                <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}" to catalog
+                                                            </Button>
+                                                        </CommandEmpty>
+                                                        <CommandGroup>
+                                                            {filteredProducts.map(p => (
+                                                                <CommandItem 
+                                                                    key={p.id} 
+                                                                    value={p.name} 
+                                                                    onSelect={() => handleItemChange(index, 'productName', p.name)} 
+                                                                    className="text-xs flex items-center justify-between"
+                                                                >
+                                                                    <div className="flex items-center">
+                                                                        <Check className={cn("mr-2 h-3 w-3", item.productName === p.name ? "opacity-100" : "opacity-0")} />
+                                                                        <span>{p.name}</span>
+                                                                    </div>
+                                                                    <span className="text-[10px] text-muted-foreground font-mono">Rs. {p.rate}</span>
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </TableCell>
+                                    <TableCell><Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} className="h-10 font-bold" /></TableCell>
+                                    <TableCell><Input type="number" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)} className="h-10" /></TableCell>
+                                    <TableCell className="text-right pr-6 font-bold tabular-nums whitespace-nowrap">Rs. {item.gross.toLocaleString()}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                    <ScrollBar orientation="horizontal" />
+                </ScrollArea>
                 <div className="p-4 border-t bg-muted/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <Button variant="outline" size="sm" onClick={() => setItems([...items, { id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }])} className="h-9"><Plus className="mr-2 h-4 w-4" /> Add Row</Button>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-right w-full md:w-auto">
@@ -386,28 +389,28 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                         </div>
                         <div className="space-y-0.5">
                             <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Gross Amt</p>
-                            <p className="text-sm font-bold tabular-nums">Rs. {invoiceData.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            <p className="text-sm font-bold tabular-nums whitespace-nowrap">Rs. {invoiceData.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                         </div>
                         <div className="space-y-0.5">
                             <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">VAT (13%)</p>
-                            <p className="text-sm font-bold tabular-nums text-blue-600">Rs. {invoiceData.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            <p className="text-sm font-bold tabular-nums text-blue-600 whitespace-nowrap">Rs. {invoiceData.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                         </div>
                         <div className="space-y-0.5">
                             <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Net Total</p>
-                            <p className="text-base font-black text-blue-900 tabular-nums">Rs. {invoiceData.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            <p className="text-base font-black text-blue-900 tabular-nums whitespace-nowrap">Rs. {invoiceData.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                         </div>
                     </div>
                 </div>
             </Card>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex flex-wrap justify-end gap-3 pt-4">
                  {invoiceToEdit && (
-                    <Button variant="ghost" size="lg" className="h-12 px-8 font-bold" onClick={onSaveSuccess}>
+                    <Button variant="ghost" size="lg" className="h-12 px-8 font-bold flex-1 sm:flex-none" onClick={onSaveSuccess}>
                         <X className="mr-2 h-4 w-4" /> Cancel Edit
                     </Button>
                  )}
-                 <Button variant="outline" size="lg" className="h-12 px-8" onClick={() => setIsPreviewOpen(true)} disabled={!party || items.length === 0}><Printer className="mr-2 h-4 w-4" /> Preview & Print</Button>
-                 <Button size="lg" className="h-12 px-8 font-bold shadow-lg" onClick={handleSaveInvoice} disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save Document</Button>
+                 <Button variant="outline" size="lg" className="h-12 px-8 flex-1 sm:flex-none" onClick={() => setIsPreviewOpen(true)} disabled={!party || items.length === 0}><Printer className="mr-2 h-4 w-4" /> Preview & Print</Button>
+                 <Button size="lg" className="h-12 px-8 font-bold shadow-lg flex-1 sm:flex-none" onClick={handleSaveInvoice} disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save Document</Button>
             </div>
 
             <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
