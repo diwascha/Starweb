@@ -6,7 +6,6 @@ import {
   PieChart as RechartsPieChart,
   Cell,
 } from "recharts"
-import type { PieProps as RechartsPieProps } from "recharts"
 
 import {
   ChartConfig,
