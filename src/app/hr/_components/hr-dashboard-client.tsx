@@ -123,6 +123,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                 <CardContent>
                     <div className="text-2xl font-bold text-red-600">{absentToday}</div>
                 </CardContent>
+            </Card>
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Regular Hours (This Month)</CardTitle>

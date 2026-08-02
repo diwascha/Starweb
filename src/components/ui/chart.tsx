@@ -63,7 +63,7 @@ const ChartLegend = React.forwardRef<
         "flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground",
         className
       )}
-      ...props
+      {...props}
     >
       {legend.map(({ label, color, icon: Icon, value }, index) => {
         const IconComponent = Icon as any;
