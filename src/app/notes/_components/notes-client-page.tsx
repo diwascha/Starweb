@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit, Sparkles, Info, Clock } from 'lucide-react';
+import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit, Sparkles, Info } from 'lucide-react';
 import { onNoteItemsUpdate, addNoteItem, updateNoteItem, deleteNoteItem, cleanupOldItems } from '@/services/notes-service';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,12 +26,10 @@ import {
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import NepaliDate from 'nepali-date-converter';
 
 const renderContentWithBullets = (content: string) => {
     if (!content) return null;
@@ -48,46 +46,6 @@ const renderContentWithBullets = (content: string) => {
         return <p key={index}>{line}</p>;
     });
 };
-
-function LiveClock() {
-    const [now, setNow] = useState<Date | null>(null);
-
-    useEffect(() => {
-        setNow(new Date());
-        const interval = setInterval(() => setNow(new Date()), 1000);
-        return () => clearInterval(interval);
-    }, []);
-
-    if (!now) return null;
-
-    const nd = new NepaliDate(now);
-
-    return (
-        <Card className="bg-primary/5 border-primary/20 shadow-none ring-1 ring-primary/5">
-            <CardHeader className="pb-2">
-                <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5" />
-                    Live System Time
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="text-4xl font-black tabular-nums tracking-tighter text-gray-900 leading-none">
-                    {format(now, 'HH:mm:ss')}
-                </div>
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-dashed pb-1">
-                        <span>Nepali Date (BS)</span>
-                        <span className="text-primary font-black">{nd.format('YYYY/MM/DD')}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                        <span>English Date (AD)</span>
-                        <span>{format(now, 'yyyy-MM-dd')}</span>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
 
 export default function NotesClientPage({ initialItems }: { initialItems: NoteItem[] }) {
     const [items, setItems] = useState<NoteItem[]>(initialItems);
@@ -340,128 +298,123 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
 
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <div className="lg:col-span-3">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>My List</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleAddItem} className="flex flex-col gap-4 mb-4 p-4 border rounded-lg">
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <Select value={newItemType} onValueChange={(v: NoteItemType) => setNewItemType(v)}>
-                                    <SelectTrigger className="w-full sm:w-[120px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Todo">Todo</SelectItem>
-                                        <SelectItem value="Note">Note</SelectItem>
-                                        <SelectItem value="Reminder">Reminder</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Input
-                                    placeholder="Title..."
-                                    value={newItemTitle}
-                                    onChange={(e) => setNewItemTitle(e.target.value)}
-                                    required
-                                />
-                                {(newItemType === 'Reminder' || newItemType === 'Todo') && (
-                                   <div className="flex gap-2 w-full sm:w-auto">
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !newItemDueDate && "text-muted-foreground")}>
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {newItemDueDate ? format(newItemDueDate, "PPP") : <span>Set due date</span>}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0">
-                                                <DualCalendar selected={newItemDueDate || undefined} onSelect={(d) => setNewItemDueDate(d || null)} />
-                                            </PopoverContent>
-                                        </Popover>
-                                        {newItemType === 'Reminder' && (
-                                            <Input 
-                                                type="time"
-                                                className="w-[120px]"
-                                                value={newItemDueTime}
-                                                onChange={(e) => setNewItemDueTime(e.target.value)}
-                                            />
-                                        )}
-                                   </div>
-                                )}
-                            </div>
-                            <Textarea 
-                                placeholder="Add a description or content... Use * or - for bullets."
-                                value={newItemContent}
-                                onChange={(e) => setNewItemContent(e.target.value)}
+        <div className="max-w-5xl mx-auto">
+            <Card>
+                <CardHeader>
+                    <CardTitle>My List</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleAddItem} className="flex flex-col gap-4 mb-4 p-4 border rounded-lg">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <Select value={newItemType} onValueChange={(v: NoteItemType) => setNewItemType(v)}>
+                                <SelectTrigger className="w-full sm:w-[120px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Todo">Todo</SelectItem>
+                                    <SelectItem value="Note">Note</SelectItem>
+                                    <SelectItem value="Reminder">Reminder</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                placeholder="Title..."
+                                value={newItemTitle}
+                                onChange={(e) => setNewItemTitle(e.target.value)}
+                                required
                             />
-                            <Button type="submit" className="w-full sm:w-auto self-end">
-                                <Plus className="mr-2 h-4 w-4" /> Add Item
-                            </Button>
-                        </form>
-
-                        <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                            <div className="relative w-full">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search list..."
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    className="pl-8 w-full"
-                                />
-                            </div>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <AlertDialog>
-                                        <TooltipTrigger asChild>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="outline" disabled={isCleaning} className="w-full sm:w-auto">
-                                                    <Sparkles className="mr-2 h-4 w-4" />
-                                                    {isCleaning ? 'Cleaning...' : 'Clear Old Items'}
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                        </TooltipTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This will permanently delete completed todos and old notes/reminders older than 14 days. This action cannot be undone.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={handleCleanup}>Confirm</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                    <TooltipContent className="max-w-[250px] space-y-1">
-                                        <p className="font-bold flex items-center gap-1.5"><Info className="h-3 w-3" /> Maintenance Utility</p>
-                                        <p className="text-[10px] leading-tight">Deletes completed tasks, notes, and past reminders older than 14 days to keep your workspace optimized.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                            {(newItemType === 'Reminder' || newItemType === 'Todo') && (
+                                <div className="flex gap-2 w-full sm:w-auto">
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !newItemDueDate && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {newItemDueDate ? format(newItemDueDate, "PPP") : <span>Set due date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                            <DualCalendar selected={newItemDueDate || undefined} onSelect={(d) => setNewItemDueDate(d || null)} />
+                                        </PopoverContent>
+                                    </Popover>
+                                    {newItemType === 'Reminder' && (
+                                        <Input 
+                                            type="time"
+                                            className="w-[120px]"
+                                            value={newItemDueTime}
+                                            onChange={(e) => setNewItemDueTime(e.target.value)}
+                                        />
+                                    )}
+                                </div>
+                            )}
                         </div>
+                        <Textarea 
+                            placeholder="Add a description or content... Use * or - for bullets."
+                            value={newItemContent}
+                            onChange={(e) => setNewItemContent(e.target.value)}
+                        />
+                        <Button type="submit" className="w-full sm:w-auto self-end">
+                            <Plus className="mr-2 h-4 w-4" /> Add Item
+                        </Button>
+                    </form>
 
-                        <ScrollArea className="h-[calc(100vh-32rem)] pr-4">
-                            <div className="space-y-3">
-                                {items.length > 0 ? (
-                                    <>
-                                        {renderItemList(categorizedItems.today, 'Today')}
-                                        {renderItemList(categorizedItems.upcoming, 'Upcoming')}
-                                        {renderItemList(categorizedItems.past, 'Past')}
-                                    </>
-                                ) : (
-                                    <div className="text-center text-muted-foreground py-8">
-                                        <p>No items yet. Add one above to get started!</p>
-                                    </div>
-                                )}
-                            </div>
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
-            </div>
-            <div className="lg:col-span-1">
-                 <LiveClock />
-            </div>
+                    <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                        <div className="relative w-full">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search list..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="pl-8 w-full"
+                            />
+                        </div>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <AlertDialog>
+                                    <TooltipTrigger asChild>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="outline" disabled={isCleaning} className="w-full sm:w-auto">
+                                                <Sparkles className="mr-2 h-4 w-4" />
+                                                {isCleaning ? 'Cleaning...' : 'Clear Old Items'}
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                    </TooltipTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete completed todos and old notes/reminders older than 14 days. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleCleanup}>Confirm</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                                <TooltipContent className="max-w-[250px] space-y-1">
+                                    <p className="font-bold flex items-center gap-1.5"><Info className="h-3 w-3" /> Maintenance Utility</p>
+                                    <p className="text-[10px] leading-tight">Deletes completed tasks, notes, and past reminders older than 14 days to keep your workspace optimized.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
+
+                    <ScrollArea className="h-[calc(100vh-28rem)] pr-4">
+                        <div className="space-y-3">
+                            {items.length > 0 ? (
+                                <>
+                                    {renderItemList(categorizedItems.today, 'Today')}
+                                    {renderItemList(categorizedItems.upcoming, 'Upcoming')}
+                                    {renderItemList(categorizedItems.past, 'Past')}
+                                </>
+                            ) : (
+                                <div className="text-center text-muted-foreground py-8">
+                                    <p>No items yet. Add one above to get started!</p>
+                                </div>
+                            )}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            </Card>
 
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent>
