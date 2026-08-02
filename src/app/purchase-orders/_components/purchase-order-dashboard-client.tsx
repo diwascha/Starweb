@@ -128,7 +128,7 @@ export default function PurchaseOrderDashboardClient({ initialPurchaseOrders, in
                                 <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
                                 <YAxis />
                                 <Tooltip content={<ChartTooltipContent />} />
-                                <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                                <Bar dataKey="count" fill="hsl(var(--primary))" radius={4} />
                             </BarChart>
                         </ChartContainer>
                     ) : (
@@ -148,7 +148,7 @@ export default function PurchaseOrderDashboardClient({ initialPurchaseOrders, in
                         {recentPOs.length > 0 ? (
                              <div className="space-y-4">
                                 {recentPOs.map(po => (
-                                    <Link href={`/purchase-orders/${po.id}`} key={po.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                                    <Link href={`/purchase-orders/view?id=${po.id}`} key={po.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                                         <div>
                                             <p className="font-medium">PO #{po.poNumber}</p>
                                             <p className="text-sm text-muted-foreground">{po.companyName}</p>
@@ -184,7 +184,7 @@ export default function PurchaseOrderDashboardClient({ initialPurchaseOrders, in
                             <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={150} className="text-xs truncate"/>
                             <XAxis type="number" />
                             <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
-                            <Bar dataKey="avgLeadTime" fill="var(--color-avgLeadTime)" radius={4} />
+                            <Bar dataKey="avgLeadTime" fill="hsl(var(--primary))" radius={4} />
                         </BarChart>
                     </ResponsiveContainer>
                     </ChartContainer>
