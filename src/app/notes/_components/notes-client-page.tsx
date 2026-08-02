@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit, Sparkles, Info } from 'lucide-react';
+import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit, Sparkles, Info, Clock } from 'lucide-react';
 import { onNoteItemsUpdate, addNoteItem, updateNoteItem, deleteNoteItem, cleanupOldItems } from '@/services/notes-service';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,14 +24,14 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import NepaliDate from 'nepali-date-converter';
 
 const renderContentWithBullets = (content: string) => {
     if (!content) return null;
@@ -48,6 +48,46 @@ const renderContentWithBullets = (content: string) => {
         return <p key={index}>{line}</p>;
     });
 };
+
+function LiveClock() {
+    const [now, setNow] = useState<Date | null>(null);
+
+    useEffect(() => {
+        setNow(new Date());
+        const interval = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    if (!now) return null;
+
+    const nd = new NepaliDate(now);
+
+    return (
+        <Card className="bg-primary/5 border-primary/20 shadow-none ring-1 ring-primary/5">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5" />
+                    Live System Time
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="text-4xl font-black tabular-nums tracking-tighter text-gray-900 leading-none">
+                    {format(now, 'HH:mm:ss')}
+                </div>
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-dashed pb-1">
+                        <span>Nepali Date (BS)</span>
+                        <span className="text-primary font-black">{nd.format('YYYY/MM/DD')}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        <span>English Date (AD)</span>
+                        <span>{format(now, 'yyyy-MM-dd')}</span>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function NotesClientPage({ initialItems }: { initialItems: NoteItem[] }) {
     const [items, setItems] = useState<NoteItem[]>(initialItems);
@@ -420,15 +460,7 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                 </Card>
             </div>
             <div className="lg:col-span-1">
-                 <div className="space-y-2">
-                    <h2 className="text-lg font-semibold">Nepali Calendar</h2>
-                    <iframe 
-                        src="https://www.hamropatro.com/widgets/calender-small.php" 
-                        scrolling="no" 
-                        style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }}
-                        >
-                    </iframe>
-                </div>
+                 <LiveClock />
             </div>
 
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
