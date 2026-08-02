@@ -280,6 +280,7 @@ const ChartTooltipContent = React.forwardRef<
       nameKey,
       labelKey,
       "data-testid": testId,
+      ...props
     },
     ref
   ) => {
@@ -306,8 +307,9 @@ const ChartTooltipContent = React.forwardRef<
         return labelFormatter(item.value, payload)
       }
 
-      return item.payload[key]
-    }, [label, labelFormatter, payload, hideLabel, config, labelKey])
+      // @ts-ignore - label might not exist on some Recharts versions props
+      return props.label || item.payload?.[key]
+    }, [label, labelFormatter, payload, hideLabel, config, labelKey, props])
 
     if (!active || !payload || payload.length === 0) {
       return null
@@ -323,7 +325,7 @@ const ChartTooltipContent = React.forwardRef<
           <div className={cn("mb-1.5", labelClassName)}>{tooltipLabel}</div>
         ) : null}
         <div className="space-y-1.5">
-          {payload.map((item, index) => {
+          {payload.map((item: any, index: number) => {
             const key = `${nameKey || item.name || item.dataKey}`
             const itemConfig = config[key]
             const indicatorColor =

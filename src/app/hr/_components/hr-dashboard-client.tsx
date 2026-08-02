@@ -178,7 +178,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80}/>
                                 <XAxis type="number" />
                                 <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
-                                <Bar dataKey="count" fill="var(--color-count)" radius={4} layout="vertical" />
+                                <Bar dataKey="count" fill="var(--color-count)" radius={4} />
                             </BarChart>
                         </ResponsiveContainer>
                     </ChartContainer>

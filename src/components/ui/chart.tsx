@@ -197,7 +197,6 @@ const Pie = React.forwardRef<
   return (
     <RechartsPie
       {...props}
-      ref={ref}
       className={cn(
         "fill-chart-1 stroke-border",
         "[&_.recharts-pie-sector:focus-visible]:outline-none [&_.recharts-pie-sector:focus-visible]:ring-2 [&_.recharts-pie-sector:focus-visible]:ring-ring [&_.recharts-pie-sector:focus-visible]:ring-offset-2",

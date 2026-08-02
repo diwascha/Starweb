@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -149,7 +148,7 @@ export default function PurchaseOrderDashboardClient({ initialPurchaseOrders, in
                         {recentPOs.length > 0 ? (
                              <div className="space-y-4">
                                 {recentPOs.map(po => (
-                                    <Link href={`/purchase-orders/${po.id}`} key={po.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                                    <Link href={`/purchase-orders/${po.id}`} key={po.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                                         <div>
                                             <p className="font-medium">PO #{po.poNumber}</p>
                                             <p className="text-sm text-muted-foreground">{po.companyName}</p>
@@ -185,7 +184,7 @@ export default function PurchaseOrderDashboardClient({ initialPurchaseOrders, in
                             <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={150} className="text-xs truncate"/>
                             <XAxis type="number" dataKey="avgLeadTime" />
                             <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
-                            <Bar dataKey="avgLeadTime" fill="var(--color-avgLeadTime)" radius={4} layout="vertical" />
+                            <Bar dataKey="avgLeadTime" fill="var(--color-avgLeadTime)" radius={4} />
                         </BarChart>
                     </ResponsiveContainer>
                     </ChartContainer>
