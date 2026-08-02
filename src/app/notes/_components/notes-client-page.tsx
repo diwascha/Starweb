@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit, Sparkles } from 'lucide-react';
+import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit, Sparkles, Info } from 'lucide-react';
 import { onNoteItemsUpdate, addNoteItem, updateNoteItem, deleteNoteItem, cleanupOldItems } from '@/services/notes-service';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 const renderContentWithBullets = (content: string) => {
@@ -368,26 +369,36 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                                     className="pl-8 w-full"
                                 />
                             </div>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="outline" disabled={isCleaning} className="w-full sm:w-auto">
-                                        <Sparkles className="mr-2 h-4 w-4" />
-                                        {isCleaning ? 'Cleaning...' : 'Clear Old Items'}
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will permanently delete completed todos and old notes/reminders older than 14 days. This action cannot be undone.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleCleanup}>Confirm</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <AlertDialog>
+                                        <TooltipTrigger asChild>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="outline" disabled={isCleaning} className="w-full sm:w-auto">
+                                                    <Sparkles className="mr-2 h-4 w-4" />
+                                                    {isCleaning ? 'Cleaning...' : 'Clear Old Items'}
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                        </TooltipTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will permanently delete completed todos and old notes/reminders older than 14 days. This action cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleCleanup}>Confirm</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                    <TooltipContent className="max-w-[250px] space-y-1">
+                                        <p className="font-bold flex items-center gap-1.5"><Info className="h-3 w-3" /> Maintenance Utility</p>
+                                        <p className="text-[10px] leading-tight">Deletes completed tasks, notes, and past reminders older than 14 days to keep your workspace optimized.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
 
                         <ScrollArea className="h-[calc(100vh-32rem)] pr-4">
