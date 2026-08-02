@@ -25,9 +25,9 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -369,28 +369,28 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                         </div>
                         <TooltipProvider>
                             <Tooltip>
-                                <AlertDialog>
-                                    <TooltipTrigger asChild>
+                                <TooltipTrigger asChild>
+                                    <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button variant="outline" disabled={isCleaning} className="w-full sm:w-auto">
                                                 <Sparkles className="mr-2 h-4 w-4" />
                                                 {isCleaning ? 'Cleaning...' : 'Clear Old Items'}
                                             </Button>
                                         </AlertDialogTrigger>
-                                    </TooltipTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This will permanently delete completed todos and old notes/reminders older than 14 days. This action cannot be undone.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={handleCleanup}>Confirm</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will permanently delete completed todos and old notes/reminders older than 14 days. This action cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleCleanup}>Confirm</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TooltipTrigger>
                                 <TooltipContent className="max-w-[250px] space-y-1">
                                     <p className="font-bold flex items-center gap-1.5"><Info className="h-3 w-3" /> Maintenance Utility</p>
                                     <p className="text-[10px] leading-tight">Deletes completed tasks, notes, and past reminders older than 14 days to keep your workspace optimized.</p>

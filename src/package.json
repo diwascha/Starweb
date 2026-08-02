@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "clean": "rm -rf .next out node_modules"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "1.40.1",
@@ -72,7 +73,7 @@
     "@types/react-dom": "19.0.0",
     "autoprefixer": "10.4.20",
     "cross-env": "7.0.3",
-    "eslint": "9.21.0",
+    "eslint": "^9.0.0",
     "eslint-config-next": "15.5.18",
     "genkit-cli": "1.40.1",
     "postcss": "8.4.49",
