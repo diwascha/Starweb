@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { NoteItem, NoteItemType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit, Sparkles, Info, Clock } from 'lucide-react';
@@ -26,7 +26,7 @@ import {
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogDescription,
+  AlertDialogDescription as AlertDialogDesc,
   AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
@@ -340,8 +340,8 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
 
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="lg:col-span-3">
                 <Card>
                     <CardHeader>
                         <CardTitle>My List</CardTitle>
