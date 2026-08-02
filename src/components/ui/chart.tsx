@@ -63,7 +63,7 @@ const ChartLegend = React.forwardRef<
         "flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground",
         className
       )}
-      {...props}
+      ...props
     >
       {legend.map(({ label, color, icon: Icon, value }, index) => {
         const IconComponent = Icon as any;
@@ -139,14 +139,7 @@ const PieChart = React.forwardRef<
 })
 PieChart.displayName = "PieChart"
 
-const Pie = React.forwardRef<
-  any,
-  Omit<RechartsPieProps, "activeShape" | "inactiveShape"> & {
-    activeShape?: any
-    inactiveShape?: any
-    "data-testid"?: string
-  }
->(({ className, "data-testid": testId, ...props }, ref) => {
+const Pie = ({ className, "data-testid": testId, ...props }: any) => {
   const { config } = useChart()
   const [activeIndex, setActiveIndex] = React.useState<number | null>(0)
 
@@ -220,7 +213,7 @@ const Pie = React.forwardRef<
       ))}
     </RechartsPie>
   )
-})
+}
 Pie.displayName = "Pie"
 
 export {

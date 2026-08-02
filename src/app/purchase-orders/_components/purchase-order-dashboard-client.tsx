@@ -182,7 +182,7 @@ export default function PurchaseOrderDashboardClient({ initialPurchaseOrders, in
                         <BarChart data={companyLeadTimeData} layout="vertical" margin={{ top: 20, right: 20, left: 30, bottom: 5 }}>
                             <CartesianGrid horizontal={false} />
                             <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={150} className="text-xs truncate"/>
-                            <XAxis type="number" dataKey="avgLeadTime" />
+                            <XAxis type="number" />
                             <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
                             <Bar dataKey="avgLeadTime" fill="var(--color-avgLeadTime)" radius={4} />
                         </BarChart>

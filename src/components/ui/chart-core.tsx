@@ -254,15 +254,7 @@ ChartTooltipItem.displayName = "ChartTooltipItem"
 
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-    React.ComponentProps<"div"> & {
-      indicator?: "line" | "dot" | "dashed"
-      hideLabel?: boolean
-      hideIndicator?: boolean
-      labelKey?: string
-      nameKey?: string
-      "data-testid"?: string
-    }
+  any
 >(
   (
     {
@@ -307,7 +299,6 @@ const ChartTooltipContent = React.forwardRef<
         return labelFormatter(item.value, payload)
       }
 
-      // @ts-ignore - label might not exist on some Recharts versions props
       return props.label || item.payload?.[key]
     }, [label, labelFormatter, payload, hideLabel, config, labelKey, props])
 

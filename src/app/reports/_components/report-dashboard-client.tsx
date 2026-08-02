@@ -77,6 +77,7 @@ export default function ReportDashboardClient({ initialReports, initialProducts 
                 <CardContent>
                     <div className="text-2xl font-bold">{totalProducts}</div>
                 </CardContent>
+            </Card>
        </div>
 
        <div className="grid gap-6 md:grid-cols-2">
@@ -90,7 +91,7 @@ export default function ReportDashboardClient({ initialReports, initialProducts 
                         <ChartContainer config={chartConfig} className="h-[300px] w-full">
                         <ResponsiveContainer>
                             <BarChart data={productTestData} layout="vertical" margin={{ top: 20, right: 20, left: 30, bottom: 5 }}>
-                                <CartesianGrid horizontal={false} />
+                                <CartesianGrid vertical={false} />
                                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={100} className="text-xs truncate"/>
                                 <XAxis type="number" />
                                 <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
