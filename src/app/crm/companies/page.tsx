@@ -17,7 +17,8 @@ import {
     Eye,
     User,
     ChevronRight,
-    Target
+    Target,
+    Edit
 } from 'lucide-react';
 import type { Party, CRMContact, InteractionLog, CustomerClassification } from '@/lib/types';
 import { onPartiesUpdate, updateParty } from '@/services/party-service';
@@ -66,6 +67,9 @@ export default function CompaniesManagementPage() {
     const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
     const [logForm, setLogForm] = useState({ type: 'Call' as any, subject: '', description: '' });
 
+    const [isAttributesDialogOpen, setIsAttributesDialogOpen] = useState(false);
+    const [attributesForm, setAttributesForm] = useState({ clientScore: '', successFactor: '', accountMgr: '' });
+
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
@@ -102,6 +106,25 @@ export default function CompaniesManagementPage() {
             setLogForm({ type: 'Call', subject: '', description: '' });
         } catch {
             toast({ title: 'Error logging activity', variant: 'destructive' });
+        }
+    };
+
+    const handleSaveAttributes = async () => {
+        if (!selectedCompany || !user) return;
+        try {
+            const updatedCustomFields = {
+                ...(selectedCompany.customFields || {}),
+                ...attributesForm
+            };
+            await updateParty(selectedCompany.id, { 
+                customFields: updatedCustomFields,
+                lastModifiedBy: user.username 
+            });
+            toast({ title: 'Attributes Updated' });
+            setSelectedCompany(prev => prev ? { ...prev, customFields: updatedCustomFields } : null);
+            setIsAttributesDialogOpen(false);
+        } catch {
+            toast({ title: 'Update Failed', variant: 'destructive' });
         }
     };
 
@@ -388,19 +411,31 @@ export default function CompaniesManagementPage() {
                                 <Separator />
 
                                 <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Custom Attributes</h4>
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Custom Attributes</h4>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                                            setAttributesForm({
+                                                clientScore: selectedCompany.customFields?.clientScore || '',
+                                                successFactor: selectedCompany.customFields?.successFactor || '',
+                                                accountMgr: selectedCompany.customFields?.accountMgr || ''
+                                            });
+                                            setIsAttributesDialogOpen(true);
+                                        }}>
+                                            <Edit className="h-3 w-3" />
+                                        </Button>
+                                    </div>
                                     <div className="grid grid-cols-1 gap-4">
                                         <div className="space-y-1">
                                             <Label className="text-[9px] uppercase font-bold opacity-50">Client Score</Label>
-                                            <p className="text-xs font-black">Grade A+ (Strategic)</p>
+                                            <p className="text-xs font-black">{selectedCompany.customFields?.clientScore || 'Not Assigned'}</p>
                                         </div>
                                         <div className="space-y-1">
                                             <Label className="text-[9px] uppercase font-bold opacity-50">Key Success Factor</Label>
-                                            <p className="text-xs font-black">On-time freight delivery is critical</p>
+                                            <p className="text-xs font-black">{selectedCompany.customFields?.successFactor || 'Not Defined'}</p>
                                         </div>
                                         <div className="space-y-1">
                                             <Label className="text-[9px] uppercase font-bold opacity-50">Assigned Account Mgr</Label>
-                                            <p className="text-xs font-black uppercase text-primary underline">Diwas Chaulagain</p>
+                                            <p className="text-xs font-black uppercase text-primary underline">{selectedCompany.customFields?.accountMgr || 'None'}</p>
                                         </div>
                                     </div>
                                 </section>
@@ -458,6 +493,33 @@ export default function CompaniesManagementPage() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsLogDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
                         <Button onClick={handleSaveLog} className="font-black text-xs uppercase h-11 px-10 shadow-lg shadow-primary/20">Commit Log</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isAttributesDialogOpen} onOpenChange={setIsAttributesDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Edit Custom Attributes</DialogTitle>
+                        <DialogDescription>Define strategic metadata for this client account.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-5 py-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Client Score</Label>
+                            <Input value={attributesForm.clientScore} onChange={e => setAttributesForm({...attributesForm, clientScore: e.target.value})} placeholder="e.g. Grade A+ (Strategic)" className="h-10" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Key Success Factor</Label>
+                            <Input value={attributesForm.successFactor} onChange={e => setAttributesForm({...attributesForm, successFactor: e.target.value})} placeholder="e.g. On-time delivery" className="h-10" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Assigned Account Mgr</Label>
+                            <Input value={attributesForm.accountMgr} onChange={e => setAttributesForm({...attributesForm, accountMgr: e.target.value})} placeholder="Manager Name" className="h-10" />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAttributesDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
+                        <Button onClick={handleSaveAttributes} className="font-black text-xs uppercase h-11 px-10 shadow-lg shadow-primary/20">Update Attributes</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
