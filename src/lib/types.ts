@@ -619,6 +619,27 @@ export interface Deal {
   lastModifiedAt?: string;
 }
 
+export type QuotationStatus = 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired';
+export interface QuotationItem { id: string; productName: string; quantity: number; rate: number; amount: number; }
+export interface Quotation {
+  id: string;
+  quotationNumber: string;
+  date: string; // AD ISO
+  dateBS: string; // "YYYY/MM/DD"
+  partyId: string;
+  partyName?: string;
+  dealId?: string; // optional link
+  items: QuotationItem[];
+  total: number;
+  status: QuotationStatus;
+  validUntilBS?: string;
+  remarks?: string;
+  createdBy: string;
+  createdAt: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
 export interface Party {
     id: string;
     name: string;
