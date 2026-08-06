@@ -1232,6 +1232,10 @@ export interface InteractionLog {
     contactId?: string;
     partyId?: string;
     createdAt: string;
+    taskStatus?: 'Pending' | 'Done';
+    taskDueDateBS?: string;
+    taskDueDate?: string;
+    assignee?: string;
 }
 
 export interface CRMContact {

@@ -23,11 +23,12 @@ import {
     Check,
     TrendingUp,
     Receipt,
-    Wallet
+    Wallet,
+    CheckCircle2
 } from 'lucide-react';
 import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp, Transaction } from '@/lib/types';
 import { onPartiesUpdate, updateParty } from '@/services/party-service';
-import { onContactsUpdate, onInteractionsUpdate, addInteraction, onFollowUpsUpdate, addFollowUp } from '@/services/crm-service';
+import { onContactsUpdate, onInteractionsUpdate, addInteraction, updateInteraction, onFollowUpsUpdate, addFollowUp } from '@/services/crm-service';
 import { getTransactionsByParty } from '@/services/transaction-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -73,7 +74,14 @@ export default function CompaniesManagementPage() {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     
     const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
-    const [logForm, setLogForm] = useState({ type: 'Call' as any, subject: '', description: '' });
+    const [logForm, setLogForm] = useState({ 
+        type: 'Call' as any, 
+        subject: '', 
+        description: '', 
+        contactId: '', 
+        assignee: '', 
+        taskDueDateBS: '' 
+    });
 
     const [isAttributesDialogOpen, setIsAttributesDialogOpen] = useState(false);
     const [attributesForm, setAttributesForm] = useState({ clientScore: '', successFactor: '', accountMgr: '' });
@@ -179,18 +187,50 @@ export default function CompaniesManagementPage() {
 
     const handleSaveLog = async () => {
         if (!user || !selectedCompany || !logForm.subject) return;
+        
+        let taskDueDate = '';
+        if (logForm.type === 'Task' && logForm.taskDueDateBS) {
+            try {
+                const parts = logForm.taskDueDateBS.split('/');
+                if (parts.length !== 3) throw new Error();
+                const nd = new NepaliDate(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                taskDueDate = nd.toJsDate().toISOString();
+            } catch {
+                toast({ title: 'Invalid Due Date', description: 'Use YYYY/MM/DD format.', variant: 'destructive' });
+                return;
+            }
+        }
+
         try {
             await addInteraction({
-                ...logForm,
+                type: logForm.type,
+                subject: logForm.subject,
+                description: logForm.description,
+                contactId: logForm.contactId || undefined,
                 date: new Date().toISOString(),
                 performer: user.username,
-                partyId: selectedCompany.id
+                partyId: selectedCompany.id,
+                taskStatus: logForm.type === 'Task' ? 'Pending' : undefined,
+                taskDueDateBS: logForm.type === 'Task' ? logForm.taskDueDateBS : undefined,
+                taskDueDate: logForm.type === 'Task' ? taskDueDate : undefined,
+                assignee: logForm.type === 'Task' ? logForm.assignee : undefined
             });
             toast({ title: 'Activity Logged' });
             setIsLogDialogOpen(false);
-            setLogForm({ type: 'Call', subject: '', description: '' });
+            setLogForm({ type: 'Call', subject: '', description: '', contactId: '', assignee: '', taskDueDateBS: '' });
         } catch {
             toast({ title: 'Error logging activity', variant: 'destructive' });
+        }
+    };
+
+    const handleMarkTaskDone = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (!user) return;
+        try {
+            await updateInteraction(id, { taskStatus: 'Done' });
+            toast({ title: 'Task Completed' });
+        } catch {
+            toast({ title: 'Error updating task', variant: 'destructive' });
         }
     };
 
@@ -471,21 +511,41 @@ export default function CompaniesManagementPage() {
                                         <History className="h-3.5 w-3.5" /> Interaction History
                                     </h4>
                                     <div className="space-y-3">
-                                        {sortedInteractions.filter(i => i.partyId === selectedCompany.id).map(log => (
-                                            <div key={log.id} className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm relative group">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant="outline" className="text-[8px] uppercase font-black px-1.5 h-4">{log.type}</Badge>
-                                                        <span className="text-xs font-black text-gray-900">{log.subject}</span>
+                                        {sortedInteractions.filter(i => i.partyId === selectedCompany.id).map(log => {
+                                            const linkedContact = contacts.find(c => c.id === log.contactId);
+                                            return (
+                                                <div key={log.id} className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm relative group">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge variant="outline" className={cn("text-[8px] uppercase font-black px-1.5 h-4", log.type === 'Task' && log.taskStatus === 'Pending' ? "bg-amber-50 text-amber-700 border-amber-200" : "")}>{log.type}</Badge>
+                                                            <span className="text-xs font-black text-gray-900">{log.subject}</span>
+                                                            {log.type === 'Task' && (
+                                                                <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.taskStatus === 'Done' ? "bg-gray-100 text-gray-500" : "bg-primary text-white")}>
+                                                                    {log.taskStatus || 'Pending'}
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            {log.type === 'Task' && log.taskStatus === 'Pending' && (
+                                                                <Button variant="outline" size="sm" onClick={(e) => handleMarkTaskDone(e, log.id)} className="h-6 text-[8px] font-black uppercase tracking-tighter border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                                                                    <CheckCircle2 className="mr-1 h-2.5 w-2.5" /> Mark Done
+                                                                </Button>
+                                                            )}
+                                                            <span className="text-[9px] font-bold text-muted-foreground uppercase">{format(new Date(log.date), "PP")}</span>
+                                                        </div>
                                                     </div>
-                                                    <span className="text-[9px] font-bold text-muted-foreground uppercase">{format(new Date(log.date), "PP")}</span>
+                                                    <p className="text-[11px] text-gray-600 leading-relaxed italic border-l-2 border-primary/20 pl-3">{log.description}</p>
+                                                    {log.type === 'Task' && log.taskDueDateBS && (
+                                                        <p className="mt-2 text-[9px] font-bold text-destructive flex items-center gap-1 uppercase">
+                                                            <Clock className="h-2.5 w-2.5" /> Target: {log.taskDueDateBS} {log.assignee ? `(For ${log.assignee})` : ''}
+                                                        </p>
+                                                    )}
+                                                    <div className="mt-3 text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1">
+                                                        <User className="h-2 w-2"/> Processed by {log.performer} {linkedContact ? `with ${linkedContact.name}` : ''}
+                                                    </div>
                                                 </div>
-                                                <p className="text-[11px] text-gray-600 leading-relaxed italic border-l-2 border-primary/20 pl-3">{log.description}</p>
-                                                <div className="mt-3 text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1">
-                                                    <User className="h-2 w-2"/> Processed by {log.performer}
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                         {sortedInteractions.filter(i => i.partyId === selectedCompany.id).length === 0 && (
                                             <div className="py-20 text-center opacity-40 italic text-xs uppercase font-black">No interaction logs found.</div>
                                         )}
@@ -656,15 +716,40 @@ export default function CompaniesManagementPage() {
                                         <SelectItem value="Email">Email</SelectItem>
                                         <SelectItem value="Meeting">Meeting</SelectItem>
                                         <SelectItem value="Note">Internal Note</SelectItem>
-                                        <SelectItem value="Task">Action Item</SelectItem>
+                                        <SelectItem value="Task">Action Item (Task)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Subject</Label>
-                                <Input value={logForm.subject} onChange={e => setLogForm({...logForm, subject: e.target.value})} placeholder="Purpose" className="h-10" />
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Contact Person (Optional)</Label>
+                                <Select value={logForm.contactId} onValueChange={v => setLogForm({...logForm, contactId: v})}>
+                                    <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="Internal Staff" /></SelectTrigger>
+                                    <SelectContent>
+                                        {contacts.filter(c => c.partyId === selectedCompany?.id).map(c => (
+                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Subject / Purpose</Label>
+                            <Input value={logForm.subject} onChange={e => setLogForm({...logForm, subject: e.target.value})} placeholder="Main topic" className="h-10 font-bold" />
+                        </div>
+
+                        {logForm.type === 'Task' && (
+                            <div className="grid grid-cols-2 gap-4 p-3 bg-primary/5 rounded-xl border border-primary/10 animate-in zoom-in-95">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase text-primary">Task Due Date (BS)</Label>
+                                    <Input value={logForm.taskDueDateBS} onChange={e => setLogForm({...logForm, taskDueDateBS: e.target.value})} placeholder="YYYY/MM/DD" className="h-9 font-mono" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase text-primary">Assignee</Label>
+                                    <Input value={logForm.assignee} onChange={e => setLogForm({...logForm, assignee: e.target.value})} placeholder="Name" className="h-9" />
+                                </div>
+                            </div>
+                        )}
+
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Narrative Details</Label>
                             <Textarea value={logForm.description} onChange={e => setLogForm({...logForm, description: e.target.value})} placeholder="Detailed conversation points..." className="min-h-[120px] text-sm resize-none" />
@@ -694,7 +779,7 @@ export default function CompaniesManagementPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsFollowUpDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
+                        <Button variant="outline" onClick={() => setIsLogDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
                         <Button onClick={handleSaveFollowUp} className="font-black text-xs uppercase h-11 px-10 shadow-lg shadow-primary/20">Schedule Action</Button>
                     </DialogFooter>
                 </DialogContent>

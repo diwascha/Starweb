@@ -66,7 +66,6 @@ export default function ContactsDirectoryPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
     const [editingContact, setEditingContact] = useState<CRMContact | null>(null);
-    // FIX 4: track contact pending deletion for confirmation dialog
     const [deletingContact, setDeletingContact] = useState<CRMContact | null>(null);
     const [form, setForm] = useState({
         name: '',
@@ -93,13 +92,15 @@ export default function ContactsDirectoryPage() {
     }, []);
 
     const filteredContacts = useMemo(() => {
-        return contacts.filter(c => 
-            c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            (c.email || '').toLowerCase().includes(searchQuery.toLowerCase())
-        ).sort((a, b) => a.name.localeCompare(b.name));
-    }, [contacts, searchQuery]);
+        return contacts.filter(c => {
+            const companyName = companies.find(p => p.id === c.partyId)?.name || '';
+            const q = searchQuery.toLowerCase();
+            return c.name.toLowerCase().includes(q) || 
+                   (c.email || '').toLowerCase().includes(q) ||
+                   companyName.toLowerCase().includes(q);
+        }).sort((a, b) => a.name.localeCompare(b.name));
+    }, [contacts, searchQuery, companies]);
 
-    // FIX 2: pick only the editable form fields — never spread the full document
     const openEditDialog = (c: CRMContact) => {
         setEditingContact(c);
         setForm({
@@ -117,7 +118,6 @@ export default function ContactsDirectoryPage() {
         if (!user || !form.name || !form.partyId) return;
         try {
             if (editingContact) {
-                // FIX 2: don't overwrite createdBy on update
                 await updateContact(editingContact.id, { ...form, lastModifiedBy: user.username });
                 toast({ title: 'Contact Updated' });
             } else {
@@ -153,7 +153,7 @@ export default function ContactsDirectoryPage() {
                     <div className="relative">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
-                            placeholder="Search contacts..." 
+                            placeholder="Search name, email, or company..." 
                             className="pl-8 w-64 bg-white" 
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
@@ -230,7 +230,6 @@ export default function ContactsDirectoryPage() {
                 </CardContent>
             </Card>
 
-            {/* FIX 4: Delete confirmation */}
             <AlertDialog open={!!deletingContact} onOpenChange={(open) => !open && setDeletingContact(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>

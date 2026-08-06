@@ -63,7 +63,11 @@ const fromFirestoreInteraction = (snapshot: QueryDocumentSnapshot<DocumentData>)
         performer: data.performer,
         contactId: data.contactId,
         partyId: data.partyId,
-        createdAt: data.createdAt
+        createdAt: data.createdAt,
+        taskStatus: data.taskStatus,
+        taskDueDateBS: data.taskDueDateBS,
+        taskDueDate: data.taskDueDate,
+        assignee: data.assignee
     };
 };
 
@@ -130,6 +134,11 @@ export const addInteraction = async (log: Omit<InteractionLog, 'id'>) => {
         ...log,
         createdAt: new Date().toISOString()
     });
+};
+
+export const updateInteraction = async (id: string, updates: Partial<InteractionLog>) => {
+    const docRef = doc(getInteractionsCollection(), id);
+    return updateDoc(docRef, updates);
 };
 
 export const onFollowUpsUpdate = (callback: (followups: FollowUp[]) => void): () => void => {
