@@ -53,8 +53,9 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
+import { cn, toNepaliDate } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 
 export default function FollowUpsPage() {
     const { user } = useAuth();
@@ -208,7 +209,7 @@ export default function FollowUpsPage() {
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Follow-up Intelligence</h1>
-                    <p className="text-muted-foreground text-sm font-medium">Strategic persistence and relationship maintenance.</p>
+                    <p className="text-muted-foreground text-sm font-medium italic">Strategic persistence and relationship maintenance.</p>
                 </div>
                 <Button onClick={handleOpenAddDialog} className="h-10 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 px-6">
                     <Plus className="mr-2 h-4 w-4" /> Schedule Action
