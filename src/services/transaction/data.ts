@@ -11,6 +11,7 @@ import {
     updateDoc, 
     deleteDoc, 
     getDoc,
+    where,
     DocumentData, 
     QueryDocumentSnapshot 
 } from 'firebase/firestore';
@@ -78,6 +79,22 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
 
 export const getTransactions = async (): Promise<Transaction[]> => {
     const q = query(transactionsCollection(), orderBy('date', 'desc'));
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(fromFirestore);
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.TRANSACTIONS,
+                operation: 'list',
+            }));
+        }
+        throw error;
+    }
+};
+
+export const getTransactionsByParty = async (partyId: string): Promise<Transaction[]> => {
+    const q = query(transactionsCollection(), where("partyId", "==", partyId), orderBy('date', 'desc'));
     try {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(fromFirestore);

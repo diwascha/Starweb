@@ -20,11 +20,15 @@ import {
     Target,
     Edit,
     Bell,
-    Check
+    Check,
+    TrendingUp,
+    Receipt,
+    Wallet
 } from 'lucide-react';
-import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp } from '@/lib/types';
+import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp, Transaction } from '@/lib/types';
 import { onPartiesUpdate, updateParty } from '@/services/party-service';
 import { onContactsUpdate, onInteractionsUpdate, addInteraction, onFollowUpsUpdate, addFollowUp } from '@/services/crm-service';
+import { getTransactionsByParty } from '@/services/transaction-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,6 +81,10 @@ export default function CompaniesManagementPage() {
     const [isFollowUpDialogOpen, setIsFollowUpDialogOpen] = useState(false);
     const [followUpForm, setFollowUpForm] = useState({ action: '', dueDateBS: '' });
 
+    // Financial cache per partyId
+    const [partyTransactions, setPartyTransactions] = useState<Record<string, Transaction[]>>({});
+    const [isLoadingFinancials, setIsLoadingFinancials] = useState(false);
+
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
@@ -112,6 +120,62 @@ export default function CompaniesManagementPage() {
             .filter(f => f.partyId === selectedCompany.id && f.status === 'Pending')
             .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
     }, [selectedCompany, followups]);
+
+    const handleOpenDetail = async (company: Party) => {
+        setSelectedCompany(company);
+        setIsDetailOpen(true);
+        
+        // Fetch financial data if not in cache
+        if (!partyTransactions[company.id]) {
+            setIsLoadingFinancials(true);
+            try {
+                const txns = await getTransactionsByParty(company.id);
+                setPartyTransactions(prev => ({ ...prev, [company.id]: txns }));
+            } catch (err) {
+                console.error("Financial fetch failed", err);
+            } finally {
+                setIsLoadingFinancials(false);
+            }
+        }
+    };
+
+    const financialData = useMemo(() => {
+        if (!selectedCompany || !partyTransactions[selectedCompany.id]) return null;
+        
+        const txns = partyTransactions[selectedCompany.id];
+        const today = new Date();
+        const todayBS = new NepaliDate(today);
+        // Fiscal Year starts at Shrawan (Month 3 in 0-indexed)
+        const currentFiscalYear = todayBS.getMonth() >= 3 ? todayBS.getYear() : todayBS.getYear() - 1;
+
+        let fiscalYearSales = 0;
+        let totalSales = 0;
+        let totalReceipts = 0;
+
+        txns.forEach(t => {
+            const tDate = new Date(t.date);
+            const tBS = new NepaliDate(tDate);
+            const tFiscalYear = tBS.getMonth() >= 3 ? tBS.getYear() : tBS.getYear() - 1;
+
+            if (t.type === 'Sales') {
+                totalSales += t.amount;
+                if (tFiscalYear === currentFiscalYear) {
+                    fiscalYearSales += t.amount;
+                }
+            } else if (t.type === 'Receipt') {
+                totalReceipts += t.amount;
+            }
+        });
+
+        const last5 = txns.slice(0, 5);
+
+        return {
+            fiscalYearSales,
+            indicativeBalance: totalSales - totalReceipts,
+            last5,
+            hasData: txns.length > 0
+        };
+    }, [selectedCompany, partyTransactions]);
 
     const handleSaveLog = async () => {
         if (!user || !selectedCompany || !logForm.subject) return;
@@ -265,7 +329,7 @@ export default function CompaniesManagementPage() {
                                     <TableRow 
                                         key={c.id} 
                                         className="hover:bg-muted/30 cursor-pointer h-16 group transition-colors" 
-                                        onClick={() => { setSelectedCompany(c); setIsDetailOpen(true); }}
+                                        onClick={() => handleOpenDetail(c)}
                                     >
                                         <TableCell className="pl-6">
                                             <div className="flex flex-col">
@@ -318,7 +382,7 @@ export default function CompaniesManagementPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
-                                                        <DropdownMenuItem onSelect={() => { setSelectedCompany(c); setIsDetailOpen(true); }}>
+                                                        <DropdownMenuItem onSelect={() => handleOpenDetail(c)}>
                                                             <Eye className="mr-2 h-4 w-4"/> Full Profile
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onSelect={() => { setSelectedCompany(c); setIsLogDialogOpen(true); }}>
@@ -452,6 +516,56 @@ export default function CompaniesManagementPage() {
                                             <Button size="sm" variant="outline" onClick={() => setIsFollowUpDialogOpen(true)} className="h-8 font-black text-[9px] uppercase tracking-widest">
                                                 <Plus className="mr-1.5 h-3 w-3" /> Schedule New
                                             </Button>
+                                        </div>
+                                    )}
+                                </section>
+
+                                <Separator />
+
+                                {/* NEW: Financial Snapshot Section */}
+                                <section className="space-y-4">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                        <TrendingUp className="h-3.5 w-3.5 text-primary" /> Financial Snapshot
+                                    </h4>
+                                    {isLoadingFinancials ? (
+                                        <div className="py-10 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto opacity-20"/></div>
+                                    ) : financialData?.hasData ? (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100">
+                                                    <p className="text-[8px] font-black uppercase text-blue-600 mb-1">Fiscal Year Sales</p>
+                                                    <p className="text-xs font-black text-gray-900 tabular-nums">Rs. {financialData.fiscalYearSales.toLocaleString('en-IN')}</p>
+                                                </div>
+                                                <div className={cn(
+                                                    "p-3 rounded-xl border",
+                                                    financialData.indicativeBalance > 0 ? "bg-red-50/50 border-red-100" : "bg-emerald-50/50 border-emerald-100"
+                                                )}>
+                                                    <p className={cn("text-[8px] font-black uppercase mb-1", financialData.indicativeBalance > 0 ? "text-red-600" : "text-emerald-600")}>Indicative Balance</p>
+                                                    <p className={cn("text-xs font-black tabular-nums", financialData.indicativeBalance > 0 ? "text-red-700" : "text-emerald-700")}>
+                                                        Rs. {Math.abs(financialData.indicativeBalance).toLocaleString('en-IN')}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-[9px] font-black uppercase text-muted-foreground px-1">Recent Transactions</p>
+                                                <div className="divide-y border rounded-xl bg-gray-50/50">
+                                                    {financialData.last5.map(t => (
+                                                        <div key={t.id} className="p-2 flex items-center justify-between">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[9px] font-bold text-gray-500 uppercase">{format(new Date(t.date), "MMM d, yyyy")}</span>
+                                                                <Badge variant="outline" className="text-[7px] h-3 px-1 w-fit uppercase font-black bg-white">{t.type}</Badge>
+                                                            </div>
+                                                            <span className={cn("text-[10px] font-black tabular-nums", t.type === 'Sales' ? "text-blue-700" : "text-emerald-700")}>
+                                                                {t.type === 'Sales' ? '+' : '-'} {t.amount.toLocaleString('en-IN')}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="p-6 rounded-xl border border-dashed text-center">
+                                            <p className="text-[10px] text-muted-foreground italic font-medium">No financial records.</p>
                                         </div>
                                     )}
                                 </section>
