@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, Suspense, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, History, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PurchaseForm } from '../../_components/purchase-form';
@@ -14,14 +14,10 @@ import type { Vehicle, Party, Account, Transaction, UnitOfMeasurement } from '@/
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 
-/**
- * @fileOverview Consolidated Edit page for Purchase transactions.
- */
-
-function EditPurchasePageContent(props: { searchParams: Promise<any> }) {
+function EditPurchasePageContent() {
     const router = useRouter();
-    const searchParams = use(props.searchParams);
-    const id = searchParams.id;
+    const searchParams = useSearchParams();
+    const id = searchParams.get('id');
     const { toast } = useToast();
     const { user } = useAuth();
 
@@ -149,10 +145,10 @@ function EditPurchasePageContent(props: { searchParams: Promise<any> }) {
     );
 }
 
-export default function EditPurchasePage(props: { params: Promise<any>, searchParams: Promise<any> }) {
+export default function EditPurchasePage() {
     return (
         <Suspense fallback={<div className="p-12 text-center">Initializing...</div>}>
-            <EditPurchasePageContent searchParams={props.searchParams} />
+            <EditPurchasePageContent />
         </Suspense>
     );
 }

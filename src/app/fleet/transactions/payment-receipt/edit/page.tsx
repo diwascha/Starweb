@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useState, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getVoucherTransactions, updateVoucher } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
@@ -11,14 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
 
-/**
- * @fileOverview Consolidated Edit page for Payment/Receipt vouchers.
- */
-
-function EditVoucherComponent(props: { searchParams: Promise<any> }) {
+function EditVoucherComponent() {
     const router = useRouter();
-    const searchParams = use(props.searchParams);
-    const voucherId = searchParams.voucherId;
+    const searchParams = useSearchParams();
+    const voucherId = searchParams.get('voucherId');
     const { toast } = useToast();
     const { user } = useAuth();
 
@@ -29,7 +25,10 @@ function EditVoucherComponent(props: { searchParams: Promise<any> }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!voucherId) return;
+        if (!voucherId) {
+          setLoading(false);
+          return;
+        }
 
         const fetchData = async () => {
             setLoading(true);
@@ -92,7 +91,7 @@ function EditVoucherComponent(props: { searchParams: Promise<any> }) {
             accounts={accounts}
             parties={parties}
             vehicles={vehicles}
-            transactions={[]} // Form handles next number internally now
+            transactions={[]}
             onFormSubmit={handleFormSubmit}
             onCancel={() => router.push('/fleet/transactions/payment-receipt/list')}
             initialValues={initialValues}
@@ -100,7 +99,7 @@ function EditVoucherComponent(props: { searchParams: Promise<any> }) {
     );
 }
 
-export default function EditVoucherPage(props: { params: Promise<any>, searchParams: Promise<any> }) {
+export default function EditVoucherPage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
@@ -108,7 +107,7 @@ export default function EditVoucherPage(props: { params: Promise<any>, searchPar
         <p className="text-muted-foreground">Modify payment/receipt records.</p>
       </header>
       <Suspense fallback={<div className="p-12 text-center">Initializing form...</div>}>
-          <EditVoucherComponent searchParams={props.searchParams} />
+          <EditVoucherComponent />
       </Suspense>
     </div>
   );

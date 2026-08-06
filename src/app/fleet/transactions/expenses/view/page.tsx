@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, Suspense, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getExpense, getExpenseByVoucherNo } from '@/services/expense-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
@@ -19,15 +19,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 
-/**
- * @fileOverview Dedicated detail view for Expense records.
- * Supports cross-referencing Transaction IDs to find the parent Expense record.
- */
-
-function ExpenseViewContent({ searchParams }: { searchParams: Promise<any> }) {
+function ExpenseViewContent() {
     const router = useRouter();
-    const params = use(searchParams);
-    const id = params.id;
+    const searchParams = useSearchParams();
+    const id = searchParams.get('id');
 
     const [expense, setExpense] = useState<Expense | null>(null);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -221,10 +216,10 @@ function ExpenseViewContent({ searchParams }: { searchParams: Promise<any> }) {
     );
 }
 
-export default function Page(props: { params: Promise<any>, searchParams: Promise<any> }) {
+export default function Page() {
     return (
         <Suspense fallback={<div className="p-12 text-center flex flex-col items-center justify-center h-[70vh] gap-4"><Loader2 className="animate-spin h-8 w-8 text-primary"/><p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Initializing...</p></div>}>
-            <ExpenseViewContent searchParams={props.searchParams} />
+            <ExpenseViewContent />
         </Suspense>
     );
 }

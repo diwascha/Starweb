@@ -1,20 +1,16 @@
 'use client';
 
-import { Suspense, useEffect, useState, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { TripSheetForm } from '../new/_components/trip-sheet-form';
 import { getTrip } from '@/services/trip-service';
 import type { Trip } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 
-/**
- * @fileOverview Consolidated Edit page for Sales - Trip Sheets.
- */
-
-function EditTripSheetContent(props: { searchParams: Promise<any> }) {
+function EditTripSheetContent() {
   const router = useRouter();
-  const searchParams = use(props.searchParams);
-  const id = searchParams.id;
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
   
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +24,8 @@ function EditTripSheetContent(props: { searchParams: Promise<any> }) {
             setLoading(false);
         })
         .catch(() => setLoading(false));
+    } else {
+      setLoading(false);
     }
   }, [id]);
 
@@ -45,10 +43,10 @@ function EditTripSheetContent(props: { searchParams: Promise<any> }) {
   return <TripSheetForm tripToEdit={trip} />;
 }
 
-export default function Page(props: { params: Promise<any>, searchParams: Promise<any> }) {
+export default function Page() {
   return (
     <Suspense fallback={<div className="p-6 text-center">Initializing...</div>}>
-      <EditTripSheetContent searchParams={props.searchParams} />
+      <EditTripSheetContent />
     </Suspense>
   );
 }

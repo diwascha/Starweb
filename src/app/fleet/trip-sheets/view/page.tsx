@@ -1,8 +1,7 @@
-
 'use client';
 
-import { useState, useEffect, Suspense, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getTrip } from '@/services/trip-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
@@ -10,16 +9,17 @@ import { onSettingUpdate } from '@/services/settings-service';
 import type { Trip, Vehicle, Party, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Loader2, ArrowLeft, Edit, Save } from 'lucide-react';
-import { toNepaliDate } from '@/lib/utils';
+import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { DEFAULT_FLEET_PROFILE } from '@/lib/constants';
+import { Badge } from '@/components/ui/badge';
 
-function TripSheetViewContent({ searchParams }: { searchParams: Promise<any> }) {
+function TripSheetViewContent() {
     const router = useRouter();
-    const params = use(searchParams);
-    const id = params.id;
+    const searchParams = useSearchParams();
+    const id = searchParams.get('id');
 
     const [trip, setTrip] = useState<Trip | null>(null);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -79,7 +79,7 @@ function TripSheetViewContent({ searchParams }: { searchParams: Promise<any> }) 
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)} className="h-10 font-bold uppercase text-[10px] tracking-widest"><Edit className="mr-2 h-3.5 w-3.5"/> Edit</Button>
-                    <Button onClick={() => window.print()} className="h-10 px-8 font-black uppercase text-[10px] tracking-widest"><Printer className="mr-2 h-4 w-4"/> Print</Button>
+                    <Button onClick={() => window.print()} className="h-10 px-8 font-black text-xs uppercase tracking-widest"><Printer className="mr-2 h-4 w-4"/> Print</Button>
                 </div>
             </header>
 
@@ -159,17 +159,17 @@ function TripSheetViewContent({ searchParams }: { searchParams: Promise<any> }) 
                     @page { size: A4; margin: 0.5in; }
                     body * { visibility: hidden; }
                     .printable-area, .printable-area * { visibility: visible; }
-                    .printable-area { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none; padding: 0; }
+                    .printable-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 10px; }
                 }
             `}</style>
         </div>
     );
 }
 
-export default function TripSheetViewPage(props: { params: Promise<any>, searchParams: Promise<any> }) {
+export default function TripSheetViewPage() {
     return (
         <Suspense fallback={<div className="p-12 text-center"><Loader2 className="animate-spin h-8 w-8 mx-auto"/></div>}>
-            <TripSheetViewContent searchParams={props.searchParams} />
+            <TripSheetViewContent />
         </Suspense>
     );
 }
