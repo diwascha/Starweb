@@ -9,24 +9,15 @@ import {
     Users, 
     History, 
     MoreHorizontal, 
-    ArrowRight, 
-    Mail, 
-    Phone, 
     MapPin, 
-    Edit, 
-    Trash2, 
     Plus,
     Search,
     ShieldCheck,
-    Briefcase,
-    Zap,
     Clock,
-    FileText,
-    TrendingUp,
-    ChevronRight,
     Loader2,
     Eye,
-    User
+    User,
+    ChevronRight
 } from 'lucide-react';
 import type { Party, CRMContact, InteractionLog } from '@/lib/types';
 import { onPartiesUpdate } from '@/services/party-service';
@@ -46,6 +37,14 @@ import {
     DropdownMenuItem, 
     DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import { 
+    Table, 
+    TableBody, 
+    TableCell, 
+    TableHead, 
+    TableHeader, 
+    TableRow 
+} from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -114,73 +113,126 @@ export default function CompaniesManagementPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Account Intelligence</h1>
-                    <p className="text-muted-foreground">Complete profiles and hierarchical relationship management.</p>
+                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Account Intelligence</h1>
+                    <p className="text-muted-foreground text-sm font-medium">Complete profiles and hierarchical relationship management.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="relative">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder="Filter accounts..." 
-                            className="pl-8 w-64 bg-white" 
+                            className="pl-8 w-64 bg-white h-10 border-gray-300 shadow-sm" 
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <Button variant="outline" asChild>
+                    <Button variant="outline" asChild className="h-10 font-bold text-xs uppercase tracking-widest">
                         <Link href="/settings/finance?tab=parties">Manage Partners</Link>
                     </Button>
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {isLoading ? (
-                    Array.from({length: 3}).map((_, i) => <Card key={i} className="h-48 animate-pulse bg-muted/20" />)
-                ) : filteredCompanies.map(c => {
-                    const primary = getPrimaryContact(c.id);
-                    const linkedCount = contacts.filter(con => con.partyId === c.id).length;
-                    const lastInteraction = interactions.find(i => i.partyId === c.id);
+            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader className="bg-muted/50">
+                            <TableRow className="hover:bg-transparent">
+                                <TableHead className="pl-6 font-black uppercase text-[10px] tracking-widest h-11">Company Name</TableHead>
+                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Primary Contact</TableHead>
+                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Ownership</TableHead>
+                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Last Activity</TableHead>
+                                <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest h-11">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-20">
+                                        <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/>
+                                    </TableCell>
+                                </TableRow>
+                            ) : filteredCompanies.map(c => {
+                                const primary = getPrimaryContact(c.id);
+                                const lastInteraction = interactions.find(i => i.partyId === c.id);
 
-                    return (
-                        <Card key={c.id} className="hover:shadow-md transition-all group border-gray-100 cursor-pointer" onClick={() => { setSelectedCompany(c); setIsDetailOpen(true); }}>
-                            <CardHeader className="pb-2">
-                                <div className="flex justify-between items-start">
-                                    <Badge variant="outline" className="text-[8px] uppercase tracking-widest bg-blue-50 border-blue-100 text-blue-700">{c.ownership}</Badge>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-48">
-                                            <DropdownMenuItem onSelect={() => { setSelectedCompany(c); setIsDetailOpen(true); }}><Eye className="mr-2 h-4 w-4"/> Full Profile</DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => { setSelectedCompany(c); setIsLogDialogOpen(true); }}><Clock className="mr-2 h-4 w-4"/> Log Activity</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                                <CardTitle className="text-xl font-black text-gray-900 tracking-tight leading-tight mt-2">{c.name}</CardTitle>
-                                <CardDescription className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {c.address || 'Location unassigned'}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="pt-4 space-y-4">
-                                <div className="p-3 rounded-xl bg-muted/20 border border-dashed space-y-2">
-                                    <div className="flex items-center justify-between text-[10px] font-black uppercase text-muted-foreground tracking-tighter">
-                                        <span>Primary Contact</span>
-                                        <span>{linkedCount} Total</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-7 w-7 rounded-lg bg-white border flex items-center justify-center font-bold text-xs text-primary">{primary?.name.charAt(0) || '?'}</div>
-                                        <div className="flex flex-col">
-                                            <span className="text-xs font-bold text-gray-800">{primary?.name || 'No contacts defined'}</span>
-                                            <span className="text-[9px] uppercase font-medium text-muted-foreground">{primary?.designation || 'Owner'}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                {lastInteraction && (
-                                    <div className="flex items-center gap-2 text-[10px] font-medium text-gray-500 italic">
-                                        <History className="h-3 w-3" /> Last Active: {format(new Date(lastInteraction.date), "PP")}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    );
-                })}
-            </div>
+                                return (
+                                    <TableRow 
+                                        key={c.id} 
+                                        className="hover:bg-muted/30 cursor-pointer h-16 group transition-colors" 
+                                        onClick={() => { setSelectedCompany(c); setIsDetailOpen(true); }}
+                                    >
+                                        <TableCell className="pl-6">
+                                            <div className="flex flex-col">
+                                                <span className="font-black text-gray-900 leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{c.name}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                                                    <MapPin className="h-2.5 w-2.5 text-primary opacity-50"/> {c.address || 'Location unassigned'}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {primary ? (
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-8 w-8 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center font-black text-xs text-primary shadow-inner">
+                                                        {primary.name.charAt(0)}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-black text-gray-800 uppercase tracking-tighter">{primary.name}</span>
+                                                        <span className="text-[9px] uppercase font-bold text-muted-foreground">{primary.designation || 'Staff'}</span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] text-muted-foreground italic font-medium uppercase opacity-50">No contacts defined</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.15em] bg-blue-50 border-blue-100 text-blue-700 px-2 h-5">
+                                                {c.ownership}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {lastInteraction ? (
+                                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-tight">
+                                                    <History className="h-3 w-3" /> {format(new Date(lastInteraction.date), "PP")}
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] text-muted-foreground opacity-30 uppercase font-black">—</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right pr-6" onClick={e => e.stopPropagation()}>
+                                            <div className="flex items-center justify-end gap-1">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <MoreHorizontal className="h-4 w-4"/>
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuItem onSelect={() => { setSelectedCompany(c); setIsDetailOpen(true); }}>
+                                                            <Eye className="mr-2 h-4 w-4"/> Full Profile
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => { setSelectedCompany(c); setIsLogDialogOpen(true); }}>
+                                                            <Clock className="mr-2 h-4 w-4"/> Log Activity
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                                <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                            {!isLoading && filteredCompanies.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-60 text-center text-muted-foreground italic">
+                                        <Building2 className="h-10 w-10 mx-auto opacity-10 mb-3"/>
+                                        <p className="text-sm font-medium uppercase tracking-widest">No accounts found in registry.</p>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
 
             {/* Profile Detail Dialog */}
             {selectedCompany && (
@@ -316,7 +368,7 @@ export default function CompaniesManagementPage() {
                 </Dialog>
             )}
 
-            <Dialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen}>
+            <Dialog open={isLogDialogOpen} onOpenChange={isLogDialogOpen ? () => setIsLogDialogOpen(false) : undefined}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Log Relationship Event</DialogTitle>
