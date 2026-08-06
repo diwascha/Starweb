@@ -506,7 +506,17 @@ export default function CompaniesManagementPage() {
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Client Score</Label>
-                            <Input value={attributesForm.clientScore} onChange={e => setAttributesForm({...attributesForm, clientScore: e.target.value})} placeholder="e.g. Grade A+ (Strategic)" className="h-10" />
+                            <Select value={attributesForm.clientScore} onValueChange={v => setAttributesForm({...attributesForm, clientScore: v})}>
+                                <SelectTrigger className="h-10 bg-white">
+                                    <SelectValue placeholder="Select score category..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Grade A+ (Strategic)">Grade A+ (Strategic)</SelectItem>
+                                    <SelectItem value="Grade A (Valued)">Grade A (Valued)</SelectItem>
+                                    <SelectItem value="Grade B (Growth)">Grade B (Growth)</SelectItem>
+                                    <SelectItem value="Grade C (Standard)">Grade C (Standard)</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Key Success Factor</Label>
