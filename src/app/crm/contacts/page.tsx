@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -16,7 +15,9 @@ import {
     ShieldCheck,
     CheckCircle2,
     X,
-    FilterX
+    FilterX,
+    ChevronsUpDown,
+    Check
 } from 'lucide-react';
 import type { CRMContact, Party } from '@/lib/types';
 import { onContactsUpdate, addContact, updateContact, deleteContact } from '@/services/crm-service';
@@ -28,7 +29,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
     DropdownMenu, 
@@ -52,6 +54,7 @@ export default function ContactsDirectoryPage() {
     const [searchQuery, setSearchQuery] = useState('');
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
     const [editingContact, setEditingContact] = useState<CRMContact | null>(null);
     const [form, setForm] = useState({
         name: '',
@@ -67,7 +70,10 @@ export default function ContactsDirectoryPage() {
         const unsubs = [
             onContactsUpdate(setContacts),
             onPartiesUpdate((data) => {
-                setCompanies(data.filter(p => p.type === 'Customer' || p.type === 'Both'));
+                setCompanies(
+                    data.filter(p => p.type === 'Customer' || p.type === 'Both')
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                );
                 setIsLoading(false);
             })
         ];
@@ -114,7 +120,7 @@ export default function ContactsDirectoryPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Contact Database</h1>
                     <p className="text-muted-foreground">Centralized directory of individual client personnel.</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <div className="relative">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
@@ -135,11 +141,11 @@ export default function ContactsDirectoryPage() {
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
-                                <TableHead className="pl-6 font-bold">Contact Name</TableHead>
-                                <TableHead className="font-bold">Company / Organization</TableHead>
-                                <TableHead className="font-bold">Contact Info</TableHead>
-                                <TableHead className="font-bold">Role</TableHead>
-                                <TableHead className="text-right pr-6">Actions</TableHead>
+                                <TableHead className="pl-6 font-bold text-[11px] uppercase tracking-wider">Contact Name</TableHead>
+                                <TableHead className="font-bold text-[11px] uppercase tracking-wider">Company / Organization</TableHead>
+                                <TableHead className="font-bold text-[11px] uppercase tracking-wider">Contact Info</TableHead>
+                                <TableHead className="font-bold text-[11px] uppercase tracking-wider">Role</TableHead>
+                                <TableHead className="text-right pr-6 font-bold text-[11px] uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -149,7 +155,7 @@ export default function ContactsDirectoryPage() {
                                 <TableRow key={c.id} className="hover:bg-muted/30 h-14 transition-colors">
                                     <TableCell className="pl-6">
                                         <div className="flex items-center gap-3">
-                                            <Avatar className="h-8 w-8 border">
+                                            <Avatar className="h-8 w-8 border shadow-sm rounded-xl">
                                                 <AvatarFallback className="text-[10px] font-bold bg-primary/5 text-primary">{c.name.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div className="flex items-center gap-2">
@@ -198,21 +204,63 @@ export default function ContactsDirectoryPage() {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900">{editingContact ? 'Edit Individual' : 'Add New Contact'}</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">{editingContact ? 'Modify Individual' : 'Add New Contact'}</DialogTitle>
                         <DialogDescription>Define a persona within a client organization.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Full Name</Label>
-                            <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="h-10 font-bold" />
+                            <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="h-10 font-bold" placeholder="e.g. John Doe" />
                         </div>
+                        
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Parent Company</Label>
-                            <Select value={form.partyId} onValueChange={v => setForm({...form, partyId: v})}>
-                                <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="Select Company"/></SelectTrigger>
-                                <SelectContent>{companies.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                            </Select>
+                            <Popover open={isCompanyPopoverOpen} onOpenChange={setIsCompanyPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={isCompanyPopoverOpen}
+                                        className="w-full justify-between h-10 bg-white font-normal"
+                                    >
+                                        {form.partyId
+                                            ? companies.find((company) => company.id === form.partyId)?.name
+                                            : "Select or search company..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Search company registry..." className="h-9" />
+                                        <CommandList>
+                                            <CommandEmpty>No companies found.</CommandEmpty>
+                                            <CommandGroup>
+                                                {companies.map((company) => (
+                                                    <CommandItem
+                                                        key={company.id}
+                                                        value={company.name}
+                                                        onSelect={() => {
+                                                            setForm({ ...form, partyId: company.id });
+                                                            setIsCompanyPopoverOpen(false);
+                                                        }}
+                                                        className="text-xs"
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                form.partyId === company.id ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {company.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label className="text-[10px] font-bold uppercase text-muted-foreground">Designation</Label>
@@ -225,9 +273,10 @@ export default function ContactsDirectoryPage() {
                                 </div>
                             </div>
                         </div>
+                        
                         <div className="grid grid-cols-2 gap-4 pt-2">
                              <div className="space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Email</Label>
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Email Address</Label>
                                 <Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="office@client.com" className="h-9" />
                             </div>
                              <div className="space-y-1.5">
