@@ -589,6 +589,7 @@ function SavedRatesList() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [selectedHistory, setSelectedHistory] = useState<any[]>([]);
     const [newRate, setNewRate] = useState<string>('');
+    const [newName, setNewName] = useState<string>('');
     const { toast } = useToast();
     const { user, getAllowedOwnerships } = useAuth();
     const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
@@ -614,6 +615,7 @@ function SavedRatesList() {
 
     const handleOpenRateDialog = (product: Product) => {
         setEditingProduct(product);
+        setNewName(product.name || '');
         setNewRate(String(product.rate || ''));
         setIsRateDialogOpen(true);
     };
@@ -625,12 +627,20 @@ function SavedRatesList() {
             toast({ title: 'Error', description: 'Please enter a valid rate.', variant: 'destructive' });
             return;
         }
+        if (!newName.trim()) {
+            toast({ title: 'Error', description: 'Product name is required.', variant: 'destructive' });
+            return;
+        }
         try {
-            await updateProduct(editingProduct.id, { rate: rateValue, lastModifiedBy: user.username });
-            toast({ title: 'Success', description: `Rate for ${editingProduct.name} updated.` });
+            await updateProduct(editingProduct.id, { 
+                name: newName.trim(),
+                rate: rateValue, 
+                lastModifiedBy: user.username 
+            });
+            toast({ title: 'Success', description: `Info for ${newName} updated.` });
             setIsRateDialogOpen(false);
         } catch (error) {
-            toast({ title: 'Error', description: 'Failed to update rate.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to update info.', variant: 'destructive' });
         }
     };
     
@@ -772,7 +782,7 @@ function SavedRatesList() {
                                            <History className="mr-1.5 h-3.5 w-3.5" /> History
                                        </Button>
                                        <Button variant="outline" size="sm" onClick={() => handleOpenRateDialog(prod)} className="h-8 text-[10px] uppercase font-black border-primary/20 text-primary">
-                                           <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit Rate
+                                           <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit Info
                                        </Button>
                                    </TableCell>
                                </TableRow>
@@ -844,11 +854,20 @@ function SavedRatesList() {
         <Dialog open={isRateDialogOpen} onOpenChange={setIsRateDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black uppercase">Edit Rate: {editingProduct?.name}</DialogTitle>
+                    <DialogTitle className="text-xl font-black uppercase">Edit Info: {editingProduct?.name}</DialogTitle>
                 </DialogHeader>
                 <div className="py-6 space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="rate-input" className="text-[10px] uppercase font-bold text-muted-foreground">New Standard Rate (NPR)</Label>
+                        <Label htmlFor="name-input" className="text-[10px] uppercase font-bold text-muted-foreground">Product Name</Label>
+                        <Input
+                            id="name-input"
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            className="h-10 font-bold"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="rate-input" className="text-[10px] uppercase font-bold text-muted-foreground">Standard Rate (NPR)</Label>
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-blue-400">रु</span>
                             <Input
@@ -864,7 +883,7 @@ function SavedRatesList() {
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsRateDialogOpen(false)} className="h-10 font-bold uppercase text-[10px]">Cancel</Button>
-                    <Button onClick={handleSaveRate} className="h-10 px-8 font-black uppercase text-[10px] shadow-lg shadow-primary/20">Commit Rate Update</Button>
+                    <Button onClick={handleSaveRate} className="h-10 px-8 font-black uppercase text-[10px] shadow-lg shadow-primary/20">Commit Changes</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
