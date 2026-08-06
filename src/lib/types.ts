@@ -579,6 +579,7 @@ export interface OwnershipCategory {
 }
 
 export type DealStage = 'Lead' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+export type CustomerClassification = 'Prospect' | 'Negotiation' | 'Customer' | 'Past Client';
 
 export interface Party {
     id: string;
@@ -598,6 +599,7 @@ export interface Party {
     lastModifiedAt?: string; // ISO string
     // CRM Metadata
     dealStage?: DealStage;
+    classification?: CustomerClassification;
     customFields?: Record<string, string>;
 }
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -17,10 +16,11 @@ import {
     Loader2,
     Eye,
     User,
-    ChevronRight
+    ChevronRight,
+    Target
 } from 'lucide-react';
-import type { Party, CRMContact, InteractionLog } from '@/lib/types';
-import { onPartiesUpdate } from '@/services/party-service';
+import type { Party, CRMContact, InteractionLog, CustomerClassification } from '@/lib/types';
+import { onPartiesUpdate, updateParty } from '@/services/party-service';
 import { onContactsUpdate, onInteractionsUpdate, addInteraction } from '@/services/crm-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -105,8 +105,38 @@ export default function CompaniesManagementPage() {
         }
     };
 
+    const handleUpdateClassification = async (newClassification: CustomerClassification) => {
+        if (!selectedCompany || !user) return;
+        try {
+            await updateParty(selectedCompany.id, { 
+                classification: newClassification,
+                lastModifiedBy: user.username 
+            });
+            toast({ title: 'Lifecycle Updated', description: `Status changed to ${newClassification}` });
+            // Update local selection to reflect changes in dialog immediately
+            setSelectedCompany(prev => prev ? { ...prev, classification: newClassification } : null);
+        } catch {
+            toast({ title: 'Update Failed', variant: 'destructive' });
+        }
+    };
+
     const getPrimaryContact = (partyId: string) => {
         return contacts.find(c => c.partyId === partyId && c.isPrimary) || contacts.find(c => c.partyId === partyId);
+    };
+
+    const getClassificationBadge = (classification?: CustomerClassification) => {
+        if (!classification) return null;
+        const variants: Record<CustomerClassification, string> = {
+            'Prospect': 'bg-blue-50 text-blue-700 border-blue-100',
+            'Negotiation': 'bg-amber-50 text-amber-700 border-amber-100',
+            'Customer': 'bg-emerald-50 text-emerald-700 border-emerald-100',
+            'Past Client': 'bg-gray-50 text-gray-700 border-gray-100'
+        };
+        return (
+            <Badge variant="outline" className={cn("text-[8px] font-black uppercase tracking-widest px-1.5 h-4 shadow-none", variants[classification])}>
+                {classification}
+            </Badge>
+        );
     };
 
     return (
@@ -139,6 +169,7 @@ export default function CompaniesManagementPage() {
                             <TableRow className="hover:bg-transparent">
                                 <TableHead className="pl-6 font-black uppercase text-[10px] tracking-widest h-11">Company Name</TableHead>
                                 <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Primary Contact</TableHead>
+                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Classification</TableHead>
                                 <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Ownership</TableHead>
                                 <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Last Activity</TableHead>
                                 <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest h-11">Actions</TableHead>
@@ -147,7 +178,7 @@ export default function CompaniesManagementPage() {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-20">
+                                    <TableCell colSpan={6} className="text-center py-20">
                                         <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/>
                                     </TableCell>
                                 </TableRow>
@@ -182,6 +213,11 @@ export default function CompaniesManagementPage() {
                                                 </div>
                                             ) : (
                                                 <span className="text-[10px] text-muted-foreground italic font-medium uppercase opacity-50">No contacts defined</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {getClassificationBadge(c.classification) || (
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-30">Unset</span>
                                             )}
                                         </TableCell>
                                         <TableCell>
@@ -223,7 +259,7 @@ export default function CompaniesManagementPage() {
                             })}
                             {!isLoading && filteredCompanies.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-60 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={6} className="h-60 text-center text-muted-foreground italic">
                                         <Building2 className="h-10 w-10 mx-auto opacity-10 mb-3"/>
                                         <p className="text-sm font-medium uppercase tracking-widest">No accounts found in registry.</p>
                                     </TableCell>
@@ -241,7 +277,10 @@ export default function CompaniesManagementPage() {
                         <DialogHeader className="p-8 border-b bg-primary/5 shrink-0">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                                 <div className="space-y-1">
-                                    <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">Company Record</Badge>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">Company Record</Badge>
+                                        {getClassificationBadge(selectedCompany.classification)}
+                                    </div>
                                     <DialogTitle className="text-3xl font-black text-gray-900 tracking-tighter uppercase">{selectedCompany.name}</DialogTitle>
                                     <DialogDescription className="flex items-center gap-3 font-medium">
                                         <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-primary"/> {selectedCompany.address}</span>
@@ -318,15 +357,32 @@ export default function CompaniesManagementPage() {
                             {/* Right Side: Quick Stats & Metadata */}
                             <div className="lg:col-span-1 p-8 space-y-8 bg-white overflow-y-auto">
                                 <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Deal Progression</h4>
-                                    <div className="space-y-3">
-                                        {['Lead', 'Qualified', 'Proposal', 'Negotiation', 'Closed Won'].map((stage, idx) => (
-                                            <div key={stage} className="flex items-center gap-3">
-                                                <div className={cn("w-2 h-2 rounded-full", idx <= 1 ? "bg-primary" : "bg-muted")} />
-                                                <span className={cn("text-[11px] font-bold uppercase", idx <= 1 ? "text-gray-900" : "text-muted-foreground")}>{stage}</span>
-                                            </div>
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                        <Target className="h-3 w-3"/> Lifecycle Classification
+                                    </h4>
+                                    <div className="flex flex-col gap-2">
+                                        {(['Prospect', 'Negotiation', 'Customer', 'Past Client'] as CustomerClassification[]).map((stage) => (
+                                            <Button
+                                                key={stage}
+                                                variant={selectedCompany.classification === stage ? "default" : "outline"}
+                                                size="sm"
+                                                className="justify-start h-9 text-[10px] font-black uppercase tracking-widest group"
+                                                onClick={() => handleUpdateClassification(stage)}
+                                            >
+                                                <div className={cn(
+                                                    "w-2 h-2 rounded-full mr-3 border shadow-sm transition-transform group-hover:scale-125",
+                                                    selectedCompany.classification === stage ? "bg-white border-white" : 
+                                                    stage === 'Prospect' ? "bg-blue-400 border-blue-200" :
+                                                    stage === 'Negotiation' ? "bg-amber-400 border-amber-200" :
+                                                    stage === 'Customer' ? "bg-emerald-500 border-emerald-200" : "bg-gray-400 border-gray-200"
+                                                )} />
+                                                {stage}
+                                            </Button>
                                         ))}
                                     </div>
+                                    <p className="text-[9px] text-muted-foreground italic font-medium leading-relaxed px-1">
+                                        Updating this status re-categorizes the account across the CRM intelligence layer.
+                                    </p>
                                 </section>
 
                                 <Separator />

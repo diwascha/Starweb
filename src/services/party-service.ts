@@ -16,7 +16,7 @@ import {
     setDoc,
     writeBatch
 } from 'firebase/firestore';
-import type { Party, PartyType, AccountOwnership } from '@/lib/types';
+import type { Party, PartyType, AccountOwnership, CustomerClassification } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -44,6 +44,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         createdAt: String(data.createdAt || ''),
         lastModifiedBy: data.lastModifiedBy ? String(data.lastModifiedBy) : undefined,
         lastModifiedAt: data.lastModifiedAt ? String(data.lastModifiedAt) : undefined,
+        // CRM Metadata
+        dealStage: data.dealStage,
+        classification: data.classification as CustomerClassification,
+        customFields: data.customFields || {},
     };
 }
 
