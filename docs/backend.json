@@ -81,6 +81,37 @@
         "ownership": { "type": "string" }
       },
       "required": ["voucherNo", "date", "vendorId", "avgGsm", "ownership"]
+    },
+    "CRMContact": {
+      "title": "CRM Contact",
+      "description": "An individual person associated with a client company.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "partyId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "designation": { "type": "string" },
+        "isPrimary": { "type": "boolean" },
+        "customFields": { "type": "object" }
+      },
+      "required": ["id", "partyId", "name"]
+    },
+    "InteractionLog": {
+      "title": "Interaction Log",
+      "description": "Log of communications with a contact or company.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "subject": { "type": "string" },
+        "type": { "type": "string", "enum": ["Call", "Email", "Meeting", "Note"] },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "contactId": { "type": "string" },
+        "partyId": { "type": "string" }
+      },
+      "required": ["id", "type", "date"]
     }
   },
   "auth": {
@@ -126,6 +157,14 @@
     "/settings/{id}": {
       "schema": { "type": "object" },
       "description": "System-wide configuration and branding."
+    },
+    "/crm_contacts/{id}": {
+      "schema": { "$ref": "#/entities/CRMContact" },
+      "description": "Individual client contacts."
+    },
+    "/crm_interactions/{id}": {
+      "schema": { "$ref": "#/entities/InteractionLog" },
+      "description": "Activity history for CRM entities."
     }
   }
 }

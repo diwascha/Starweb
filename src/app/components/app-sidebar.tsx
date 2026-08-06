@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -270,6 +271,22 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                 <div className="ml-4">
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/crm/companies')}>
+                            <Link href="/crm/companies">
+                                <Building2 />
+                                <span>Companies</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/crm/contacts')}>
+                            <Link href="/crm/contacts">
+                                <Users />
+                                <span>Contacts</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}>
                             <Link href="/crm/cost-report">

@@ -1,3 +1,4 @@
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -594,6 +595,9 @@ export interface Party {
     createdAt: string; // ISO string
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO string
+    // CRM Metadata
+    dealStage?: DealStage;
+    customFields?: Record<string, string>;
 }
 
 export interface Account {
@@ -608,7 +612,7 @@ export interface Account {
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;
-    lastModifiedAt?: string; // ISO string
+    lastModifiedAt?: string;
 }
 
 export interface TransactionItem {
@@ -855,7 +859,6 @@ export interface ChequeSplit {
     interval: number;
     status: ChequeStatus;
     partialPayments?: PartialPayment[];
-    cancellationReason?: string;
 }
 
 export interface Cheque {
@@ -1151,4 +1154,33 @@ export interface RentalBill {
   createdBy: string;
   createdAt: string;
   ownership: string;
+}
+
+// CRM Core Types
+export type DealStage = 'Lead' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+
+export interface InteractionLog {
+    id: string;
+    type: 'Call' | 'Email' | 'Meeting' | 'Note' | 'Task';
+    subject: string;
+    description: string;
+    date: string; // ISO
+    performer: string; // User name
+    contactId?: string;
+    partyId?: string;
+    createdAt: string;
+}
+
+export interface CRMContact {
+    id: string;
+    partyId: string; // Parent Company
+    name: string;
+    designation?: string;
+    email?: string;
+    phone?: string;
+    isPrimary: boolean;
+    customFields?: Record<string, string>;
+    createdBy: string;
+    createdAt: string;
+    lastModifiedBy?: string;
 }
