@@ -583,6 +583,24 @@ export type CustomerClassification = 'Prospect' | 'Negotiation' | 'Customer' | '
 
 // --- CRM Types ---
 
+export type FollowUpStatus = 'Pending' | 'Done' | 'Skipped';
+
+export interface FollowUp {
+  id: string;
+  partyId: string;
+  partyName?: string; // denormalized
+  dealId?: string; // optional link to a Deal
+  action: string; // what to do, e.g. "Call about quotation"
+  dueDate: string; // AD ISO, derived from BS input
+  dueDateBS: string; // "YYYY/MM/DD" Bikram Sambat
+  status: FollowUpStatus;
+  completedAt?: string; // ISO
+  createdBy: string;
+  createdAt: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
 export interface Deal {
   id: string;
   title: string;

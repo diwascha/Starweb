@@ -1,4 +1,3 @@
-
 'use client';
 
 import { getFirebase } from '@/lib/firebase';
@@ -17,7 +16,7 @@ import {
     getDoc, 
     updateDoc 
 } from 'firebase/firestore';
-import type { CRMContact, InteractionLog } from '@/lib/types';
+import type { CRMContact, InteractionLog, FollowUp } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -29,6 +28,11 @@ const getContactsCollection = () => {
 const getInteractionsCollection = () => {
     const { db } = getFirebase();
     return collection(db, 'crm_interactions');
+};
+
+const getFollowUpsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'crm_followups');
 };
 
 const fromFirestoreContact = (snapshot: QueryDocumentSnapshot<DocumentData>): CRMContact => {
@@ -60,6 +64,25 @@ const fromFirestoreInteraction = (snapshot: QueryDocumentSnapshot<DocumentData>)
         contactId: data.contactId,
         partyId: data.partyId,
         createdAt: data.createdAt
+    };
+};
+
+const fromFirestoreFollowUp = (snapshot: QueryDocumentSnapshot<DocumentData>): FollowUp => {
+    const data = snapshot.data();
+    return {
+        id: snapshot.id,
+        partyId: data.partyId,
+        partyName: data.partyName,
+        dealId: data.dealId,
+        action: data.action,
+        dueDate: data.dueDate,
+        dueDateBS: data.dueDateBS,
+        status: data.status,
+        completedAt: data.completedAt,
+        createdBy: data.createdBy,
+        createdAt: data.createdAt,
+        lastModifiedBy: data.lastModifiedBy,
+        lastModifiedAt: data.lastModifiedAt
     };
 };
 
@@ -107,4 +130,35 @@ export const addInteraction = async (log: Omit<InteractionLog, 'id'>) => {
         ...log,
         createdAt: new Date().toISOString()
     });
+};
+
+export const onFollowUpsUpdate = (callback: (followups: FollowUp[]) => void): () => void => {
+    const q = query(getFollowUpsCollection(), orderBy('dueDate', 'asc'));
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestoreFollowUp));
+    }, (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'crm_followups',
+            operation: 'list',
+        }));
+    });
+};
+
+export const addFollowUp = async (followup: Omit<FollowUp, 'id' | 'createdAt'>) => {
+    return addDoc(getFollowUpsCollection(), {
+        ...followup,
+        createdAt: new Date().toISOString()
+    });
+};
+
+export const updateFollowUp = async (id: string, updates: Partial<FollowUp>) => {
+    const docRef = doc(getFollowUpsCollection(), id);
+    return updateDoc(docRef, {
+        ...updates,
+        lastModifiedAt: new Date().toISOString()
+    });
+};
+
+export const deleteFollowUp = async (id: string) => {
+    return deleteDoc(doc(getFollowUpsCollection(), id));
 };

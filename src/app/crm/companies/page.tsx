@@ -18,11 +18,13 @@ import {
     User,
     ChevronRight,
     Target,
-    Edit
+    Edit,
+    Bell,
+    Check
 } from 'lucide-react';
-import type { Party, CRMContact, InteractionLog, CustomerClassification } from '@/lib/types';
+import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp } from '@/lib/types';
 import { onPartiesUpdate, updateParty } from '@/services/party-service';
-import { onContactsUpdate, onInteractionsUpdate, addInteraction } from '@/services/crm-service';
+import { onContactsUpdate, onInteractionsUpdate, addInteraction, onFollowUpsUpdate, addFollowUp } from '@/services/crm-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +52,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import NepaliDate from 'nepali-date-converter';
 
 export default function CompaniesManagementPage() {
     const { user } = useAuth();
@@ -58,6 +61,7 @@ export default function CompaniesManagementPage() {
     const [companies, setCompanies] = useState<Party[]>([]);
     const [contacts, setContacts] = useState<CRMContact[]>([]);
     const [interactions, setInteractions] = useState<InteractionLog[]>([]);
+    const [followups, setFollowups] = useState<FollowUp[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     
@@ -70,6 +74,9 @@ export default function CompaniesManagementPage() {
     const [isAttributesDialogOpen, setIsAttributesDialogOpen] = useState(false);
     const [attributesForm, setAttributesForm] = useState({ clientScore: '', successFactor: '', accountMgr: '' });
 
+    const [isFollowUpDialogOpen, setIsFollowUpDialogOpen] = useState(false);
+    const [followUpForm, setFollowUpForm] = useState({ action: '', dueDateBS: '' });
+
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
@@ -79,13 +86,15 @@ export default function CompaniesManagementPage() {
             onContactsUpdate(setContacts),
             onInteractionsUpdate((data) => {
                 setInteractions(data);
+            }),
+            onFollowUpsUpdate((data) => {
+                setFollowups(data);
                 setIsLoading(false);
             })
         ];
         return () => unsubs.forEach(u => u());
     }, []);
 
-    // FIX 3: Sort interactions newest-first once, instead of trusting listener order.
     const sortedInteractions = useMemo(() => {
         return [...interactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [interactions]);
@@ -96,6 +105,13 @@ export default function CompaniesManagementPage() {
             (c.address || '').toLowerCase().includes(searchQuery.toLowerCase())
         ).sort((a, b) => a.name.localeCompare(b.name));
     }, [companies, searchQuery]);
+
+    const nextFollowUp = useMemo(() => {
+        if (!selectedCompany) return null;
+        return followups
+            .filter(f => f.partyId === selectedCompany.id && f.status === 'Pending')
+            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
+    }, [selectedCompany, followups]);
 
     const handleSaveLog = async () => {
         if (!user || !selectedCompany || !logForm.subject) return;
@@ -111,6 +127,38 @@ export default function CompaniesManagementPage() {
             setLogForm({ type: 'Call', subject: '', description: '' });
         } catch {
             toast({ title: 'Error logging activity', variant: 'destructive' });
+        }
+    };
+
+    const handleSaveFollowUp = async () => {
+        if (!user || !selectedCompany || !followUpForm.action || !followUpForm.dueDateBS) return;
+        
+        let adDateISO = '';
+        try {
+            const parts = followUpForm.dueDateBS.split('/');
+            if (parts.length !== 3) throw new Error();
+            const nd = new NepaliDate(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            adDateISO = nd.toJsDate().toISOString();
+        } catch {
+            toast({ title: 'Invalid Date', description: 'Use YYYY/MM/DD format.', variant: 'destructive' });
+            return;
+        }
+
+        try {
+            await addFollowUp({
+                partyId: selectedCompany.id,
+                partyName: selectedCompany.name,
+                action: followUpForm.action,
+                dueDateBS: followUpForm.dueDateBS,
+                dueDate: adDateISO,
+                status: 'Pending',
+                createdBy: user.username
+            });
+            toast({ title: 'Follow-up Scheduled' });
+            setIsFollowUpDialogOpen(false);
+            setFollowUpForm({ action: '', dueDateBS: '' });
+        } catch {
+            toast({ title: 'Error scheduling reminder', variant: 'destructive' });
         }
     };
 
@@ -141,7 +189,6 @@ export default function CompaniesManagementPage() {
                 lastModifiedBy: user.username 
             });
             toast({ title: 'Lifecycle Updated', description: `Status changed to ${newClassification}` });
-            // Update local selection to reflect changes in dialog immediately
             setSelectedCompany(prev => prev ? { ...prev, classification: newClassification } : null);
         } catch {
             toast({ title: 'Update Failed', variant: 'destructive' });
@@ -212,7 +259,6 @@ export default function CompaniesManagementPage() {
                                 </TableRow>
                             ) : filteredCompanies.map(c => {
                                 const primary = getPrimaryContact(c.id);
-                                // FIX 3: sortedInteractions guarantees newest-first
                                 const lastInteraction = sortedInteractions.find(i => i.partyId === c.id);
 
                                 return (
@@ -387,6 +433,33 @@ export default function CompaniesManagementPage() {
                             <div className="lg:col-span-1 p-8 space-y-8 bg-white overflow-y-auto">
                                 <section className="space-y-4">
                                     <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                        <Bell className="h-3.5 w-3.5 text-primary" /> Next Follow-up
+                                    </h4>
+                                    {nextFollowUp ? (
+                                        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-3">
+                                            <div className="flex justify-between items-start">
+                                                <span className="text-[10px] font-black uppercase text-amber-700">{nextFollowUp.dueDateBS}</span>
+                                                <Clock className="h-3 w-3 text-amber-600" />
+                                            </div>
+                                            <p className="text-xs font-black text-gray-900 leading-tight">{nextFollowUp.action}</p>
+                                            <Button variant="link" asChild className="h-auto p-0 text-[10px] font-black uppercase underline text-amber-700">
+                                                <Link href="/crm/followups">Manage Reminders</Link>
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 rounded-xl border border-dashed text-center space-y-3">
+                                            <p className="text-[10px] text-muted-foreground italic font-medium">No scheduled actions.</p>
+                                            <Button size="sm" variant="outline" onClick={() => setIsFollowUpDialogOpen(true)} className="h-8 font-black text-[9px] uppercase tracking-widest">
+                                                <Plus className="mr-1.5 h-3 w-3" /> Schedule New
+                                            </Button>
+                                        </div>
+                                    )}
+                                </section>
+
+                                <Separator />
+
+                                <section className="space-y-4">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                                         <Target className="h-3 w-3"/> Lifecycle Classification
                                     </h4>
                                     <div className="flex flex-col gap-2">
@@ -409,9 +482,6 @@ export default function CompaniesManagementPage() {
                                             </Button>
                                         ))}
                                     </div>
-                                    <p className="text-[9px] text-muted-foreground italic font-medium leading-relaxed px-1">
-                                        Updating this status re-categorizes the account across the CRM intelligence layer.
-                                    </p>
                                 </section>
 
                                 <Separator />
@@ -445,16 +515,6 @@ export default function CompaniesManagementPage() {
                                         </div>
                                     </div>
                                 </section>
-                                
-                                <Card className="bg-primary/5 border-none shadow-none ring-1 ring-primary/20">
-                                    <CardContent className="p-4 space-y-2">
-                                        <div className="flex items-center gap-2 text-primary">
-                                            <ShieldCheck className="h-4 w-4"/>
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Compliance</span>
-                                        </div>
-                                        <p className="text-[10px] text-blue-900/70 leading-relaxed font-medium">Valid business registration verified in Manufacturing & Logistics modules.</p>
-                                    </CardContent>
-                                </Card>
                             </div>
                         </div>
 
@@ -465,7 +525,6 @@ export default function CompaniesManagementPage() {
                 </Dialog>
             )}
 
-            {/* FIX 1: onOpenChange now correctly delegates to state setter */}
             <Dialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
@@ -500,6 +559,29 @@ export default function CompaniesManagementPage() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsLogDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
                         <Button onClick={handleSaveLog} className="font-black text-xs uppercase h-11 px-10 shadow-lg shadow-primary/20">Commit Log</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isFollowUpDialogOpen} onOpenChange={setIsFollowUpDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Schedule Persistence</DialogTitle>
+                        <DialogDescription>Plan a future action for {selectedCompany?.name}.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-5 py-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Target Date (BS)</Label>
+                            <Input value={followUpForm.dueDateBS} onChange={e => setFollowUpForm({...followUpForm, dueDateBS: e.target.value})} placeholder="YYYY/MM/DD" className="h-10 font-mono" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Action Required</Label>
+                            <Input value={followUpForm.action} onChange={e => setFollowUpForm({...followUpForm, action: e.target.value})} placeholder="e.g. Call regarding bulk contract" className="h-10 font-bold" />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsFollowUpDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
+                        <Button onClick={handleSaveFollowUp} className="font-black text-xs uppercase h-11 px-10 shadow-lg shadow-primary/20">Schedule Action</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
