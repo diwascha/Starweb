@@ -1,4 +1,3 @@
-
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -579,6 +578,8 @@ export interface OwnershipCategory {
     modules: string[];
 }
 
+export type DealStage = 'Lead' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+
 export interface Party {
     id: string;
     name: string;
@@ -1155,9 +1156,6 @@ export interface RentalBill {
   createdAt: string;
   ownership: string;
 }
-
-// CRM Core Types
-export type DealStage = 'Lead' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
 
 export interface InteractionLog {
     id: string;
