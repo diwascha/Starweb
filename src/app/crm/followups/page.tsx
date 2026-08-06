@@ -17,7 +17,8 @@ import {
     Building2,
     Briefcase,
     CheckCircle2,
-    Loader2
+    Loader2,
+    ChevronDown
 } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { format, isToday, isFuture, isPast, addDays, startOfDay } from 'date-fns';
@@ -146,7 +147,7 @@ export default function FollowUpsPage() {
             if (parts.length !== 3) throw new Error();
             const nd = new NepaliDate(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
             adDateISO = nd.toJsDate().toISOString();
-        } catch {
+        } catch (error) {
             toast({ title: 'Invalid Date', description: 'Use YYYY/MM/DD format.', variant: 'destructive' });
             return;
         }
@@ -168,7 +169,7 @@ export default function FollowUpsPage() {
                 toast({ title: 'Follow-up Scheduled' });
             }
             setIsDialogOpen(false);
-        } catch {
+        } catch (error) {
             toast({ title: 'Error saving reminder', variant: 'destructive' });
         }
     };
@@ -182,7 +183,7 @@ export default function FollowUpsPage() {
                 lastModifiedBy: user.username 
             });
             toast({ title: status === 'Done' ? 'Action Completed' : 'Follow-up Skipped' });
-        } catch {
+        } catch (error) {
             toast({ title: 'Update failed', variant: 'destructive' });
         }
     };
@@ -191,7 +192,7 @@ export default function FollowUpsPage() {
         try {
             await deleteFollowUp(id);
             toast({ title: 'Reminder Purged' });
-        } catch {
+        } catch (error) {
             toast({ title: 'Delete failed', variant: 'destructive' });
         }
     };
@@ -293,7 +294,7 @@ export default function FollowUpsPage() {
                             <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Client Account <span className="text-destructive">*</span></Label>
                             <Popover open={isCompanyPopoverOpen} onOpenChange={setIsCompanyPopoverOpen}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" role="combobox" className="w-full justify-between h-10 font-normal">
+                                    <Button variant="outline" role="combobox" className="w-full justify-between h-10 font-normal text-xs">
                                         {form.partyId ? parties.find(p => p.id === form.partyId)?.name : "Search company registry..."}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>

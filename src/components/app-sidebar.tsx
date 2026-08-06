@@ -50,7 +50,8 @@ import {
   Terminal,
   ShieldAlert,
   Server,
-  Scale
+  Scale,
+  Bell
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -332,6 +333,12 @@ export function AppSidebar() {
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm/contacts')}><Link href="/crm/contacts" className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Contacts</span></Link></SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/deals')}><Link href="/crm/deals" className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /><span>Deals Pipeline</span></Link></SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/followups')}><Link href="/crm/followups" className="flex items-center gap-2"><Bell className="h-4 w-4" /><span>Follow-ups</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report" className="flex items-center gap-2"><Calculator className="h-4 w-4" /><span>CRM Calc</span></Link></SidebarMenuSubButton>

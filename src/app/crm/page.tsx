@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { 
     Calculator, 
     FileSpreadsheet, 
@@ -15,7 +14,9 @@ import {
     Zap,
     PlusCircle,
     ArrowRight,
-    Loader2
+    Loader2,
+    ChevronRight,
+    Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
@@ -25,6 +26,7 @@ import { onContactsUpdate, onInteractionsUpdate } from '@/services/crm-service';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 export default function CrmDashboardPage() {
   const { user } = useAuth();
@@ -85,6 +87,18 @@ export default function CrmDashboardPage() {
                     title="Contact Database" 
                     desc="Centralized individual records with designations and communication logs." 
                     icon={Users} 
+                />
+                <ModuleCard 
+                    href="/crm/deals" 
+                    title="Deals Pipeline" 
+                    desc="Track sales opportunities from lead to won/lost with value forecasting." 
+                    icon={TrendingUp} 
+                />
+                <ModuleCard 
+                    href="/crm/followups" 
+                    title="Follow-up Reminders" 
+                    desc="Schedule and track relationship maintenance actions and task lists." 
+                    icon={Bell} 
                 />
                 <ModuleCard 
                     href="/crm/cost-report/calculator" 
