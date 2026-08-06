@@ -78,7 +78,7 @@ export default function DealsPipelinePage() {
     const [isLostDialogOpen, setIsLostDialogOpen] = useState(false);
     const [dealToLose, setDealToLose] = useState<Deal | null>(null);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [dealToDelete, setDealToLoseId] = useState<string | null>(null);
+    const [dealToDelete, setDealToDelete] = useState<string | null>(null);
 
     const [form, setForm] = useState({
         title: '',
@@ -178,7 +178,11 @@ export default function DealsPipelinePage() {
                 await updateDeal(editingDeal.id, { ...data, lastModifiedBy: user.username });
                 toast({ title: 'Opportunity Updated' });
             } else {
-                await addDeal({ ...data, createdBy: user.username });
+                await addDeal({ 
+                    ...data, 
+                    createdBy: user.username,
+                    createdAt: new Date().toISOString()
+                });
                 toast({ title: 'Opportunity Created' });
             }
             setIsDialogOpen(false);
@@ -238,7 +242,7 @@ export default function DealsPipelinePage() {
         try {
             await deleteDeal(dealToDelete);
             setIsDeleteDialogOpen(false);
-            setDealToLoseId(null);
+            setDealToDelete(null);
             toast({ title: 'Opportunity Removed' });
         } catch {
             toast({ title: 'Delete failed', variant: 'destructive' });
@@ -305,13 +309,13 @@ export default function DealsPipelinePage() {
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuLabel className="text-[9px] uppercase font-black px-2 py-1 text-muted-foreground">Transition Stage</DropdownMenuLabel>
-                                                            {STAGES.filter(s => s !== deal.stage).map(s => (
-                                                                <DropdownMenuItem key={s} onSelect={() => handleMoveStage(deal, s)}>
+                                                            {(STAGES as string[]).filter(s => s !== deal.stage).map(s => (
+                                                                <DropdownMenuItem key={s} onSelect={() => handleMoveStage(deal, s as DealStage)}>
                                                                     <ArrowRightLeft className="mr-2 h-4 w-4 opacity-50"/> {s}
                                                                 </DropdownMenuItem>
                                                             ))}
                                                             <DropdownMenuSeparator />
-                                                            <DropdownMenuItem className="text-destructive" onSelect={() => { setDealToLoseId(deal.id); setIsDeleteDialogOpen(true); }}>
+                                                            <DropdownMenuItem className="text-destructive" onSelect={() => { setDealToDelete(deal.id); setIsDeleteDialogOpen(true); }}>
                                                                 <Trash2 className="mr-2 h-4 w-4"/> Delete
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>

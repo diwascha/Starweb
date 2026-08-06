@@ -586,7 +586,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
         return;
     }
     try {
-        const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
+        const newPartyId = await addParty({ ...partyForm, createdBy: user.username, createdAt: new Date().toISOString() });
         setSelectedPartyId(newPartyId);
         toast({ title: 'Success', description: 'New party added.' });
         setIsPartyDialogOpen(false);
@@ -621,13 +621,13 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
             createdBy: reportToEdit?.createdBy || user.username,
             ownership: party?.ownership || 'Shivam',
             status,
-            dealId: selectedDealId || null,
+            dealId: selectedDealId || undefined,
             validUntilBS,
             remarks
         };
         
         if (reportToEdit) {
-            await addCostReport(reportData); // Or updateCostReport depending on whether you want versions
+            await updateCostReport(reportToEdit.id, reportData);
         } else {
             await addCostReport(reportData);
         }

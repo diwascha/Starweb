@@ -718,6 +718,35 @@ export interface Transaction {
     ownership: string; // Added for scope enforcement
 }
 
+export interface InteractionLog {
+    id: string;
+    type: 'Call' | 'Email' | 'Meeting' | 'Note' | 'Task';
+    subject: string;
+    description: string;
+    date: string; // ISO
+    performer: string; // User name
+    contactId?: string;
+    partyId?: string;
+    createdAt: string;
+    taskStatus?: 'Pending' | 'Done';
+    taskDueDateBS?: string;
+    taskDueDate?: string;
+    assignee?: string;
+}
+
+export interface CRMContact {
+    id: string;
+    partyId: string; // Parent Company
+    name: string;
+    designation?: string;
+    email?: string;
+    phone?: string;
+    isPrimary: boolean;
+    customFields?: Record<string, string>;
+    createdBy: string;
+    createdAt: string;
+    lastModifiedBy?: string;
+}
 
 export interface TripDestination {
     name: string;
@@ -921,6 +950,7 @@ export interface ChequeSplit {
     interval: number;
     status: ChequeStatus;
     partialPayments?: PartialPayment[];
+    cancellationReason?: string;
 }
 
 export interface Cheque {
@@ -1220,34 +1250,4 @@ export interface RentalBill {
   createdBy: string;
   createdAt: string;
   ownership: string;
-}
-
-export interface InteractionLog {
-    id: string;
-    type: 'Call' | 'Email' | 'Meeting' | 'Note' | 'Task';
-    subject: string;
-    description: string;
-    date: string; // ISO
-    performer: string; // User name
-    contactId?: string;
-    partyId?: string;
-    createdAt: string;
-    taskStatus?: 'Pending' | 'Done';
-    taskDueDateBS?: string;
-    taskDueDate?: string;
-    assignee?: string;
-}
-
-export interface CRMContact {
-    id: string;
-    partyId: string; // Parent Company
-    name: string;
-    designation?: string;
-    email?: string;
-    phone?: string;
-    isPrimary: boolean;
-    customFields?: Record<string, string>;
-    createdBy: string;
-    createdAt: string;
-    lastModifiedBy?: string;
 }

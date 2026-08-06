@@ -121,7 +121,11 @@ export default function ContactsDirectoryPage() {
                 await updateContact(editingContact.id, { ...form, lastModifiedBy: user.username });
                 toast({ title: 'Contact Updated' });
             } else {
-                await addContact({ ...form, createdBy: user.username });
+                await addContact({ 
+                    ...form, 
+                    createdBy: user.username,
+                    createdAt: new Date().toISOString()
+                });
                 toast({ title: 'Contact Added' });
             }
             setIsDialogOpen(false);

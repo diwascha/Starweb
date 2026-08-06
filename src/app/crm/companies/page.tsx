@@ -213,7 +213,8 @@ export default function CompaniesManagementPage() {
                 taskStatus: logForm.type === 'Task' ? 'Pending' : undefined,
                 taskDueDateBS: logForm.type === 'Task' ? logForm.taskDueDateBS : undefined,
                 taskDueDate: logForm.type === 'Task' ? taskDueDate : undefined,
-                assignee: logForm.type === 'Task' ? logForm.assignee : undefined
+                assignee: logForm.type === 'Task' ? logForm.assignee : undefined,
+                createdAt: new Date().toISOString()
             });
             toast({ title: 'Activity Logged' });
             setIsLogDialogOpen(false);
@@ -256,7 +257,8 @@ export default function CompaniesManagementPage() {
                 dueDateBS: followUpForm.dueDateBS,
                 dueDate: adDateISO,
                 status: 'Pending',
-                createdBy: user.username
+                createdBy: user.username,
+                createdAt: new Date().toISOString()
             });
             toast({ title: 'Follow-up Scheduled' });
             setIsFollowUpDialogOpen(false);

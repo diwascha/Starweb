@@ -49,8 +49,16 @@ import {
     AlertDialogDescription,
     AlertDialogFooter,
     AlertDialogHeader,
-    AlertDialogTitle
+    AlertDialogTitle,
+    AlertDialogTrigger
 } from '@/components/ui/alert-dialog';
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger,
+    DropdownMenuSeparator 
+} from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -167,7 +175,11 @@ export default function FollowUpsPage() {
                 await updateFollowUp(editingFollowUp.id, { ...payload, lastModifiedBy: user.username });
                 toast({ title: 'Follow-up Updated' });
             } else {
-                await addFollowUp({ ...payload, createdBy: user.username });
+                await addFollowUp({ 
+                    ...payload, 
+                    createdBy: user.username,
+                    createdAt: new Date().toISOString()
+                });
                 toast({ title: 'Follow-up Scheduled' });
             }
             setIsDialogOpen(false);
@@ -402,7 +414,7 @@ function FollowUpCard({ f, onStatus, onEdit, onDelete, priority }: { f: FollowUp
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={(e: React.MouseEvent) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader><AlertDialogTitle className="uppercase tracking-tight">Purge Reminder?</AlertDialogTitle><AlertDialogDescription>This action is irreversible.</AlertDialogDescription></AlertDialogHeader>
