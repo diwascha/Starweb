@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { CostReport, Party } from '@/lib/types';
+import type { CostReport, Party, QuotationStatus } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,9 @@ import {
     Users, 
     CalendarIcon 
 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { onCostReportsUpdate } from '@/services/cost-report-service';
+import { onCostReportsUpdate, updateQuotationStatus, deleteCostReport } from '@/services/cost-report-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,6 +29,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { useAuth } from '@/hooks/use-auth';
+import { Badge } from '@/components/ui/badge';
 
 interface SavedReportsListProps {
     onEdit: (r: CostReport) => void;
@@ -39,10 +41,12 @@ interface SavedReportsListProps {
 export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsListProps) {
     const [reports, setReports] = useState<CostReport[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
+    const { user } = useAuth();
     
     // Filter State
     const [searchQuery, setSearchQuery] = useState('');
     const [filterPartyId, setFilterPartyId] = useState('All');
+    const [filterStatus, setFilterStatus] = useState('All');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
     // Pagination State
@@ -78,6 +82,10 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
             filtered = filtered.filter(r => r.partyId === filterPartyId);
         }
 
+        if (filterStatus !== 'All') {
+            filtered = filtered.filter(r => r.status === filterStatus);
+        }
+
         if (dateRange?.from) {
             const start = startOfDay(dateRange.from);
             const end = endOfDay(dateRange.to || dateRange.from);
@@ -88,35 +96,42 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
         }
 
         return filtered;
-    }, [reports, searchQuery, filterPartyId, dateRange]);
+    }, [reports, searchQuery, filterPartyId, filterStatus, dateRange]);
 
-    const paginated = useMemo(() => {
-        if (itemsPerPage === -1) return filteredReports;
-        const start = (currentPage - 1) * itemsPerPage;
-        return filteredReports.slice(start, start + itemsPerPage);
-    }, [filteredReports, currentPage, itemsPerPage]);
+    const paginated = filteredReports.slice((currentPage - 1) * itemsPerPage, itemsPerPage === -1 ? undefined : currentPage * itemsPerPage);
+    const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(filteredReports.length / itemsPerPage);
 
-    const totalPages = useMemo(() => {
-        if (itemsPerPage === -1) return 1;
-        return Math.ceil(filteredReports.length / itemsPerPage);
-    }, [filteredReports, itemsPerPage]);
+    const isFiltered = filterPartyId !== 'All' || filterStatus !== 'All' || !!dateRange || searchQuery !== '';
 
-    const isFiltered = filterPartyId !== 'All' || !!dateRange || searchQuery !== '';
+    const getStatusBadge = (status: QuotationStatus) => {
+        const variants: Record<QuotationStatus, string> = {
+            'Draft': 'bg-gray-100 text-gray-700 border-gray-200',
+            'Sent': 'bg-blue-50 text-blue-700 border-blue-200',
+            'Accepted': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            'Rejected': 'bg-red-50 text-red-700 border-red-200',
+            'Expired': 'bg-amber-50 text-amber-700 border-amber-200'
+        };
+        return (
+            <Badge variant="outline" className={cn("text-[8px] font-black uppercase tracking-widest px-1.5 h-4 shadow-none", variants[status || 'Draft'])}>
+                {status || 'Draft'}
+            </Badge>
+        );
+    };
 
     return (
         <Card>
             <CardHeader className="py-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <CardTitle className="text-lg font-bold">Saved Cost Reports</CardTitle>
-                        <CardDescription className="text-xs">Manufacturing estimates log.</CardDescription>
+                        <CardTitle className="text-lg font-bold">Estimate & Quotation Registry</CardTitle>
+                        <CardDescription className="text-xs">Consolidated historical logs of manufacturing estimates.</CardDescription>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2">
                         <div className="relative">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <Input
-                                placeholder="Search..."
+                                placeholder="Search ref or client..."
                                 className="pl-8 h-8 text-xs w-[180px] bg-white border-gray-200"
                                 value={searchQuery}
                                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
@@ -125,11 +140,25 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
 
                         <Select value={filterPartyId} onValueChange={(v) => { setFilterPartyId(v); setCurrentPage(1); }}>
                             <SelectTrigger className="h-8 w-[150px] bg-white text-xs border-gray-200">
-                                <SelectValue placeholder="All Parties" />
+                                <SelectValue placeholder="All Clients" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="All">All Parties</SelectItem>
+                                <SelectItem value="All">All Clients</SelectItem>
                                 {uniqueParties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+
+                        <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setCurrentPage(1); }}>
+                            <SelectTrigger className="h-8 w-[120px] bg-white text-xs border-gray-200">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Status</SelectItem>
+                                <SelectItem value="Draft">Draft</SelectItem>
+                                <SelectItem value="Sent">Sent</SelectItem>
+                                <SelectItem value="Accepted">Accepted</SelectItem>
+                                <SelectItem value="Rejected">Rejected</SelectItem>
+                                <SelectItem value="Expired">Expired</SelectItem>
                             </SelectContent>
                         </Select>
 
@@ -153,7 +182,7 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
                             <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                onClick={() => { setFilterPartyId('All'); setDateRange(undefined); setSearchQuery(''); setCurrentPage(1); }} 
+                                onClick={() => { setFilterPartyId('All'); setFilterStatus('All'); setDateRange(undefined); setSearchQuery(''); setCurrentPage(1); }} 
                                 className="h-8 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
                             >
                                 <FilterX className="h-3.5 w-3.5" />
@@ -165,31 +194,40 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
             <CardContent className="p-0">
                 <Table>
                     <TableHeader className="bg-muted/50">
-                        <TableRow>
-                            <TableHead className="pl-6 font-bold uppercase text-[11px]">Report #</TableHead>
-                            <TableHead className="font-bold uppercase text-[11px]">Date (BS)</TableHead>
-                            <TableHead className="font-bold uppercase text-[11px]">Party Name</TableHead>
-                            <TableHead className="text-right pr-6 font-bold uppercase text-[11px]">Actions</TableHead>
+                        <TableRow className="hover:bg-transparent h-10">
+                            <TableHead className="pl-6 font-bold uppercase text-[9px] tracking-widest">Ref #</TableHead>
+                            <TableHead className="font-bold uppercase text-[9px] tracking-widest">Date (BS)</TableHead>
+                            <TableHead className="font-bold uppercase text-[9px] tracking-widest">Client Name</TableHead>
+                            <TableHead className="text-center font-bold uppercase text-[9px] tracking-widest">Status</TableHead>
+                            <TableHead className="text-right pr-6 font-bold uppercase text-[9px] tracking-widest">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {paginated.map(r => (
-                            <TableRow key={r.id}>
-                                <TableCell className="font-mono pl-6">{r.reportNumber}</TableCell>
-                                <TableCell>{toNepaliDate(r.reportDate)}</TableCell>
-                                <TableCell>{r.partyName}</TableCell>
+                            <TableRow key={r.id} className="h-14 hover:bg-muted/30 transition-colors">
+                                <TableCell className="font-mono pl-6 text-blue-700 font-bold">{r.reportNumber}</TableCell>
+                                <TableCell className="text-xs text-gray-500">{toNepaliDate(r.reportDate)}</TableCell>
+                                <TableCell className="font-bold text-gray-900">{r.partyName}</TableCell>
+                                <TableCell className="text-center">{getStatusBadge(r.status || 'Draft')}</TableCell>
                                 <TableCell className="text-right pr-6">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onSelect={() => onPreview(r)}><Eye className="mr-2 h-4 w-4"/> View / Print</DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => onEdit(r)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
+                                        <DropdownMenuContent align="end" className="w-56">
+                                            <DropdownMenuItem onSelect={() => onPreview(r)}><Eye className="mr-2 h-4 w-4"/> View / Print Quotation</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => onEdit(r)}><Edit className="mr-2 h-4 w-4"/> Edit Specs</DropdownMenuItem>
+                                            
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuLabel className="text-[9px] uppercase font-black px-2 py-1 text-muted-foreground">Lifecycle State</DropdownMenuLabel>
+                                            {(['Draft', 'Sent', 'Accepted', 'Rejected', 'Expired'] as QuotationStatus[]).filter(s => s !== r.status).map(s => (
+                                                <DropdownMenuItem key={s} onSelect={() => updateQuotationStatus(r.id, s, user?.username || 'Admin')}>{s}</DropdownMenuItem>
+                                            ))}
+
                                             <DropdownMenuSeparator />
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4 text-destructive"/> Delete</DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4 text-destructive"/> Delete Record</DropdownMenuItem>
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
@@ -207,7 +245,7 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {filteredReports.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No reports found.</TableCell></TableRow>}
+                        {filteredReports.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic text-xs uppercase font-black opacity-30">No records found matching criteria.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </CardContent>

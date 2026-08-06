@@ -1094,6 +1094,10 @@ export interface CostReport {
   createdBy: string;
   createdAt: string;
   ownership: string;
+  status?: QuotationStatus;
+  dealId?: string;
+  validUntilBS?: string;
+  remarks?: string;
 }
 
 export interface CostSettingHistoryEntry {

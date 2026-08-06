@@ -12,7 +12,9 @@ import type {
   CalculatedValues, 
   CostReportTerm,
   Accessory,
-  AccountOwnership
+  AccountOwnership,
+  Deal,
+  QuotationStatus
 } from '@/lib/types';
 import { addProduct as addProductService, updateProduct } from '@/services/product-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
@@ -21,6 +23,7 @@ import {
   addCostReport, 
   generateNextCostReportNumber, 
 } from '@/services/cost-report-service';
+import { onDealsUpdate } from '@/services/deal-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -39,7 +42,8 @@ import {
   Calendar as CalendarIcon,
   X,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  Target
 } from 'lucide-react';
 import { 
   Table, 
@@ -251,14 +255,14 @@ const CostingTableRow = React.memo(({
                         )}
                         {maxPly >= 7 && (
                             <>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner2Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner2Gsm ?? ''} onChange={e => onItemChange(index, 'liner2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => onItemChange(index, 'flute3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
                             </>
                         )}
                         {maxPly >= 9 && (
                             <>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
                             </>
                         )}
                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => onItemChange(index, 'acc_bottomGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
@@ -280,10 +284,15 @@ CostingTableRow.displayName = 'CostingTableRow';
 
 export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview }: any) {
   const [parties, setParties] = useState<Party[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [costReports, setCostReports] = useState<CostReport[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState('');
+  const [selectedDealId, setSelectedDealId] = useState('');
   const [reportNumber, setReportNumber] = useState('');
   const [reportDate, setReportDate] = useState<Date>(new Date());
+  const [validUntilBS, setValidUntilBS] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [status, setStatus] = useState<QuotationStatus>('Draft');
   
   const [kraftPaperCosts, setKraftPaperCosts] = useState<Record<string, number>>({});
   const [virginPaperCost, setVirginCost] = useState<number | ''>('');
@@ -409,8 +418,9 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
         }
     });
     const unsubParties = onPartiesUpdate(setParties);
+    const unsubDeals = onDealsUpdate(setDeals);
     const unsubReports = onCostReportsUpdate(setCostReports);
-    return () => { unsubCostSettings(); unsubParties(); unsubReports(); };
+    return () => { unsubCostSettings(); unsubParties(); unsubDeals(); unsubReports(); };
   }, []);
 
   const handleSaveMasterTerms = async (newTerms: CostReportTerm[]) => {
@@ -431,6 +441,10 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
           setReportNumber(reportToEdit.reportNumber);
           setReportDate(new Date(reportToEdit.reportDate));
           setSelectedPartyId(reportToEdit.partyId);
+          setSelectedDealId(reportToEdit.dealId || '');
+          setValidUntilBS(reportToEdit.validUntilBS || '');
+          setRemarks(reportToEdit.remarks || '');
+          setStatus(reportToEdit.status || 'Draft');
           setTermsAndConditions(reportToEdit.termsAndConditions || []);
           const kCosts = reportToEdit.kraftPaperCosts || {};
           const vCost = Number(reportToEdit.virginPaperCost) || 0;
@@ -604,10 +618,19 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
             termsAndConditions,
             items: items.map(({ calculated, ...rest }) => rest),
             totalCost: items.reduce((sum, i) => sum + i.calculated.paperCost + i.calculated.transportCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0) + (transportCostType === 'Per Consignment' ? (Number(transportCost) || 0) : 0),
-            createdBy: user.username,
-            ownership: party?.ownership || 'Shivam'
+            createdBy: reportToEdit?.createdBy || user.username,
+            ownership: party?.ownership || 'Shivam',
+            status,
+            dealId: selectedDealId || null,
+            validUntilBS,
+            remarks
         };
-        await addCostReport(reportData);
+        
+        if (reportToEdit) {
+            await addCostReport(reportData); // Or updateCostReport depending on whether you want versions
+        } else {
+            await addCostReport(reportData);
+        }
 
         // Persist global rates to settings
         await updateCostSettings({
@@ -705,14 +728,19 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
         .sort((a, b) => a.name.localeCompare(b.name));
   }, [parties]);
 
+  const filteredDeals = useMemo(() => {
+    if (!selectedPartyId) return [];
+    return deals.filter(d => d.partyId === selectedPartyId && d.stage !== 'Won' && d.stage !== 'Lost');
+  }, [deals, selectedPartyId]);
+
   return (
     <div className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <Card className="shadow-sm">
                 <CardHeader className="py-3 px-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase tracking-wider">Report Identity</CardTitle></CardHeader>
                 <CardContent className="pt-4 space-y-4">
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1"><Label className="text-[10px] font-bold">Report No</Label><Input value={reportNumber ?? ''} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
+                        <div className="space-y-1"><Label className="text-[10px] font-bold">Report No</Label><Input value={reportNumber} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
                         <div className="space-y-1"><Label className="text-[10px] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><CalendarIcon className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
                     </div>
                     <div className="space-y-1">
@@ -720,7 +748,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                         <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
                             <PopoverTrigger asChild>
                                 <Button variant="outline" role="combobox" className="w-full justify-between h-8 text-xs">
-                                    {selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select customer..."}
+                                    <span className="truncate">{selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select customer..."}</span>
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
@@ -735,7 +763,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                                         </CommandEmpty>
                                         <CommandGroup>
                                             {filteredParties.map(p => (
-                                                <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setIsPartyPopoverOpen(false); }}>
+                                                <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setSelectedDealId(''); setIsPartyPopoverOpen(false); }}>
                                                     <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
                                                     {p.name}
                                                 </CommandItem>
@@ -746,6 +774,20 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                             </PopoverContent>
                         </Popover>
                     </div>
+                    {selectedPartyId && (
+                        <div className="space-y-1 animate-in fade-in slide-in-from-top-1">
+                            <Label className="text-[10px] font-bold flex items-center gap-1.5 text-primary"><Target className="h-3 w-3"/> Link to Opportunity</Label>
+                            <Select value={selectedDealId} onValueChange={setSelectedDealId}>
+                                <SelectTrigger className="h-8 text-[10px] bg-white border-primary/20"><SelectValue placeholder="Associate with deal..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Standalone (No Deal)</SelectItem>
+                                    {filteredDeals.map(d => (
+                                        <SelectItem key={d.id} value={d.id}>{d.title} (Rs.{d.value.toLocaleString()})</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -765,7 +807,6 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                     </div>
                     <div className="space-y-1"><Label className="text-[10px] font-bold">Virgin Rate</Label><Input type="number" value={virginPaperCost ?? ''} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
                     <div className="space-y-1"><Label className="text-[10px] font-bold">Conversion</Label><Input type="number" value={conversionCost ?? ''} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
-                    <div className="space-y-1"><Label className="text-[10px] font-bold">Acc. Conversion</Label><Input type="number" value={accessoryConversionCost ?? ''} onChange={e => setAccessoryConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" placeholder="Rate for honeycomb, plates, etc." /></div>
                 </CardContent>
             </Card>
 
@@ -812,6 +853,33 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                     </div>
                 </CardContent>
             </Card>
+
+            <Card className="shadow-sm">
+                <CardHeader className="py-3 px-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase tracking-wider">Quotation Meta</CardTitle></CardHeader>
+                <CardContent className="pt-4 space-y-4">
+                    <div className="space-y-1">
+                        <Label className="text-[10px] font-bold">Valid Until (BS)</Label>
+                        <Input value={validUntilBS} onChange={e => setValidUntilBS(e.target.value)} placeholder="YYYY/MM/DD" className="h-8 text-xs font-mono" />
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-[10px] font-bold">Internal Remarks</Label>
+                        <Textarea value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Pricing logic, discounts..." className="min-h-[60px] text-xs resize-none" />
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-[10px] font-bold">Lifecycle Status</Label>
+                        <Select value={status} onValueChange={(v: QuotationStatus) => setStatus(v)}>
+                            <SelectTrigger className="h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Draft">Draft</SelectItem>
+                                <SelectItem value="Sent">Sent to Client</SelectItem>
+                                <SelectItem value="Accepted">Accepted</SelectItem>
+                                <SelectItem value="Rejected">Rejected</SelectItem>
+                                <SelectItem value="Expired">Expired</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
 
         <Card className="shadow-lg overflow-hidden border-t-4 border-t-primary">
@@ -823,7 +891,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                     </Button>
                     <Button size="sm" onClick={handleSaveReport} disabled={isSaving} className="h-9">
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
-                        Save Report
+                        {reportToEdit ? 'Update Record' : 'Commit Quotation'}
                     </Button>
                     <Button size="sm" variant="outline" onClick={handleManualPreview} className="h-9"><ImageIcon className="mr-2 h-4 w-4" /> Preview Quotation</Button>
                 </div>
@@ -895,16 +963,6 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                         <ScrollBar orientation="vertical" />
                     </div>
                 </ScrollArea>
-                <div className="p-6 bg-muted/10 border-t flex justify-end">
-                    <div className="space-y-2 w-64">
-                         {transportCostType === 'Per Consignment' && (
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Transport Charges</span>
-                                <span>Rs. {(Number(transportCost) || 0).toLocaleString()}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
             </CardContent>
         </Card>
 

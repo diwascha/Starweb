@@ -1,8 +1,9 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
-import type { CostReport } from '@/lib/types';
+import type { CostReport, QuotationStatus } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { updateDeal } from './deal-service';
 
 const getCostReportsCollection = () => {
     const { db } = getFirebase();
@@ -29,6 +30,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         ownership: data.ownership || 'Shivam',
+        status: data.status || 'Draft',
+        dealId: data.dealId,
+        validUntilBS: data.validUntilBS,
+        remarks: data.remarks,
     };
 };
 
@@ -90,8 +95,7 @@ export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>
         ...report,
         createdAt: new Date().toISOString(),
     };
-    const docRef = doc(getCostReportsCollection());
-    addDoc(getCostReportsCollection(), payload).catch(async (err: any) => {
+    const docRef = await addDoc(getCostReportsCollection(), payload).catch(async (err: any) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'costReports',
@@ -99,6 +103,7 @@ export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>
                 requestResourceData: payload,
             }));
         }
+        throw err;
     });
     return docRef.id;
 };
@@ -121,6 +126,27 @@ export const updateCostReport = async (id: string, report: Partial<Omit<CostRepo
     });
 };
 
+export const updateQuotationStatus = async (id: string, status: QuotationStatus, modifiedBy: string) => {
+    const docRef = doc(getCostReportsCollection(), id);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return;
+    
+    const data = docSnap.data() as CostReport;
+    await updateDoc(docRef, { 
+        status, 
+        lastModifiedBy: modifiedBy,
+        lastModifiedAt: new Date().toISOString() 
+    });
+
+    // Deal Sync Logic
+    if (status === 'Sent' && data.dealId) {
+        try {
+            await updateDeal(data.dealId, { stage: 'Quoted', lastModifiedBy: modifiedBy });
+        } catch (e) {
+            console.warn("Linked deal update failed:", e);
+        }
+    }
+};
 
 export const deleteCostReport = async (id: string): Promise<void> => {
     if (!id) return;
