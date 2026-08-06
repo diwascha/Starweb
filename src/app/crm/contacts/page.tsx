@@ -28,6 +28,16 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -56,6 +66,8 @@ export default function ContactsDirectoryPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
     const [editingContact, setEditingContact] = useState<CRMContact | null>(null);
+    // FIX 4: track contact pending deletion for confirmation dialog
+    const [deletingContact, setDeletingContact] = useState<CRMContact | null>(null);
     const [form, setForm] = useState({
         name: '',
         partyId: '',
@@ -87,15 +99,29 @@ export default function ContactsDirectoryPage() {
         ).sort((a, b) => a.name.localeCompare(b.name));
     }, [contacts, searchQuery]);
 
+    // FIX 2: pick only the editable form fields — never spread the full document
+    const openEditDialog = (c: CRMContact) => {
+        setEditingContact(c);
+        setForm({
+            name: c.name || '',
+            partyId: c.partyId || '',
+            email: c.email || '',
+            phone: c.phone || '',
+            designation: c.designation || '',
+            isPrimary: !!c.isPrimary
+        });
+        setIsDialogOpen(true);
+    };
+
     const handleSave = async () => {
         if (!user || !form.name || !form.partyId) return;
         try {
-            const payload = { ...form, createdBy: user.username };
             if (editingContact) {
-                await updateContact(editingContact.id, { ...payload, lastModifiedBy: user.username });
+                // FIX 2: don't overwrite createdBy on update
+                await updateContact(editingContact.id, { ...form, lastModifiedBy: user.username });
                 toast({ title: 'Contact Updated' });
             } else {
-                await addContact(payload);
+                await addContact({ ...form, createdBy: user.username });
                 toast({ title: 'Contact Added' });
             }
             setIsDialogOpen(false);
@@ -104,12 +130,15 @@ export default function ContactsDirectoryPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
+    const handleConfirmDelete = async () => {
+        if (!deletingContact) return;
         try {
-            await deleteContact(id);
+            await deleteContact(deletingContact.id);
             toast({ title: 'Contact Removed' });
         } catch {
             toast({ title: 'Error', variant: 'destructive' });
+        } finally {
+            setDeletingContact(null);
         }
     };
 
@@ -181,11 +210,11 @@ export default function ContactsDirectoryPage() {
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-48">
-                                                <DropdownMenuItem onSelect={() => { setEditingContact(c); setForm(c as any); setIsDialogOpen(true); }}>
+                                                <DropdownMenuItem onSelect={() => openEditDialog(c)}>
                                                     <Edit className="mr-2 h-4 w-4"/> Edit Details
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-destructive" onSelect={() => handleDelete(c.id)}>
+                                                <DropdownMenuItem className="text-destructive" onSelect={() => setDeletingContact(c)}>
                                                     <Trash2 className="mr-2 h-4 w-4"/> Delete Contact
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -200,6 +229,24 @@ export default function ContactsDirectoryPage() {
                     </Table>
                 </CardContent>
             </Card>
+
+            {/* FIX 4: Delete confirmation */}
+            <AlertDialog open={!!deletingContact} onOpenChange={(open) => !open && setDeletingContact(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="uppercase tracking-tight">Delete Contact?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently remove <span className="font-bold text-gray-900">{deletingContact?.name}</span> from the directory. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="font-bold text-xs uppercase">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black text-xs uppercase">
+                            Delete Permanently
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-md">

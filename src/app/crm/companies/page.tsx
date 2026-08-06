@@ -85,6 +85,11 @@ export default function CompaniesManagementPage() {
         return () => unsubs.forEach(u => u());
     }, []);
 
+    // FIX 3: Sort interactions newest-first once, instead of trusting listener order.
+    const sortedInteractions = useMemo(() => {
+        return [...interactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [interactions]);
+
     const filteredCompanies = useMemo(() => {
         return companies.filter(c => 
             c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -207,7 +212,8 @@ export default function CompaniesManagementPage() {
                                 </TableRow>
                             ) : filteredCompanies.map(c => {
                                 const primary = getPrimaryContact(c.id);
-                                const lastInteraction = interactions.find(i => i.partyId === c.id);
+                                // FIX 3: sortedInteractions guarantees newest-first
+                                const lastInteraction = sortedInteractions.find(i => i.partyId === c.id);
 
                                 return (
                                     <TableRow 
@@ -355,7 +361,7 @@ export default function CompaniesManagementPage() {
                                         <History className="h-3.5 w-3.5" /> Interaction History
                                     </h4>
                                     <div className="space-y-3">
-                                        {interactions.filter(i => i.partyId === selectedCompany.id).map(log => (
+                                        {sortedInteractions.filter(i => i.partyId === selectedCompany.id).map(log => (
                                             <div key={log.id} className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm relative group">
                                                 <div className="flex items-center justify-between mb-2">
                                                     <div className="flex items-center gap-2">
@@ -370,7 +376,7 @@ export default function CompaniesManagementPage() {
                                                 </div>
                                             </div>
                                         ))}
-                                        {interactions.filter(i => i.partyId === selectedCompany.id).length === 0 && (
+                                        {sortedInteractions.filter(i => i.partyId === selectedCompany.id).length === 0 && (
                                             <div className="py-20 text-center opacity-40 italic text-xs uppercase font-black">No interaction logs found.</div>
                                         )}
                                     </div>
@@ -459,7 +465,8 @@ export default function CompaniesManagementPage() {
                 </Dialog>
             )}
 
-            <Dialog open={isLogDialogOpen} onOpenChange={isLogDialogOpen ? () => setIsLogDialogOpen(false) : undefined}>
+            {/* FIX 1: onOpenChange now correctly delegates to state setter */}
+            <Dialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Log Relationship Event</DialogTitle>

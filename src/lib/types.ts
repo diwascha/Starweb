@@ -578,8 +578,28 @@ export interface OwnershipCategory {
     modules: string[];
 }
 
-export type DealStage = 'Lead' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+export type DealStage = 'Lead' | 'Quoted' | 'Negotiation' | 'Won' | 'Lost';
 export type CustomerClassification = 'Prospect' | 'Negotiation' | 'Customer' | 'Past Client';
+
+// --- CRM Types ---
+
+export interface Deal {
+  id: string;
+  title: string;
+  partyId: string;
+  partyName?: string;
+  value: number;
+  stage: DealStage;
+  expectedCloseDateBS?: string; // YYYY/MM/DD
+  expectedCloseDate?: string; // ISO string
+  notes?: string;
+  lostReason?: string;
+  closedAt?: string; // ISO string
+  createdBy: string;
+  createdAt: string; // ISO string
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
 
 export interface Party {
     id: string;
