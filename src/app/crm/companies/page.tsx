@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { format } from 'date-fns';
 import { 
     Building2, 
     Users, 
@@ -22,10 +24,12 @@ import {
     FileText,
     TrendingUp,
     ChevronRight,
-    Loader2
+    Loader2,
+    Eye,
+    User
 } from 'lucide-react';
-import type { Party, CRMContact, InteractionLog, DealStage } from '@/lib/types';
-import { onPartiesUpdate, deleteParty } from '@/services/party-service';
+import type { Party, CRMContact, InteractionLog } from '@/lib/types';
+import { onPartiesUpdate } from '@/services/party-service';
 import { onContactsUpdate, onInteractionsUpdate, addInteraction } from '@/services/crm-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,9 +40,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
 export default function CompaniesManagementPage() {
