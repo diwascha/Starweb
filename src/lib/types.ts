@@ -156,6 +156,8 @@ export interface PurchaseOrderVersion {
     panNumber?: string;
     status: PurchaseOrderStatus;
     deliveryDate?: string;
+    shippedDate?: string;
+    remarks?: string;
     amendments?: Amendment[];
   };
 }
@@ -176,6 +178,8 @@ export interface PurchaseOrder {
   status: PurchaseOrderStatus;
   isDraft: boolean;
   deliveryDate?: string; // ISO string
+  shippedDate?: string; // ISO string
+  remarks?: string;
   createdBy: string;
   lastModifiedBy?: string;
   ownership: string; // Added for scope enforcement

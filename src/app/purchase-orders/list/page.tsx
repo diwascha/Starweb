@@ -20,7 +20,10 @@ import {
   FilterX,
   ChevronLeft,
   ChevronRight,
-  Truck
+  Truck,
+  FileText,
+  Save,
+  Loader2
 } from 'lucide-react';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -68,6 +71,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'status' | 'authorship';
 type SortDirection = 'asc' | 'desc';
@@ -158,9 +162,12 @@ export default function PurchaseOrdersListPage() {
   const { hasPermission, user, getAllowedOwnerships } = useAuth();
   const allowedOwnerships = useMemo(() => getAllowedOwnerships('purchaseOrders'), [getAllowedOwnerships]);
 
-  const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
+  // Status Update Dialog States
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [purchaseOrderToUpdate, setPurchaseOrderToUpdate] = useState<PurchaseOrder | null>(null);
-  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
+  const [targetStatus, setTargetStatus] = useState<PurchaseOrderStatus | null>(null);
+  const [statusDate, setStatusDate] = useState<Date | undefined>(new Date());
+  const [statusRemarks, setStatusRemarks] = useState('');
   
   // ERP Filter State (Multiple Selection)
   const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
@@ -201,15 +208,20 @@ export default function PurchaseOrdersListPage() {
     }
   };
   
-  const updatePurchaseOrderStatus = (id: string, status: PurchaseOrderStatus, deliveryDateISO?: string) => {
+  const updatePurchaseOrderStatus = (id: string, status: PurchaseOrderStatus, dateISO?: string, remarks?: string) => {
     try {
       const updateData: any = { 
         status, 
         lastModifiedBy: user?.username || 'Administrator'
       };
       
-      if (deliveryDateISO) {
-          updateData.deliveryDate = deliveryDateISO;
+      if (remarks) {
+          updateData.remarks = remarks;
+      }
+
+      if (dateISO) {
+          if (status === 'Delivered') updateData.deliveryDate = dateISO;
+          if (status === 'Shipped') updateData.shippedDate = dateISO;
       }
 
       updatePurchaseOrder(id, updateData);
@@ -223,17 +235,31 @@ export default function PurchaseOrdersListPage() {
     }
   };
 
-  const handleOpenDeliveryDialog = (purchaseOrder: PurchaseOrder) => {
+  const handleOpenStatusDialog = (purchaseOrder: PurchaseOrder, status: PurchaseOrderStatus) => {
     setPurchaseOrderToUpdate(purchaseOrder);
-    setDeliveryDate(purchaseOrder.deliveryDate ? new Date(purchaseOrder.deliveryDate) : new Date());
-    setDeliveryDialogOpen(true);
+    setTargetStatus(status);
+    
+    // Pre-fill date if exists
+    let initialDate = new Date();
+    if (status === 'Delivered' && purchaseOrder.deliveryDate) initialDate = new Date(purchaseOrder.deliveryDate);
+    if (status === 'Shipped' && purchaseOrder.shippedDate) initialDate = new Date(purchaseOrder.shippedDate);
+    
+    setStatusDate(initialDate);
+    setStatusRemarks(purchaseOrder.remarks || '');
+    setStatusDialogOpen(true);
   };
   
-  const handleConfirmDelivery = () => {
-    if (purchaseOrderToUpdate && deliveryDate) {
-      updatePurchaseOrderStatus(purchaseOrderToUpdate.id, 'Delivered', deliveryDate.toISOString());
-      setDeliveryDialogOpen(false);
+  const handleConfirmStatusUpdate = () => {
+    if (purchaseOrderToUpdate && targetStatus) {
+      updatePurchaseOrderStatus(
+          purchaseOrderToUpdate.id, 
+          targetStatus, 
+          statusDate?.toISOString(), 
+          statusRemarks
+      );
+      setStatusDialogOpen(false);
       setPurchaseOrderToUpdate(null);
+      setTargetStatus(null);
     }
   };
   
@@ -472,17 +498,17 @@ export default function PurchaseOrdersListPage() {
                                 {hasPermission('purchaseOrders', 'edit') && (
                                     <>
                                         {purchaseOrder.status === 'Ordered' || purchaseOrder.status === 'Amended' ? (
-                                            <DropdownMenuItem onSelect={() => updatePurchaseOrderStatus(purchaseOrder.id, 'Shipped')}>
+                                            <DropdownMenuItem onSelect={() => handleOpenStatusDialog(purchaseOrder, 'Shipped')}>
                                                 <Truck className="mr-2 h-4 w-4 text-purple-600" /> Mark as Shipped
                                             </DropdownMenuItem>
                                         ) : null}
                                         {purchaseOrder.status !== 'Delivered' ? (
-                                            <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(purchaseOrder)} disabled={purchaseOrder.status === 'Canceled'}>
-                                                <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
+                                            <DropdownMenuItem onSelect={() => handleOpenStatusDialog(purchaseOrder, 'Delivered')} disabled={purchaseOrder.status === 'Canceled'}>
+                                                <PackageCheck className="mr-2 h-4 w-4 text-green-600" /> Mark as Delivered
                                             </DropdownMenuItem>
                                         ) : (
-                                            <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(purchaseOrder)}>
-                                                <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Date
+                                            <DropdownMenuItem onSelect={() => handleOpenStatusDialog(purchaseOrder, 'Delivered')}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Info
                                             </DropdownMenuItem>
                                         )}
                                         <AlertDialog>
@@ -591,7 +617,7 @@ export default function PurchaseOrdersListPage() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                    disabled={currentPage === totalPages}
+                                    disabled={currentPage >= totalPages}
                                     className="h-8 w-8 p-0"
                                 >
                                     <ChevronRight className="h-4 w-4" />
@@ -675,33 +701,54 @@ export default function PurchaseOrdersListPage() {
       </div>
 
       {renderContent()}
-       <Dialog open={deliveryDialogOpen} onOpenChange={setDeliveryDialogOpen}>
-        <DialogContent>
+
+       <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <DialogContent className="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle>Confirm Delivery</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                    {targetStatus === 'Shipped' ? <Truck className="h-5 w-5 text-purple-600" /> : <PackageCheck className="h-5 w-5 text-green-600" />}
+                    Update Status: {targetStatus}
+                </DialogTitle>
                 <DialogDescription>
-                    Select the delivery date for PO #{purchaseOrderToUpdate?.poNumber}.
+                    Record the details for PO #{purchaseOrderToUpdate?.poNumber}.
                 </DialogDescription>
             </DialogHeader>
-            <div className="py-4 flex justify-center">
-                 <Popover>
+            <div className="space-y-4 py-4">
+                 <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">
+                        {targetStatus === 'Shipped' ? 'Dispatch Date' : 'Delivery Date'} (Optional)
+                    </Label>
+                    <Popover>
                       <PopoverTrigger asChild>
-                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}>
+                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10", !statusDate && "text-muted-foreground")}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {deliveryDate ? `${toNepaliDate(deliveryDate.toISOString())} BS (${format(deliveryDate, "PPP")})` : <span>Pick a date</span>}
+                            {statusDate ? `${toNepaliDate(statusDate.toISOString())} BS (${format(statusDate, "PPP")})` : <span>Pick a date</span>}
                           </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0" align="start">
                         <DualCalendar
-                          selected={deliveryDate}
-                          onSelect={setDeliveryDate}
+                          selected={statusDate}
+                          onSelect={setStatusDate}
                         />
                       </PopoverContent>
                     </Popover>
+                 </div>
+
+                 <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Internal Remarks (Optional)</Label>
+                    <Textarea 
+                        value={statusRemarks} 
+                        onChange={e => setStatusRemarks(e.target.value)}
+                        placeholder="Tracking ID, driver info, or quality notes..."
+                        className="min-h-[100px] text-sm resize-none"
+                    />
+                 </div>
             </div>
             <DialogFooter>
-                <Button variant="outline" onClick={() => setDeliveryDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleConfirmDelivery} disabled={!deliveryDate}>Confirm</Button>
+                <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleConfirmStatusUpdate} className="font-bold">
+                    Confirm {targetStatus}
+                </Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
