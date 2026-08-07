@@ -111,7 +111,7 @@ function PurchaseOrderDocument({
     >
         <header className="flex items-start justify-between pb-5 border-b-2 border-neutral-900">
             <div>
-                <h1 className="text-[22px] leading-tight font-extrabold uppercase whitespace-pre">
+                <h1 className="text-[18px] leading-tight font-extrabold uppercase whitespace-pre">
                     {companyProfile.nameEn.split(' ').filter(Boolean).join('  ')}
                 </h1>
                 <h2 className="text-[13px] font-semibold text-neutral-700">{companyProfile.nameNp}</h2>
@@ -506,7 +506,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" onClick={() => handleExportPdf(mainPrintRef, purchaseOrder.poNumber)} disabled={isExporting[`pdf-${purchaseOrder.poNumber}`]} className="h-full w-10 border-r rounded-none">
-                                {isExporting[`pdf-${purchaseOrder.poNumber}`] ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Save className="h-4 w-4"/>}
+                                {isExporting[`pdf-${purchaseOrder.poNumber}`] ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Save className="mr-2 h-4 w-4"/>}
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent><p className="text-[10px] uppercase font-black">Export PDF</p></TooltipContent>
