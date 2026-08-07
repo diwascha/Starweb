@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import type { CRMContact, Party } from '@/lib/types';
 import { onContactsUpdate, addContact, updateContact, deleteContact } from '@/services/crm-service';
-import { onPartiesUpdate } from '@/services/party-service';
+import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,7 +88,7 @@ export default function ContactsDirectoryPage() {
             onContactsUpdate(setContacts),
             onPartiesUpdate((data) => {
                 setCompanies(
-                    data.filter(p => p.type === 'Customer' || p.type === 'Both')
+                    data.filter(p => p.type === 'Customer' || p.type === 'Both' || p.type === 'Tenant')
                         .sort((a, b) => a.name.localeCompare(b.name))
                 );
                 setIsLoading(false);
@@ -189,39 +189,84 @@ export default function ContactsDirectoryPage() {
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const json = XLSX.utils.sheet_to_json<any>(sheet);
 
+                    // Local cache of company mapping to avoid redundant API hits/lookups
+                    const localCompanies = [...companies];
+                    let individualCompany = localCompanies.find(c => c.name === "Individual / Personal");
+                    let individualCompanyId = individualCompany?.id;
+
+                    if (!individualCompanyId) {
+                        individualCompanyId = await addParty({
+                            name: "Individual / Personal",
+                            type: "Customer",
+                            ownership: "Rental",
+                            address: "System Generated for Individual Contacts",
+                            createdBy: user.username,
+                        } as any);
+                    }
+
                     let count = 0;
-                    let skipped = 0;
+                    let duplicates = 0;
+                    let companiesCreated = 0;
 
                     for (const row of json) {
-                        const name = row['Contact Name'] || row['Name'];
-                        const companyName = row['Company'] || row['Organization'];
+                        const name = String(row['Contact Name'] || row['Name'] || '').trim();
+                        const companyName = String(row['Company'] || row['Organization'] || '').trim();
                         
-                        if (!name || !companyName) continue;
+                        if (!name) continue;
 
-                        const matchedCompany = companies.find(c => c.name.toLowerCase().trim() === companyName.toLowerCase().trim());
+                        let targetPartyId = individualCompanyId;
                         
-                        if (matchedCompany) {
-                            await addContact({
-                                name: String(name),
-                                partyId: matchedCompany.id,
-                                email: String(row['Email'] || ''),
-                                phone: String(row['Phone'] || row['Mobile'] || ''),
-                                designation: String(row['Designation'] || 'Staff'),
-                                isPrimary: String(row['Is Primary'] || '').toLowerCase() === 'yes',
-                                createdBy: user.username,
-                                createdAt: new Date().toISOString()
-                            });
-                            count++;
-                        } else {
-                            skipped++;
+                        if (companyName) {
+                            const matchedCompany = localCompanies.find(c => c.name.toLowerCase().trim() === companyName.toLowerCase().trim());
+                            
+                            if (matchedCompany) {
+                                targetPartyId = matchedCompany.id;
+                            } else {
+                                // Create the missing company automatically
+                                targetPartyId = await addParty({
+                                    name: companyName,
+                                    type: "Customer",
+                                    ownership: "Rental",
+                                    address: "Auto-created via Contact Import",
+                                    createdBy: user.username
+                                } as any);
+                                // Add to local cache to match subsequent rows for same company
+                                localCompanies.push({ id: targetPartyId, name: companyName } as Party);
+                                companiesCreated++;
+                            }
                         }
+
+                        // DE-DUPLICATION LOGIC: 
+                        // Check if this contact (same name) already exists for this specific company
+                        const isDuplicate = contacts.some(c => 
+                            c.name.toLowerCase().trim() === name.toLowerCase() && 
+                            c.partyId === targetPartyId
+                        );
+
+                        if (isDuplicate) {
+                            duplicates++;
+                            continue;
+                        }
+
+                        await addContact({
+                            name: name,
+                            partyId: targetPartyId,
+                            email: String(row['Email'] || ''),
+                            phone: String(row['Phone'] || row['Mobile'] || ''),
+                            designation: String(row['Designation'] || 'Staff'),
+                            isPrimary: String(row['Is Primary'] || '').toLowerCase() === 'yes',
+                            createdBy: user.username,
+                            createdAt: new Date().toISOString()
+                        });
+                        count++;
                     }
 
                     toast({ 
-                        title: 'Import Complete', 
-                        description: `Added ${count} contacts. Skipped ${skipped} due to unmatched company names.` 
+                        title: 'Import Successful', 
+                        description: `Processed ${count} new contacts. Found ${duplicates} duplicates. Created ${companiesCreated} new companies.` 
                     });
                 } catch (err) {
+                    console.error(err);
                     toast({ title: 'Import Failed', description: 'Failed to parse Excel data.', variant: 'destructive' });
                 } finally {
                     setIsImporting(false);
