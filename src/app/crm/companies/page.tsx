@@ -24,10 +24,11 @@ import {
     TrendingUp,
     Receipt,
     Wallet,
-    CheckCircle2
+    CheckCircle2,
+    Trash2
 } from 'lucide-react';
 import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp, Transaction } from '@/lib/types';
-import { onPartiesUpdate, updateParty } from '@/services/party-service';
+import { onPartiesUpdate, updateParty, deleteParty } from '@/services/party-service';
 import { onContactsUpdate, onInteractionsUpdate, addInteraction, updateInteraction, onFollowUpsUpdate, addFollowUp } from '@/services/crm-service';
 import { getTransactionsByParty } from '@/services/transaction-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -36,6 +37,16 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { 
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,7 +54,8 @@ import {
     DropdownMenu, 
     DropdownMenuContent, 
     DropdownMenuItem, 
-    DropdownMenuTrigger 
+    DropdownMenuTrigger,
+    DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import { 
     Table, 
@@ -88,6 +100,8 @@ export default function CompaniesManagementPage() {
 
     const [isFollowUpDialogOpen, setIsFollowUpDialogOpen] = useState(false);
     const [followUpForm, setFollowUpForm] = useState({ action: '', dueDateBS: '' });
+
+    const [deletingCompany, setDeletingCompany] = useState<Party | null>(null);
 
     // Financial cache per partyId
     const [partyTransactions, setPartyTransactions] = useState<Record<string, Transaction[]>>({});
@@ -301,6 +315,18 @@ export default function CompaniesManagementPage() {
         }
     };
 
+    const handleConfirmDelete = async () => {
+        if (!deletingCompany) return;
+        try {
+            await deleteParty(deletingCompany.id);
+            toast({ title: 'Account Purged', description: `${deletingCompany.name} has been removed.` });
+        } catch {
+            toast({ title: 'Error', variant: 'destructive' });
+        } finally {
+            setDeletingCompany(null);
+        }
+    };
+
     const getPrimaryContact = (partyId: string) => {
         return contacts.find(c => c.partyId === partyId && c.isPrimary) || contacts.find(c => c.partyId === partyId);
     };
@@ -430,6 +456,10 @@ export default function CompaniesManagementPage() {
                                                         <DropdownMenuItem onSelect={() => { setSelectedCompany(c); setIsLogDialogOpen(true); }}>
                                                             <Clock className="mr-2 h-4 w-4"/> Log Activity
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem className="text-destructive" onSelect={() => setDeletingCompany(c)}>
+                                                            <Trash2 className="mr-2 h-4 w-4"/> Delete Account
+                                                        </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                                 <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
@@ -450,6 +480,23 @@ export default function CompaniesManagementPage() {
                     </Table>
                 </CardContent>
             </Card>
+
+            <AlertDialog open={!!deletingCompany} onOpenChange={(open) => !open && setDeletingCompany(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="uppercase tracking-tight">Delete Account?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently remove <span className="font-bold text-gray-900">{deletingCompany?.name}</span> from the registry. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="font-bold text-xs uppercase">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black text-xs uppercase">
+                            Delete Permanently
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Profile Detail Dialog */}
             {selectedCompany && (
@@ -576,7 +623,7 @@ export default function CompaniesManagementPage() {
                                         <div className="p-4 rounded-xl border border-dashed text-center space-y-3">
                                             <p className="text-[10px] text-muted-foreground italic font-medium">No scheduled actions.</p>
                                             <Button size="sm" variant="outline" onClick={() => setIsFollowUpDialogOpen(true)} className="h-8 font-black text-[9px] uppercase tracking-widest">
-                                                <Plus className="mr-1.5 h-3 w-3" /> Schedule New
+                                                <Plus className="mr-1.5 h-3.5 w-3.5" /> Schedule New
                                             </Button>
                                         </div>
                                     )}
