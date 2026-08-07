@@ -49,6 +49,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         status: data.status,
         isDraft: !!data.isDraft,
         deliveryDate: data.deliveryDate,
+        shippedDate: data.shippedDate,
+        remarks: data.remarks,
         createdBy: data.createdBy,
         lastModifiedBy: data.lastModifiedBy,
         ownership: data.ownership || 'Both',
@@ -154,6 +156,8 @@ export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<Pur
                     panNumber: currentData.panNumber || '',
                     status: currentData.status,
                     deliveryDate: currentData.deliveryDate || '',
+                    shippedDate: currentData.shippedDate || '',
+                    remarks: currentData.remarks || '',
                     amendments: currentData.amendments || [],
                 }
             };
