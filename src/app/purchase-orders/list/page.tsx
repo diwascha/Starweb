@@ -440,9 +440,10 @@ export default function PurchaseOrdersListPage() {
                         Status <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                     </TableHead>
+                    <TableHead className="text-xs font-bold">Remarks</TableHead>
                     <TableHead>
-                        <Button variant="ghost" onClick={() => requestSort('authorship')} className="text-xs">
-                            Authorship
+                        <Button variant="ghost" onClick={() => requestSort('authorship')} className="text-[10px] font-black uppercase tracking-widest">
+                            Author
                             <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                     </TableHead>
@@ -452,19 +453,22 @@ export default function PurchaseOrdersListPage() {
                 <TableBody>
                     {paginatedPOs.length > 0 ? (
                         paginatedPOs.map(purchaseOrder => (
-                        <TableRow key={purchaseOrder.id}>
+                        <TableRow key={purchaseOrder.id} className="h-14">
                             <TableCell className="font-medium text-xs">{purchaseOrder.poNumber}</TableCell>
                             <TableCell className="text-xs">{toNepaliDate(purchaseOrder.poDate)}</TableCell>
                             <TableCell className="text-xs">{purchaseOrder.companyName}</TableCell>
                             <TableCell>
                                 {renderStatusBadge(purchaseOrder.status)}
                             </TableCell>
+                            <TableCell className="text-[11px] text-muted-foreground italic truncate max-w-[150px]" title={purchaseOrder.remarks}>
+                                {purchaseOrder.remarks || '—'}
+                            </TableCell>
                             <TableCell>
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-default uppercase font-bold">
-                                                {purchaseOrder.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                            <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground cursor-default uppercase font-black">
+                                                {purchaseOrder.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
                                                 <span>{purchaseOrder.lastModifiedBy || purchaseOrder.createdBy}</span>
                                             </div>
                                         </TooltipTrigger>
@@ -478,105 +482,107 @@ export default function PurchaseOrdersListPage() {
                                 </TooltipProvider>
                             </TableCell>
                             <TableCell className="text-right">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
-                                {hasPermission('purchaseOrders', 'view') && (
-                                    <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/view?id=${purchaseOrder.id}`)}>
-                                        <View className="mr-2 h-4 w-4" /> View
-                                    </DropdownMenuItem>
-                                )}
-                                {hasPermission('purchaseOrders', 'edit') && (
-                                    <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit?id=${purchaseOrder.id}`)} disabled={purchaseOrder.status === 'Delivered' || purchaseOrder.status === 'Canceled'}>
-                                        <Edit className="mr-2 h-4 w-4" /> Edit
-                                    </DropdownMenuItem>
-                                )}
-                                 {hasPermission('purchaseOrders', 'view') && (
-                                    <DropdownMenuItem onSelect={() => handlePrint(purchaseOrder.id)}>
-                                        <Printer className="mr-2 h-4 w-4" /> Print
-                                    </DropdownMenuItem>
-                                )}
-                                
-                                {(hasPermission('purchaseOrders', 'view') || hasPermission('purchaseOrders', 'edit')) &&
-                                 (hasPermission('purchaseOrders', 'delete') || hasPermission('purchaseOrders', 'edit')) &&
-                                 <DropdownMenuSeparator />
-                                }
+                            <div className="flex justify-end gap-1">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                    {hasPermission('purchaseOrders', 'view') && (
+                                        <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/view?id=${purchaseOrder.id}`)}>
+                                            <View className="mr-2 h-4 w-4" /> View
+                                        </DropdownMenuItem>
+                                    )}
+                                    {hasPermission('purchaseOrders', 'edit') && (
+                                        <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit?id=${purchaseOrder.id}`)} disabled={purchaseOrder.status === 'Delivered' || purchaseOrder.status === 'Canceled'}>
+                                            <Edit className="mr-2 h-4 w-4" /> Edit
+                                        </DropdownMenuItem>
+                                    )}
+                                    {hasPermission('purchaseOrders', 'view') && (
+                                        <DropdownMenuItem onSelect={() => handlePrint(purchaseOrder.id)}>
+                                            <Printer className="mr-2 h-4 w-4" /> Print
+                                        </DropdownMenuItem>
+                                    )}
+                                    
+                                    {(hasPermission('purchaseOrders', 'view') || hasPermission('purchaseOrders', 'edit')) &&
+                                    (hasPermission('purchaseOrders', 'delete') || hasPermission('purchaseOrders', 'edit')) &&
+                                    <DropdownMenuSeparator />
+                                    }
 
-                                {hasPermission('purchaseOrders', 'edit') && (
-                                    <>
-                                        {purchaseOrder.status === 'Ordered' || purchaseOrder.status === 'Amended' ? (
-                                            <DropdownMenuItem onSelect={() => handleOpenStatusDialog(purchaseOrder, 'Shipped')}>
-                                                <Truck className="mr-2 h-4 w-4 text-purple-600" /> Mark as Shipped
-                                            </DropdownMenuItem>
-                                        ) : null}
-                                        {purchaseOrder.status === 'Shipped' ? (
-                                            <DropdownMenuItem onSelect={() => updatePurchaseOrderStatus(purchaseOrder.id, 'Ordered')}>
-                                                <RefreshCcw className="mr-2 h-4 w-4 text-blue-600" /> Revert to Ordered
-                                            </DropdownMenuItem>
-                                        ) : null}
-                                        {purchaseOrder.status !== 'Delivered' ? (
-                                            <DropdownMenuItem onSelect={() => handleOpenStatusDialog(purchaseOrder, 'Delivered')} disabled={purchaseOrder.status === 'Canceled'}>
-                                                <PackageCheck className="mr-2 h-4 w-4 text-green-600" /> Mark as Delivered
-                                            </DropdownMenuItem>
-                                        ) : (
-                                            <DropdownMenuItem onSelect={() => handleOpenStatusDialog(purchaseOrder, 'Delivered')}>
-                                                <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Info
-                                            </DropdownMenuItem>
-                                        )}
+                                    {hasPermission('purchaseOrders', 'edit') && (
+                                        <>
+                                            {purchaseOrder.status === 'Ordered' || purchaseOrder.status === 'Amended' ? (
+                                                <DropdownMenuItem onSelect={() => handleOpenStatusDialog(purchaseOrder, 'Shipped')}>
+                                                    <Truck className="mr-2 h-4 w-4 text-purple-600" /> Mark as Shipped
+                                                </DropdownMenuItem>
+                                            ) : null}
+                                            {purchaseOrder.status === 'Shipped' ? (
+                                                <DropdownMenuItem onSelect={() => updatePurchaseOrderStatus(purchaseOrder.id, 'Ordered')}>
+                                                    <RefreshCcw className="mr-2 h-4 w-4 text-blue-600" /> Revert to Ordered
+                                                </DropdownMenuItem>
+                                            ) : null}
+                                            {purchaseOrder.status !== 'Delivered' ? (
+                                                <DropdownMenuItem onSelect={() => handleOpenStatusDialog(purchaseOrder, 'Delivered')} disabled={purchaseOrder.status === 'Canceled'}>
+                                                    <PackageCheck className="mr-2 h-4 w-4 text-green-600" /> Mark as Delivered
+                                                </DropdownMenuItem>
+                                            ) : (
+                                                <DropdownMenuItem onSelect={() => handleOpenStatusDialog(purchaseOrder, 'Delivered')}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Info
+                                                </DropdownMenuItem>
+                                            )}
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem onSelect={e => e.preventDefault()} disabled={purchaseOrder.status === 'Delivered' || purchaseOrder.status === 'Canceled'} className="text-destructive focus:text-destructive">
+                                                        <Ban className="mr-2 h-4 w-4" /> Cancel Order
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure you want to cancel this order?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This action will mark PO #{purchaseOrder.poNumber} as Canceled. This action cannot be reversed.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Go Back</AlertDialogCancel>
+                                                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => updatePurchaseOrderStatus(purchaseOrder.id, 'Canceled')}>Confirm Cancellation</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </>
+                                    )}
+                                    
+                                    {hasPermission('purchaseOrders', 'delete') && hasPermission('purchaseOrders', 'edit') && <DropdownMenuSeparator />}
+                                    
+                                    {hasPermission('purchaseOrders', 'delete') && (
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <DropdownMenuItem onSelect={e => e.preventDefault()} disabled={purchaseOrder.status === 'Delivered' || purchaseOrder.status === 'Canceled'} className="text-destructive focus:text-destructive">
-                                                    <Ban className="mr-2 h-4 w-4" /> Cancel Order
-                                                </DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                                <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                                <span className="text-destructive">Delete</span>
+                                            </DropdownMenuItem>
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure you want to cancel this order?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        This action will mark PO #{purchaseOrder.poNumber} as Canceled. This action cannot be reversed.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Go Back</AlertDialogCancel>
-                                                    <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => updatePurchaseOrderStatus(purchaseOrder.id, 'Canceled')}>Confirm Cancellation</AlertDialogAction>
-                                                </AlertDialogFooter>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete the purchase order.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeletePurchaseOrder(purchaseOrder.id)}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
-                                    </>
-                                )}
-                                
-                                {hasPermission('purchaseOrders', 'delete') && hasPermission('purchaseOrders', 'edit') && <DropdownMenuSeparator />}
-                                
-                                {hasPermission('purchaseOrders', 'delete') && (
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                            <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                            <span className="text-destructive">Delete</span>
-                                        </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                            This action cannot be undone. This will permanently delete the purchase order.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeletePurchaseOrder(purchaseOrder.id)}>Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                )}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                                    )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                             </TableCell>
                         </TableRow>
                         ))
                     ) : (
                         <TableRow>
-                            <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                            <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                                 No orders found for the selected period and filters.
                             </TableCell>
                         </TableRow>
