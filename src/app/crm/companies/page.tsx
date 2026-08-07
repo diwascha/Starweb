@@ -25,10 +25,12 @@ import {
     Receipt,
     Wallet,
     CheckCircle2,
-    Trash2
+    Trash2,
+    GitMerge,
+    ChevronDown
 } from 'lucide-react';
 import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp, Transaction } from '@/lib/types';
-import { onPartiesUpdate, updateParty, deleteParty } from '@/services/party-service';
+import { onPartiesUpdate, updateParty, deleteParty, mergeParties } from '@/services/party-service';
 import { onContactsUpdate, onInteractionsUpdate, addInteraction, updateInteraction, onFollowUpsUpdate, addFollowUp } from '@/services/crm-service';
 import { getTransactionsByParty } from '@/services/transaction-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -102,6 +104,11 @@ export default function CompaniesManagementPage() {
     const [followUpForm, setFollowUpForm] = useState({ action: '', dueDateBS: '' });
 
     const [deletingCompany, setDeletingCompany] = useState<Party | null>(null);
+    
+    const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+    const [mergeSourceId, setMergeSourceId] = useState('');
+    const [mergeDestId, setMergeDestId] = useState('');
+    const [isMerging, setIsMerging] = useState(false);
 
     // Financial cache per partyId
     const [partyTransactions, setPartyTransactions] = useState<Record<string, Transaction[]>>({});
@@ -327,6 +334,22 @@ export default function CompaniesManagementPage() {
         }
     };
 
+    const handleExecuteMerge = async () => {
+        if (!mergeSourceId || !mergeDestId) return;
+        setIsMerging(true);
+        try {
+            await mergeParties(mergeSourceId, mergeDestId);
+            toast({ title: 'Accounts Merged', description: 'Records consolidated successfully.' });
+            setIsMergeDialogOpen(false);
+            setMergeSourceId('');
+            setMergeDestId('');
+        } catch {
+            toast({ title: 'Merge Failed', variant: 'destructive' });
+        } finally {
+            setIsMerging(false);
+        }
+    };
+
     const getPrimaryContact = (partyId: string) => {
         return contacts.find(c => c.partyId === partyId && c.isPrimary) || contacts.find(c => c.partyId === partyId);
     };
@@ -363,6 +386,9 @@ export default function CompaniesManagementPage() {
                             onChange={e => setSearchQuery(e.target.value)}
                         />
                     </div>
+                    <Button variant="outline" onClick={() => setIsMergeDialogOpen(true)} className="h-10 font-bold text-xs uppercase tracking-widest gap-2">
+                        <GitMerge className="h-4 w-4" /> Merge
+                    </Button>
                     <Button variant="outline" asChild className="h-10 font-bold text-xs uppercase tracking-widest">
                         <Link href="/settings/finance?tab=parties">Manage Partners</Link>
                     </Button>
@@ -497,6 +523,59 @@ export default function CompaniesManagementPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <Dialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Merge Accounts</DialogTitle>
+                        <DialogDescription>Consolidate duplicate records. Data from the source will be moved to the destination, and the source will be deleted.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-6 py-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Source Account (TO BE DELETED)</Label>
+                            <Select value={mergeSourceId} onValueChange={setMergeSourceId}>
+                                <SelectTrigger className="h-10 bg-white">
+                                    <SelectValue placeholder="Select account to remove..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {companies.filter(c => c.id !== mergeDestId).map(c => (
+                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex justify-center">
+                            <div className="bg-muted p-2 rounded-full">
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Destination Account (TO KEEP)</Label>
+                            <Select value={mergeDestId} onValueChange={setMergeDestId}>
+                                <SelectTrigger className="h-10 bg-white">
+                                    <SelectValue placeholder="Select account to keep..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {companies.filter(c => c.id !== mergeSourceId).map(c => (
+                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter className="border-t pt-4">
+                        <Button variant="outline" onClick={() => setIsMergeDialogOpen(false)} className="h-11 font-bold text-xs uppercase">Cancel</Button>
+                        <Button 
+                            onClick={handleExecuteMerge} 
+                            disabled={!mergeSourceId || !mergeDestId || isMerging} 
+                            className="h-11 px-8 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20"
+                        >
+                            {isMerging ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <GitMerge className="mr-2 h-4 w-4"/>}
+                            Execute Merge
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Profile Detail Dialog */}
             {selectedCompany && (

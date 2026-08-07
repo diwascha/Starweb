@@ -142,6 +142,11 @@ export const deleteParty = async (id: string): Promise<void> => {
     });
 };
 
+/**
+ * Consolidates two parties into one. 
+ * Moves all related records (Contacts, Interactions, Deals, Transactions, etc.)
+ * from the source to the destination before deleting the source.
+ */
 export const mergeParties = async (sourceId: string, destinationId: string): Promise<void> => {
     const { db } = getFirebase();
     const sourceRef = doc(getPartiesCollection(), sourceId);
@@ -149,13 +154,60 @@ export const mergeParties = async (sourceId: string, destinationId: string): Pro
 
     const sourceSnap = await getDoc(sourceRef);
     if (!sourceSnap.exists()) return;
+    
+    const targetSnap = await getDoc(destRef);
+    if (!targetSnap.exists()) return;
+    
+    const targetData = targetSnap.data();
+
+    // Move related records
+    const collectionsToUpdate = [
+        'crm_contacts',
+        'crm_interactions',
+        'crm_deals',
+        'crm_followups',
+        'transactions',
+        'costReports',
+        'rentalAgreements',
+        'rentalBills'
+    ];
 
     const batch = writeBatch(db);
+    
+    // For each collection, find records with sourceId and update to destinationId
+    for (const colName of collectionsToUpdate) {
+        try {
+            const q = query(collection(db, colName), where("partyId", "==", sourceId));
+            const snap = await getDocs(q);
+            snap.forEach(d => {
+                batch.update(d.ref, { partyId: destinationId });
+            });
+        } catch (e) {
+            console.warn(`Could not update ${colName} during merge:`, e);
+        }
+    }
+
+    // Special case for Estimated Invoices which uses partyName (string)
+    try {
+        const invQ = query(collection(db, 'estimatedInvoices'), where("partyName", "==", sourceSnap.data().name));
+        const invSnap = await getDocs(invQ);
+        invSnap.forEach(d => {
+            batch.update(d.ref, { partyName: targetData.name });
+        });
+    } catch (e) {
+        console.warn("Could not update estimatedInvoices during merge:", e);
+    }
+
+    // Remove the source party
     batch.delete(sourceRef);
-    batch.commit().catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ 
-            path: 'merge_batch', 
-            operation: 'write' 
-        } satisfies SecurityRuleContext));
+    
+    await batch.commit().catch(err => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+                path: 'merge_batch', 
+                operation: 'write' 
+            } satisfies SecurityRuleContext));
+        }
+        throw err;
     });
 };
