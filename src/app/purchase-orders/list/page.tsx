@@ -23,7 +23,8 @@ import {
   Truck,
   FileText,
   Save,
-  Loader2
+  Loader2,
+  RefreshCcw
 } from 'lucide-react';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -215,13 +216,19 @@ export default function PurchaseOrdersListPage() {
         lastModifiedBy: user?.username || 'Administrator'
       };
       
-      if (remarks) {
+      if (remarks !== undefined) {
           updateData.remarks = remarks;
       }
 
       if (dateISO) {
           if (status === 'Delivered') updateData.deliveryDate = dateISO;
           if (status === 'Shipped') updateData.shippedDate = dateISO;
+      }
+      
+      // If reverting to Ordered, clear out dispatch and delivery dates
+      if (status === 'Ordered') {
+          updateData.shippedDate = null;
+          updateData.deliveryDate = null;
       }
 
       updatePurchaseOrder(id, updateData);
@@ -500,6 +507,11 @@ export default function PurchaseOrdersListPage() {
                                         {purchaseOrder.status === 'Ordered' || purchaseOrder.status === 'Amended' ? (
                                             <DropdownMenuItem onSelect={() => handleOpenStatusDialog(purchaseOrder, 'Shipped')}>
                                                 <Truck className="mr-2 h-4 w-4 text-purple-600" /> Mark as Shipped
+                                            </DropdownMenuItem>
+                                        ) : null}
+                                        {purchaseOrder.status === 'Shipped' ? (
+                                            <DropdownMenuItem onSelect={() => updatePurchaseOrderStatus(purchaseOrder.id, 'Ordered')}>
+                                                <RefreshCcw className="mr-2 h-4 w-4 text-blue-600" /> Revert to Ordered
                                             </DropdownMenuItem>
                                         ) : null}
                                         {purchaseOrder.status !== 'Delivered' ? (
