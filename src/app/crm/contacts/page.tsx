@@ -20,7 +20,8 @@ import {
     Check,
     Download,
     Upload,
-    FileSpreadsheet
+    FileSpreadsheet,
+    ChevronDown
 } from 'lucide-react';
 import type { CRMContact, Party } from '@/lib/types';
 import { onContactsUpdate, addContact, updateContact, deleteContact } from '@/services/crm-service';
