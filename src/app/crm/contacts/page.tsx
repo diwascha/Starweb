@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
     Users, 
     Plus, 
@@ -17,7 +17,10 @@ import {
     X,
     FilterX,
     ChevronsUpDown,
-    Check
+    Check,
+    Download,
+    Upload,
+    FileSpreadsheet
 } from 'lucide-react';
 import type { CRMContact, Party } from '@/lib/types';
 import { onContactsUpdate, addContact, updateContact, deleteContact } from '@/services/crm-service';
@@ -57,10 +60,12 @@ import { cn } from '@/lib/utils';
 export default function ContactsDirectoryPage() {
     const { user } = useAuth();
     const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     const [contacts, setContacts] = useState<CRMContact[]>([]);
     const [companies, setCompanies] = useState<Party[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isImporting, setIsImporting] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -146,6 +151,89 @@ export default function ContactsDirectoryPage() {
         }
     };
 
+    const handleExportExcel = async () => {
+        try {
+            const XLSX = await import('xlsx');
+            const data = filteredContacts.map(c => ({
+                'Contact Name': c.name,
+                'Company': companies.find(p => p.id === c.partyId)?.name || 'Unlinked',
+                'Designation': c.designation || '',
+                'Email': c.email || '',
+                'Phone': c.phone || '',
+                'Is Primary': c.isPrimary ? 'Yes' : 'No'
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Contacts");
+            XLSX.writeFile(workbook, `CRM_Contacts_${new Date().toISOString().split('T')[0]}.xlsx`);
+            toast({ title: 'Export Successful' });
+        } catch (error) {
+            toast({ title: 'Export Failed', variant: 'destructive' });
+        }
+    };
+
+    const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !user) return;
+
+        setIsImporting(true);
+        try {
+            const XLSX = await import('xlsx');
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json<any>(sheet);
+
+                    let count = 0;
+                    let skipped = 0;
+
+                    for (const row of json) {
+                        const name = row['Contact Name'] || row['Name'];
+                        const companyName = row['Company'] || row['Organization'];
+                        
+                        if (!name || !companyName) continue;
+
+                        const matchedCompany = companies.find(c => c.name.toLowerCase().trim() === companyName.toLowerCase().trim());
+                        
+                        if (matchedCompany) {
+                            await addContact({
+                                name: String(name),
+                                partyId: matchedCompany.id,
+                                email: String(row['Email'] || ''),
+                                phone: String(row['Phone'] || row['Mobile'] || ''),
+                                designation: String(row['Designation'] || 'Staff'),
+                                isPrimary: String(row['Is Primary'] || '').toLowerCase() === 'yes',
+                                createdBy: user.username,
+                                createdAt: new Date().toISOString()
+                            });
+                            count++;
+                        } else {
+                            skipped++;
+                        }
+                    }
+
+                    toast({ 
+                        title: 'Import Complete', 
+                        description: `Added ${count} contacts. Skipped ${skipped} due to unmatched company names.` 
+                    });
+                } catch (err) {
+                    toast({ title: 'Import Failed', description: 'Failed to parse Excel data.', variant: 'destructive' });
+                } finally {
+                    setIsImporting(false);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } catch (err) {
+            setIsImporting(false);
+            toast({ title: 'Error', description: 'Failed to process file.', variant: 'destructive' });
+        }
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
     return (
         <div className="flex flex-col gap-8">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -153,21 +241,55 @@ export default function ContactsDirectoryPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Contact Database</h1>
                     <p className="text-muted-foreground">Centralized directory of individual client personnel.</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <div className="relative">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
-                            placeholder="Search name, email, or company..." 
+                            placeholder="Search contacts..." 
                             className="pl-8 w-64 bg-white" 
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                         />
                     </div>
+                    
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="gap-2">
+                                <FileSpreadsheet className="h-4 w-4" />
+                                Data Actions
+                                <ChevronDown className="h-3 w-3 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExportExcel}>
+                                <Download className="mr-2 h-4 w-4" /> Export to Excel
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                                <Upload className="mr-2 h-4 w-4" /> Import from Excel
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleImportExcel} 
+                        accept=".xlsx,.xls" 
+                        className="hidden" 
+                    />
+
                     <Button onClick={() => { setEditingContact(null); setForm({name:'', partyId:'', email:'', phone:'', designation:'', isPrimary: false}); setIsDialogOpen(true); }}>
                         <Plus className="mr-2 h-4 w-4" /> Add Contact
                     </Button>
                 </div>
             </header>
+
+            {isImporting && (
+                <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg flex items-center gap-3 animate-pulse">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-sm font-bold uppercase tracking-widest text-primary">Synchronizing Contacts...</span>
+                </div>
+            )}
 
             <Card className="shadow-sm border-gray-100 bg-white">
                 <CardContent className="p-0">
