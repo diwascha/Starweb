@@ -111,7 +111,9 @@ function PurchaseOrderDocument({
     >
         <header className="flex items-start justify-between pb-5 border-b-2 border-neutral-900">
             <div>
-                <h1 className="text-[22px] leading-tight font-extrabold uppercase">{companyProfile.nameEn}</h1>
+                <h1 className="text-[22px] leading-tight font-extrabold uppercase whitespace-pre">
+                    {companyProfile.nameEn.split(' ').filter(Boolean).join('  ')}
+                </h1>
                 <h2 className="text-[13px] font-semibold text-neutral-700">{companyProfile.nameNp}</h2>
                 <p className="text-[11px] text-neutral-600 mt-1">{companyProfile.address}</p>
                 <p className="text-[10px] font-mono text-neutral-600">PAN: {companyProfile.pan}</p>
