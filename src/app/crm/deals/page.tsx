@@ -309,7 +309,7 @@ export default function DealsPipelinePage() {
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuLabel className="text-[9px] uppercase font-black px-2 py-1 text-muted-foreground">Transition Stage</DropdownMenuLabel>
-                                                            {(STAGES as string[]).filter(s => s !== deal.stage).map(s => (
+                                                            {(STAGES as string[]).filter(s => (s as string) !== (deal.stage as string)).map(s => (
                                                                 <DropdownMenuItem key={s} onSelect={() => handleMoveStage(deal, s as DealStage)}>
                                                                     <ArrowRightLeft className="mr-2 h-4 w-4 opacity-50"/> {s}
                                                                 </DropdownMenuItem>

@@ -178,7 +178,6 @@ export default function FollowUpsPage() {
                 await addFollowUp({ 
                     ...payload, 
                     createdBy: user.username,
-                    createdAt: new Date().toISOString()
                 });
                 toast({ title: 'Follow-up Scheduled' });
             }
@@ -414,7 +413,7 @@ function FollowUpCard({ f, onStatus, onEdit, onDelete, priority }: { f: FollowUp
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem onSelect={(e: React.MouseEvent) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={(event) => event.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader><AlertDialogTitle className="uppercase tracking-tight">Purge Reminder?</AlertDialogTitle><AlertDialogDescription>This action is irreversible.</AlertDialogDescription></AlertDialogHeader>

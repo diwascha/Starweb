@@ -279,7 +279,6 @@ export default function CompaniesManagementPage() {
                 dueDate: adDateISO,
                 status: 'Pending',
                 createdBy: user.username,
-                createdAt: new Date().toISOString()
             });
             toast({ title: 'Follow-up Scheduled' });
             setIsFollowUpDialogOpen(false);
@@ -945,7 +944,7 @@ export default function CompaniesManagementPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsAttributesDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
-                        <Button onClick={handleSaveAttributes} className="font-black text-xs uppercase h-11 px-10 shadow-lg shadow-primary/20">Update Attributes</Button>
+                        <Button onClick={handleSaveAttributes} className="font-black text-xs uppercase h-11 px-8 shadow-lg shadow-primary/20">Update Attributes</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

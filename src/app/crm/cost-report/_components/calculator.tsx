@@ -21,6 +21,7 @@ import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { 
   onCostReportsUpdate, 
   addCostReport, 
+  updateCostReport,
   generateNextCostReportNumber, 
 } from '@/services/cost-report-service';
 import { onDealsUpdate } from '@/services/deal-service';
@@ -586,7 +587,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
         return;
     }
     try {
-        const newPartyId = await addParty({ ...partyForm, createdBy: user.username, createdAt: new Date().toISOString() });
+        const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
         setSelectedPartyId(newPartyId);
         toast({ title: 'Success', description: 'New party added.' });
         setIsPartyDialogOpen(false);
@@ -604,7 +605,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
     setIsSaving(true);
     try {
         const party = parties.find(p => p.id === selectedPartyId);
-        const reportData = {
+        const reportData: Omit<CostReport, 'id' | 'createdAt'> = {
             reportNumber,
             reportDate: reportDate.toISOString(),
             partyId: selectedPartyId,
@@ -621,7 +622,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
             createdBy: reportToEdit?.createdBy || user.username,
             ownership: party?.ownership || 'Shivam',
             status,
-            dealId: selectedDealId || undefined,
+            dealId: (selectedDealId || undefined) as string | undefined,
             validUntilBS,
             remarks
         };
