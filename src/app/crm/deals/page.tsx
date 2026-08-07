@@ -194,7 +194,6 @@ export default function DealsPipelinePage() {
 
     const handleMoveStage = async (deal: Deal, newStage: DealStage) => {
         if (!user) return;
-        // Use type assertion to avoid narrowing conflict in TypeScript comparisons
         if ((newStage as string) === 'Lost') {
             setDealToLose(deal);
             setLostForm({ reason: '', otherText: '' });
@@ -263,74 +262,74 @@ export default function DealsPipelinePage() {
                 </Button>
             </header>
 
-            <ScrollArea className="flex-1 w-full whitespace-nowrap rounded-xl">
-                <div className="flex gap-4 min-w-max pb-6 h-full">
-                    {STAGES.map(stage => {
-                        const { deals: stageDeals, count, totalValue } = kanbanData[stage];
-                        return (
-                            <div key={stage} className="w-[300px] flex flex-col bg-muted/30 rounded-xl border border-muted-foreground/10 overflow-hidden">
-                                <div className="p-4 border-b bg-white/50 space-y-1 shrink-0">
-                                    <div className="flex items-center justify-between">
-                                        <Badge variant="outline" className={cn(
-                                            "text-[10px] font-black uppercase tracking-widest px-2 h-5",
-                                            stage === 'Won' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                            stage === 'Lost' ? "bg-red-50 text-red-700 border-red-200" :
-                                            "bg-blue-50 text-blue-700 border-blue-200"
-                                        )}>
-                                            {stage}
-                                        </Badge>
-                                        <span className="text-[10px] font-black text-muted-foreground opacity-60 uppercase">{count} deals</span>
-                                    </div>
-                                    <p className="text-xs font-black text-gray-900 tabular-nums">
-                                        Rs. {totalValue.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                    </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pb-10">
+                {STAGES.map(stage => {
+                    const { deals: stageDeals, count, totalValue } = kanbanData[stage];
+                    return (
+                        <div key={stage} className="flex flex-col bg-muted/30 rounded-xl border border-muted-foreground/10 overflow-hidden min-h-[400px]">
+                            <div className="p-3 border-b bg-white/50 space-y-1 shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <Badge variant="outline" className={cn(
+                                        "text-[9px] font-black uppercase tracking-widest px-1.5 h-4 shadow-none",
+                                        stage === 'Won' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                        stage === 'Lost' ? "bg-red-50 text-red-700 border-red-200" :
+                                        "bg-blue-50 text-blue-700 border-blue-200"
+                                    )}>
+                                        {stage}
+                                    </Badge>
+                                    <span className="text-[9px] font-black text-muted-foreground opacity-60 uppercase">{count}</span>
                                 </div>
+                                <p className="text-[11px] font-black text-gray-900 tabular-nums">
+                                    Rs. {totalValue.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                                </p>
+                            </div>
 
-                                <div className="flex-1 p-3 space-y-3 overflow-y-auto">
+                            <ScrollArea className="flex-1">
+                                <div className="p-2 space-y-2 max-h-[500px]">
                                     {stageDeals.map(deal => (
-                                        <Card key={deal.id} className="shadow-sm border-gray-100 hover:shadow-md hover:border-primary/20 transition-all cursor-default group">
-                                            <CardContent className="p-4 space-y-3">
+                                        <Card key={deal.id} className="shadow-sm border-gray-100 hover:shadow-md hover:border-primary/20 transition-all cursor-default group bg-white">
+                                            <CardContent className="p-3 space-y-2">
                                                 <div className="flex justify-between items-start gap-2">
-                                                    <div className="space-y-1 overflow-hidden">
-                                                        <h4 className="font-black text-xs text-gray-900 uppercase tracking-tight truncate leading-tight" title={deal.title}>
+                                                    <div className="space-y-0.5 overflow-hidden">
+                                                        <h4 className="font-black text-[10px] text-gray-900 uppercase tracking-tight truncate leading-tight" title={deal.title}>
                                                             {deal.title}
                                                         </h4>
-                                                        <p className="text-[10px] font-bold text-muted-foreground truncate uppercase opacity-70">
+                                                        <p className="text-[9px] font-bold text-muted-foreground truncate uppercase opacity-70">
                                                             {deal.partyName}
                                                         </p>
                                                     </div>
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <MoreHorizontal className="h-4 w-4"/>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <MoreHorizontal className="h-3 w-3"/>
                                                             </Button>
                                                         </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuContent align="end" className="w-44">
                                                             <DropdownMenuItem onSelect={() => handleOpenEditDialog(deal)}>
-                                                                <Edit className="mr-2 h-4 w-4"/> Edit Details
+                                                                <Edit className="mr-2 h-3.5 w-3.5"/> Edit Details
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            <div className="px-2 py-1.5 text-[9px] uppercase font-black text-muted-foreground">Transition Stage</div>
+                                                            <div className="px-2 py-1 text-[8px] uppercase font-black text-muted-foreground">Move To</div>
                                                             {(STAGES as string[]).filter(s => (s as string) !== (deal.stage as string)).map(s => (
                                                                 <DropdownMenuItem key={s} onSelect={() => handleMoveStage(deal, s as DealStage)}>
-                                                                    <ArrowRightLeft className="mr-2 h-4 w-4 opacity-50"/> {s}
+                                                                    <ArrowRightLeft className="mr-2 h-3.5 w-3.5 opacity-50"/> {s}
                                                                 </DropdownMenuItem>
                                                             ))}
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem className="text-destructive" onSelect={() => { setDealToDelete(deal.id); setIsDeleteDialogOpen(true); }}>
-                                                                <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                                                <Trash2 className="mr-2 h-3.5 w-3.5"/> Delete
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </div>
 
-                                                <div className="flex items-center justify-between pt-2 border-t border-dashed">
-                                                    <span className="font-black text-[11px] text-blue-700 tabular-nums">
+                                                <div className="flex items-center justify-between pt-1.5 border-t border-dashed">
+                                                    <span className="font-black text-[10px] text-blue-700 tabular-nums">
                                                         Rs. {deal.value?.toLocaleString('en-IN')}
                                                     </span>
                                                     {deal.expectedCloseDateBS && (
-                                                        <div className="flex items-center gap-1 text-[9px] font-bold text-muted-foreground uppercase">
-                                                            <Clock className="h-2.5 w-2.5"/> {deal.expectedCloseDateBS}
+                                                        <div className="flex items-center gap-1 text-[8px] font-bold text-muted-foreground uppercase">
+                                                            <Clock className="h-2 w-2"/> {deal.expectedCloseDateBS}
                                                         </div>
                                                     )}
                                                 </div>
@@ -338,18 +337,18 @@ export default function DealsPipelinePage() {
                                         </Card>
                                     ))}
                                     {stageDeals.length === 0 && (
-                                        <div className="flex flex-col items-center justify-center py-10 opacity-20 border-2 border-dashed rounded-xl grayscale">
-                                            <Target className="h-8 w-8 mb-2"/>
-                                            <span className="text-[10px] font-black uppercase tracking-widest">No deals</span>
+                                        <div className="flex flex-col items-center justify-center py-8 opacity-20 border-2 border-dashed rounded-xl">
+                                            <Target className="h-6 w-6 mb-1"/>
+                                            <span className="text-[8px] font-black uppercase tracking-widest text-center">Empty</span>
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
-                <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+                                <ScrollBar orientation="vertical" />
+                            </ScrollArea>
+                        </div>
+                    );
+                })}
+            </div>
 
             {/* Add / Edit Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
