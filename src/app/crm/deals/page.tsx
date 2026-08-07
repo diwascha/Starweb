@@ -46,7 +46,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogDescription,
-    AlertDialogFooter
+    AlertDialogFooter,
+    AlertDialogTrigger
 } from '@/components/ui/alert-dialog';
 import { 
     DropdownMenu, 
