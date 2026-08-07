@@ -98,7 +98,7 @@ function PurchaseOrderDocument({
     }, {});
   }, [purchaseOrder.items]);
 
-  const descriptionFor = (item: any, isPaper: boolean, type: string) => {
+  const displayNameFor = (item: any, isPaper: boolean, type: string) => {
     if (!isPaper) return item.rawMaterialName || type;
     return item.grade ? `${type} — ${item.grade}` : type;
   };
@@ -111,7 +111,7 @@ function PurchaseOrderDocument({
     >
         <header className="flex items-start justify-between pb-5 border-b-2 border-neutral-900">
             <div>
-                <h1 className="text-[18px] leading-tight font-extrabold uppercase whitespace-pre">
+                <h1 className="text-[15px] leading-tight font-extrabold uppercase whitespace-pre">
                     {companyProfile.nameEn.split(' ').filter(Boolean).join('  ')}
                 </h1>
                 <h2 className="text-[13px] font-semibold text-neutral-700">{companyProfile.nameNp}</h2>
@@ -203,7 +203,7 @@ function PurchaseOrderDocument({
                                 {sortedItems.map((item: any, index: number) => (
                                     <tr key={index} className="border-b border-neutral-200">
                                         <td className="py-1.5 text-center text-neutral-400">{index + 1}</td>
-                                        <td className="py-1.5 font-semibold">{descriptionFor(item, isPaper, type)}</td>
+                                        <td className="py-1.5 font-semibold">{displayNameFor(item, isPaper, type)}</td>
                                         {isPaper && (
                                             <>
                                                 <td className="py-1.5 text-center font-semibold">{item.size || '—'}</td>
@@ -674,7 +674,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Button variant="outline" size="sm" onClick={() => handleExportPdf(snapshotPrintRef, `Snapshot-${selectedVersion.versionId}`)} disabled={isExporting[`pdf-Snapshot-${selectedVersion.versionId}`]} className="h-10 px-4">
-                                                {isExporting[`pdf-Snapshot-${selectedVersion.versionId}`] ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Save className="h-4 w-4 text-red-600"/>}
+                                                {isExporting[`pdf-Snapshot-${selectedVersion.versionId}`] ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Save className="mr-2 h-4 w-4 text-red-600"/>}
                                                 <span className="ml-2 text-[10px] font-black uppercase">Save PDF</span>
                                             </Button>
                                         </TooltipTrigger>
