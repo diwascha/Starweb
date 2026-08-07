@@ -19,7 +19,8 @@ import {
   ChevronDown,
   FilterX,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Truck
 } from 'lucide-react';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -71,7 +72,7 @@ import { Label } from '@/components/ui/label';
 type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'status' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
-const statuses: PurchaseOrderStatus[] = ['Draft', 'Ordered', 'Amended', 'Delivered', 'Canceled'];
+const statuses: PurchaseOrderStatus[] = ['Draft', 'Ordered', 'Amended', 'Shipped', 'Delivered', 'Canceled'];
 
 // Helper component for multi-select with "All" support
 const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
@@ -343,6 +344,7 @@ export default function PurchaseOrdersListPage() {
     switch (status) {
       case 'Ordered': return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Ordered</Badge>;
       case 'Amended': return <Badge variant="default" className="bg-amber-500 text-black hover:bg-amber-600">Amended</Badge>;
+      case 'Shipped': return <Badge variant="default" className="bg-purple-600 hover:bg-purple-700">Shipped</Badge>;
       case 'Delivered': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Delivered</Badge>;
       case 'Canceled': return <Badge variant="destructive">Canceled</Badge>;
       case 'Draft': return <Badge variant="secondary">Draft</Badge>;
@@ -469,6 +471,11 @@ export default function PurchaseOrdersListPage() {
 
                                 {hasPermission('purchaseOrders', 'edit') && (
                                     <>
+                                        {purchaseOrder.status === 'Ordered' || purchaseOrder.status === 'Amended' ? (
+                                            <DropdownMenuItem onSelect={() => updatePurchaseOrderStatus(purchaseOrder.id, 'Shipped')}>
+                                                <Truck className="mr-2 h-4 w-4 text-purple-600" /> Mark as Shipped
+                                            </DropdownMenuItem>
+                                        ) : null}
                                         {purchaseOrder.status !== 'Delivered' ? (
                                             <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(purchaseOrder)} disabled={purchaseOrder.status === 'Canceled'}>
                                                 <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered

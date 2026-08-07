@@ -141,7 +141,7 @@ export interface Amendment {
   amendedBy: string;
 }
 
-export type PurchaseOrderStatus = 'Draft' | 'Ordered' | 'Amended' | 'Delivered' | 'Canceled';
+export type PurchaseOrderStatus = 'Draft' | 'Ordered' | 'Amended' | 'Shipped' | 'Delivered' | 'Canceled';
 
 export interface PurchaseOrderVersion {
   versionId: string;
