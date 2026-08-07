@@ -106,7 +106,7 @@ function PurchaseOrderDocument({
   return (
     <div
       ref={containerRef}
-      className="po-document bg-white text-neutral-900 font-sans min-h-[297mm] flex flex-col"
+      className="po-document bg-white text-neutral-900 font-sans flex flex-col"
       style={{ padding: '14mm 14mm 12mm', fontVariantNumeric: 'tabular-nums' }}
     >
         <header className="flex items-start justify-between pb-5 border-b-2 border-neutral-900">
@@ -535,7 +535,8 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                 style={{ 
                     width: `${210 * zoom}mm`, 
                     transition: 'width 0.2s ease-in-out',
-                    position: 'relative'
+                    position: 'relative',
+                    minHeight: `${297 * zoom}mm`
                 }}
                 className="shrink-0"
              >
@@ -546,9 +547,10 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                         width: '210mm',
                         position: 'absolute',
                         top: 0,
-                        left: 0
+                        left: 0,
+                        minHeight: '297mm'
                     }}
-                    className="shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-500 overflow-hidden"
+                    className="shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-500 overflow-hidden bg-white"
                 >
                     <PurchaseOrderDocument
                         purchaseOrder={purchaseOrder}
@@ -645,7 +647,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
 
                 <ScrollArea className="flex-1 bg-muted/20 p-4 sm:p-12">
                     {selectedVersion && (
-                        <div className="mx-auto w-full shadow-2xl">
+                        <div className="mx-auto w-full shadow-2xl bg-white min-h-[297mm]">
                             <PurchaseOrderDocument
                                 purchaseOrder={selectedVersion.data}
                                 includeAmendments={false}
