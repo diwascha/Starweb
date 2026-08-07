@@ -170,7 +170,8 @@ export default function DealsPipelinePage() {
             ...form,
             partyName: party?.name,
             expectedCloseDate: expectedCloseDateAD,
-            value: Number(form.value) || 0
+            value: Number(form.value) || 0,
+            lastModifiedAt: new Date().toISOString()
         };
 
         try {
@@ -193,7 +194,8 @@ export default function DealsPipelinePage() {
 
     const handleMoveStage = async (deal: Deal, newStage: DealStage) => {
         if (!user) return;
-        if (newStage === 'Lost') {
+        // Use type assertion to avoid narrowing conflict in TypeScript comparisons
+        if ((newStage as string) === 'Lost') {
             setDealToLose(deal);
             setLostForm({ reason: '', otherText: '' });
             setIsLostDialogOpen(true);
@@ -205,7 +207,7 @@ export default function DealsPipelinePage() {
             lastModifiedBy: user.username 
         };
         
-        if (newStage === 'Won' || newStage === 'Lost') {
+        if ((newStage as string) === 'Won' || (newStage as string) === 'Lost') {
             updates.closedAt = new Date().toISOString();
         }
 
@@ -308,7 +310,7 @@ export default function DealsPipelinePage() {
                                                                 <Edit className="mr-2 h-4 w-4"/> Edit Details
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            <DropdownMenuLabel className="text-[9px] uppercase font-black px-2 py-1 text-muted-foreground">Transition Stage</DropdownMenuLabel>
+                                                            <div className="px-2 py-1.5 text-[9px] uppercase font-black text-muted-foreground">Transition Stage</div>
                                                             {(STAGES as string[]).filter(s => (s as string) !== (deal.stage as string)).map(s => (
                                                                 <DropdownMenuItem key={s} onSelect={() => handleMoveStage(deal, s as DealStage)}>
                                                                     <ArrowRightLeft className="mr-2 h-4 w-4 opacity-50"/> {s}
@@ -466,8 +468,4 @@ export default function DealsPipelinePage() {
             </AlertDialog>
         </div>
     );
-}
-
-function DropdownMenuLabel({ className, children }: { className?: string, children: React.ReactNode }) {
-    return <div className={cn("px-2 py-1.5 text-sm font-semibold", className)}>{children}</div>;
 }
