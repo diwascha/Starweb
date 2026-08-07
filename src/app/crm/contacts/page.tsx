@@ -166,6 +166,7 @@ export default function ContactsDirectoryPage() {
 
             const worksheet = XLSX.utils.json_to_sheet(data);
             const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Contacts");
             XLSX.writeFile(workbook, `CRM_Contacts_${new Date().toISOString().split('T')[0]}.xlsx`);
             toast({ title: 'Export Successful' });
@@ -191,22 +192,11 @@ export default function ContactsDirectoryPage() {
 
                     // Local cache of company mapping to avoid redundant API hits/lookups
                     const localCompanies = [...companies];
-                    let individualCompany = localCompanies.find(c => c.name === "Individual / Personal");
-                    let individualCompanyId = individualCompany?.id;
-
-                    if (!individualCompanyId) {
-                        individualCompanyId = await addParty({
-                            name: "Individual / Personal",
-                            type: "Customer",
-                            ownership: "Rental",
-                            address: "System Generated for Individual Contacts",
-                            createdBy: user.username,
-                        } as any);
-                    }
 
                     let count = 0;
                     let duplicates = 0;
                     let companiesCreated = 0;
+                    let skippedNoCompany = 0;
 
                     for (const row of json) {
                         const name = String(row['Contact Name'] || row['Name'] || '').trim();
@@ -214,7 +204,7 @@ export default function ContactsDirectoryPage() {
                         
                         if (!name) continue;
 
-                        let targetPartyId = individualCompanyId;
+                        let targetPartyId = '';
                         
                         if (companyName) {
                             const matchedCompany = localCompanies.find(c => c.name.toLowerCase().trim() === companyName.toLowerCase().trim());
@@ -226,7 +216,7 @@ export default function ContactsDirectoryPage() {
                                 targetPartyId = await addParty({
                                     name: companyName,
                                     type: "Customer",
-                                    ownership: "Rental",
+                                    ownership: "Both",
                                     address: "Auto-created via Contact Import",
                                     createdBy: user.username
                                 } as any);
@@ -234,6 +224,10 @@ export default function ContactsDirectoryPage() {
                                 localCompanies.push({ id: targetPartyId, name: companyName } as Party);
                                 companiesCreated++;
                             }
+                        } else {
+                            // If no company name provided, we skip this row as per user request to avoid dummy companies
+                            skippedNoCompany++;
+                            continue;
                         }
 
                         // DE-DUPLICATION LOGIC: 
@@ -263,7 +257,7 @@ export default function ContactsDirectoryPage() {
 
                     toast({ 
                         title: 'Import Successful', 
-                        description: `Processed ${count} new contacts. Found ${duplicates} duplicates. Created ${companiesCreated} new companies.` 
+                        description: `Processed ${count} new contacts. Found ${duplicates} duplicates. Created ${companiesCreated} new companies. Skipped ${skippedNoCompany} rows with missing company names.` 
                     });
                 } catch (err) {
                     console.error(err);
