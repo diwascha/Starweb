@@ -26,7 +26,7 @@ import {
   Loader2,
   RefreshCcw
 } from 'lucide-react';
-import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
+import type { PurchaseOrder, PurchaseOrderStatus, Amendment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import {
@@ -210,14 +210,25 @@ export default function PurchaseOrdersListPage() {
   };
   
   const updatePurchaseOrderStatus = (id: string, status: PurchaseOrderStatus, dateISO?: string, remarks?: string) => {
+    const po = purchaseOrders.find(p => p.id === id);
+    if (!po) return;
+
     try {
       const updateData: any = { 
         status, 
         lastModifiedBy: user?.username || 'Administrator'
       };
       
+      // If remarks are provided, update main field AND add to amendment log
       if (remarks !== undefined) {
           updateData.remarks = remarks;
+          
+          const newAmendment: Amendment = {
+              date: new Date().toISOString(),
+              remarks: `Status updated to ${status}${remarks ? `: ${remarks}` : ''}`,
+              amendedBy: user?.username || 'System'
+          };
+          updateData.amendments = [...(po.amendments || []), newAmendment];
       }
 
       if (dateISO) {
@@ -460,7 +471,7 @@ export default function PurchaseOrdersListPage() {
                             <TableCell>
                                 {renderStatusBadge(purchaseOrder.status)}
                             </TableCell>
-                            <TableCell className="text-[11px] text-muted-foreground italic truncate max-w-[150px]" title={purchaseOrder.remarks}>
+                            <TableCell className="text-[11px] text-muted-foreground italic truncate max-w-[200px]" title={purchaseOrder.remarks}>
                                 {purchaseOrder.remarks || '—'}
                             </TableCell>
                             <TableCell>
