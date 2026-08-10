@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -308,6 +307,11 @@ export default function PaymentTrackerPage() {
         }
     };
 
+    const handleClearFilters = () => {
+        setSearchQuery('');
+        setHistoryDateRange(undefined);
+    };
+
     const receivedDrafts = draftEntries.filter(e => e.type === 'Received');
     const outflowDrafts = draftEntries.filter(e => e.type === 'Outflow');
 
@@ -453,7 +457,7 @@ export default function PaymentTrackerPage() {
                                                         </span>
                                                         <Button variant="ghost" size="sm" onClick={() => handleAddLine('Outflow')} className="h-7 text-[10px] font-black uppercase text-red-700 tracking-widest hover:bg-red-100/60">
                                                             <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add Line
-                                                        </span>
+                                                        </Button>
                                                     </div>
                                                 </TableHead>
                                             </TableRow>
@@ -481,7 +485,7 @@ export default function PaymentTrackerPage() {
                                                         <Input 
                                                             value={e.description} 
                                                             onChange={v => handleUpdateLine(e.id, 'description', v.target.value)} 
-                                                            className="h-[24px] border-none rounded-none text-[14px] px-3 text-gray-600 bg-transparent focus-visible:bg-red-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
+                                                            className="h-[24px] border-none rounded-none text-[14px] px-3 text-gray-600 bg-transparent focus-visible:bg-blue-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
                                                             placeholder="Optional note..."
                                                         />
                                                     </TableCell>
@@ -490,7 +494,7 @@ export default function PaymentTrackerPage() {
                                                             type="number" 
                                                             value={e.amount} 
                                                             onChange={v => handleUpdateLine(e.id, 'amount', v.target.value)} 
-                                                            className="h-[24px] border-none rounded-none text-right px-4 font-black text-[14px] tabular-nums bg-transparent focus-visible:bg-red-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
+                                                            className="h-[24px] border-none rounded-none text-right px-4 font-black text-[14px] tabular-nums bg-transparent focus-visible:bg-blue-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
                                                             placeholder="0"
                                                         />
                                                     </TableCell>
@@ -621,7 +625,7 @@ export default function PaymentTrackerPage() {
             <AlertDialog open={!!deletingVoucherNo} onOpenChange={(open) => !open && setDeletingVoucherNo(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle className="uppercase tracking-tight">Delete Entire Voucher?</AlertDialogTitle>
+                        <AlertDialogTitle>Delete Entire Voucher?</AlertDialogTitle>
                         <AlertDialogDescription>
                             This will permanently remove voucher <span className="font-bold text-gray-900">{deletingVoucherNo}</span> and all associated transactions from the historical registry.
                         </AlertDialogDescription>
