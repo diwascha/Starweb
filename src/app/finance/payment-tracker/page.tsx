@@ -21,25 +21,46 @@ import {
     ChevronLeft,
     ChevronRight,
     Calculator,
-    ClipboardList
+    ClipboardList,
+    PlusCircle,
+    Hash,
+    ArrowRight,
+    ArrowRightLeft,
+    Zap,
+    Download
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { onPaymentEntriesUpdate, addPaymentEntry, updatePaymentEntry, deletePaymentEntry } from '@/services/payment-tracker-service';
+import { 
+    onPaymentEntriesUpdate, 
+    addPaymentEntry, 
+    updatePaymentEntry, 
+    deletePaymentEntry,
+    savePaymentVoucher 
+} from '@/services/payment-tracker-service';
 import type { PaymentTrackerEntry } from '@/lib/types';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn, toNepaliDate, generateId, generateNextPaymentTrackerNumber } from '@/lib/utils';
 import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DualCalendar } from '@/components/ui/dual-calendar';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+
+interface DraftEntry {
+    id: string;
+    type: 'Received' | 'Outflow';
+    partyName: string;
+    description: string;
+    amount: string;
+}
 
 export default function PaymentTrackerPage() {
     const { user } = useAuth();
@@ -47,29 +68,105 @@ export default function PaymentTrackerPage() {
     const printableRef = useRef<HTMLDivElement>(null);
     
     const [activeTab, setActiveTab] = useState('tracker');
-    const [entries, setEntries] = useState<PaymentTrackerEntry[]>([]);
+    const [savedEntries, setSavedEntries] = useState<PaymentTrackerEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: new Date(), to: new Date() });
-
-    // Inline form states
-    const [newReceived, setNewReceived] = useState({ partyName: '', description: '', amount: '' });
-    const [newOutflow, setNewOutflow] = useState({ partyName: '', description: '', amount: '' });
+    const [isSaving, setIsSaving] = useState(false);
     
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editForm, setEditForm] = useState({ partyName: '', description: '', amount: '' });
+    // Header State
+    const [voucherNo, setVoucherNo] = useState('');
+    const [entryDate, setEntryDate] = useState<Date>(new Date());
+    
+    // Draft Workspace State
+    const [draftEntries, setDraftEntries] = useState<DraftEntry[]>([
+        { id: generateId(), type: 'Received', partyName: '', description: '', amount: '' },
+        { id: generateId(), type: 'Outflow', partyName: '', description: '', amount: '' }
+    ]);
+
+    // History Filters
+    const [searchQuery, setSearchQuery] = useState('');
+    const [historyDateRange, setHistoryDateRange] = useState<DateRange | undefined>(undefined);
 
     useEffect(() => {
         const unsub = onPaymentEntriesUpdate((data) => {
-            setEntries(data);
+            setSavedEntries(data);
             setIsLoading(false);
         });
         return () => unsub();
     }, []);
 
-    const filteredEntries = useMemo(() => {
-        let filtered = [...entries];
+    // Generate next voucher number
+    useEffect(() => {
+        if (activeTab === 'tracker' && savedEntries.length >= 0) {
+            generateNextPaymentTrackerNumber(savedEntries, entryDate.toISOString()).then(setVoucherNo);
+        }
+    }, [savedEntries, activeTab, entryDate]);
+
+    const totals = useMemo(() => {
+        let rec = 0;
+        let pay = 0;
+        draftEntries.forEach(e => {
+            const amt = parseFloat(e.amount) || 0;
+            if (e.type === 'Received') rec += amt;
+            else pay += amt;
+        });
+        return { rec, pay, net: rec - pay };
+    }, [draftEntries]);
+
+    const handleAddLine = (type: 'Received' | 'Outflow') => {
+        setDraftEntries([...draftEntries, { id: generateId(), type, partyName: '', description: '', amount: '' }]);
+    };
+
+    const handleRemoveLine = (id: string) => {
+        if (draftEntries.length <= 1) return;
+        setDraftEntries(draftEntries.filter(e => e.id !== id));
+    };
+
+    const handleUpdateLine = (id: string, field: keyof DraftEntry, value: string) => {
+        setDraftEntries(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
+    };
+
+    const handleFinalizeVoucher = async () => {
+        if (!user) return;
+        
+        const validEntries = draftEntries.filter(e => e.partyName.trim() !== '' && (parseFloat(e.amount) || 0) > 0);
+        if (validEntries.length === 0) {
+            toast({ title: 'Validation Error', description: 'Enter at least one valid entry with party and amount.', variant: 'destructive' });
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await savePaymentVoucher({
+                voucherNo,
+                date: entryDate.toISOString(),
+                entries: validEntries.map(e => ({
+                    type: e.type,
+                    partyName: e.partyName,
+                    description: e.description,
+                    amount: parseFloat(e.amount) || 0,
+                    ownership: 'Both'
+                })),
+                createdBy: user.username
+            });
+
+            toast({ title: 'Ledger Finalized', description: `Voucher ${voucherNo} has been archived.` });
+            
+            // Clear draft and move to history
+            setDraftEntries([
+                { id: generateId(), type: 'Received', partyName: '', description: '', amount: '' },
+                { id: generateId(), type: 'Outflow', partyName: '', description: '', amount: '' }
+            ]);
+            setActiveTab('history');
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to save voucher.', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const filteredHistory = useMemo(() => {
+        let filtered = [...savedEntries];
         
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
@@ -80,67 +177,17 @@ export default function PaymentTrackerPage() {
             );
         }
 
-        if (dateRange?.from) {
-            const start = startOfDay(dateRange.from);
-            const end = endOfDay(dateRange.to || dateRange.from);
+        if (historyDateRange?.from) {
+            const start = startOfDay(historyDateRange.from);
+            const end = endOfDay(historyDateRange.to || historyDateRange.from);
             filtered = filtered.filter(e => {
                 const d = new Date(e.date);
                 return isWithinInterval(d, { start, end });
             });
         }
 
-        return filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }, [entries, searchQuery, dateRange]);
-
-    const receivedEntries = useMemo(() => filteredEntries.filter(e => e.type === 'Received'), [filteredEntries]);
-    const outflowEntries = useMemo(() => filteredEntries.filter(e => e.type === 'Outflow'), [filteredEntries]);
-
-    const totalReceived = useMemo(() => receivedEntries.reduce((sum, e) => sum + e.amount, 0), [receivedEntries]);
-    const totalOutflow = useMemo(() => outflowEntries.reduce((sum, e) => sum + e.amount, 0), [outflowEntries]);
-    const netBalance = totalReceived - totalOutflow;
-
-    const handleAdd = async (type: 'Received' | 'Outflow') => {
-        if (!user) return;
-        const form = type === 'Received' ? newReceived : newOutflow;
-        
-        if (!form.partyName.trim() || !form.amount) {
-            toast({ title: 'Missing Info', description: 'Party and Amount are required.', variant: 'destructive' });
-            return;
-        }
-
-        try {
-            await addPaymentEntry({
-                partyName: form.partyName,
-                description: form.description,
-                amount: parseFloat(form.amount) || 0,
-                type,
-                date: (dateRange?.from || new Date()).toISOString(),
-                ownership: 'Both',
-                createdBy: user.username
-            });
-            toast({ title: 'Entry Saved' });
-            if (type === 'Received') setNewReceived({ partyName: '', description: '', amount: '' });
-            else setNewOutflow({ partyName: '', description: '', amount: '' });
-        } catch {
-            toast({ title: 'Error', variant: 'destructive' });
-        }
-    };
-
-    const handleUpdate = async (id: string) => {
-        if (!user) return;
-        try {
-            await updatePaymentEntry(id, {
-                partyName: editForm.partyName,
-                description: editForm.description,
-                amount: parseFloat(editForm.amount) || 0,
-                lastModifiedBy: user.username
-            });
-            setEditingId(null);
-            toast({ title: 'Record Updated' });
-        } catch {
-            toast({ title: 'Error', variant: 'destructive' });
-        }
-    };
+        return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [savedEntries, searchQuery, historyDateRange]);
 
     const handleExportPdf = async () => {
         setIsExporting(true);
@@ -148,31 +195,39 @@ export default function PaymentTrackerPage() {
             const { jsPDF } = await import('jspdf');
             const { default: autoTable } = await import('jspdf-autotable');
             const doc = new jsPDF();
-            doc.text("Payment Tracker Ledger", 14, 15);
+            doc.text(`Payment Ledger: ${voucherNo}`, 14, 15);
+            doc.setFontSize(10);
+            doc.text(`Date: ${toNepaliDate(entryDate.toISOString())} BS`, 14, 22);
+            
             autoTable(doc, {
-                startY: 25,
-                head: [['Ref #', 'Party', 'Description', 'Amount']],
-                body: filteredEntries.map(e => [e.voucherNo, e.partyName, e.description, e.amount.toLocaleString()])
+                startY: 30,
+                head: [['Ref #', 'Type', 'Party', 'Description', 'Amount']],
+                body: draftEntries
+                    .filter(e => e.partyName.trim() !== '')
+                    .map(e => [voucherNo, e.type, e.partyName, e.description, e.amount])
             });
-            doc.save(`Ledger-${format(new Date(), 'yyyyMMdd')}.pdf`);
+            doc.save(`Ledger-${voucherNo}.pdf`);
         } finally {
             setIsExporting(false);
         }
     };
 
+    const receivedDrafts = draftEntries.filter(e => e.type === 'Received');
+    const outflowDrafts = draftEntries.filter(e => e.type === 'Outflow');
+
     return (
         <div className="flex flex-col gap-6">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 print:hidden">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">High-Density Ledger</h1>
-                    <p className="text-muted-foreground text-[11px] font-black uppercase tracking-widest mt-1 italic">Professional Financial Tracking • 14pt Grid</p>
+                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">Payment Tracker</h1>
+                    <p className="text-muted-foreground text-[11px] font-black uppercase tracking-widest mt-1 italic">Voucher-Based Daily Cash Flow • High Density Workspace</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={isExporting} className="h-9 px-4 font-black text-[10px] uppercase tracking-widest">
                         {isExporting ? <Loader2 className="animate-spin h-4 w-4"/> : <FileDown className="h-4 w-4" />} Export PDF
                     </Button>
-                    <Button size="sm" onClick={() => window.print()} className="h-9 px-6 font-black text-[10px] uppercase tracking-widest">
-                        <Printer className="mr-2 h-4 w-4" /> Print View
+                    <Button onClick={handleFinalizeVoucher} disabled={isSaving} className="h-9 px-6 font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20">
+                        {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="mr-2 h-4 w-4" />} Finalize Document
                     </Button>
                 </div>
             </header>
@@ -181,226 +236,238 @@ export default function PaymentTrackerPage() {
                 <TabsList className="bg-muted/50 p-1 mb-4 h-11">
                     <TabsTrigger value="tracker" className="gap-2 px-8 font-black text-[10px] uppercase tracking-widest">
                         <Calculator className="h-4 w-4" />
-                        Live Tracker
+                        Live Workspace
                     </TabsTrigger>
                     <TabsTrigger value="history" className="gap-2 px-8 font-black text-[10px] uppercase tracking-widest">
                         <History className="h-4 w-4" />
-                        History Logs
+                        Historical Registry
                     </TabsTrigger>
                 </TabsList>
 
-                <div className="bg-muted/20 p-4 rounded-xl border border-dashed mb-6 flex flex-col md:flex-row gap-6 items-center print:hidden">
-                    <div className="flex items-center gap-3">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Entry Date</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className="w-[240px] justify-start text-left font-normal bg-white h-10 border-gray-300">
-                                    <CalendarIconLucide className="mr-2 h-4 w-4 opacity-50" />
-                                    <span className="font-bold text-xs truncate">
-                                        {dateRange?.from ? toNepaliDate(dateRange.from.toISOString()) : 'Select Day'}
-                                    </span>
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <DualCalendar selected={dateRange?.from} onSelect={d => setDateRange({ from: d || new Date(), to: d || new Date() })} />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                    <div className="flex items-center gap-3 flex-1">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Quick Search</Label>
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                placeholder="Filter records..." 
-                                className="pl-9 h-10 bg-white" 
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                            />
+                <TabsContent value="tracker" className="space-y-6 animate-in fade-in slide-in-from-left-2">
+                    {/* Voucher Header */}
+                    <div className="bg-primary/5 p-4 rounded-xl border-2 border-primary/10 flex flex-col md:flex-row gap-6 items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white rounded-lg shadow-sm"><Hash className="h-4 w-4 text-primary"/></div>
+                            <div className="space-y-0.5">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Voucher Number</Label>
+                                <p className="font-black text-sm text-blue-900 font-mono tracking-tight">{voucherNo}</p>
+                            </div>
+                        </div>
+                        <Separator orientation="vertical" className="h-10 hidden md:block" />
+                        <div className="flex items-center gap-3">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Target Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-[200px] justify-start text-left font-normal bg-white h-9 border-gray-300">
+                                        <CalendarIconLucide className="mr-2 h-3.5 w-3.5 opacity-50" />
+                                        <span className="font-black text-[11px] truncate uppercase">
+                                            {toNepaliDate(entryDate.toISOString())} BS
+                                        </span>
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <DualCalendar selected={entryDate} onSelect={d => d && setEntryDate(d)} />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="flex-1 text-right">
+                             <Badge variant="outline" className="h-6 px-3 bg-white border-primary/20 text-primary font-black uppercase text-[9px] tracking-widest animate-pulse">Draft Mode Active</Badge>
                         </div>
                     </div>
-                </div>
 
-                <TabsContent value="tracker" className="animate-in fade-in slide-in-from-left-2">
                     <div ref={printableRef} className="space-y-4">
                         <Card className="shadow-sm border-gray-200 bg-white overflow-hidden">
                             <CardContent className="p-0">
-                                <Table className="border-collapse table-fixed w-full">
-                                    {/* RECEIVED */}
-                                    <TableHeader>
-                                        <TableRow className="bg-muted/40 hover:bg-muted/40 h-[32px] border-b">
-                                            <TableHead colSpan={6} className="px-4 h-[32px] align-middle">
-                                                <span className="text-[12px] font-black uppercase tracking-[0.3em] text-blue-900 leading-none">1. Cash/Bank Inflow (Receipts)</span>
-                                            </TableHead>
-                                        </TableRow>
-                                        <TableRow className="bg-muted/10 h-[24px]">
-                                            <TableHead className="w-12 text-center border-r font-black text-[10px] uppercase px-2">S.N.</TableHead>
-                                            <TableHead className="w-[110px] border-r font-black text-[10px] uppercase px-3">Ref #</TableHead>
-                                            <TableHead className="border-r font-black text-[10px] uppercase px-3">Party Name</TableHead>
-                                            <TableHead className="border-r font-black text-[10px] uppercase px-3">Narration</TableHead>
-                                            <TableHead className="text-right font-black text-[10px] uppercase px-4 w-[160px]">Amount</TableHead>
-                                            <TableHead className="w-20 px-2 print:hidden"></TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {receivedEntries.map((e, i) => (
-                                            <TableRow key={e.id} className="h-[18px] border-b group hover:bg-muted/5 transition-colors">
-                                                <TableCell className="text-center border-r text-[11px] text-muted-foreground px-2 py-0 h-[18px] leading-none">{i + 1}</TableCell>
-                                                <TableCell className="border-r px-3 py-0 text-[11px] font-mono font-bold text-blue-600 leading-none h-[18px]">{e.voucherNo}</TableCell>
-                                                <TableCell className="border-r p-0 h-[18px]">
-                                                    {editingId === e.id ? (
-                                                        <Input value={editForm.partyName} onChange={v => setEditForm({...editForm, partyName: v.target.value})} className="h-full border-none rounded-none text-[14px] px-3 py-0 leading-none" />
-                                                    ) : (
-                                                        <div className="px-3 py-0 text-[14px] font-black uppercase truncate leading-none flex items-center h-full text-gray-900">{e.partyName}</div>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="border-r p-0 h-[18px]">
-                                                    {editingId === e.id ? (
-                                                        <Input value={editForm.description} onChange={v => setEditForm({...editForm, description: v.target.value})} className="h-full border-none rounded-none text-[14px] px-3 py-0 leading-none" />
-                                                    ) : (
-                                                        <div className="px-3 py-0 text-[14px] text-gray-500 italic truncate leading-none flex items-center h-full">{e.description}</div>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-right border-r p-0 h-[18px]">
-                                                    {editingId === e.id ? (
-                                                        <Input type="number" value={editForm.amount} onChange={v => setEditForm({...editForm, amount: v.target.value})} className="h-full border-none rounded-none text-right px-4 font-black text-[14px] py-0 leading-none" />
-                                                    ) : (
-                                                        <div className="px-4 py-0 text-[14px] font-black tabular-nums leading-none flex items-center justify-end h-full text-blue-900">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center px-0 h-[18px] py-0 print:hidden">
-                                                    <div className="flex items-center justify-center h-full gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        {editingId === e.id ? (
-                                                            <Button variant="ghost" size="icon" className="h-4 w-4 text-emerald-600" onClick={() => handleUpdate(e.id)}><Check className="h-3 w-3"/></Button>
-                                                        ) : (
-                                                            <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => { setEditingId(e.id); setEditForm({partyName: e.partyName, description: e.description, amount: String(e.amount)}); }}><Edit className="h-3 w-3 text-muted-foreground"/></Button>
-                                                        )}
-                                                        <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-3 w-3"/></Button>
+                                <ScrollArea className="w-full">
+                                    <Table className="border-collapse table-fixed w-full min-w-[800px]">
+                                        {/* RECEIVED SECTION */}
+                                        <TableHeader>
+                                            <TableRow className="bg-blue-900 hover:bg-blue-900 h-[36px] border-b">
+                                                <TableHead colSpan={5} className="px-4 h-[36px] align-middle">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span className="text-[12px] font-black uppercase tracking-[0.3em] text-white">1. Inflow Ledger (Receipts)</span>
+                                                        <Button variant="secondary" size="sm" onClick={() => handleAddLine('Received')} className="h-6 text-[9px] font-black uppercase bg-white/20 text-white border-none hover:bg-white/30">
+                                                            <PlusCircle className="mr-1 h-3 w-3" /> Add Receipt Line
+                                                        </Button>
                                                     </div>
-                                                </TableCell>
+                                                </TableHead>
                                             </TableRow>
-                                        ))}
-                                        
-                                        <TableRow className="h-[28px] bg-primary/[0.04] border-b print:hidden">
-                                            <TableCell className="text-center border-r text-[9px] font-black text-primary px-2 uppercase h-[28px] leading-none">New In</TableCell>
-                                            <TableCell className="border-r h-[28px] px-3 font-mono text-[10px] text-muted-foreground italic align-middle">Auto #</TableCell>
-                                            <TableCell className="border-r p-0 h-[28px]"><Input placeholder="Enter source..." value={newReceived.partyName} onChange={e => setNewReceived({...newReceived, partyName: e.target.value})} className="h-full border-none rounded-none font-bold text-[14px] px-3" /></TableCell>
-                                            <TableCell className="border-r p-0 h-[28px]"><Input placeholder="Narration..." value={newReceived.description} onChange={e => setNewReceived({...newReceived, description: e.target.value})} className="h-full border-none rounded-none text-[14px] px-3 italic" /></TableCell>
-                                            <TableCell className="border-r p-0 h-[28px]"><Input type="number" placeholder="0.00" value={newReceived.amount} onChange={e => setNewReceived({...newReceived, amount: e.target.value})} className="h-full border-none rounded-none text-right px-4 font-black text-[14px]" /></TableCell>
-                                            <TableCell className="text-center p-0 h-[28px]">
-                                                <div className="flex items-center h-full"><Button size="icon" variant="ghost" onClick={() => handleAdd('Received')} className="h-full flex-1 text-primary hover:bg-primary/10"><Plus className="h-4 w-4"/></Button></div>
-                                            </TableCell>
-                                        </TableRow>
+                                            <TableRow className="bg-muted/10 h-[24px]">
+                                                <TableHead className="w-12 text-center border-r font-black text-[10px] uppercase px-2">S.N.</TableHead>
+                                                <TableHead className="border-r font-black text-[10px] uppercase px-3">Party Name / Source</TableHead>
+                                                <TableHead className="border-r font-black text-[10px] uppercase px-3">Description / Note</TableHead>
+                                                <TableHead className="text-right font-black text-[10px] uppercase px-4 w-[200px]">Amount (रु)</TableHead>
+                                                <TableHead className="w-12 px-2 text-center"></TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {receivedDrafts.map((e, i) => (
+                                                <TableRow key={e.id} className="h-[18px] border-b group transition-colors">
+                                                    <TableCell className="text-center border-r text-[11px] text-muted-foreground px-2 py-0 h-[18px] leading-none font-bold">{i + 1}</TableCell>
+                                                    <TableCell className="border-r p-0 h-[18px]">
+                                                        <Input 
+                                                            value={e.partyName} 
+                                                            onChange={v => handleUpdateLine(e.id, 'partyName', v.target.value)} 
+                                                            className="h-full border-none rounded-none text-[14px] px-3 py-0 font-black uppercase leading-none bg-transparent focus-visible:bg-white" 
+                                                            placeholder="..."
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="border-r p-0 h-[18px]">
+                                                        <Input 
+                                                            value={e.description} 
+                                                            onChange={v => handleUpdateLine(e.id, 'description', v.target.value)} 
+                                                            className="h-full border-none rounded-none text-[14px] px-3 py-0 italic leading-none bg-transparent focus-visible:bg-white" 
+                                                            placeholder="..."
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-right border-r p-0 h-[18px]">
+                                                        <Input 
+                                                            type="number" 
+                                                            value={e.amount} 
+                                                            onChange={v => handleUpdateLine(e.id, 'amount', v.target.value)} 
+                                                            className="h-full border-none rounded-none text-right px-4 font-black text-[14px] py-0 leading-none bg-transparent focus-visible:bg-white" 
+                                                            placeholder="0.00"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-center px-0 h-[18px] py-0">
+                                                        <Button variant="ghost" size="icon" className="h-full w-full rounded-none text-destructive opacity-20 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveLine(e.id)}>
+                                                            <Trash2 className="h-3 w-3"/>
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            <TableRow className="bg-blue-50 font-black h-[28px] border-b-2 border-gray-400">
+                                                <TableCell className="border-r px-2 h-[28px]"></TableCell>
+                                                <TableCell colSpan={2} className="uppercase tracking-[0.2em] text-[10px] border-r px-4 text-right h-[28px] align-middle">Aggregate Daily Received</TableCell>
+                                                <TableCell className="text-right tabular-nums text-[14px] px-4 border-r h-[28px] align-middle text-blue-900">{totals.rec.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                                <TableCell className="h-[28px]" />
+                                            </TableRow>
+                                        </TableBody>
 
-                                        <TableRow className="bg-blue-50 font-black h-[28px] border-b-2 border-gray-400">
-                                            <TableCell className="border-r px-2 h-[28px]"></TableCell>
-                                            <TableCell colSpan={3} className="uppercase tracking-[0.2em] text-[10px] border-r px-4 text-right h-[28px] align-middle">Aggregate Daily Received</TableCell>
-                                            <TableCell className="text-right tabular-nums text-[14px] px-4 border-r h-[28px] align-middle text-blue-900">{totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                            <TableCell className="h-[28px] print:hidden" />
-                                        </TableRow>
-                                    </TableBody>
-
-                                    {/* OUTFLOW */}
-                                    <TableHeader>
-                                        <TableRow className="h-4"><TableCell colSpan={6}></TableCell></TableRow>
-                                        <TableRow className="bg-muted/40 hover:bg-muted/40 h-[32px] border-b">
-                                            <TableHead colSpan={6} className="px-4 h-[32px] align-middle">
-                                                <span className="text-[12px] font-black uppercase tracking-[0.3em] text-red-900 leading-none">2. Cash/Bank Outflow (Payments)</span>
-                                            </TableHead>
-                                        </TableRow>
-                                        <TableRow className="bg-muted/10 h-[24px]">
-                                            <TableHead className="w-12 text-center border-r font-black text-[10px] uppercase px-2">S.N.</TableHead>
-                                            <TableHead className="w-[110px] border-r font-black text-[10px] uppercase px-3">Ref #</TableHead>
-                                            <TableHead className="border-r font-black text-[10px] uppercase px-3">Beneficiary</TableHead>
-                                            <TableHead className="border-r font-black text-[10px] uppercase px-3">Narration</TableHead>
-                                            <TableHead className="text-right font-black text-[10px] uppercase px-4 w-[160px]">Amount</TableHead>
-                                            <TableHead className="w-20 px-2 print:hidden"></TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {outflowEntries.map((e, i) => (
-                                            <TableRow key={e.id} className="h-[18px] border-b group hover:bg-muted/5 transition-colors">
-                                                <TableCell className="text-center border-r text-[11px] text-muted-foreground px-2 py-0 h-[18px] leading-none">{i + 1}</TableCell>
-                                                <TableCell className="border-r px-3 py-0 text-[11px] font-mono font-bold text-red-600 leading-none h-[18px]">{e.voucherNo}</TableCell>
-                                                <TableCell className="border-r p-0 h-[18px]">
-                                                    {editingId === e.id ? (
-                                                        <Input value={editForm.partyName} onChange={v => setEditForm({...editForm, partyName: v.target.value})} className="h-full border-none rounded-none text-[14px] px-3 py-0 leading-none" />
-                                                    ) : (
-                                                        <div className="px-3 py-0 text-[14px] font-black uppercase truncate leading-none flex items-center h-full text-gray-900">{e.partyName}</div>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="border-r p-0 h-[18px]">
-                                                    {editingId === e.id ? (
-                                                        <Input value={editForm.description} onChange={v => setEditForm({...editForm, description: v.target.value})} className="h-full border-none rounded-none text-[14px] px-3 py-0 leading-none" />
-                                                    ) : (
-                                                        <div className="px-3 py-0 text-[14px] text-gray-500 italic truncate leading-none flex items-center h-full">{e.description}</div>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-right border-r p-0 h-[18px]">
-                                                    {editingId === e.id ? (
-                                                        <Input type="number" value={editForm.amount} onChange={v => setEditForm({...editForm, amount: v.target.value})} className="h-full border-none rounded-none text-right px-4 font-black text-[14px] py-0 leading-none" />
-                                                    ) : (
-                                                        <div className="px-4 py-0 text-[14px] font-black tabular-nums leading-none flex items-center justify-end h-full text-red-900">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center px-0 h-[18px] py-0 print:hidden">
-                                                    <div className="flex items-center justify-center h-full gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        {editingId === e.id ? (
-                                                            <Button variant="ghost" size="icon" className="h-4 w-4 text-emerald-600" onClick={() => handleUpdate(e.id)}><Check className="h-3 w-3"/></Button>
-                                                        ) : (
-                                                            <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => { setEditingId(e.id); setEditForm({partyName: e.partyName, description: e.description, amount: String(e.amount)}); }}><Edit className="h-3 w-3 text-muted-foreground"/></Button>
-                                                        )}
-                                                        <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-3 w-3"/></Button>
+                                        {/* OUTFLOW SECTION */}
+                                        <TableHeader>
+                                            <TableRow className="h-6"><TableCell colSpan={5}></TableCell></TableRow>
+                                            <TableRow className="bg-red-900 hover:bg-red-900 h-[36px] border-b">
+                                                <TableHead colSpan={5} className="px-4 h-[36px] align-middle">
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span className="text-[12px] font-black uppercase tracking-[0.3em] text-white">2. Outflow Ledger (Payments)</span>
+                                                        <Button variant="secondary" size="sm" onClick={() => handleAddLine('Outflow')} className="h-6 text-[9px] font-black uppercase bg-white/20 text-white border-none hover:bg-white/30">
+                                                            <PlusCircle className="mr-1 h-3 w-3" /> Add Payment Line
+                                                        </Button>
                                                     </div>
-                                                </TableCell>
+                                                </TableHead>
                                             </TableRow>
-                                        ))}
+                                            <TableRow className="bg-muted/10 h-[24px]">
+                                                <TableHead className="w-12 text-center border-r font-black text-[10px] uppercase px-2">S.N.</TableHead>
+                                                <TableHead className="border-r font-black text-[10px] uppercase px-3">Beneficiary / Destination</TableHead>
+                                                <TableHead className="border-r font-black text-[10px] uppercase px-3">Description / Note</TableHead>
+                                                <TableHead className="text-right font-black text-[10px] uppercase px-4 w-[200px]">Amount (रु)</TableHead>
+                                                <TableHead className="w-12 px-2 text-center"></TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {outflowDrafts.map((e, i) => (
+                                                <TableRow key={e.id} className="h-[18px] border-b group transition-colors">
+                                                    <TableCell className="text-center border-r text-[11px] text-muted-foreground px-2 py-0 h-[18px] leading-none font-bold">{i + 1}</TableCell>
+                                                    <TableCell className="border-r p-0 h-[18px]">
+                                                        <Input 
+                                                            value={e.partyName} 
+                                                            onChange={v => handleUpdateLine(e.id, 'partyName', v.target.value)} 
+                                                            className="h-full border-none rounded-none text-[14px] px-3 py-0 font-black uppercase leading-none bg-transparent focus-visible:bg-white" 
+                                                            placeholder="..."
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="border-r p-0 h-[18px]">
+                                                        <Input 
+                                                            value={e.description} 
+                                                            onChange={v => handleUpdateLine(e.id, 'description', v.target.value)} 
+                                                            className="h-full border-none rounded-none text-[14px] px-3 py-0 italic leading-none bg-transparent focus-visible:bg-white" 
+                                                            placeholder="..."
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-right border-r p-0 h-[18px]">
+                                                        <Input 
+                                                            type="number" 
+                                                            value={e.amount} 
+                                                            onChange={v => handleUpdateLine(e.id, 'amount', v.target.value)} 
+                                                            className="h-full border-none rounded-none text-right px-4 font-black text-[14px] py-0 leading-none bg-transparent focus-visible:bg-white" 
+                                                            placeholder="0.00"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-center px-0 h-[18px] py-0">
+                                                        <Button variant="ghost" size="icon" className="h-full w-full rounded-none text-destructive opacity-20 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveLine(e.id)}>
+                                                            <Trash2 className="h-3 w-3"/>
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            <TableRow className="bg-red-50 font-black h-[28px] border-b-2 border-gray-400">
+                                                <TableCell className="border-r px-2 h-[28px]"></TableCell>
+                                                <TableCell colSpan={2} className="uppercase tracking-[0.2em] text-[10px] border-r px-4 text-right h-[28px] align-middle">Aggregate Daily Outflow</TableCell>
+                                                <TableCell className="text-right tabular-nums text-[14px] px-4 border-r h-[28px] align-middle text-red-900">{totals.pay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                                <TableCell className="h-[28px]" />
+                                            </TableRow>
+                                        </TableBody>
 
-                                        <TableRow className="h-[28px] bg-red-50/[0.04] border-b print:hidden">
-                                            <TableCell className="text-center border-r text-[9px] font-black text-red-600 px-2 uppercase h-[28px] leading-none">New Out</TableCell>
-                                            <TableCell className="border-r h-[28px] px-3 font-mono text-[10px] text-muted-foreground italic align-middle">Auto #</TableCell>
-                                            <TableCell className="border-r p-0 h-[28px]"><Input placeholder="Enter destination..." value={newOutflow.partyName} onChange={e => setNewOutflow({...newOutflow, partyName: e.target.value})} className="h-full border-none rounded-none font-bold text-[14px] px-3" /></TableCell>
-                                            <TableCell className="border-r p-0 h-[28px]"><Input placeholder="Narration..." value={newOutflow.description} onChange={e => setNewOutflow({...newOutflow, description: e.target.value})} className="h-full border-none rounded-none text-[14px] px-3 italic" /></TableCell>
-                                            <TableCell className="border-r p-0 h-[28px]"><Input type="number" placeholder="0.00" value={newOutflow.amount} onChange={e => setNewOutflow({...newOutflow, amount: e.target.value})} className="h-full border-none rounded-none text-right px-4 font-black text-[14px]" /></TableCell>
-                                            <TableCell className="text-center p-0 h-[28px]">
-                                                <div className="flex items-center h-full"><Button size="icon" variant="ghost" onClick={() => handleAdd('Outflow')} className="h-full flex-1 text-red-600 hover:bg-red-50"><Plus className="h-4 w-4"/></Button></div>
-                                            </TableCell>
-                                        </TableRow>
-
-                                        <TableRow className="bg-red-50 font-black h-[28px] border-b-2 border-gray-400">
-                                            <TableCell className="border-r px-2 h-[28px]"></TableCell>
-                                            <TableCell colSpan={3} className="uppercase tracking-[0.2em] text-[10px] border-r px-4 text-right h-[28px] align-middle">Aggregate Daily Outflow</TableCell>
-                                            <TableCell className="text-right tabular-nums text-[14px] px-4 border-r h-[28px] align-middle text-red-900">{totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                            <TableCell className="h-[28px] print:hidden" />
-                                        </TableRow>
-
-                                        {/* SUMMARY BALANCE */}
-                                        <TableRow className="h-2 border-none"><TableCell colSpan={6}></TableCell></TableRow>
-                                        <TableRow className="bg-emerald-50 border-t-2 border-gray-900 h-[36px]">
-                                            <TableCell className="border-r h-[36px]"></TableCell>
-                                            <TableCell colSpan={3} className="uppercase tracking-[0.4em] font-black text-[12px] text-gray-900 px-8 h-[36px] align-middle">Net Operational Balance</TableCell>
-                                            <TableCell className={cn(
-                                                "text-right tabular-nums text-[18px] px-4 font-black border-r h-[36px] align-middle",
-                                                netBalance >= 0 ? "text-emerald-700" : "text-red-700"
-                                            )}>
-                                                {netBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </TableCell>
-                                            <TableCell className="h-[36px] print:hidden" />
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
+                                        {/* SUMMARY FOOTER */}
+                                        <TableFooter>
+                                            <TableRow className="h-4 border-none"><TableCell colSpan={5}></TableCell></TableRow>
+                                            <TableRow className="bg-emerald-600 border-t-2 border-gray-900 h-[42px] hover:bg-emerald-600">
+                                                <TableCell className="border-r h-[42px]"></TableCell>
+                                                <TableCell colSpan={2} className="uppercase tracking-[0.4em] font-black text-[12px] text-white px-8 h-[42px] align-middle">Net Operational Balance</TableCell>
+                                                <TableCell className="text-right tabular-nums text-[20px] px-4 font-black border-r h-[42px] align-middle text-white">
+                                                    {totals.net.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </TableCell>
+                                                <TableCell className="h-[42px]" />
+                                            </TableRow>
+                                        </TableFooter>
+                                    </Table>
+                                    <ScrollBar orientation="horizontal" />
+                                </ScrollArea>
                             </CardContent>
                         </Card>
                     </div>
                 </TabsContent>
 
                 <TabsContent value="history" className="animate-in fade-in slide-in-from-right-2">
-                    <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
-                        <CardHeader className="py-3 px-6 bg-muted/20 border-b flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle className="text-base font-black uppercase">Historical Registry</CardTitle>
-                                <CardDescription className="text-[10px] font-bold uppercase text-muted-foreground">Full archive of past entries with reference numbers.</CardDescription>
+                    <div className="bg-muted/20 p-4 rounded-xl border border-dashed mb-6 flex flex-col md:flex-row gap-6 items-center">
+                        <div className="flex items-center gap-3">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">History Period</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-[240px] justify-start text-left font-normal bg-white h-10 border-gray-300">
+                                        <CalendarIconLucide className="mr-2 h-4 w-4 opacity-50" />
+                                        <span className="font-bold text-xs truncate">
+                                            {historyDateRange?.from ? `${toNepaliDate(historyDateRange.from.toISOString())} - ${historyDateRange.to ? toNepaliDate(historyDateRange.to.toISOString()) : '...'}` : 'Select Range'}
+                                        </span>
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <DualDateRangePicker selected={historyDateRange} onSelect={setHistoryDateRange} />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="flex items-center gap-3 flex-1">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Quick Filter</Label>
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Search party, voucher or narration..." 
+                                    className="pl-9 h-10 bg-white" 
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                />
                             </div>
-                        </CardHeader>
+                        </div>
+                        {(searchQuery || historyDateRange) && (
+                            <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setHistoryDateRange(undefined); }} className="h-10 text-muted-foreground uppercase font-black text-[9px]">
+                                <FilterX className="mr-1.5 h-3.5 w-3.5" /> Clear
+                            </Button>
+                        )}
+                    </div>
+
+                    <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                         <CardContent className="p-0">
                             <Table className="text-[14px]">
                                 <TableHeader className="bg-muted/50 border-b">
@@ -413,7 +480,7 @@ export default function PaymentTrackerPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {entries.map(e => (
+                                    {filteredHistory.map(e => (
                                         <TableRow key={e.id} className="h-14 border-b hover:bg-muted/10 transition-colors">
                                             <TableCell className="pl-6 font-medium text-gray-500">{toNepaliDate(e.date)}</TableCell>
                                             <TableCell className="font-mono font-bold text-blue-600">{e.voucherNo}</TableCell>
@@ -429,8 +496,8 @@ export default function PaymentTrackerPage() {
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {entries.length === 0 && (
-                                        <TableRow><TableCell colSpan={5} className="py-20 text-center text-muted-foreground italic">No historical records found.</TableCell></TableRow>
+                                    {filteredHistory.length === 0 && (
+                                        <TableRow><TableCell colSpan={5} className="py-20 text-center text-muted-foreground italic">No historical records found for this criteria.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -452,9 +519,4 @@ export default function PaymentTrackerPage() {
             `}</style>
         </div>
     );
-
-    function handleClearFilters() {
-        setSearchQuery('');
-        setDateRange({ from: new Date(), to: new Date() });
-    }
 }

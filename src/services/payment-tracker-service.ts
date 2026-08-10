@@ -12,7 +12,8 @@ import {
     deleteDoc, 
     getDocs, 
     query, 
-    orderBy 
+    orderBy,
+    writeBatch
 } from 'firebase/firestore';
 import type { PaymentTrackerEntry } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
@@ -52,6 +53,38 @@ export const onPaymentEntriesUpdate = (callback: (entries: PaymentTrackerEntry[]
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: COLLECTIONS.PAYMENT_TRACKER,
                 operation: 'list',
+            }));
+        }
+    });
+};
+
+export const savePaymentVoucher = async (data: {
+    voucherNo: string;
+    date: string;
+    entries: Omit<PaymentTrackerEntry, 'id' | 'createdAt' | 'createdBy' | 'date' | 'voucherNo'>[];
+    createdBy: string;
+}): Promise<void> => {
+    const { db } = getFirebase();
+    const batch = writeBatch(db);
+    const createdAt = new Date().toISOString();
+
+    data.entries.forEach(entry => {
+        const docRef = doc(getCollection());
+        batch.set(docRef, {
+            ...entry,
+            voucherNo: data.voucherNo,
+            date: data.date,
+            createdBy: data.createdBy,
+            createdAt
+        });
+    });
+
+    await batch.commit().catch(async (err) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: COLLECTIONS.PAYMENT_TRACKER,
+                operation: 'create',
+                requestResourceData: data,
             }));
         }
     });
