@@ -279,7 +279,7 @@ export default function PaymentTrackerPage() {
                                                 ) : (
                                                     <Button variant="ghost" size="icon" className="h-4 w-4 p-0" onClick={() => startEditing(e)}><Edit className="h-3 w-3 text-muted-foreground"/></Button>
                                                 )}
-                                                <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive p-0" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-3 w-3"/></Button>
+                                                <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive p-0" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -298,9 +298,16 @@ export default function PaymentTrackerPage() {
                                         <Input type="number" placeholder="0.00" value={newReceived.amount} onChange={e => setNewReceived({...newReceived, amount: e.target.value})} className="h-full border-none rounded-none text-right px-4 font-black text-[12px] py-0" />
                                     </TableCell>
                                     <TableCell className="text-center p-0 h-[24px]">
-                                        <Button size="icon" variant="ghost" onClick={() => handleAdd('Received')} className="h-full w-full rounded-none text-primary hover:bg-primary/10">
-                                            <Plus className="h-4 w-4"/>
-                                        </Button>
+                                        <div className="flex items-center h-full">
+                                            <Button size="icon" variant="ghost" onClick={() => handleAdd('Received')} className="h-full flex-1 rounded-none text-primary hover:bg-primary/10">
+                                                <Plus className="h-4 w-4"/>
+                                            </Button>
+                                            {(newReceived.partyName || newReceived.amount) && (
+                                                <Button size="icon" variant="ghost" onClick={() => setNewReceived({ partyName: '', description: '', amount: '' })} className="h-full w-8 rounded-none text-muted-foreground hover:bg-red-50 hover:text-red-600 border-l">
+                                                    <X className="h-3 w-3"/>
+                                                </Button>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
 
@@ -362,7 +369,7 @@ export default function PaymentTrackerPage() {
                                                 {editingId === e.id ? (
                                                     <Button variant="ghost" size="icon" className="h-4 w-4 text-emerald-600 p-0" onClick={() => handleUpdate(e.id)}><Check className="h-3 w-3"/></Button>
                                                 ) : (
-                                                    <Button variant="ghost" size="icon" className="h-4 w-4 p-0" onClick={() => startEditing(e)}><Edit className="h-3.5 w-3.5 text-muted-foreground"/></Button>
+                                                    <Button variant="ghost" size="icon" className="h-4 w-4 p-0" onClick={() => startEditing(e)}><Edit className="h-3 w-3 text-muted-foreground"/></Button>
                                                 )}
                                                 <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive p-0" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
                                             </div>
@@ -383,9 +390,16 @@ export default function PaymentTrackerPage() {
                                         <Input type="number" placeholder="0.00" value={newOutflow.amount} onChange={e => setNewOutflow({...newOutflow, amount: e.target.value})} className="h-full border-none rounded-none text-right px-4 font-black text-[12px] py-0" />
                                     </TableCell>
                                     <TableCell className="text-center p-0 h-[24px]">
-                                        <Button size="icon" variant="ghost" onClick={() => handleAdd('Outflow')} className="h-full w-full rounded-none text-destructive hover:bg-destructive/10">
-                                            <Plus className="h-4 w-4"/>
-                                        </Button>
+                                        <div className="flex items-center h-full">
+                                            <Button size="icon" variant="ghost" onClick={() => handleAdd('Outflow')} className="h-full flex-1 rounded-none text-destructive hover:bg-destructive/10">
+                                                <Plus className="h-4 w-4"/>
+                                            </Button>
+                                            {(newOutflow.partyName || newOutflow.amount) && (
+                                                <Button size="icon" variant="ghost" onClick={() => setNewOutflow({ partyName: '', description: '', amount: '' })} className="h-full w-8 rounded-none text-muted-foreground hover:bg-red-50 hover:text-red-600 border-l">
+                                                    <X className="h-3 w-3"/>
+                                                </Button>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
 
