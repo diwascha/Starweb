@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -209,6 +210,9 @@ export function AppSidebar() {
                             <SidebarMenuSub>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/finance', true)}><Link href="/finance" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/finance/payment-tracker')}><Link href="/finance/payment-tracker" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Payment Tracker</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/finance/estimate-invoice')}><Link href="/finance/estimate-invoice" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Estimate Invoice</span></Link></SidebarMenuSubButton>

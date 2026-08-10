@@ -112,6 +112,21 @@
         "partyId": { "type": "string" }
       },
       "required": ["id", "type", "date"]
+    },
+    "PaymentTrackerEntry": {
+      "title": "Payment Tracker Entry",
+      "description": "Daily payment tracking record for receipts and outflows.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["Received", "Outflow"] },
+        "partyName": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "ownership": { "type": "string" }
+      },
+      "required": ["id", "date", "type", "partyName", "amount"]
     }
   },
   "auth": {
@@ -165,6 +180,10 @@
     "/crm_interactions/{id}": {
       "schema": { "$ref": "#/entities/InteractionLog" },
       "description": "Activity history for CRM entities."
+    },
+    "/payment_tracker/{id}": {
+      "schema": { "$ref": "#/entities/PaymentTrackerEntry" },
+      "description": "Daily payment tracking records for receipts and outflows."
     }
   }
 }

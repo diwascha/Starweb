@@ -1,6 +1,7 @@
+
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Calculator, FileText, Receipt, Scale } from 'lucide-react';
+import { Calculator, FileText, Receipt, Scale, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function FinanceDashboardPage() {
@@ -13,6 +14,22 @@ export default function FinanceDashboardPage() {
         </div>
       </header>
        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="hover:shadow-md transition-shadow border-emerald-200 bg-emerald-50/5">
+            <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2 text-emerald-700">
+                    <Wallet className="h-5 w-5" />
+                    Payment Tracker
+                </CardTitle>
+                <CardDescription>Monitor daily received and outflow payments.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700">
+                    <Link href="/finance/payment-tracker">
+                        Launch Tracker
+                    </Link>
+                </Button>
+            </CardContent>
+          </Card>
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -57,22 +74,6 @@ export default function FinanceDashboardPage() {
               <Button asChild variant="outline" className="w-full">
                     <Link href="/finance/cheque-generator">
                         Go to Generator
-                    </Link>
-              </Button>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow border-primary/20 bg-primary/[0.02]">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Scale className="h-5 w-5 text-primary" />
-                GSM Calculator
-              </CardTitle>
-              <CardDescription>Quick grammage verification for paper samples.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild variant="secondary" className="w-full">
-                    <Link href="/finance/gsm-calculator">
-                        Open Utility
                     </Link>
               </Button>
             </CardContent>

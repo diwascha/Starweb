@@ -1,3 +1,4 @@
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -1056,6 +1057,20 @@ export interface GsmReport {
     lastModifiedBy?: string;
     lastModifiedAt?: string;
     ownership: string;
+}
+
+export interface PaymentTrackerEntry {
+  id: string;
+  date: string; // ISO
+  type: 'Received' | 'Outflow';
+  partyName: string;
+  description: string;
+  amount: number;
+  createdBy: string;
+  createdAt: string; // ISO
+  lastModifiedBy?: string;
+  lastModifiedAt?: string; // ISO
+  ownership: string;
 }
 
 // CRM Types

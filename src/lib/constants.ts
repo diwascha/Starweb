@@ -44,6 +44,7 @@ export const COLLECTIONS = {
   HR_SHIFTS: 'hr_shifts',
   LEAVE_REQUESTS: 'leave_requests',
   GSM_REPORTS: 'gsm_reports',
+  PAYMENT_TRACKER: 'payment_tracker',
 } as const;
 
 export const NEPALI_MONTHS = [
