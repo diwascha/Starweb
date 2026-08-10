@@ -18,6 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { 
     Dialog, 
     DialogContent, 
@@ -393,7 +394,7 @@ export default function PaymentTrackerPage() {
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Party Name</Label>
-                            <Input value={form.partyName} onChange={e => setForm({...form, partyName: e.target.value})} placeholder="Beneficiary or source name" className="h-10 font-bold" />
+                            <Input value={form.partyName} onChange={e => setPartyName(e.target.value)} placeholder="Beneficiary or source name" className="h-10 font-bold" />
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Bill Description / Note</Label>
