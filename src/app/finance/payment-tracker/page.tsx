@@ -12,21 +12,15 @@ import {
     Save,
     Calendar as CalendarIconLucide,
     X,
-    MoreHorizontal
+    MoreHorizontal,
+    Check,
+    ArrowRight
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { 
-    Dialog, 
-    DialogContent, 
-    DialogHeader, 
-    DialogTitle, 
-    DialogDescription,
-    DialogFooter 
-} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { 
     DropdownMenu, 
@@ -44,7 +38,6 @@ import { cn, toNepaliDate } from '@/lib/utils';
 import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
-import { Textarea } from '@/components/ui/textarea';
 
 export default function PaymentTrackerPage() {
     const { user } = useAuth();
@@ -55,15 +48,13 @@ export default function PaymentTrackerPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: new Date(), to: new Date() });
 
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editingEntry, setEditingEntry] = useState<PaymentTrackerEntry | null>(null);
-    const [form, setForm] = useState({
-        partyName: '',
-        description: '',
-        amount: '',
-        type: 'Received' as 'Received' | 'Outflow',
-        date: new Date(),
-    });
+    // Inline form states for new entries
+    const [newReceived, setNewReceived] = useState({ partyName: '', description: '', amount: '' });
+    const [newOutflow, setNewOutflow] = useState({ partyName: '', description: '', amount: '' });
+    
+    // State for which row is currently being edited inline
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editForm, setEditForm] = useState({ partyName: '', description: '', amount: '' });
 
     useEffect(() => {
         const unsub = onPaymentEntriesUpdate((data) => {
@@ -103,32 +94,15 @@ export default function PaymentTrackerPage() {
     const totalOutflow = useMemo(() => outflowEntries.reduce((sum, e) => sum + e.amount, 0), [outflowEntries]);
     const netBalance = totalReceived - totalOutflow;
 
-    const handleOpenAddDialog = (type: 'Received' | 'Outflow') => {
-        setEditingEntry(null);
-        setForm({
-            partyName: '',
-            description: '',
-            amount: '',
-            type,
-            date: dateRange?.from || new Date(),
-        });
-        setIsDialogOpen(true);
-    };
+    const handleAdd = async (type: 'Received' | 'Outflow') => {
+        if (!user) return;
+        const form = type === 'Received' ? newReceived : newOutflow;
+        
+        if (!form.partyName.trim() || !form.amount) {
+            toast({ title: 'Missing Info', description: 'Party and Amount are required.', variant: 'destructive' });
+            return;
+        }
 
-    const handleOpenEditDialog = (entry: PaymentTrackerEntry) => {
-        setEditingEntry(entry);
-        setForm({
-            partyName: entry.partyName,
-            description: entry.description,
-            amount: String(entry.amount),
-            type: entry.type,
-            date: new Date(entry.date),
-        });
-        setIsDialogOpen(true);
-    };
-
-    const handleSave = async () => {
-        if (!user || !form.partyName || !form.amount) return;
         const amountNum = parseFloat(form.amount);
         if (isNaN(amountNum)) {
             toast({ title: 'Invalid Amount', variant: 'destructive' });
@@ -140,21 +114,49 @@ export default function PaymentTrackerPage() {
                 partyName: form.partyName,
                 description: form.description,
                 amount: amountNum,
-                type: form.type,
-                date: form.date.toISOString(),
+                type,
+                date: (dateRange?.from || new Date()).toISOString(),
                 ownership: 'Both',
             };
 
-            if (editingEntry) {
-                await updatePaymentEntry(editingEntry.id, { ...payload, lastModifiedBy: user.username });
-                toast({ title: 'Entry Updated' });
-            } else {
-                await addPaymentEntry({ ...payload, createdBy: user.username });
-                toast({ title: 'Entry Recorded' });
-            }
-            setIsDialogOpen(false);
+            await addPaymentEntry({ ...payload, createdBy: user.username });
+            toast({ title: 'Entry Added' });
+            
+            if (type === 'Received') setNewReceived({ partyName: '', description: '', amount: '' });
+            else setNewOutflow({ partyName: '', description: '', amount: '' });
         } catch {
-            toast({ title: 'Error saving entry', variant: 'destructive' });
+            toast({ title: 'Error adding entry', variant: 'destructive' });
+        }
+    };
+
+    const startEditing = (entry: PaymentTrackerEntry) => {
+        setEditingId(entry.id);
+        setEditForm({
+            partyName: entry.partyName,
+            description: entry.description,
+            amount: String(entry.amount)
+        });
+    };
+
+    const handleUpdate = async (id: string) => {
+        if (!user) return;
+        const amountNum = parseFloat(editForm.amount);
+        if (isNaN(amountNum)) {
+            toast({ title: 'Invalid Amount', variant: 'destructive' });
+            return;
+        }
+
+        try {
+            await updatePaymentEntry(id, {
+                partyName: editForm.partyName,
+                description: editForm.description,
+                amount: amountNum,
+                lastModifiedBy: user.username
+            });
+            setEditingId(null);
+            toast({ title: 'Entry Updated' });
+        } catch {
+            toast({ title: 'Error updating entry', variant: 'destructive' });
         }
     };
 
@@ -186,7 +188,7 @@ export default function PaymentTrackerPage() {
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Payment Tracker</h1>
-                    <p className="text-muted-foreground text-sm font-medium italic">Digital replacement for daily ledger spreadsheet.</p>
+                    <p className="text-muted-foreground text-sm font-medium italic">Digital daily ledger for receipts and payments.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={handleExportExcel} className="h-9 font-bold text-[10px] uppercase tracking-widest gap-2 border-gray-300">
@@ -198,7 +200,7 @@ export default function PaymentTrackerPage() {
             {/* Filter Toolbar */}
             <div className="flex flex-col md:flex-row gap-3 items-end bg-muted/20 p-4 rounded-xl border border-dashed mb-4">
                 <div className="space-y-1.5 w-full md:w-[260px]">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Active Period (AD)</Label>
+                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Active Date (AD)</Label>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs", !dateRange && "text-muted-foreground")}>
@@ -206,7 +208,7 @@ export default function PaymentTrackerPage() {
                                 <span className="truncate">
                                     {dateRange?.from ? (
                                         dateRange.to ? `${format(dateRange.from, "PPP")} - ${format(dateRange.to, "PPP")}` : format(dateRange.from, "PPP")
-                                    ) : 'Select Period'}
+                                    ) : 'Select Date'}
                                 </span>
                             </Button>
                         </PopoverTrigger>
@@ -216,11 +218,11 @@ export default function PaymentTrackerPage() {
                     </Popover>
                 </div>
                 <div className="space-y-1.5 flex-1">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Quick Filter</Label>
+                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Filter List</Label>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         <Input 
-                            placeholder="Filter by party or description..." 
+                            placeholder="Search names or descriptions..." 
                             className="pl-9 h-9 text-xs bg-white" 
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
@@ -234,55 +236,86 @@ export default function PaymentTrackerPage() {
                 )}
             </div>
 
-            <Card className="shadow-2xl border-none ring-1 ring-black/5 bg-white overflow-hidden">
+            <Card className="shadow-sm border-gray-200 bg-white overflow-hidden">
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
                         <Table className="border-collapse">
                             {/* RECEIVED SECTION */}
                             <TableHeader>
-                                <TableRow className="bg-primary/5 hover:bg-primary/5">
-                                    <TableHead colSpan={4} className="h-12 py-0">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-black uppercase tracking-widest text-primary">Received Payments</span>
-                                            <Button size="sm" variant="ghost" onClick={() => handleOpenAddDialog('Received')} className="h-8 text-[9px] font-black uppercase text-primary hover:bg-primary/10">
-                                                <Plus className="mr-1 h-3 w-3"/> Add Received
-                                            </Button>
-                                        </div>
+                                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                    <TableHead colSpan={4} className="h-10 py-0">
+                                        <span className="text-xs font-black uppercase tracking-widest text-gray-900">Received Payments</span>
                                     </TableHead>
-                                    <TableHead className="w-10 bg-primary/5"></TableHead>
                                 </TableRow>
-                                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                                    <TableHead className="w-12 text-center border-r border-b font-bold text-[10px] uppercase">S.N.</TableHead>
-                                    <TableHead className="border-r border-b font-bold text-[10px] uppercase">Party Name</TableHead>
-                                    <TableHead className="border-r border-b font-bold text-[10px] uppercase">Bill Description</TableHead>
-                                    <TableHead className="text-right border-r border-b font-bold text-[10px] uppercase px-6 w-[180px]">Amount</TableHead>
-                                    <TableHead className="w-10 border-b"></TableHead>
+                                <TableRow className="bg-muted/10">
+                                    <TableHead className="w-12 text-center border-r font-bold text-[10px] uppercase">S.N.</TableHead>
+                                    <TableHead className="border-r font-bold text-[10px] uppercase">Party Name</TableHead>
+                                    <TableHead className="border-r font-bold text-[10px] uppercase">Bill Description</TableHead>
+                                    <TableHead className="text-right font-bold text-[10px] uppercase px-6 w-[180px]">Amount</TableHead>
+                                    <TableHead className="w-16"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {receivedEntries.length > 0 ? receivedEntries.map((e, i) => (
-                                    <TableRow key={e.id} className="hover:bg-muted/10 h-10 border-b group">
-                                        <TableCell className="text-center border-r font-medium text-muted-foreground text-[10px]">{i + 1}</TableCell>
-                                        <TableCell className="border-r font-black text-gray-900 uppercase tracking-tighter text-xs">{e.partyName}</TableCell>
-                                        <TableCell className="border-r text-gray-600 text-xs italic">{e.description || '—'}</TableCell>
-                                        <TableCell className="text-right border-r font-black tabular-nums text-xs px-6 text-blue-800">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-center">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100"><MoreHorizontal className="h-3 w-3"/></Button></DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onSelect={() => handleOpenEditDialog(e)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                                    <DropdownMenuItem className="text-destructive" onSelect={() => deletePaymentEntry(e.id)}><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                {receivedEntries.map((e, i) => (
+                                    <TableRow key={e.id} className="h-10 border-b group">
+                                        <TableCell className="text-center border-r text-[10px] text-muted-foreground">{i + 1}</TableCell>
+                                        <TableCell className="border-r p-0">
+                                            {editingId === e.id ? (
+                                                <Input value={editForm.partyName} onChange={val => setEditForm({...editForm, partyName: val.target.value})} className="h-10 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset" />
+                                            ) : (
+                                                <div className="px-3 py-2 text-xs font-bold uppercase">{e.partyName}</div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="border-r p-0">
+                                            {editingId === e.id ? (
+                                                <Input value={editForm.description} onChange={val => setEditForm({...editForm, description: val.target.value})} className="h-10 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset" />
+                                            ) : (
+                                                <div className="px-3 py-2 text-xs text-gray-600 italic">{e.description || '—'}</div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right border-r p-0">
+                                            {editingId === e.id ? (
+                                                <Input type="number" value={editForm.amount} onChange={val => setEditForm({...editForm, amount: val.target.value})} className="h-10 border-none rounded-none text-right px-6 font-black" />
+                                            ) : (
+                                                <div className="px-6 py-2 text-xs font-black tabular-nums">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-center px-1">
+                                            <div className="flex items-center justify-center gap-1">
+                                                {editingId === e.id ? (
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" onClick={() => handleUpdate(e.id)}><Check className="h-4 w-4"/></Button>
+                                                ) : (
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => startEditing(e)}><Edit className="h-3.5 w-3.5 text-muted-foreground"/></Button>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
-                                )) : (
-                                    <TableRow className="h-20"><TableCell colSpan={5} className="text-center italic text-muted-foreground text-xs opacity-40">No receipts logged for this period.</TableCell></TableRow>
-                                )}
-                                <TableRow className="bg-blue-600 text-white font-black hover:bg-blue-600 h-12">
-                                    <TableCell className="text-center border-r border-blue-500"></TableCell>
-                                    <TableCell colSpan={2} className="uppercase tracking-[0.2em] text-xs border-r border-blue-500 px-6">Total Received</TableCell>
-                                    <TableCell className="text-right tabular-nums text-base px-6 border-r border-blue-500">{totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                ))}
+                                
+                                {/* New Received Row */}
+                                <TableRow className="h-11 bg-muted/5">
+                                    <TableCell className="text-center border-r text-[10px] font-black text-primary">NEW</TableCell>
+                                    <TableCell className="border-r p-0">
+                                        <Input placeholder="Type party name..." value={newReceived.partyName} onChange={e => setNewReceived({...newReceived, partyName: e.target.value})} className="h-11 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset font-bold text-xs" />
+                                    </TableCell>
+                                    <TableCell className="border-r p-0">
+                                        <Input placeholder="Add description..." value={newReceived.description} onChange={e => setNewReceived({...newReceived, description: e.target.value})} className="h-11 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-xs italic" />
+                                    </TableCell>
+                                    <TableCell className="border-r p-0">
+                                        <Input type="number" placeholder="0.00" value={newReceived.amount} onChange={e => setNewReceived({...newReceived, amount: e.target.value})} className="h-11 border-none rounded-none text-right px-6 font-black" />
+                                    </TableCell>
+                                    <TableCell className="text-center p-1">
+                                        <Button size="sm" variant="ghost" onClick={() => handleAdd('Received')} className="h-9 w-9 p-0 text-primary hover:bg-primary/10">
+                                            <Plus className="h-5 w-5"/>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+
+                                <TableRow className="bg-muted/10 font-black h-11">
+                                    <TableCell className="border-r"></TableCell>
+                                    <TableCell colSpan={2} className="uppercase tracking-widest text-[10px] border-r px-6 text-right">Total Received</TableCell>
+                                    <TableCell className="text-right tabular-nums text-sm px-6 border-r">{totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell />
                                 </TableRow>
                             </TableBody>
@@ -294,49 +327,80 @@ export default function PaymentTrackerPage() {
 
                             {/* PAYMENT SECTION */}
                             <TableHeader>
-                                <TableRow className="bg-red-500/10 hover:bg-red-500/10">
-                                    <TableHead colSpan={4} className="h-12 py-0">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-black uppercase tracking-widest text-red-600">Payment Party</span>
-                                            <Button size="sm" variant="ghost" onClick={() => handleOpenAddDialog('Outflow')} className="h-8 text-[9px] font-black uppercase text-red-600 hover:bg-red-500/10">
-                                                <Plus className="mr-1 h-3 w-3"/> Add Payment
-                                            </Button>
-                                        </div>
+                                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                    <TableHead colSpan={4} className="h-10 py-0">
+                                        <span className="text-xs font-black uppercase tracking-widest text-gray-900">Payment Outflows</span>
                                     </TableHead>
-                                    <TableHead className="w-10 bg-red-500/10"></TableHead>
                                 </TableRow>
-                                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                                    <TableHead className="w-12 text-center border-r border-b font-bold text-[10px] uppercase">S.N.</TableHead>
-                                    <TableHead className="border-r border-b font-bold text-[10px] uppercase">Party Name</TableHead>
-                                    <TableHead className="border-r border-b font-bold text-[10px] uppercase">Bill Description</TableHead>
-                                    <TableHead className="text-right border-r border-b font-bold text-[10px] uppercase px-6 w-[180px]">Amount</TableHead>
-                                    <TableHead className="w-10 border-b"></TableHead>
+                                <TableRow className="bg-muted/10">
+                                    <TableHead className="w-12 text-center border-r font-bold text-[10px] uppercase">S.N.</TableHead>
+                                    <TableHead className="border-r font-bold text-[10px] uppercase">Party Name</TableHead>
+                                    <TableHead className="border-r font-bold text-[10px] uppercase">Bill Description</TableHead>
+                                    <TableHead className="text-right font-bold text-[10px] uppercase px-6 w-[180px]">Amount</TableHead>
+                                    <TableHead className="w-16"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {outflowEntries.length > 0 ? outflowEntries.map((e, i) => (
-                                    <TableRow key={e.id} className="hover:bg-muted/10 h-10 border-b group">
-                                        <TableCell className="text-center border-r font-medium text-muted-foreground text-[10px]">{i + 1}</TableCell>
-                                        <TableCell className="border-r font-black text-gray-900 uppercase tracking-tighter text-xs">{e.partyName}</TableCell>
-                                        <TableCell className="border-r text-gray-600 text-xs italic">{e.description || '—'}</TableCell>
-                                        <TableCell className="text-right border-r font-black tabular-nums text-xs px-6 text-red-700">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-center">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100"><MoreHorizontal className="h-3 w-3"/></Button></DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onSelect={() => handleOpenEditDialog(e)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                                    <DropdownMenuItem className="text-destructive" onSelect={() => deletePaymentEntry(e.id)}><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                {outflowEntries.map((e, i) => (
+                                    <TableRow key={e.id} className="h-10 border-b group">
+                                        <TableCell className="text-center border-r text-[10px] text-muted-foreground">{i + 1}</TableCell>
+                                        <TableCell className="border-r p-0">
+                                            {editingId === e.id ? (
+                                                <Input value={editForm.partyName} onChange={val => setEditForm({...editForm, partyName: val.target.value})} className="h-10 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset" />
+                                            ) : (
+                                                <div className="px-3 py-2 text-xs font-bold uppercase">{e.partyName}</div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="border-r p-0">
+                                            {editingId === e.id ? (
+                                                <Input value={editForm.description} onChange={val => setEditForm({...editForm, description: val.target.value})} className="h-10 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset" />
+                                            ) : (
+                                                <div className="px-3 py-2 text-xs text-gray-600 italic">{e.description || '—'}</div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right border-r p-0">
+                                            {editingId === e.id ? (
+                                                <Input type="number" value={editForm.amount} onChange={val => setEditForm({...editForm, amount: val.target.value})} className="h-10 border-none rounded-none text-right px-6 font-black" />
+                                            ) : (
+                                                <div className="px-6 py-2 text-xs font-black tabular-nums">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-center px-1">
+                                            <div className="flex items-center justify-center gap-1">
+                                                {editingId === e.id ? (
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" onClick={() => handleUpdate(e.id)}><Check className="h-4 w-4"/></Button>
+                                                ) : (
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => startEditing(e)}><Edit className="h-3.5 w-3.5 text-muted-foreground"/></Button>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
-                                )) : (
-                                    <TableRow className="h-20"><TableCell colSpan={5} className="text-center italic text-muted-foreground text-xs opacity-40">No payments logged for this period.</TableCell></TableRow>
-                                )}
-                                <TableRow className="bg-red-100 text-red-900 font-black hover:bg-red-100 h-12">
-                                    <TableCell className="text-center border-r border-red-200"></TableCell>
-                                    <TableCell colSpan={2} className="uppercase tracking-[0.2em] text-xs border-r border-red-200 px-6">Total Payment</TableCell>
-                                    <TableCell className="text-right tabular-nums text-base px-6 border-r border-red-200">{totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                ))}
+
+                                {/* New Outflow Row */}
+                                <TableRow className="h-11 bg-muted/5">
+                                    <TableCell className="text-center border-r text-[10px] font-black text-destructive">NEW</TableCell>
+                                    <TableCell className="border-r p-0">
+                                        <Input placeholder="Type party name..." value={newOutflow.partyName} onChange={e => setNewOutflow({...newOutflow, partyName: e.target.value})} className="h-11 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset font-bold text-xs" />
+                                    </TableCell>
+                                    <TableCell className="border-r p-0">
+                                        <Input placeholder="Add description..." value={newOutflow.description} onChange={e => setNewOutflow({...newOutflow, description: e.target.value})} className="h-11 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-xs italic" />
+                                    </TableCell>
+                                    <TableCell className="border-r p-0">
+                                        <Input type="number" placeholder="0.00" value={newOutflow.amount} onChange={e => setNewOutflow({...newOutflow, amount: e.target.value})} className="h-11 border-none rounded-none text-right px-6 font-black" />
+                                    </TableCell>
+                                    <TableCell className="text-center p-1">
+                                        <Button size="sm" variant="ghost" onClick={() => handleAdd('Outflow')} className="h-9 w-9 p-0 text-destructive hover:bg-destructive/10">
+                                            <Plus className="h-5 w-5"/>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+
+                                <TableRow className="bg-muted/10 font-black h-11">
+                                    <TableCell className="border-r"></TableCell>
+                                    <TableCell colSpan={2} className="uppercase tracking-widest text-[10px] border-r px-6 text-right">Total Payment</TableCell>
+                                    <TableCell className="text-right tabular-nums text-sm px-6 border-r">{totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell />
                                 </TableRow>
                             </TableBody>
@@ -344,11 +408,11 @@ export default function PaymentTrackerPage() {
                             {/* FINAL BALANCE FOOTER */}
                             <TableBody>
                                 <TableRow className="h-6 hover:bg-transparent"><TableCell colSpan={5}></TableCell></TableRow>
-                                <TableRow className="bg-emerald-500/10 hover:bg-emerald-500/10 border-t-4 border-emerald-500 h-16">
-                                    <TableCell className="text-center border-r border-emerald-100"></TableCell>
-                                    <TableCell colSpan={2} className="uppercase tracking-[0.3em] font-black text-sm text-emerald-800 px-6">Net Balance</TableCell>
+                                <TableRow className="bg-muted/30 border-t-2 border-gray-900 h-14">
+                                    <TableCell className="text-center border-r"></TableCell>
+                                    <TableCell colSpan={2} className="uppercase tracking-[0.3em] font-black text-xs text-gray-900 px-6">Net Daily Balance</TableCell>
                                     <TableCell className={cn(
-                                        "text-right tabular-nums text-2xl px-6 font-black border-r border-emerald-100",
+                                        "text-right tabular-nums text-xl px-6 font-black border-r",
                                         netBalance >= 0 ? "text-emerald-700" : "text-red-700"
                                     )}>
                                         {netBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -361,54 +425,12 @@ export default function PaymentTrackerPage() {
                 </CardContent>
             </Card>
 
-            {/* Entry Dialog */}
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="sm:max-w-md border-none shadow-2xl">
-                    <DialogHeader className="p-2">
-                        <DialogTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-                            {form.type === 'Received' ? <Badge className="bg-emerald-600">IN</Badge> : <Badge variant="destructive">OUT</Badge>}
-                            {editingEntry ? 'Modify Entry' : `Record ${form.type}`}
-                        </DialogTitle>
-                        <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Synchronized daily ledger entry.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-5 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Entry Date</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start h-10 bg-gray-50 font-bold text-xs">
-                                            <CalendarIconLucide className="mr-2 h-4 w-4 opacity-50" />
-                                            {toNepaliDate(form.date.toISOString())}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <DualCalendar selected={form.date} onSelect={d => d && setForm({...form, date: d})} />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Amount (रु)</Label>
-                                <Input type="number" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} className="h-10 font-black text-lg bg-gray-50" placeholder="0.00" />
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Party Name</Label>
-                            <Input value={form.partyName} onChange={e => setPartyName(e.target.value)} placeholder="Beneficiary or source name" className="h-10 font-bold" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Bill Description / Note</Label>
-                            <Textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Bill #, reference notes, etc." className="min-h-[100px] text-sm resize-none bg-gray-50" />
-                        </div>
-                    </div>
-                    <DialogFooter className="border-t pt-4">
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="h-11 font-bold text-xs uppercase tracking-widest">Cancel</Button>
-                        <Button onClick={handleSave} disabled={!form.partyName || !form.amount} className="h-11 px-8 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
-                            <Save className="mr-2 h-4 w-4"/> Commit Entry
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <div className="p-4 bg-muted/10 rounded-xl border border-dashed flex items-center gap-3">
+                <Badge variant="outline" className="bg-white uppercase text-[8px] font-black tracking-widest">Help</Badge>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">
+                    Type details into the <span className="text-primary font-bold">"NEW"</span> rows and click the plus button to commit. Date is controlled by the period filter above.
+                </p>
+            </div>
         </div>
     );
 }
