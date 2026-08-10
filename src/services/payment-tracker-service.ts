@@ -91,11 +91,55 @@ export const savePaymentVoucher = async (data: {
     });
 };
 
+/**
+ * Replaces an entire voucher atomically using a Firestore batch.
+ * This ensures that if the user edits a daily ledger, the old lines are 
+ * removed and new lines added in a single transaction.
+ */
+export const replacePaymentVoucher = async (oldVoucherNo: string, data: {
+    voucherNo: string;
+    date: string;
+    entries: any[];
+    createdBy: string;
+}): Promise<void> => {
+    const { db } = getFirebase();
+    const batch = writeBatch(db);
+    
+    // 1. Find all old entries for this voucher number
+    const q = query(getCollection(), where('voucherNo', '==', oldVoucherNo));
+    const snap = await getDocs(q);
+    
+    // 2. Queue deletions for old records
+    snap.docs.forEach(d => batch.delete(d.ref));
+    
+    // 3. Queue new entries
+    const createdAt = new Date().toISOString();
+    data.entries.forEach(entry => {
+        const docRef = doc(getCollection());
+        batch.set(docRef, {
+            ...entry,
+            voucherNo: data.voucherNo,
+            date: data.date,
+            createdBy: data.createdBy,
+            createdAt
+        });
+    });
+
+    await batch.commit().catch(async (err) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'payment_tracker_replace_batch',
+                operation: 'write',
+            }));
+        }
+        throw err;
+    });
+};
+
 export const addPaymentEntry = async (entry: Omit<PaymentTrackerEntry, 'id' | 'createdAt'>): Promise<string> => {
     const { db } = getFirebase();
     const docRef = doc(getCollection());
     
-    // Generate numbering
     const snap = await getDocs(getCollection());
     const existing = snap.docs.map(fromFirestore);
     const voucherNo = await generateNextPaymentTrackerNumber(existing, entry.date);
