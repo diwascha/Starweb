@@ -80,6 +80,7 @@ import {
     DialogDescription 
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 interface DraftEntry {
     id: string;
@@ -288,14 +289,6 @@ export default function PaymentTrackerPage() {
                     <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">Payment Tracker</h1>
                     <p className="text-muted-foreground text-[11px] font-black uppercase tracking-widest mt-1 italic">Voucher-Based Daily Cash Flow • High Density Workspace</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={isExporting} className="h-9 px-4 font-black text-[10px] uppercase tracking-widest">
-                        {isExporting ? <Loader2 className="animate-spin h-4 w-4"/> : <FileDown className="h-4 w-4" />} Export PDF
-                    </Button>
-                    <Button onClick={handleFinalizeVoucher} disabled={isSaving} className="h-9 px-6 font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20">
-                        {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="mr-2 h-4 w-4" />} Finalize Document
-                    </Button>
-                </div>
             </header>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -337,8 +330,13 @@ export default function PaymentTrackerPage() {
                                 </PopoverContent>
                             </Popover>
                         </div>
-                        <div className="flex-1 text-right">
-                             <Badge variant="outline" className="h-6 px-3 bg-white border-primary/20 text-primary font-black uppercase text-[9px] tracking-widest animate-pulse">Draft Mode Active</Badge>
+                        <div className="flex-1 flex justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={isExporting} className="h-9 px-4 font-black text-[10px] uppercase tracking-widest bg-white">
+                                {isExporting ? <Loader2 className="animate-spin h-4 w-4"/> : <FileDown className="h-4 w-4" />} Export PDF
+                            </Button>
+                            <Button onClick={handleFinalizeVoucher} disabled={isSaving} className="h-9 px-6 font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20">
+                                {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="mr-2 h-4 w-4" />} Finalize Document
+                            </Button>
                         </div>
                     </div>
 
@@ -370,7 +368,7 @@ export default function PaymentTrackerPage() {
                                         <TableBody>
                                             {receivedDrafts.map((e, i) => (
                                                 <TableRow key={e.id} className="h-[18px] border-b group transition-colors">
-                                                    <TableCell className="text-center border-r text-[11px] text-muted-foreground px-2 py-0 h-[18px] leading-none font-bold">{i + 1}</TableCell>
+                                                    <TableCell className="text-center border-r text-[14px] text-muted-foreground px-2 py-0 h-[18px] leading-none font-bold">{i + 1}</TableCell>
                                                     <TableCell className="border-r p-0 h-[18px]">
                                                         <Input 
                                                             value={e.partyName} 
@@ -435,7 +433,7 @@ export default function PaymentTrackerPage() {
                                         <TableBody>
                                             {outflowDrafts.map((e, i) => (
                                                 <TableRow key={e.id} className="h-[18px] border-b group transition-colors">
-                                                    <TableCell className="text-center border-r text-[11px] text-muted-foreground px-2 py-0 h-[18px] leading-none font-bold">{i + 1}</TableCell>
+                                                    <TableCell className="text-center border-r text-[14px] text-muted-foreground px-2 py-0 h-[18px] leading-none font-bold">{i + 1}</TableCell>
                                                     <TableCell className="border-r p-0 h-[18px]">
                                                         <Input 
                                                             value={e.partyName} 
