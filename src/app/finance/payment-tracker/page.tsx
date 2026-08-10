@@ -8,9 +8,9 @@ import {
     Trash2, 
     FileSpreadsheet, 
     FilterX, 
-    Loader2,
-    Check,
-    Calendar as CalendarIconLucide,
+    Loader2, 
+    Check, 
+    Calendar as CalendarIconLucide, 
     X,
     ChevronLeft,
     ChevronRight
@@ -176,27 +176,27 @@ export default function PaymentTrackerPage() {
     };
 
     return (
-        <div className="flex flex-col gap-3 max-w-5xl mx-auto">
-            <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div className="flex flex-col gap-2 max-w-5xl mx-auto">
+            <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
                 <div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase">Payment Tracker</h1>
-                    <p className="text-muted-foreground text-[10px] font-medium italic">Digital daily ledger for receipts and payments.</p>
+                    <h1 className="text-xl font-black text-gray-900 tracking-tighter uppercase leading-none">Payment Tracker</h1>
+                    <p className="text-muted-foreground text-[9px] font-bold uppercase tracking-tight italic">Digital Daily Ledger</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={handleExportExcel} className="h-8 font-bold text-[9px] uppercase tracking-widest gap-2 border-gray-300">
-                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" /> Export XLSX
+                    <Button variant="outline" onClick={handleExportExcel} className="h-7 font-bold text-[8px] uppercase tracking-widest gap-1 border-gray-300">
+                        <FileSpreadsheet className="h-3 w-3 text-emerald-600" /> Export XLSX
                     </Button>
                 </div>
             </header>
 
-            {/* Filter Toolbar */}
-            <div className="flex flex-col md:flex-row gap-2 items-end bg-muted/20 p-2 rounded-xl border border-dashed mb-1">
-                <div className="space-y-1 w-full md:w-[240px]">
-                    <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Active Date (AD)</Label>
+            {/* Filter Toolbar - Super Compact */}
+            <div className="flex flex-col md:flex-row gap-2 items-center bg-muted/20 p-1.5 rounded-lg border border-dashed">
+                <div className="flex items-center gap-2">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest whitespace-nowrap">Date (AD)</Label>
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full h-8 justify-start text-left font-normal bg-white text-[11px] px-2", !dateRange && "text-muted-foreground")}>
-                                <CalendarIconLucide className="mr-1.5 h-3.5 w-3.5 opacity-50" />
+                            <Button variant="outline" className={cn("h-7 justify-start text-left font-normal bg-white text-[10px] px-2 w-[220px]", !dateRange && "text-muted-foreground")}>
+                                <CalendarIconLucide className="mr-1.5 h-3 w-3 opacity-50" />
                                 <span className="truncate">
                                     {dateRange?.from ? (
                                         dateRange.to ? `${format(dateRange.from, "PP")} - ${format(dateRange.to, "PP")}` : format(dateRange.from, "PP")
@@ -209,20 +209,20 @@ export default function PaymentTrackerPage() {
                         </PopoverContent>
                     </Popover>
                 </div>
-                <div className="space-y-1 flex-1">
-                    <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Filter List</Label>
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <div className="flex items-center gap-2 flex-1 w-full">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest whitespace-nowrap">Search</Label>
+                    <div className="relative flex-1">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                         <Input 
-                            placeholder="Search names or descriptions..." 
-                            className="pl-8 h-8 text-[11px] bg-white" 
+                            placeholder="Filter data..." 
+                            className="pl-6 h-7 text-[10px] bg-white border-gray-200" 
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                         />
                     </div>
                 </div>
                 {(searchQuery || dateRange) && (
-                    <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setDateRange({ from: new Date(), to: new Date() }); }} className="h-8 px-2 font-bold text-muted-foreground uppercase text-[9px]">
+                    <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setDateRange({ from: new Date(), to: new Date() }); }} className="h-7 px-2 font-black text-muted-foreground uppercase text-[8px] tracking-tighter">
                         <FilterX className="mr-1 h-3 w-3" /> Reset
                     </Button>
                 )}
@@ -234,182 +234,182 @@ export default function PaymentTrackerPage() {
                         <Table className="border-collapse table-fixed w-full">
                             {/* RECEIVED SECTION */}
                             <TableHeader>
-                                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                                    <TableHead colSpan={5} className="h-7 py-0">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">Received Payments</span>
+                                <TableRow className="bg-muted/40 hover:bg-muted/40 h-[16px] border-b">
+                                    <TableHead colSpan={5} className="py-0 px-2 h-[16px] align-middle">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-800 leading-none">Received Payments</span>
                                     </TableHead>
                                 </TableRow>
-                                <TableRow className="bg-muted/10 h-7">
-                                    <TableHead className="w-8 text-center border-r font-bold text-[9px] uppercase px-1">S.N.</TableHead>
-                                    <TableHead className="border-r font-bold text-[9px] uppercase px-2">Party Name</TableHead>
-                                    <TableHead className="border-r font-bold text-[9px] uppercase px-2">Bill Description</TableHead>
-                                    <TableHead className="text-right font-bold text-[9px] uppercase px-3 w-[140px]">Amount</TableHead>
-                                    <TableHead className="w-14 px-1"></TableHead>
+                                <TableRow className="bg-muted/10 h-[14px]">
+                                    <TableHead className="w-8 text-center border-r font-black text-[9px] uppercase px-1 h-[14px]">S.N.</TableHead>
+                                    <TableHead className="border-r font-black text-[9px] uppercase px-2 h-[14px]">Party Name</TableHead>
+                                    <TableHead className="border-r font-black text-[9px] uppercase px-2 h-[14px]">Bill Description</TableHead>
+                                    <TableHead className="text-right font-black text-[9px] uppercase px-3 w-[120px] h-[14px]">Amount</TableHead>
+                                    <TableHead className="w-12 px-1 h-[14px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {receivedEntries.map((e, i) => (
-                                    <TableRow key={e.id} className="h-8 border-b group">
-                                        <TableCell className="text-center border-r text-[9px] text-muted-foreground px-1">{i + 1}</TableCell>
-                                        <TableCell className="border-r p-0">
+                                    <TableRow key={e.id} className="h-[14px] border-b group hover:bg-muted/5">
+                                        <TableCell className="text-center border-r text-[9px] text-muted-foreground px-1 py-0 h-[14px] leading-none">{i + 1}</TableCell>
+                                        <TableCell className="border-r p-0 h-[14px]">
                                             {editingId === e.id ? (
-                                                <Input value={editForm.partyName} onChange={val => setEditForm({...editForm, partyName: val.target.value})} className="h-8 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[11px]" />
+                                                <Input value={editForm.partyName} onChange={val => setEditForm({...editForm, partyName: val.target.value})} className="h-full border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[11px] px-2 py-0 leading-none" />
                                             ) : (
-                                                <div className="px-2 py-0 text-[11px] font-bold uppercase truncate">{e.partyName}</div>
+                                                <div className="px-2 py-0 text-[11px] font-bold uppercase truncate leading-none flex items-center h-full">{e.partyName}</div>
                                             )}
                                         </TableCell>
-                                        <TableCell className="border-r p-0">
+                                        <TableCell className="border-r p-0 h-[14px]">
                                             {editingId === e.id ? (
-                                                <Input value={editForm.description} onChange={val => setEditForm({...editForm, description: val.target.value})} className="h-8 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[11px]" />
+                                                <Input value={editForm.description} onChange={val => setEditForm({...editForm, description: val.target.value})} className="h-full border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[11px] px-2 py-0 leading-none" />
                                             ) : (
-                                                <div className="px-2 py-0 text-[11px] text-gray-600 italic truncate">{e.description || '—'}</div>
+                                                <div className="px-2 py-0 text-[10px] text-gray-500 italic truncate leading-none flex items-center h-full">{e.description || '—'}</div>
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-right border-r p-0">
+                                        <TableCell className="text-right border-r p-0 h-[14px]">
                                             {editingId === e.id ? (
-                                                <Input type="number" value={editForm.amount} onChange={val => setEditForm({...editForm, amount: val.target.value})} className="h-8 border-none rounded-none text-right px-3 font-black text-[11px]" />
+                                                <Input type="number" value={editForm.amount} onChange={val => setEditForm({...editForm, amount: val.target.value})} className="h-full border-none rounded-none text-right px-3 font-black text-[11px] py-0 leading-none" />
                                             ) : (
-                                                <div className="px-3 py-0 text-[11px] font-black tabular-nums">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                                <div className="px-3 py-0 text-[11px] font-black tabular-nums leading-none flex items-center justify-end h-full">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-center px-0.5">
-                                            <div className="flex items-center justify-center gap-0.5">
+                                        <TableCell className="text-center px-0 h-[14px] py-0">
+                                            <div className="flex items-center justify-center h-full gap-0.5 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
                                                 {editingId === e.id ? (
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-600" onClick={() => handleUpdate(e.id)}><Check className="h-3.5 w-3.5"/></Button>
+                                                    <Button variant="ghost" size="icon" className="h-3 w-3 text-emerald-600 p-0" onClick={() => handleUpdate(e.id)}><Check className="h-2.5 w-2.5"/></Button>
                                                 ) : (
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => startEditing(e)}><Edit className="h-3 w-3 text-muted-foreground"/></Button>
+                                                    <Button variant="ghost" size="icon" className="h-3 w-3 p-0" onClick={() => startEditing(e)}><Edit className="h-2.5 w-2.5 text-muted-foreground"/></Button>
                                                 )}
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-3 w-3"/></Button>
+                                                <Button variant="ghost" size="icon" className="h-3 w-3 text-destructive p-0" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-2.5 w-2.5"/></Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                                 
                                 {/* New Received Row */}
-                                <TableRow className="h-9 bg-muted/5">
-                                    <TableCell className="text-center border-r text-[9px] font-black text-primary px-1">NEW</TableCell>
-                                    <TableCell className="border-r p-0">
-                                        <Input placeholder="Party..." value={newReceived.partyName} onChange={e => setNewReceived({...newReceived, partyName: e.target.value})} className="h-9 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset font-bold text-[11px] uppercase" />
+                                <TableRow className="h-[18px] bg-primary/[0.03] border-b">
+                                    <TableCell className="text-center border-r text-[8px] font-black text-primary px-1 leading-none py-0 h-[18px]">NEW</TableCell>
+                                    <TableCell className="border-r p-0 h-[18px]">
+                                        <Input placeholder="Enter party..." value={newReceived.partyName} onChange={e => setNewReceived({...newReceived, partyName: e.target.value})} className="h-full border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset font-bold text-[11px] uppercase px-2 py-0" />
                                     </TableCell>
-                                    <TableCell className="border-r p-0">
-                                        <Input placeholder="Description..." value={newReceived.description} onChange={e => setNewReceived({...newReceived, description: e.target.value})} className="h-9 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[11px] italic" />
+                                    <TableCell className="border-r p-0 h-[18px]">
+                                        <Input placeholder="Note..." value={newReceived.description} onChange={e => setNewReceived({...newReceived, description: e.target.value})} className="h-full border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[10px] italic px-2 py-0" />
                                     </TableCell>
-                                    <TableCell className="border-r p-0">
-                                        <Input type="number" placeholder="0.00" value={newReceived.amount} onChange={e => setNewReceived({...newReceived, amount: e.target.value})} className="h-9 border-none rounded-none text-right px-3 font-black text-[11px]" />
+                                    <TableCell className="border-r p-0 h-[18px]">
+                                        <Input type="number" placeholder="0.00" value={newReceived.amount} onChange={e => setNewReceived({...newReceived, amount: e.target.value})} className="h-full border-none rounded-none text-right px-3 font-black text-[11px] py-0" />
                                     </TableCell>
-                                    <TableCell className="text-center p-0.5">
-                                        <Button size="sm" variant="ghost" onClick={() => handleAdd('Received')} className="h-8 w-8 p-0 text-primary hover:bg-primary/10">
-                                            <Plus className="h-4 w-4"/>
+                                    <TableCell className="text-center p-0 h-[18px]">
+                                        <Button size="icon" variant="ghost" onClick={() => handleAdd('Received')} className="h-full w-full rounded-none text-primary hover:bg-primary/10">
+                                            <Plus className="h-3.5 w-3.5"/>
                                         </Button>
                                     </TableCell>
                                 </TableRow>
 
-                                <TableRow className="bg-muted/10 font-black h-9">
-                                    <TableCell className="border-r px-1"></TableCell>
-                                    <TableCell colSpan={2} className="uppercase tracking-widest text-[9px] border-r px-3 text-right">Total Received</TableCell>
-                                    <TableCell className="text-right tabular-nums text-xs px-3 border-r">{totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                    <TableCell />
+                                <TableRow className="bg-blue-50/50 font-black h-[18px] border-b-2 border-gray-400">
+                                    <TableCell className="border-r px-1 h-[18px]"></TableCell>
+                                    <TableCell colSpan={2} className="uppercase tracking-widest text-[9px] border-r px-3 text-right h-[18px] align-middle">Total Received</TableCell>
+                                    <TableCell className="text-right tabular-nums text-[11px] px-3 border-r h-[18px] align-middle text-blue-900">{totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="h-[18px]" />
                                 </TableRow>
                             </TableBody>
 
                             {/* SPACER */}
                             <TableBody>
-                                <TableRow className="h-3 hover:bg-transparent border-none"><TableCell colSpan={5}></TableCell></TableRow>
+                                <TableRow className="h-[6px] hover:bg-transparent border-none"><TableCell colSpan={5}></TableCell></TableRow>
                             </TableBody>
 
                             {/* PAYMENT SECTION */}
                             <TableHeader>
-                                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                                    <TableHead colSpan={5} className="h-7 py-0">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">Payment Outflows</span>
+                                <TableRow className="bg-muted/40 hover:bg-muted/40 h-[16px] border-b">
+                                    <TableHead colSpan={5} className="py-0 px-2 h-[16px] align-middle">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-red-800 leading-none">Payment Outflows</span>
                                     </TableHead>
                                 </TableRow>
-                                <TableRow className="bg-muted/10 h-7">
-                                    <TableHead className="w-8 text-center border-r font-bold text-[9px] uppercase px-1">S.N.</TableHead>
-                                    <TableHead className="border-r font-bold text-[9px] uppercase px-2">Party Name</TableHead>
-                                    <TableHead className="border-r font-bold text-[9px] uppercase px-2">Bill Description</TableHead>
-                                    <TableHead className="text-right font-bold text-[9px] uppercase px-3 w-[140px]">Amount</TableHead>
-                                    <TableHead className="w-14 px-1"></TableHead>
+                                <TableRow className="bg-muted/10 h-[14px]">
+                                    <TableHead className="w-8 text-center border-r font-black text-[9px] uppercase px-1 h-[14px]">S.N.</TableHead>
+                                    <TableHead className="border-r font-black text-[9px] uppercase px-2 h-[14px]">Party Name</TableHead>
+                                    <TableHead className="border-r font-black text-[9px] uppercase px-2 h-[14px]">Bill Description</TableHead>
+                                    <TableHead className="text-right font-black text-[9px] uppercase px-3 w-[120px] h-[14px]">Amount</TableHead>
+                                    <TableHead className="w-12 px-1 h-[14px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {outflowEntries.map((e, i) => (
-                                    <TableRow key={e.id} className="h-8 border-b group">
-                                        <TableCell className="text-center border-r text-[9px] text-muted-foreground px-1">{i + 1}</TableCell>
-                                        <TableCell className="border-r p-0">
+                                    <TableRow key={e.id} className="h-[14px] border-b group hover:bg-muted/5">
+                                        <TableCell className="text-center border-r text-[9px] text-muted-foreground px-1 py-0 h-[14px] leading-none">{i + 1}</TableCell>
+                                        <TableCell className="border-r p-0 h-[14px]">
                                             {editingId === e.id ? (
-                                                <Input value={editForm.partyName} onChange={val => setEditForm({...editForm, partyName: val.target.value})} className="h-8 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[11px]" />
+                                                <Input value={editForm.partyName} onChange={val => setEditForm({...editForm, partyName: val.target.value})} className="h-full border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[11px] px-2 py-0 leading-none" />
                                             ) : (
-                                                <div className="px-2 py-0 text-[11px] font-bold uppercase truncate">{e.partyName}</div>
+                                                <div className="px-2 py-0 text-[11px] font-bold uppercase truncate leading-none flex items-center h-full">{e.partyName}</div>
                                             )}
                                         </TableCell>
-                                        <TableCell className="border-r p-0">
+                                        <TableCell className="border-r p-0 h-[14px]">
                                             {editingId === e.id ? (
-                                                <Input value={editForm.description} onChange={val => setEditForm({...editForm, description: val.target.value})} className="h-8 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[11px]" />
+                                                <Input value={editForm.description} onChange={val => setEditForm({...editForm, description: val.target.value})} className="h-full border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[11px] px-2 py-0 leading-none" />
                                             ) : (
-                                                <div className="px-2 py-0 text-[11px] text-gray-600 italic truncate">{e.description || '—'}</div>
+                                                <div className="px-2 py-0 text-[10px] text-gray-500 italic truncate leading-none flex items-center h-full">{e.description || '—'}</div>
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-right border-r p-0">
+                                        <TableCell className="text-right border-r p-0 h-[14px]">
                                             {editingId === e.id ? (
-                                                <Input type="number" value={editForm.amount} onChange={val => setEditForm({...editForm, amount: val.target.value})} className="h-8 border-none rounded-none text-right px-3 font-black text-[11px]" />
+                                                <Input type="number" value={editForm.amount} onChange={val => setEditForm({...editForm, amount: val.target.value})} className="h-full border-none rounded-none text-right px-3 font-black text-[11px] py-0 leading-none" />
                                             ) : (
-                                                <div className="px-3 py-0 text-[11px] font-black tabular-nums">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                                <div className="px-3 py-0 text-[11px] font-black tabular-nums leading-none flex items-center justify-end h-full">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-center px-0.5">
-                                            <div className="flex items-center justify-center gap-0.5">
+                                        <TableCell className="text-center px-0 h-[14px] py-0">
+                                            <div className="flex items-center justify-center h-full gap-0.5 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
                                                 {editingId === e.id ? (
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-600" onClick={() => handleUpdate(e.id)}><Check className="h-3.5 w-3.5"/></Button>
+                                                    <Button variant="ghost" size="icon" className="h-3 w-3 text-emerald-600 p-0" onClick={() => handleUpdate(e.id)}><Check className="h-2.5 w-2.5"/></Button>
                                                 ) : (
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => startEditing(e)}><Edit className="h-3 w-3 text-muted-foreground"/></Button>
+                                                    <Button variant="ghost" size="icon" className="h-3 w-3 p-0" onClick={() => startEditing(e)}><Edit className="h-2.5 w-2.5 text-muted-foreground"/></Button>
                                                 )}
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-3 w-3"/></Button>
+                                                <Button variant="ghost" size="icon" className="h-3 w-3 text-destructive p-0" onClick={() => deletePaymentEntry(e.id)}><Trash2 className="h-2.5 w-2.5"/></Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
 
                                 {/* New Outflow Row */}
-                                <TableRow className="h-9 bg-muted/5">
-                                    <TableCell className="text-center border-r text-[9px] font-black text-destructive px-1">NEW</TableCell>
-                                    <TableCell className="border-r p-0">
-                                        <Input placeholder="Party..." value={newOutflow.partyName} onChange={e => setNewOutflow({...newOutflow, partyName: e.target.value})} className="h-9 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset font-bold text-[11px] uppercase" />
+                                <TableRow className="h-[18px] bg-destructive/[0.03] border-b">
+                                    <TableCell className="text-center border-r text-[8px] font-black text-destructive px-1 leading-none py-0 h-[18px]">NEW</TableCell>
+                                    <TableCell className="border-r p-0 h-[18px]">
+                                        <Input placeholder="Enter party..." value={newOutflow.partyName} onChange={e => setNewOutflow({...newOutflow, partyName: e.target.value})} className="h-full border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset font-bold text-[11px] uppercase px-2 py-0" />
                                     </TableCell>
-                                    <TableCell className="border-r p-0">
-                                        <Input placeholder="Description..." value={newOutflow.description} onChange={e => setNewOutflow({...newOutflow, description: e.target.value})} className="h-9 border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[11px] italic" />
+                                    <TableCell className="border-r p-0 h-[18px]">
+                                        <Input placeholder="Note..." value={newOutflow.description} onChange={e => setNewOutflow({...newOutflow, description: e.target.value})} className="h-full border-none rounded-none focus-visible:ring-1 focus-visible:ring-inset text-[10px] italic px-2 py-0" />
                                     </TableCell>
-                                    <TableCell className="border-r p-0">
-                                        <Input type="number" placeholder="0.00" value={newOutflow.amount} onChange={e => setNewOutflow({...newOutflow, amount: e.target.value})} className="h-9 border-none rounded-none text-right px-3 font-black text-[11px]" />
+                                    <TableCell className="border-r p-0 h-[18px]">
+                                        <Input type="number" placeholder="0.00" value={newOutflow.amount} onChange={e => setNewOutflow({...newOutflow, amount: e.target.value})} className="h-full border-none rounded-none text-right px-3 font-black text-[11px] py-0" />
                                     </TableCell>
-                                    <TableCell className="text-center p-0.5">
-                                        <Button size="sm" variant="ghost" onClick={() => handleAdd('Outflow')} className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10">
-                                            <Plus className="h-4 w-4"/>
+                                    <TableCell className="text-center p-0 h-[18px]">
+                                        <Button size="icon" variant="ghost" onClick={() => handleAdd('Outflow')} className="h-full w-full rounded-none text-destructive hover:bg-destructive/10">
+                                            <Plus className="h-3.5 w-3.5"/>
                                         </Button>
                                     </TableCell>
                                 </TableRow>
 
-                                <TableRow className="bg-muted/10 font-black h-9">
-                                    <TableCell className="border-r px-1"></TableCell>
-                                    <TableCell colSpan={2} className="uppercase tracking-widest text-[9px] border-r px-3 text-right">Total Outflow</TableCell>
-                                    <TableCell className="text-right tabular-nums text-xs px-3 border-r">{totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                    <TableCell />
+                                <TableRow className="bg-red-50/50 font-black h-[18px] border-b-2 border-gray-400">
+                                    <TableCell className="border-r px-1 h-[18px]"></TableCell>
+                                    <TableCell colSpan={2} className="uppercase tracking-widest text-[9px] border-r px-3 text-right h-[18px] align-middle">Total Outflow</TableCell>
+                                    <TableCell className="text-right tabular-nums text-[11px] px-3 border-r h-[18px] align-middle text-red-900">{totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="h-[18px]" />
                                 </TableRow>
                             </TableBody>
 
                             {/* FINAL BALANCE FOOTER */}
                             <TableBody>
-                                <TableRow className="h-2 hover:bg-transparent border-none"><TableCell colSpan={5}></TableCell></TableRow>
-                                <TableRow className="bg-muted/30 border-t-2 border-gray-900 h-11">
-                                    <TableCell className="text-center border-r px-1"></TableCell>
-                                    <TableCell colSpan={2} className="uppercase tracking-[0.3em] font-black text-[11px] text-gray-900 px-6">Net Daily Balance</TableCell>
+                                <TableRow className="h-[4px] hover:bg-transparent border-none"><TableCell colSpan={5}></TableCell></TableRow>
+                                <TableRow className="bg-emerald-50/20 border-t-2 border-gray-900 h-[22px]">
+                                    <TableCell className="text-center border-r px-1 h-[22px]"></TableCell>
+                                    <TableCell colSpan={2} className="uppercase tracking-[0.4em] font-black text-[10px] text-gray-900 px-6 h-[22px] align-middle">Net Daily Balance</TableCell>
                                     <TableCell className={cn(
-                                        "text-right tabular-nums text-sm px-3 font-black border-r",
+                                        "text-right tabular-nums text-xs px-3 font-black border-r h-[22px] align-middle",
                                         netBalance >= 0 ? "text-emerald-700" : "text-red-700"
                                     )}>
                                         {netBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </TableCell>
-                                    <TableCell />
+                                    <TableCell className="h-[22px]" />
                                 </TableRow>
                             </TableBody>
                         </Table>
@@ -417,10 +417,10 @@ export default function PaymentTrackerPage() {
                 </CardContent>
             </Card>
 
-            <div className="p-2 bg-muted/10 rounded-xl border border-dashed flex items-center gap-2">
+            <div className="p-1 bg-muted/10 rounded-lg border border-dashed flex items-center gap-2">
                 <Badge variant="outline" className="bg-white uppercase text-[7px] font-black tracking-widest px-1 h-3.5">System</Badge>
-                <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-tight">
-                    Optimized High-Density Layout &middot; Real-time synchronization active.
+                <p className="text-[8px] text-muted-foreground font-black uppercase tracking-tight leading-none">
+                    High-Density Operational Grid &middot; Real-time synchronization active.
                 </p>
             </div>
         </div>
