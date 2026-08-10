@@ -7,6 +7,7 @@ import {
     Edit, 
     Trash2, 
     FileSpreadsheet, 
+    FileText,
     FilterX, 
     Loader2, 
     Check, 
@@ -601,7 +602,7 @@ export default function PaymentTrackerPage() {
                                                             <ArrowDownCircle className="h-3.5 w-3.5" /> Received Entry (Inflow)
                                                         </span>
                                                         <Button variant="ghost" size="sm" onClick={() => handleAddLine('Received')} className="h-7 text-[9px] font-black uppercase text-emerald-700 tracking-widest hover:bg-emerald-100/60 border border-emerald-200 bg-white shadow-sm px-3">
-                                                            <PlusCircle className="mr-1.5 h-3 w-3" /> Append Receipt
+                                                            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Append Receipt
                                                         </Button>
                                                     </div>
                                                 </TableHead>
@@ -666,8 +667,8 @@ export default function PaymentTrackerPage() {
                                                         <span className="text-[10px] font-black uppercase tracking-widest text-red-800 flex items-center gap-2">
                                                             <ArrowUpCircle className="h-3.5 w-3.5" /> Outflow Entry (Payments)
                                                         </span>
-                                                        <Button variant="ghost" size="sm" onClick={() => handleAddLine('Outflow')} className="h-7 text-[9px] font-black uppercase text-red-700 tracking-widest hover:bg-red-100/60 border border-red-200 bg-white shadow-sm px-3">
-                                                            <PlusCircle className="mr-1.5 h-3 w-3" /> Append Payment
+                                                        <Button variant="ghost" size="sm" onClick={() => handleAddLine('Outflow')} className="h-7 text-[9px] font-black uppercase text-red-700 tracking-widest hover:bg-emerald-100/60 border border-red-200 bg-white shadow-sm px-3">
+                                                            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Append Payment
                                                         </Button>
                                                     </div>
                                                 </TableHead>
@@ -795,7 +796,7 @@ export default function PaymentTrackerPage() {
                                     <TableRow className="h-10">
                                         <TableHead className="pl-6 text-[10px] font-black uppercase text-muted-foreground tracking-widest">Date (BS)</TableHead>
                                         <TableHead className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Voucher Number</TableHead>
-                                        <TableHead className="text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Outflow</TableHead>
+                                        <TableHead className="text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Payment</TableHead>
                                         <TableHead className="text-right pr-6 text-[10px] font-black uppercase text-muted-foreground tracking-widest">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
