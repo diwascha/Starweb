@@ -26,7 +26,8 @@ import {
     ArrowRight,
     ArrowRightLeft,
     Zap,
-    Download
+    Download,
+    MoreHorizontal
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,6 +54,32 @@ import type { DateRange } from 'react-day-picker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger, 
+    DropdownMenuSeparator 
+} from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogHeader, 
+    DialogTitle, 
+    DialogFooter, 
+    DialogDescription 
+} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface DraftEntry {
     id: string;
@@ -86,6 +113,11 @@ export default function PaymentTrackerPage() {
     // History Filters
     const [searchQuery, setSearchQuery] = useState('');
     const [historyDateRange, setHistoryDateRange] = useState<DateRange | undefined>(undefined);
+
+    // History Management State
+    const [editingHistoricalEntry, setEditingHistoricalEntry] = useState<PaymentTrackerEntry | null>(null);
+    const [isEditHistoricalDialogOpen, setIsEditHistoricalDialogOpen] = useState(false);
+    const [deletingHistoricalEntry, setDeletingHistoricalEntry] = useState<PaymentTrackerEntry | null>(null);
 
     useEffect(() => {
         const unsub = onPaymentEntriesUpdate((data) => {
@@ -188,6 +220,40 @@ export default function PaymentTrackerPage() {
 
         return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [savedEntries, searchQuery, historyDateRange]);
+
+    const handleEditHistorical = (entry: PaymentTrackerEntry) => {
+        setEditingHistoricalEntry({ ...entry });
+        setIsEditHistoricalDialogOpen(true);
+    };
+
+    const handleUpdateHistorical = async () => {
+        if (!editingHistoricalEntry || !user) return;
+        try {
+            await updatePaymentEntry(editingHistoricalEntry.id, {
+                type: editingHistoricalEntry.type,
+                partyName: editingHistoricalEntry.partyName,
+                description: editingHistoricalEntry.description,
+                amount: editingHistoricalEntry.amount,
+                lastModifiedBy: user.username
+            });
+            toast({ title: 'Entry Updated' });
+            setIsEditHistoricalDialogOpen(false);
+            setEditingHistoricalEntry(null);
+        } catch {
+            toast({ title: 'Update Failed', variant: 'destructive' });
+        }
+    };
+
+    const handleDeleteHistorical = async () => {
+        if (!deletingHistoricalEntry) return;
+        try {
+            await deletePaymentEntry(deletingHistoricalEntry.id);
+            toast({ title: 'Entry Deleted' });
+            setDeletingHistoricalEntry(null);
+        } catch {
+            toast({ title: 'Delete Failed', variant: 'destructive' });
+        }
+    };
 
     const handleExportPdf = async () => {
         setIsExporting(true);
@@ -476,12 +542,13 @@ export default function PaymentTrackerPage() {
                                         <TableHead className="font-bold uppercase text-[10px]">Voucher #</TableHead>
                                         <TableHead className="font-bold uppercase text-[10px]">Type</TableHead>
                                         <TableHead className="font-bold uppercase text-[10px]">Entity / Party</TableHead>
-                                        <TableHead className="text-right pr-6 font-bold uppercase text-[10px]">Amount</TableHead>
+                                        <TableHead className="text-right font-bold uppercase text-[10px]">Amount</TableHead>
+                                        <TableHead className="text-right pr-6 font-bold uppercase text-[10px]">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredHistory.map(e => (
-                                        <TableRow key={e.id} className="h-14 border-b hover:bg-muted/10 transition-colors">
+                                        <TableRow key={e.id} className="h-14 border-b hover:bg-muted/10 transition-colors group">
                                             <TableCell className="pl-6 font-medium text-gray-500">{toNepaliDate(e.date)}</TableCell>
                                             <TableCell className="font-mono font-bold text-blue-600">{e.voucherNo}</TableCell>
                                             <TableCell>
@@ -491,13 +558,31 @@ export default function PaymentTrackerPage() {
                                                 )}>{e.type}</Badge>
                                             </TableCell>
                                             <TableCell className="font-black uppercase tracking-tight">{e.partyName}</TableCell>
-                                            <TableCell className="text-right pr-6 font-black tabular-nums">
+                                            <TableCell className="text-right font-black tabular-nums">
                                                 Rs. {e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </TableCell>
+                                            <TableCell className="text-right pr-6">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuItem onSelect={() => handleEditHistorical(e)}>
+                                                            <Edit className="mr-2 h-4 w-4" /> Edit Details
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem className="text-destructive" onSelect={() => setDeletingHistoricalEntry(e)}>
+                                                            <Trash2 className="mr-2 h-4 w-4" /> Delete Entry
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                     {filteredHistory.length === 0 && (
-                                        <TableRow><TableCell colSpan={5} className="py-20 text-center text-muted-foreground italic">No historical records found for this criteria.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={6} className="py-20 text-center text-muted-foreground italic">No historical records found for this criteria.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -505,6 +590,80 @@ export default function PaymentTrackerPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            {/* Edit Historical Entry Dialog */}
+            <Dialog open={isEditHistoricalDialogOpen} onOpenChange={setIsEditHistoricalDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Modify Registry Entry</DialogTitle>
+                        <DialogDescription className="text-xs font-bold uppercase text-muted-foreground">Update details for this archived record.</DialogDescription>
+                    </DialogHeader>
+                    {editingHistoricalEntry && (
+                        <div className="space-y-5 py-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Log Category</Label>
+                                <Select 
+                                    value={editingHistoricalEntry.type} 
+                                    onValueChange={(v: any) => setEditingHistoricalEntry({...editingHistoricalEntry, type: v})}
+                                >
+                                    <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Received">Received (Inflow)</SelectItem>
+                                        <SelectItem value="Outflow">Outflow (Payment)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Party Name / Source</Label>
+                                <Input 
+                                    value={editingHistoricalEntry.partyName} 
+                                    onChange={e => setEditingHistoricalEntry({...editingHistoricalEntry, partyName: e.target.value})} 
+                                    className="h-10 font-bold uppercase"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Amount (रु)</Label>
+                                <Input 
+                                    type="number" 
+                                    value={editingHistoricalEntry.amount} 
+                                    onChange={e => setEditingHistoricalEntry({...editingHistoricalEntry, amount: parseFloat(e.target.value) || 0})} 
+                                    className="h-10 font-black"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Description / Note</Label>
+                                <Input 
+                                    value={editingHistoricalEntry.description} 
+                                    onChange={e => setEditingHistoricalEntry({...editingHistoricalEntry, description: e.target.value})} 
+                                    className="h-10"
+                                />
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditHistoricalDialogOpen(false)} className="h-11 font-bold text-xs uppercase tracking-widest">Cancel</Button>
+                        <Button onClick={handleUpdateHistorical} className="h-11 px-8 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">Update Entry</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Alert */}
+            <AlertDialog open={!!deletingHistoricalEntry} onOpenChange={(open) => !open && setDeletingHistoricalEntry(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="uppercase tracking-tight">Delete Registry Entry?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently remove this transaction from the historical ledger. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="font-bold text-xs uppercase">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteHistorical} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black text-xs uppercase">
+                            Delete Permanently
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <style jsx global>{`
                 @media print {
