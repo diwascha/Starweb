@@ -18,6 +18,7 @@ import type { PaymentTrackerEntry } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { generateNextPaymentTrackerNumber } from '@/lib/utils';
 
 const getCollection = () => {
     const { db } = getFirebase();
@@ -28,6 +29,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PaymentTr
     const data = snapshot.data();
     return {
         id: snapshot.id,
+        voucherNo: data.voucherNo,
         date: data.date,
         type: data.type as 'Received' | 'Outflow',
         partyName: data.partyName || '',
@@ -56,9 +58,17 @@ export const onPaymentEntriesUpdate = (callback: (entries: PaymentTrackerEntry[]
 };
 
 export const addPaymentEntry = async (entry: Omit<PaymentTrackerEntry, 'id' | 'createdAt'>): Promise<string> => {
+    const { db } = getFirebase();
     const docRef = doc(getCollection());
+    
+    // Generate numbering
+    const snap = await getDocs(getCollection());
+    const existing = snap.docs.map(fromFirestore);
+    const voucherNo = await generateNextPaymentTrackerNumber(existing, entry.date);
+
     const payload = {
         ...entry,
+        voucherNo,
         createdAt: new Date().toISOString(),
     };
     

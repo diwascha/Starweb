@@ -1,3 +1,4 @@
+
 'use client';
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, getDoc, setDoc, onSnapshot, query, where, getDocs, writeBatch, orderBy } from 'firebase/firestore';
@@ -100,7 +101,8 @@ export const updateExistingRecordsNumbering = async (type: DocumentType, rule: N
         'expense': { collection: 'expenses', field: 'voucherNo', dateField: 'date' },
         'chequeVoucher': { collection: 'cheques', field: 'voucherNo', dateField: 'paymentDate' },
         'gsmVoucher': { collection: 'gsm_reports', field: 'voucherNo', dateField: 'date' },
-        'rentalBill': { collection: 'rentalBills', field: 'id', dateField: 'createdAt' }
+        'rentalBill': { collection: 'rentalBills', field: 'id', dateField: 'createdAt' },
+        'paymentTracker': { collection: 'payment_tracker', field: 'voucherNo', dateField: 'date' }
     };
 
     const config = mapping[type];

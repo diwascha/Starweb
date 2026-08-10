@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -52,7 +53,8 @@ import {
   Calculator,
   Home,
   AlertTriangle,
-  SearchCheck
+  SearchCheck,
+  ClipboardList
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -96,7 +98,7 @@ const groupedDocumentTypes: { label: string; icon: any; types: DocumentType[] }[
     { label: "Manufacturing Module", icon: FileText, types: ['report'] },
     { label: "Procurement Module", icon: ShoppingCart, types: ['purchaseOrder'] },
     { label: "Fleet Module", icon: Truck, types: ['sales', 'expense', 'paymentReceipt', 'purchase'] },
-    { label: "Finance Module", icon: Calculator, types: ['estimateInvoice', 'tdsVoucher', 'chequeVoucher', 'gsmVoucher'] },
+    { label: "Finance Module", icon: Calculator, types: ['estimateInvoice', 'tdsVoucher', 'chequeVoucher', 'gsmVoucher', 'paymentTracker'] },
     { label: "Rental Module", icon: Home, types: ['rentalBill'] }
 ];
 

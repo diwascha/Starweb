@@ -876,7 +876,7 @@ export interface AppSetting {
     value: any;
 }
 
-export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense', 'rentalBill', 'chequeVoucher', 'gsmVoucher'] as const;
+export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense', 'rentalBill', 'chequeVoucher', 'gsmVoucher', 'paymentTracker'] as const;
 export type DocumentType = typeof documentTypes[number];
 
 export interface NumberingRule {
@@ -915,6 +915,8 @@ export const getDocumentName = (type: DocumentType): string => {
             return 'Cheque Voucher (PDC)';
         case 'gsmVoucher':
             return 'GSM Verification Report';
+        case 'paymentTracker':
+            return 'Payment Tracker Entry';
         default:
             return 'Document';
     }
@@ -1061,6 +1063,7 @@ export interface GsmReport {
 
 export interface PaymentTrackerEntry {
   id: string;
+  voucherNo?: string;
   date: string; // ISO
   type: 'Received' | 'Outflow';
   partyName: string;
