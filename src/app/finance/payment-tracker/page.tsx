@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -46,6 +47,7 @@ import {
     addPaymentEntry, 
     updatePaymentEntry, 
     deletePaymentEntry,
+    deletePaymentVoucher,
     savePaymentVoucher 
 } from '@/services/payment-tracker-service';
 import type { PaymentTrackerEntry } from '@/lib/types';
@@ -92,6 +94,13 @@ interface DraftEntry {
     amount: string;
 }
 
+interface SummarizedVoucher {
+    voucherNo: string;
+    date: string;
+    amount: number;
+    entriesCount: number;
+}
+
 export default function PaymentTrackerPage() {
     const { user } = useAuth();
     const { toast } = useToast();
@@ -119,7 +128,7 @@ export default function PaymentTrackerPage() {
     const [historyDateRange, setHistoryDateRange] = useState<DateRange | undefined>(undefined);
 
     // History Management State
-    const [deletingHistoricalEntry, setDeletingHistoricalEntry] = useState<PaymentTrackerEntry | null>(null);
+    const [deletingVoucherNo, setDeletingVoucherNo] = useState<string | null>(null);
 
     useEffect(() => {
         const unsub = onPaymentEntriesUpdate((data) => {
@@ -171,14 +180,8 @@ export default function PaymentTrackerPage() {
 
         setIsSaving(true);
         try {
-            // If editing, we first remove the old records for this specific voucher
-            // To ensure no duplicates or orphaned rows remain.
             if (isEditing) {
-                // Fetch all entries for this voucher number to get their IDs
-                const oldEntries = savedEntries.filter(e => e.voucherNo === voucherNo);
-                for (const old of oldEntries) {
-                    await deletePaymentEntry(old.id);
-                }
+                await deletePaymentVoucher(voucherNo);
             }
 
             await savePaymentVoucher({
@@ -196,7 +199,6 @@ export default function PaymentTrackerPage() {
 
             toast({ title: isEditing ? 'Voucher Updated' : 'Voucher Saved', description: `Voucher ${voucherNo} has been archived.` });
             
-            // Reset workspace
             setDraftEntries([
                 { id: generateId(), type: 'Received', partyName: '', description: '', amount: '' },
                 { id: generateId(), type: 'Outflow', partyName: '', description: '', amount: '' }
@@ -210,7 +212,7 @@ export default function PaymentTrackerPage() {
         }
     };
 
-    const filteredHistory = useMemo(() => {
+    const summarizedHistory = useMemo(() => {
         let filtered = [...savedEntries];
         
         if (searchQuery) {
@@ -231,13 +233,31 @@ export default function PaymentTrackerPage() {
             });
         }
 
-        return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const groups = new Map<string, SummarizedVoucher>();
+        
+        filtered.forEach(e => {
+            const key = e.voucherNo || 'N/A';
+            const group = groups.get(key) || { 
+                voucherNo: key, 
+                date: e.date, 
+                amount: 0, 
+                entriesCount: 0 
+            };
+            
+            if (e.type === 'Received') group.amount += e.amount;
+            else group.amount -= e.amount;
+            
+            group.entriesCount++;
+            groups.set(key, group);
+        });
+
+        return Array.from(groups.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [savedEntries, searchQuery, historyDateRange]);
 
-    const handleEditHistorical = (entry: PaymentTrackerEntry) => {
-        // Load all entries belonging to the same voucher into the workspace
-        const voucherEntries = savedEntries.filter(e => e.voucherNo === entry.voucherNo);
-        
+    const handleEditHistorical = (voucherNo: string) => {
+        const voucherEntries = savedEntries.filter(e => e.voucherNo === voucherNo);
+        if (voucherEntries.length === 0) return;
+
         const drafts: DraftEntry[] = voucherEntries.map(e => ({
             id: e.id,
             type: e.type,
@@ -247,20 +267,19 @@ export default function PaymentTrackerPage() {
         }));
 
         setDraftEntries(drafts);
-        setVoucherNo(entry.voucherNo || '');
-        setEntryDate(new Date(entry.date));
+        setVoucherNo(voucherNo);
+        setEntryDate(new Date(voucherEntries[0].date));
         setIsEditing(true);
         setActiveTab('tracker');
-        
-        toast({ title: 'Workspace Loaded', description: `Voucher ${entry.voucherNo} is ready for modifications.` });
+        toast({ title: 'Workspace Loaded', description: `Voucher ${voucherNo} is ready for modifications.` });
     };
 
     const handleDeleteHistorical = async () => {
-        if (!deletingHistoricalEntry) return;
+        if (!deletingVoucherNo) return;
         try {
-            await deletePaymentEntry(deletingHistoricalEntry.id);
-            toast({ title: 'Entry Deleted' });
-            setDeletingHistoricalEntry(null);
+            await deletePaymentVoucher(deletingVoucherNo);
+            toast({ title: 'Voucher Deleted', description: `All entries for ${deletingVoucherNo} removed.` });
+            setDeletingVoucherNo(null);
         } catch {
             toast({ title: 'Delete Failed', variant: 'destructive' });
         }
@@ -305,27 +324,26 @@ export default function PaymentTrackerPage() {
                 <TabsList className="bg-muted/50 p-1 mb-4 h-10">
                     <TabsTrigger value="tracker" className="gap-2 px-6 text-xs font-semibold">
                         <Calculator className="h-4 w-4" />
-                        Workspace {isEditing && <Badge className="ml-2 bg-amber-500 text-black border-none text-[8px] h-4">EDITING</Badge>}
+                        Workspace {isEditing && <Badge className="ml-2 bg-amber-500 text-black border-none text-[8px] h-4 uppercase font-black">Editing</Badge>}
                     </TabsTrigger>
                     <TabsTrigger value="history" className="gap-2 px-6 text-xs font-semibold">
                         <History className="h-4 w-4" />
-                        History
+                        History Logs
                     </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="tracker" className="space-y-6 animate-in fade-in">
-                    {/* Voucher Header */}
                     <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col md:flex-row gap-4 md:gap-6 md:items-center">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-muted/50 rounded-lg"><Hash className="h-4 w-4 text-primary"/></div>
                             <div className="space-y-0.5">
-                                <Label className="text-[11px] font-medium text-muted-foreground">Voucher Number</Label>
-                                <p className="font-semibold text-sm text-gray-900 font-mono">{voucherNo}</p>
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Voucher Number</Label>
+                                <p className="font-black text-sm text-gray-900 font-mono pl-1">{voucherNo}</p>
                             </div>
                         </div>
                         <Separator orientation="vertical" className="h-10 hidden md:block" />
                         <div className="flex items-center gap-3">
-                            <Label className="text-[11px] font-medium text-muted-foreground">Date</Label>
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Date</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className="w-[200px] justify-start text-left font-normal bg-white h-9">
@@ -350,7 +368,7 @@ export default function PaymentTrackerPage() {
                                 {isExporting ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <FileDown className="h-4 w-4 mr-2" />} Export PDF
                             </Button>
                             <Button onClick={handleFinalizeVoucher} disabled={isSaving} className="h-9 px-5 text-xs font-semibold">
-                                {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="mr-2 h-4 w-4" />} {isEditing ? 'Update Records' : 'Save Voucher'}
+                                {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="mr-2 h-4 w-4" />} {isEditing ? 'Update Records' : 'Finalize Document'}
                             </Button>
                         </div>
                     </div>
@@ -360,46 +378,45 @@ export default function PaymentTrackerPage() {
                             <CardContent className="p-0">
                                 <ScrollArea className="w-full">
                                     <Table className="border-collapse table-fixed w-full min-w-[800px]">
-                                        {/* RECEIVED SECTION */}
                                         <TableHeader>
-                                            <TableRow className="bg-blue-50/70 hover:bg-blue-50/70 h-12 border-b">
+                                            <TableRow className="bg-muted/10 hover:bg-muted/10 h-10 border-b">
                                                 <TableHead colSpan={5} className="px-4 align-middle">
                                                     <div className="flex items-center justify-between w-full">
-                                                        <span className="text-xs font-semibold uppercase tracking-wide text-blue-800 flex items-center gap-2">
-                                                            <ArrowDownCircle className="h-4 w-4" /> Receipts (Inflow)
+                                                        <span className="text-xs font-black uppercase tracking-widest text-blue-800 flex items-center gap-2">
+                                                            <ArrowDownCircle className="h-4 w-4" /> Received Payments
                                                         </span>
-                                                        <Button variant="ghost" size="sm" onClick={() => handleAddLine('Received')} className="h-7 text-xs font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-100/60">
-                                                            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add Line
+                                                        <Button variant="ghost" size="sm" onClick={() => handleAddLine('Received')} className="h-7 text-[10px] font-black uppercase text-blue-700 tracking-widest hover:bg-blue-100/60">
+                                                            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add Receipt
                                                         </Button>
                                                     </div>
                                                 </TableHead>
                                             </TableRow>
-                                            <TableRow className="bg-muted/20 h-8">
-                                                <TableHead className="w-12 text-center border-r text-[11px] font-medium text-muted-foreground px-2">S.N.</TableHead>
-                                                <TableHead className="border-r text-[11px] font-medium text-muted-foreground px-3">Party / Source</TableHead>
-                                                <TableHead className="border-r text-[11px] font-medium text-muted-foreground px-3">Description</TableHead>
-                                                <TableHead className="text-right text-[11px] font-medium text-muted-foreground px-4 w-[200px]">Amount (रु)</TableHead>
+                                            <TableRow className="bg-muted/20 h-[18px]">
+                                                <TableHead className="w-12 text-center border-r text-[10px] font-black uppercase px-2">S.N.</TableHead>
+                                                <TableHead className="border-r text-[10px] font-black uppercase px-3">Party Name / Source</TableHead>
+                                                <TableHead className="border-r text-[10px] font-black uppercase px-3">Description</TableHead>
+                                                <TableHead className="text-right text-[10px] font-black uppercase px-4 w-[180px]">Amount (रु)</TableHead>
                                                 <TableHead className="w-12 px-2 text-center"></TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {receivedDrafts.map((e, i) => (
-                                                <TableRow key={e.id} className="h-10 border-b group transition-colors hover:bg-muted/10">
-                                                    <TableCell className="text-center border-r text-sm text-muted-foreground px-2 py-0">{i + 1}</TableCell>
+                                                <TableRow key={e.id} className="h-[18px] border-b group transition-colors hover:bg-muted/10">
+                                                    <TableCell className="text-center border-r text-[14px] font-black text-muted-foreground px-2 py-0 leading-none">{i + 1}</TableCell>
                                                     <TableCell className="border-r p-0">
                                                         <Input 
                                                             value={e.partyName} 
                                                             onChange={v => handleUpdateLine(e.id, 'partyName', v.target.value)} 
-                                                            className="h-10 border-none rounded-none text-sm px-3 font-medium bg-transparent focus-visible:bg-blue-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
-                                                            placeholder="Party name..."
+                                                            className="h-[24px] border-none rounded-none text-[14px] px-3 font-bold bg-transparent focus-visible:bg-blue-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
+                                                            placeholder="Type party..."
                                                         />
                                                     </TableCell>
                                                     <TableCell className="border-r p-0">
                                                         <Input 
                                                             value={e.description} 
                                                             onChange={v => handleUpdateLine(e.id, 'description', v.target.value)} 
-                                                            className="h-10 border-none rounded-none text-sm px-3 text-gray-600 bg-transparent focus-visible:bg-blue-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
-                                                            placeholder="Note..."
+                                                            className="h-[24px] border-none rounded-none text-[14px] px-3 text-gray-600 bg-transparent focus-visible:bg-blue-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
+                                                            placeholder="Optional note..."
                                                         />
                                                     </TableCell>
                                                     <TableCell className="text-right border-r p-0">
@@ -407,66 +424,65 @@ export default function PaymentTrackerPage() {
                                                             type="number" 
                                                             value={e.amount} 
                                                             onChange={v => handleUpdateLine(e.id, 'amount', v.target.value)} 
-                                                            className="h-10 border-none rounded-none text-right px-4 font-semibold text-sm tabular-nums bg-transparent focus-visible:bg-blue-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
-                                                            placeholder="0.00"
+                                                            className="h-[24px] border-none rounded-none text-right px-4 font-black text-[14px] tabular-nums bg-transparent focus-visible:bg-blue-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
+                                                            placeholder="0"
                                                         />
                                                     </TableCell>
                                                     <TableCell className="text-center p-0">
-                                                        <Button variant="ghost" size="icon" className="h-10 w-full rounded-none text-muted-foreground/40 hover:text-destructive" onClick={() => handleRemoveLine(e.id)}>
+                                                        <Button variant="ghost" size="icon" className="h-[24px] w-full rounded-none text-muted-foreground/30 hover:text-destructive" onClick={() => handleRemoveLine(e.id)}>
                                                             <Trash2 className="h-3.5 w-3.5"/>
                                                         </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
-                                            <TableRow className="bg-muted/20 h-10 border-b">
+                                            <TableRow className="bg-blue-50/50 h-[18px] border-b">
                                                 <TableCell className="border-r px-2"></TableCell>
-                                                <TableCell colSpan={2} className="text-xs font-semibold text-gray-600 border-r px-4 text-right align-middle">Total Received</TableCell>
-                                                <TableCell className="text-right tabular-nums text-sm font-semibold px-4 border-r align-middle text-blue-700">{totals.rec.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                                <TableCell colSpan={2} className="text-[11px] font-black uppercase text-blue-900 border-r px-4 text-right align-middle leading-none">Total Received</TableCell>
+                                                <TableCell className="text-right tabular-nums text-[14px] font-black px-4 border-r align-middle text-blue-700 leading-none">Rs. {totals.rec.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                                 <TableCell />
                                             </TableRow>
                                         </TableBody>
 
-                                        {/* OUTFLOW SECTION */}
                                         <TableHeader>
-                                            <TableRow className="h-4 border-none hover:bg-transparent"><TableCell colSpan={5} className="p-0"></TableCell></TableRow>
-                                            <TableRow className="bg-red-50/70 hover:bg-red-50/70 h-12 border-b">
+                                            <TableRow className="h-6 border-none hover:bg-transparent bg-transparent"><TableCell colSpan={5} className="p-0"></TableCell></TableRow>
+                                            <TableRow className="bg-muted/10 hover:bg-muted/10 h-10 border-b">
                                                 <TableHead colSpan={5} className="px-4 align-middle">
                                                     <div className="flex items-center justify-between w-full">
-                                                        <span className="text-xs font-semibold uppercase tracking-wide text-red-800 flex items-center gap-2">
-                                                            <ArrowUpCircle className="h-4 w-4" /> Payments (Outflow)
+                                                        <span className="text-xs font-black uppercase tracking-widest text-red-800 flex items-center gap-2">
+                                                            <ArrowUpCircle className="h-4 w-4" /> Payment Party (Outflow)
                                                         </span>
-                                                        <Button variant="ghost" size="sm" onClick={() => handleAddLine('Outflow')} className="h-7 text-xs font-medium text-red-700 hover:text-red-800 hover:bg-red-100/60">
+                                                        <Button variant="ghost" size="sm" onClick={() => handleAddLine('Outflow')} className="h-7 text-[10px] font-black uppercase text-red-700 tracking-widest hover:bg-red-100/60">
                                                             <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add Line
-                                                        </Button>
+                                                        </span>
                                                     </div>
                                                 </TableHead>
                                             </TableRow>
-                                            <TableRow className="bg-muted/20 h-8">
-                                                <TableHead className="w-12 text-center border-r text-[11px] font-medium text-muted-foreground px-2">S.N.</TableHead>
-                                                <TableHead className="border-r text-[11px] font-medium text-muted-foreground px-3">Beneficiary</TableHead>
-                                                <TableHead className="border-r text-[11px] font-medium text-muted-foreground px-3">Description</TableHead>
-                                                <TableHead className="text-right text-[11px] font-medium text-muted-foreground px-4 w-[200px]">Amount (रु)</TableHead>
+                                            <TableRow className="bg-muted/20 h-[18px]">
+                                                <TableHead className="w-12 text-center border-r text-[10px] font-black uppercase px-2">S.N.</TableHead>
+                                                <TableHead className="border-r text-[10px] font-black uppercase px-3">Beneficiary Name</TableHead>
+                                                <TableHead className="border-r text-[10px] font-black uppercase px-3">Description</TableHead>
+                                                <TableHead className="text-right text-[10px] font-black uppercase px-4 w-[180px]">Amount (रु)</TableHead>
                                                 <TableHead className="w-12 px-2 text-center"></TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {outflowDrafts.map((e, i) => (
-                                                <TableRow key={e.id} className="h-10 border-b group transition-colors hover:bg-muted/10">
-                                                    <TableCell className="text-center border-r text-sm text-muted-foreground px-2 py-0">{i + 1}</TableCell>
+                                                <TableRow key={e.id} className="h-[18px] border-b group transition-colors hover:bg-muted/10">
+                                                    <TableCell className="text-center border-r text-[14px] font-black text-muted-foreground px-2 py-0 leading-none">{i + 1}</TableCell>
                                                     <TableCell className="border-r p-0">
                                                         <Input 
                                                             value={e.partyName} 
                                                             onChange={v => handleUpdateLine(e.id, 'partyName', v.target.value)} 
-                                                            className="h-10 border-none rounded-none text-sm px-3 font-medium bg-transparent focus-visible:bg-red-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
-                                                            placeholder="Beneficiary name..."
+                                                            className="h-[24px] border-none rounded-none text-[14px] px-3 font-bold bg-transparent focus-visible:bg-red-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
+                                                            placeholder="Type beneficiary..."
                                                         />
                                                     </TableCell>
                                                     <TableCell className="border-r p-0">
                                                         <Input 
                                                             value={e.description} 
                                                             onChange={v => handleUpdateLine(e.id, 'description', v.target.value)} 
-                                                            className="h-10 border-none rounded-none text-sm px-3 text-gray-600 bg-transparent focus-visible:bg-red-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
-                                                            placeholder="Note..."
+                                                            className="h-[24px] border-none rounded-none text-[14px] px-3 text-gray-600 bg-transparent focus-visible:bg-red-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
+                                                            placeholder="Optional note..."
                                                         />
                                                     </TableCell>
                                                     <TableCell className="text-right border-r p-0">
@@ -474,42 +490,41 @@ export default function PaymentTrackerPage() {
                                                             type="number" 
                                                             value={e.amount} 
                                                             onChange={v => handleUpdateLine(e.id, 'amount', v.target.value)} 
-                                                            className="h-10 border-none rounded-none text-right px-4 font-semibold text-sm tabular-nums bg-transparent focus-visible:bg-blue-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
-                                                            placeholder="0.00"
+                                                            className="h-[24px] border-none rounded-none text-right px-4 font-black text-[14px] tabular-nums bg-transparent focus-visible:bg-red-50/30 focus-visible:ring-1 focus-visible:ring-inset" 
+                                                            placeholder="0"
                                                         />
                                                     </TableCell>
                                                     <TableCell className="text-center p-0">
-                                                        <Button variant="ghost" size="icon" className="h-10 w-full rounded-none text-muted-foreground/40 hover:text-destructive" onClick={() => handleRemoveLine(e.id)}>
+                                                        <Button variant="ghost" size="icon" className="h-[24px] w-full rounded-none text-muted-foreground/30 hover:text-destructive" onClick={() => handleRemoveLine(e.id)}>
                                                             <Trash2 className="h-3.5 w-3.5"/>
                                                         </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
-                                            <TableRow className="bg-muted/20 h-10 border-b">
+                                            <TableRow className="bg-red-50/50 h-[18px] border-b">
                                                 <TableCell className="border-r px-2"></TableCell>
-                                                <TableCell colSpan={2} className="text-xs font-semibold text-gray-600 border-r px-4 text-right align-middle">Total Paid Out</TableCell>
-                                                <TableCell className="text-right tabular-nums text-sm font-semibold px-4 border-r align-middle text-red-700">{totals.pay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                                <TableCell colSpan={2} className="text-[11px] font-black uppercase text-red-900 border-r px-4 text-right align-middle leading-none">Total Payment</TableCell>
+                                                <TableCell className="text-right tabular-nums text-[14px] font-black px-4 border-r align-middle text-red-700 leading-none">Rs. {totals.pay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                                 <TableCell />
                                             </TableRow>
                                         </TableBody>
 
-                                        {/* SUMMARY FOOTER */}
                                         <TableFooter>
-                                            <TableRow className="h-3 border-none hover:bg-transparent bg-transparent"><TableCell colSpan={5} className="p-0"></TableCell></TableRow>
+                                            <TableRow className="h-4 border-none hover:bg-transparent bg-transparent"><TableCell colSpan={5} className="p-0"></TableCell></TableRow>
                                             <TableRow className={cn(
                                                 "h-12 border-t-2 hover:bg-transparent",
-                                                totals.net >= 0 ? "bg-emerald-50/70 border-emerald-200" : "bg-amber-50/70 border-amber-200"
+                                                totals.net >= 0 ? "bg-emerald-50/50 border-emerald-200" : "bg-red-50/50 border-red-200"
                                             )}>
                                                 <TableCell className="border-r"></TableCell>
                                                 <TableCell colSpan={2} className={cn(
-                                                    "text-sm font-semibold px-6 align-middle",
-                                                    totals.net >= 0 ? "text-emerald-800" : "text-amber-800"
-                                                )}>Net Balance</TableCell>
+                                                    "text-[11px] font-black uppercase tracking-[0.2em] px-6 align-middle",
+                                                    totals.net >= 0 ? "text-emerald-800" : "text-red-800"
+                                                )}>Final Net Balance</TableCell>
                                                 <TableCell className={cn(
-                                                    "text-right tabular-nums text-lg px-4 font-bold border-r align-middle",
-                                                    totals.net >= 0 ? "text-emerald-700" : "text-amber-700"
+                                                    "text-right tabular-nums text-[18px] px-4 font-black border-r align-middle",
+                                                    totals.net >= 0 ? "text-emerald-700" : "text-red-700"
                                                 )}>
-                                                    {totals.net.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    Rs. {totals.net.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </TableCell>
                                                 <TableCell />
                                             </TableRow>
@@ -525,12 +540,12 @@ export default function PaymentTrackerPage() {
                 <TabsContent value="history" className="animate-in fade-in">
                     <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 flex flex-col md:flex-row gap-4 md:gap-6 md:items-center">
                         <div className="flex items-center gap-3">
-                            <Label className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Period</Label>
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap px-1">Search Period</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className="w-[240px] justify-start text-left font-normal bg-white h-9">
                                         <CalendarIconLucide className="mr-2 h-4 w-4 opacity-50" />
-                                        <span className="font-medium text-xs truncate">
+                                        <span className="font-bold text-xs truncate">
                                             {historyDateRange?.from ? `${toNepaliDate(historyDateRange.from.toISOString())} - ${historyDateRange.to ? toNepaliDate(historyDateRange.to.toISOString()) : '...'}` : 'Select Range'}
                                         </span>
                                     </Button>
@@ -544,7 +559,7 @@ export default function PaymentTrackerPage() {
                             <div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input 
-                                    placeholder="Search party, voucher or description..." 
+                                    placeholder="Search by voucher number..." 
                                     className="pl-9 h-9 bg-white" 
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
@@ -552,54 +567,49 @@ export default function PaymentTrackerPage() {
                             </div>
                         </div>
                         {(searchQuery || historyDateRange) && (
-                            <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setHistoryDateRange(undefined); }} className="h-9 text-muted-foreground text-xs">
-                                <FilterX className="mr-1.5 h-3.5 w-3.5" /> Clear
+                            <Button variant="ghost" size="sm" onClick={handleClearFilters} className="h-9 text-muted-foreground font-black text-[10px] uppercase">
+                                <FilterX className="mr-1.5 h-3.5 w-3.5" /> Clear Filters
                             </Button>
                         )}
                     </div>
 
                     <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                         <CardContent className="p-0">
-                            <Table className="text-sm">
+                            <Table className="text-[13px]">
                                 <TableHeader className="bg-muted/30 border-b">
                                     <TableRow className="h-10">
-                                        <TableHead className="pl-6 text-[11px] font-medium text-muted-foreground uppercase">Date (BS)</TableHead>
-                                        <TableHead className="text-[11px] font-medium text-muted-foreground uppercase">Voucher #</TableHead>
-                                        <TableHead className="text-[11px] font-medium text-muted-foreground uppercase">Type</TableHead>
-                                        <TableHead className="text-[11px] font-medium text-muted-foreground uppercase">Party</TableHead>
-                                        <TableHead className="text-right text-[11px] font-medium text-muted-foreground uppercase">Amount</TableHead>
-                                        <TableHead className="text-right pr-6 text-[11px] font-medium text-muted-foreground uppercase">Actions</TableHead>
+                                        <TableHead className="pl-6 text-[10px] font-black uppercase text-muted-foreground tracking-widest">Date (BS)</TableHead>
+                                        <TableHead className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Voucher #</TableHead>
+                                        <TableHead className="text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Amount (Net)</TableHead>
+                                        <TableHead className="text-right pr-6 text-[10px] font-black uppercase text-muted-foreground tracking-widest">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredHistory.map(e => (
-                                        <TableRow key={e.id} className="h-12 border-b hover:bg-muted/10 transition-colors group">
-                                            <TableCell className="pl-6 text-gray-500">{toNepaliDate(e.date)}</TableCell>
-                                            <TableCell className="font-mono font-medium text-primary">{e.voucherNo}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className={cn(
-                                                    "text-[10px] font-medium",
-                                                    e.type === 'Received' ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-red-50 text-red-700 border-red-200"
-                                                )}>{e.type}</Badge>
-                                            </TableCell>
-                                            <TableCell className="font-medium text-gray-900">{e.partyName}</TableCell>
-                                            <TableCell className="text-right font-semibold tabular-nums">
-                                                Rs. {e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    {summarizedHistory.map(v => (
+                                        <TableRow key={v.voucherNo} className="h-[18px] border-b hover:bg-muted/10 transition-colors group">
+                                            <TableCell className="pl-6 text-gray-500 font-mono text-[14px] leading-none">{toNepaliDate(v.date)}</TableCell>
+                                            <TableCell className="font-black text-primary text-[14px] leading-none">{v.voucherNo}</TableCell>
+                                            <TableCell className={cn(
+                                                "text-right font-black tabular-nums text-[14px] leading-none",
+                                                v.amount >= 0 ? "text-emerald-700" : "text-red-700"
+                                            )}>
+                                                Rs. {Math.abs(v.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                <span className="ml-1 text-[8px] font-black uppercase">{v.amount >= 0 ? 'DR' : 'CR'}</span>
                                             </TableCell>
                                             <TableCell className="text-right pr-6">
                                                 <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleEditHistorical(e)}>
+                                                    <Button variant="ghost" size="icon" className="h-[24px] w-8 text-primary" onClick={() => handleEditHistorical(v.voucherNo)}>
                                                         <Edit className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingHistoricalEntry(e)}>
+                                                    <Button variant="ghost" size="icon" className="h-[24px] w-8 text-destructive" onClick={() => setDeletingVoucherNo(v.voucherNo)}>
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {filteredHistory.length === 0 && (
-                                        <TableRow><TableCell colSpan={6} className="py-20 text-center text-muted-foreground">No records found for this criteria.</TableCell></TableRow>
+                                    {summarizedHistory.length === 0 && (
+                                        <TableRow><TableCell colSpan={4} className="py-20 text-center text-muted-foreground italic uppercase font-black text-[10px] tracking-[0.2em] opacity-30">Registry Empty</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -608,35 +618,22 @@ export default function PaymentTrackerPage() {
                 </TabsContent>
             </Tabs>
 
-            {/* Delete Confirmation Alert */}
-            <AlertDialog open={!!deletingHistoricalEntry} onOpenChange={(open) => !open && setDeletingHistoricalEntry(null)}>
+            <AlertDialog open={!!deletingVoucherNo} onOpenChange={(open) => !open && setDeletingVoucherNo(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Entry?</AlertDialogTitle>
+                        <AlertDialogTitle className="uppercase tracking-tight">Delete Entire Voucher?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently remove this transaction from the historical ledger. This action cannot be undone.
+                            This will permanently remove voucher <span className="font-bold text-gray-900">{deletingVoucherNo}</span> and all associated transactions from the historical registry.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel className="text-xs font-semibold">Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteHistorical} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-semibold">
-                            Delete Permanently
+                        <AlertDialogCancel className="text-[10px] font-black uppercase">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteHistorical} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-[10px] font-black uppercase">
+                            Purge Records
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-
-            <style jsx global>{`
-                @media print {
-                    @page { size: A4; margin: 10mm; }
-                    body { background: white !important; }
-                    aside, header, nav, .tabs-list, .print\\:hidden, button, .bg-muted\/20 { display: none !important; }
-                    .main-content, main, .printable-container, .printable-area { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
-                    table { border: 1px solid #000 !important; width: 100% !important; }
-                    th, td { border: 1px solid #000 !important; color: black !important; padding: 4px !important; }
-                    .font-black { font-weight: 900 !important; }
-                }
-            `}</style>
         </div>
     );
 }

@@ -12,6 +12,7 @@ import {
     deleteDoc, 
     getDocs, 
     query, 
+    where, 
     orderBy,
     writeBatch
 } from 'firebase/firestore';
@@ -142,6 +143,25 @@ export const deletePaymentEntry = async (id: string): Promise<void> => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: docRef.path,
                 operation: 'delete',
+            }));
+        }
+    });
+};
+
+export const deletePaymentVoucher = async (voucherNo: string): Promise<void> => {
+    const { db } = getFirebase();
+    const q = query(getCollection(), where('voucherNo', '==', voucherNo));
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => batch.delete(d.ref));
+    
+    await batch.commit().catch(async (err) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'payment_tracker_voucher_batch_delete',
+                operation: 'write'
             }));
         }
     });
