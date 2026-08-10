@@ -96,7 +96,9 @@ interface DraftEntry {
 interface SummarizedVoucher {
     voucherNo: string;
     date: string;
-    amount: number;
+    totalPayment: number; // Sum of Outflow only
+    totalReceived: number; // Sum of Received only
+    netAmount: number; // Balance
     entriesCount: number;
 }
 
@@ -239,12 +241,19 @@ export default function PaymentTrackerPage() {
             const group = groups.get(key) || { 
                 voucherNo: key, 
                 date: e.date, 
-                amount: 0, 
+                totalReceived: 0,
+                totalPayment: 0,
+                netAmount: 0,
                 entriesCount: 0 
             };
             
-            if (e.type === 'Received') group.amount += e.amount;
-            else group.amount -= e.amount;
+            if (e.type === 'Received') {
+                group.totalReceived += e.amount;
+                group.netAmount += e.amount;
+            } else {
+                group.totalPayment += e.amount;
+                group.netAmount -= e.amount;
+            }
             
             group.entriesCount++;
             groups.set(key, group);
@@ -584,7 +593,7 @@ export default function PaymentTrackerPage() {
                                     <TableRow className="h-10">
                                         <TableHead className="pl-6 text-[10px] font-black uppercase text-muted-foreground tracking-widest">Date (BS)</TableHead>
                                         <TableHead className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Voucher #</TableHead>
-                                        <TableHead className="text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Amount (Net)</TableHead>
+                                        <TableHead className="text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Payment</TableHead>
                                         <TableHead className="text-right pr-6 text-[10px] font-black uppercase text-muted-foreground tracking-widest">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -593,12 +602,8 @@ export default function PaymentTrackerPage() {
                                         <TableRow key={v.voucherNo} className="h-[18px] border-b hover:bg-muted/10 transition-colors group">
                                             <TableCell className="pl-6 text-gray-500 font-mono text-[14px] leading-none">{toNepaliDate(v.date)}</TableCell>
                                             <TableCell className="font-black text-primary text-[14px] leading-none">{v.voucherNo}</TableCell>
-                                            <TableCell className={cn(
-                                                "text-right font-black tabular-nums text-[14px] leading-none",
-                                                v.amount >= 0 ? "text-emerald-700" : "text-red-700"
-                                            )}>
-                                                Rs. {Math.abs(v.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                <span className="ml-1 text-[8px] font-black uppercase">{v.amount >= 0 ? 'DR' : 'CR'}</span>
+                                            <TableCell className="text-right font-black tabular-nums text-[14px] leading-none text-red-700">
+                                                Rs. {v.totalPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                             </TableCell>
                                             <TableCell className="text-right pr-6">
                                                 <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
