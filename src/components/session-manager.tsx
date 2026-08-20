@@ -8,6 +8,7 @@ import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 const DEVICE_ID_KEY = 'ss_device_id';
+const DEVICE_NAME_KEY = 'ss_device_name';
 const HEARTBEAT_INTERVAL = 60 * 1000; // 1 minute
 
 /**
@@ -32,12 +33,23 @@ export function SessionManager() {
                 localStorage.setItem(DEVICE_ID_KEY, deviceId);
             }
 
+            // 2. Resolve Device Name (Label)
+            let deviceName = localStorage.getItem(DEVICE_NAME_KEY);
+            if (!deviceName) {
+                deviceName = `WS-${deviceId.substring(0, 4).toUpperCase()}`;
+                localStorage.setItem(DEVICE_NAME_KEY, deviceName);
+            }
+
             try {
-                // 2. Register Session
-                const sid = await startSession({ id: user.id, username: user.username }, deviceId);
+                // 3. Register Session
+                const sid = await startSession(
+                    { id: user.id, username: user.username }, 
+                    deviceId,
+                    deviceName
+                );
                 sessionIdRef.current = sid;
 
-                // 3. Setup Remote Revocation Listener
+                // 4. Setup Remote Revocation Listener
                 listenerUnsubRef.current = onSessionRevoked(sid, () => {
                     toast({ 
                         title: 'Session Revoked', 
@@ -47,7 +59,7 @@ export function SessionManager() {
                     logout();
                 });
 
-                // 4. Setup Heartbeat
+                // 5. Setup Heartbeat
                 heartbeatRef.current = setInterval(() => {
                     if (sessionIdRef.current) updateHeartbeat(sessionIdRef.current);
                 }, HEARTBEAT_INTERVAL);

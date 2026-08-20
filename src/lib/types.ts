@@ -1280,6 +1280,7 @@ export interface SessionRecord {
   userId: string;
   username: string;
   deviceId: string;
+  deviceName?: string; // Descriptive label for the workstation
   userAgent: string;
   loginAt: string;
   lastActive: string;

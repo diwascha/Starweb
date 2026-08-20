@@ -32,6 +32,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): SessionRe
         userId: data.userId,
         username: data.username,
         deviceId: data.deviceId,
+        deviceName: data.deviceName || undefined,
         userAgent: data.userAgent,
         loginAt: data.loginAt,
         lastActive: data.lastActive,
@@ -43,7 +44,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): SessionRe
  * Registers a new session for the current user and device.
  * Uses a deterministic ID (userId_deviceId) to prevent record pile-up.
  */
-export const startSession = async (user: { id: string, username: string }, deviceId: string): Promise<string> => {
+export const startSession = async (user: { id: string, username: string }, deviceId: string, deviceName?: string): Promise<string> => {
     const { db } = getFirebase();
     // Unique ID per user-device pair ensures we only ever have one record per workstation
     const sessionId = `${user.id}_${deviceId}`;
@@ -53,6 +54,7 @@ export const startSession = async (user: { id: string, username: string }, devic
         userId: user.id,
         username: user.username,
         deviceId,
+        deviceName,
         userAgent: navigator.userAgent,
         loginAt: now,
         lastActive: now,
@@ -86,6 +88,27 @@ export const updateHeartbeat = async (sessionId: string) => {
         await updateDoc(docRef, { lastActive: now });
     } catch (error: any) {
         // Silently fail heartbeats to maintain UX
+    }
+};
+
+/**
+ * Updates the descriptive name of a workstation.
+ */
+export const renameDevice = async (sessionId: string, deviceName: string) => {
+    const { db } = getFirebase();
+    const docRef = doc(db, SESSIONS_COLLECTION, sessionId);
+    
+    try {
+        await updateDoc(docRef, { deviceName });
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: `${SESSIONS_COLLECTION}/${sessionId}`,
+                operation: 'update',
+                requestResourceData: { deviceName }
+            }));
+        }
+        throw error;
     }
 };
 

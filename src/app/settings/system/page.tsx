@@ -72,7 +72,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onLogsUpdate, type SystemLog } from '@/services/log-service';
-import { onAllSessionsUpdate, revokeSession, cleanupStaleSessions } from '@/services/session-service';
+import { onAllSessionsUpdate, revokeSession, cleanupStaleSessions, renameDevice } from '@/services/session-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { 
     DropdownMenu, 
@@ -151,6 +151,9 @@ export default function SystemSettingsPage() {
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const [isCleaningSessions, setIsCleaningSessions] = useState(false);
 
+  const [localWorkstationName, setLocalWorkstationName] = useState('');
+  const [isRenamingWorkstation, setIsRenamingWorkstation] = useState(false);
+
   const [trafficSortConfig, setTrafficSortConfig] = useState<{ key: 'path' | 'lastVisited' | 'count'; direction: 'asc' | 'desc' }>({
     key: 'count',
     direction: 'desc'
@@ -188,6 +191,11 @@ export default function SystemSettingsPage() {
             setOwnershipCategories(normalized.sort((a: OwnershipCategory, b: OwnershipCategory) => a.name.localeCompare(b.name)));
         }),
     ];
+
+    // Load local workstation name
+    const storedName = localStorage.getItem('ss_device_name');
+    if (storedName) setLocalWorkstationName(storedName);
+
     return () => unsubs.forEach(u => u());
   }, []);
 
@@ -268,6 +276,23 @@ export default function SystemSettingsPage() {
         setIsChangePasswordDialogOpen(false);
         await logout();
     } catch(e: any) { setChangePasswordError(e.message); }
+  };
+
+  const handleUpdateWorkstationName = async () => {
+    if (!localWorkstationName.trim() || !user) return;
+    setIsRenamingWorkstation(true);
+    try {
+        localStorage.setItem('ss_device_name', localWorkstationName.trim());
+        // Find current session and update cloud record
+        const deviceId = localStorage.getItem('ss_device_id');
+        const sessionId = `${user.id}_${deviceId}`;
+        await renameDevice(sessionId, localWorkstationName.trim());
+        toast({ title: 'Workstation Labeled', description: `This device is now known as "${localWorkstationName}".` });
+    } catch (error) {
+        toast({ title: 'Rename Failed', variant: 'destructive' });
+    } finally {
+        setIsRenamingWorkstation(false);
+    }
   };
 
   const handleManualBackup = async () => {
@@ -437,13 +462,39 @@ export default function SystemSettingsPage() {
 
             <TabsContent value="users" className="space-y-6 animate-in fade-in slide-in-from-left-2">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-1 shadow-sm border-gray-100 h-fit">
-                        <CardHeader className="bg-muted/30 py-4 px-6 border-b"><CardTitle className="text-xs uppercase font-black">My Account</CardTitle></CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                            <p className="font-black text-lg text-gray-900 uppercase">{user?.username}</p>
-                            <Button onClick={() => setIsChangePasswordDialogOpen(true)} variant="outline" className="w-full h-10 text-xs font-bold"><KeyRound className="mr-2 h-4 w-4"/> Update Password</Button>
-                        </CardContent>
-                    </Card>
+                    <div className="lg:col-span-1 space-y-6">
+                        <Card className="shadow-sm border-gray-100 h-fit">
+                            <CardHeader className="bg-muted/30 py-4 px-6 border-b"><CardTitle className="text-xs uppercase font-black">My Account</CardTitle></CardHeader>
+                            <CardContent className="p-6 space-y-6">
+                                <p className="font-black text-lg text-gray-900 uppercase leading-none">{user?.username}</p>
+                                <Separator className="border-dashed" />
+                                <div className="space-y-4">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Label This Workstation</Label>
+                                        <div className="flex gap-2">
+                                            <Input 
+                                                value={localWorkstationName} 
+                                                onChange={e => setLocalWorkstationName(e.target.value)} 
+                                                placeholder="e.g. Finance PC-1"
+                                                className="h-9 font-bold"
+                                            />
+                                            <Button 
+                                                size="icon" 
+                                                variant="outline" 
+                                                className="h-9 w-9 shrink-0 border-primary/20 text-primary hover:bg-primary/5"
+                                                onClick={handleUpdateWorkstationName}
+                                                disabled={isRenamingWorkstation}
+                                            >
+                                                {isRenamingWorkstation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                            </Button>
+                                        </div>
+                                        <p className="text-[9px] text-muted-foreground italic leading-relaxed">Assign a descriptive name to this computer for easier administrative identification.</p>
+                                    </div>
+                                    <Button onClick={() => setIsChangePasswordDialogOpen(true)} variant="outline" className="w-full h-10 text-xs font-bold"><KeyRound className="mr-2 h-4 w-4"/> Update Password</Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                     <Card className="lg:col-span-2 shadow-sm border-gray-100 bg-white overflow-hidden">
                         <CardHeader className="py-4 border-b bg-primary/5"><CardTitle className="text-sm font-black uppercase">User Directory</CardTitle></CardHeader>
                         <CardContent className="p-0">
@@ -516,8 +567,8 @@ export default function SystemSettingsPage() {
                             <Table className="text-xs">
                                 <TableHeader className="bg-muted/30">
                                     <TableRow className="h-10 hover:bg-transparent">
-                                        <TableHead className="pl-6 font-bold uppercase text-[9px]">Identity</TableHead>
-                                        <TableHead className="font-bold uppercase text-[9px]">Duration / Lifecycle</TableHead>
+                                        <TableHead className="pl-6 font-bold uppercase text-[9px]">Workstation / Label</TableHead>
+                                        <TableHead className="font-bold uppercase text-[9px]">User Identity</TableHead>
                                         <TableHead className="font-bold uppercase text-[9px] text-center">Status</TableHead>
                                         <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Security</TableHead>
                                     </TableRow>
@@ -531,17 +582,17 @@ export default function SystemSettingsPage() {
                                             <TableRow key={s.id} className={cn("h-14 border-b transition-colors", isStale ? "bg-red-50/30" : "hover:bg-muted/10")}>
                                                 <TableCell className="pl-6">
                                                     <div className="flex flex-col">
-                                                        <span className="font-black text-gray-900 uppercase tracking-tighter">{s.username}</span>
+                                                        <span className="font-black text-gray-900 uppercase tracking-tighter">{s.deviceName || `WS-${s.deviceId.substring(0,4).toUpperCase()}`}</span>
                                                         <span className="text-[9px] text-muted-foreground italic truncate max-w-[120px]" title={s.userAgent}>{s.userAgent}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <Timer className="h-3 w-3 text-muted-foreground" />
-                                                            <span className="text-[10px] font-bold text-gray-700">Online {formatDistanceToNow(new Date(s.loginAt))}</span>
+                                                        <span className="font-bold text-gray-700 uppercase">{s.username}</span>
+                                                        <div className="flex items-center gap-1.5 text-[8px] text-muted-foreground uppercase">
+                                                            <Timer className="h-2.5 w-2.5" />
+                                                            <span>Online {formatDistanceToNow(new Date(s.loginAt))}</span>
                                                         </div>
-                                                        <span className="text-[8px] text-muted-foreground uppercase">Started: {format(new Date(s.loginAt), "p")}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-center">
