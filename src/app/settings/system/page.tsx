@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -53,7 +52,8 @@ import {
   Fingerprint,
   Mail,
   User as UserIcon,
-  ShieldAlert
+  ShieldAlert,
+  AlertTriangle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -613,7 +613,7 @@ export default function SystemSettingsPage() {
                 </Card>
             </TabsContent>
 
-            <TabsContent value="logs" className="animate-in fade-in slide-in-from-left-2">
+            <TabsContent value="logs" className="space-y-6 animate-in fade-in slide-in-from-left-2">
                 <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                     <CardHeader className="py-4 border-b bg-red-50/10"><CardTitle className="text-sm font-black uppercase">System Audit Log</CardTitle></CardHeader>
                     <CardContent className="p-0">
