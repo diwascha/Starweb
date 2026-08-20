@@ -80,6 +80,26 @@ export const onUsersUpdate = (callback: (users: User[]) => void) => {
     });
 };
 
+export const onUsernamesUpdate = (callback: (usernames: {username: string, email: string}[]) => void) => {
+    const { db } = getFirebase();
+    return onSnapshot(collection(db, COLLECTIONS.USERNAMES), (snapshot) => {
+        callback(snapshot.docs.map(d => ({ username: d.id, email: d.data().email })));
+    }, async (error) => {
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+                path: COLLECTIONS.USERNAMES, 
+                operation: 'list' 
+            }));
+        }
+    });
+};
+
+export const deleteUsernameRecord = async (username: string) => {
+    const { db } = getFirebase();
+    const usernameRef = doc(db, COLLECTIONS.USERNAMES, username.toLowerCase().trim());
+    return deleteDoc(usernameRef);
+};
+
 export const restoreAdminProfile = async (uid: string, email: string, username: string) => {
     const { db } = getFirebase();
     const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, uid);
@@ -162,6 +182,7 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     const { db } = getFirebase();
     const login = (username || '').toLowerCase().trim();
     if (!login) throw new Error("Username required.");
+    if (!email) throw new Error("Email address required for cloud registration.");
 
     const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
     const snap = await getDoc(usernameRef);
@@ -170,17 +191,20 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
         throw new Error("Username taken.");
     }
 
+    // Attempt to reserve the username
     await setDoc(usernameRef, { email: email.toLowerCase().trim(), username: login });
 
     const secondaryApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`);
     const secondaryAuth = (await import('firebase/auth')).getAuth(secondaryApp);
     
     try {
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email.toLowerCase().trim(), password);
         await deleteApp(secondaryApp);
         logAudit(`New User Created: ${login}`, 'Security');
         return userCredential.user;
     } catch (error) {
+        // Rollback: Delete reserved username if Auth creation fails
+        await deleteDoc(usernameRef);
         await deleteApp(secondaryApp);
         throw error;
     }

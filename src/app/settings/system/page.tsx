@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -48,7 +49,11 @@ import {
   MousePointer2,
   Clock,
   ArrowUpDown,
-  X
+  X,
+  Fingerprint,
+  Mail,
+  User as UserIcon,
+  ShieldAlert
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -71,7 +76,9 @@ import {
     deleteUser as deleteUserService,
     validatePassword, 
     setAdminPassword,
-    adminCreateUserWithUsername 
+    adminCreateUserWithUsername,
+    onUsernamesUpdate,
+    deleteUsernameRecord
 } from '@/services/user-service';
 import { modules, actions } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -108,6 +115,7 @@ export default function SystemSettingsPage() {
   const { toast } = useToast();
   
   const [users, setUsers] = useState<User[]>([]);
+  const [usernames, setUsernames] = useState<{username: string, email: string}[]>([]);
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [ownershipCategories, setOwnershipCategories] = useState<OwnershipCategory[]>([]);
@@ -137,6 +145,7 @@ export default function SystemSettingsPage() {
   useEffect(() => {
     const unsubs = [
         onUsersUpdate(setUsers),
+        onUsernamesUpdate(setUsernames),
         onPageVisitsUpdate(setPageVisits),
         onLogsUpdate(setLogs),
         onSettingUpdate('ownership_categories', (s: any) => { 
@@ -149,7 +158,6 @@ export default function SystemSettingsPage() {
                 return item as OwnershipCategory;
             });
 
-            // Ensure defaults are present for mapping permissions
             const existing = new Set(normalized.map((c: OwnershipCategory) => c.name));
             defaults.forEach(d => {
                 if (!existing.has(d)) {
@@ -157,7 +165,7 @@ export default function SystemSettingsPage() {
                 }
             });
 
-            setOwnershipCategories(normalized.sort((a: OwnershipCategory, b: OwnershipCategory = {name: '', modules: []}) => a.name.localeCompare(b.name)));
+            setOwnershipCategories(normalized.sort((a: OwnershipCategory, b: OwnershipCategory) => a.name.localeCompare(b.name)));
         }),
     ];
     return () => unsubs.forEach(u => u());
@@ -205,6 +213,12 @@ export default function SystemSettingsPage() {
   const handleUserSubmit = async () => {
     if (!user) return;
     const isEditing = !!editingUser;
+    
+    if (!isEditing && !userForm.email) {
+        toast({ title: 'Validation Error', description: 'Email address is required for new users.', variant: 'destructive' });
+        return;
+    }
+
     const { isValid, error } = validatePassword(userForm.password, !isEditing);
     if (!isValid) { setPasswordError(error!); return; }
     
@@ -299,7 +313,6 @@ export default function SystemSettingsPage() {
     const map = new Map<string, PageVisit>();
     
     pageVisits.forEach(v => {
-        // Use the robust normalization to group paths like /dashboard and /dashboard/
         const norm = getNormalizedPath(v.path);
         const existing = map.get(norm);
         
@@ -339,6 +352,11 @@ export default function SystemSettingsPage() {
     return aggregatedVisits.reduce((sum, v) => sum + (v.count || 0), 0);
   }, [aggregatedVisits]);
 
+  const orphanedUsernames = useMemo(() => {
+    const activeUsernames = new Set(users.map(u => u.username.toLowerCase().trim()));
+    return usernames.filter(un => !activeUsernames.has(un.username.toLowerCase().trim()));
+  }, [usernames, users]);
+
   return (
     <div className="flex flex-col gap-8">
         <header className="flex items-center justify-between">
@@ -352,11 +370,15 @@ export default function SystemSettingsPage() {
         </header>
 
         <Tabs defaultValue="users" className="w-full">
-            <TabsList className="bg-muted/50 p-1 mb-6">
-                <TabsTrigger value="users" className="px-6 text-[10px] uppercase font-bold tracking-widest">Access Control</TabsTrigger>
-                <TabsTrigger value="usage" className="px-6 text-[10px] uppercase font-bold tracking-widest">Usage Stats</TabsTrigger>
-                <TabsTrigger value="logs" className="px-6 text-[10px] uppercase font-bold tracking-widest">Audit Logs</TabsTrigger>
-                <TabsTrigger value="backup" className="px-6 text-[10px] uppercase font-bold tracking-widest">Backup & Recovery</TabsTrigger>
+            <TabsList className="bg-muted/50 p-1 mb-6 h-auto flex-wrap">
+                <TabsTrigger value="users" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Access Control</TabsTrigger>
+                <TabsTrigger value="identities" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
+                    Identity Registry
+                    {orphanedUsernames.length > 0 && <Badge className="bg-red-500 h-4 px-1 text-[8px]">{orphanedUsernames.length}</Badge>}
+                </TabsTrigger>
+                <TabsTrigger value="usage" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Usage Stats</TabsTrigger>
+                <TabsTrigger value="logs" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Audit Logs</TabsTrigger>
+                <TabsTrigger value="backup" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Backup & Recovery</TabsTrigger>
             </TabsList>
 
             <TabsContent value="users" className="space-y-6 animate-in fade-in slide-in-from-left-2">
@@ -374,8 +396,8 @@ export default function SystemSettingsPage() {
                             <Table className="text-xs">
                                 <TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6 font-bold">Username</TableHead><TableHead>Identifier</TableHead><TableHead className="text-center">Status</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
-                                    {users.filter(u => u.username.includes(searchQuery.toLowerCase())).map(u => (
-                                        <TableRow key={u.id} className="h-14">
+                                    {users.map(u => (
+                                        <TableRow key={u.id} className="h-14 hover:bg-muted/10 transition-colors group">
                                             <TableCell className="font-black pl-6 uppercase">{u.username}</TableCell>
                                             <TableCell className="text-muted-foreground">{u.email || '-'}</TableCell>
                                             <TableCell className="text-center">
@@ -392,6 +414,95 @@ export default function SystemSettingsPage() {
                         </CardContent>
                     </Card>
                 </div>
+            </TabsContent>
+
+            <TabsContent value="identities" className="space-y-6 animate-in fade-in slide-in-from-left-2">
+                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <CardHeader className="py-4 border-b bg-muted/5">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-muted/50 rounded-xl"><Fingerprint className="h-5 w-5 text-primary"/></div>
+                            <div>
+                                <CardTitle className="text-sm font-black uppercase tracking-tight">Reserved Login Mapping</CardTitle>
+                                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Internal registry used for username-to-email resolution during authentication.</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table className="text-xs">
+                            <TableHeader className="bg-muted/30">
+                                <TableRow className="hover:bg-transparent h-10">
+                                    <TableHead className="pl-6 font-bold uppercase text-[9px]">Username (Login Key)</TableHead>
+                                    <TableHead className="font-bold uppercase text-[9px]">Linked Email Identifier</TableHead>
+                                    <TableHead className="text-center font-bold uppercase text-[9px]">State</TableHead>
+                                    <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Maintenance</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {usernames.map((entry) => {
+                                    const isOrphaned = orphanedUsernames.some(o => o.username === entry.username);
+                                    return (
+                                        <TableRow key={entry.username} className={cn("h-12 border-b transition-colors", isOrphaned ? "bg-red-50/50" : "hover:bg-muted/10")}>
+                                            <TableCell className="pl-6">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-black text-gray-900 uppercase tracking-tighter">{entry.username}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="font-mono text-muted-foreground">{entry.email}</TableCell>
+                                            <TableCell className="text-center">
+                                                {isOrphaned ? (
+                                                    <Badge variant="destructive" className="text-[8px] uppercase font-black px-1.5 h-4 flex items-center gap-1 mx-auto w-fit">
+                                                        <ShieldAlert className="h-2.5 w-2.5"/> Orphaned Entry
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-[8px] uppercase font-black px-1.5 h-4 text-emerald-600 border-emerald-200 mx-auto w-fit">
+                                                        Linked Account
+                                                    </Badge>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-right pr-6">
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive transition-colors">
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle className="font-black uppercase tracking-tight">Delete Identity Mapping?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This will remove the reservation for username <span className="font-bold text-gray-900">"{entry.username}"</span>. 
+                                                                If a user profile exists, they will no longer be able to log in with this username.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel className="text-[10px] font-bold uppercase">Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => deleteUsernameRecord(entry.username)} className="bg-destructive text-white uppercase text-[10px] font-black">Confirm Purge</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                                {usernames.length === 0 && (
+                                    <TableRow><TableCell colSpan={4} className="h-40 text-center text-muted-foreground italic">Identity registry is empty.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+                {orphanedUsernames.length > 0 && (
+                    <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200 flex gap-4 animate-in slide-in-from-top-2">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-black uppercase text-amber-900">System Integrity Warning</p>
+                            <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                                We detected <span className="font-black underline">{orphanedUsernames.length} reserved usernames</span> that do not have matching active user profiles. 
+                                This usually happens when a creation attempt was interrupted. You should delete these orphaned records to allow the usernames to be registered again.
+                            </p>
+                        </div>
+                    </div>
+                )}
             </TabsContent>
 
             <TabsContent value="usage" className="space-y-6 animate-in fade-in slide-in-from-left-2">
@@ -586,15 +697,22 @@ export default function SystemSettingsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="space-y-1.5">
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Login Username</Label>
-                                <Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 font-bold" />
+                                <div className="relative">
+                                    <UserIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
+                                    <Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 pl-8 font-bold" />
+                                </div>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Email Address</Label>
-                                <Input value={userForm.email} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} placeholder="user@example.com" className="h-10" />
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Email Identifier</Label>
+                                <div className="relative">
+                                    <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
+                                    <Input value={userForm.email} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} placeholder="user@example.com" className="h-10 pl-8" />
+                                </div>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Credential</Label>
-                                <Input type="password" value={userForm.password} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} placeholder={editingUser ? "Unchanged" : "Secure Password"} className="h-10 font-mono" />
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Access Credential</Label>
+                                <Input type="password" value={userForm.password} onChange={e => { setUserForm(p => ({...p, password: e.target.value})); setPasswordError(null); }} placeholder={editingUser ? "Unchanged" : "Secure Password"} className="h-10 font-mono" />
+                                {passwordError && <p className="text-[8px] font-black text-red-600 uppercase tracking-tighter">{passwordError}</p>}
                             </div>
                         </div>
                         <div className="flex gap-6 p-4 rounded-xl bg-gray-50 border border-gray-100">
