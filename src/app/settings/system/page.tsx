@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -59,7 +60,9 @@ import {
   Monitor,
   LogOut,
   Settings2,
-  Save
+  Save,
+  Sparkles,
+  Timer
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -69,7 +72,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onLogsUpdate, type SystemLog } from '@/services/log-service';
-import { onAllSessionsUpdate, revokeSession } from '@/services/session-service';
+import { onAllSessionsUpdate, revokeSession, cleanupStaleSessions } from '@/services/session-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { 
     DropdownMenu, 
@@ -146,6 +149,7 @@ export default function SystemSettingsPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  const [isCleaningSessions, setIsCleaningSessions] = useState(false);
 
   const [trafficSortConfig, setTrafficSortConfig] = useState<{ key: 'path' | 'lastVisited' | 'count'; direction: 'asc' | 'desc' }>({
     key: 'count',
@@ -391,6 +395,18 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const handleCleanupSessions = async () => {
+    setIsCleaningSessions(true);
+    try {
+        const count = await cleanupStaleSessions(sessionThreshold);
+        toast({ title: 'Cleanup Complete', description: `Removed ${count} stale session records.` });
+    } catch {
+        toast({ title: 'Error', variant: 'destructive' });
+    } finally {
+        setIsCleaningSessions(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8">
         <header className="flex items-center justify-between">
@@ -457,19 +473,36 @@ export default function SystemSettingsPage() {
             <TabsContent value="sessions" className="space-y-6 animate-in fade-in slide-in-from-left-2">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="lg:col-span-1 border-dashed bg-muted/5">
-                        <CardHeader>
+                        <CardHeader className="pb-3 border-b">
                             <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
-                                <Settings2 className="h-4 w-4" /> Policy
+                                <Settings2 className="h-4 w-4 text-primary" />
+                                Maintenance Controls
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-6 pt-6">
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Inactivity Timeout (Min)</Label>
                                 <div className="flex gap-2">
-                                    <Input type="number" value={sessionThreshold} onChange={e => setSessionThreshold(Number(e.target.value))} className="font-black" />
-                                    <Button size="icon" onClick={handleUpdateSessionConfig} title="Save Policy"><Save className="h-4 w-4" /></Button>
+                                    <Input type="number" value={sessionThreshold} onChange={e => setSessionThreshold(Number(e.target.value))} className="font-black h-9" />
+                                    <Button size="icon" className="h-9 w-9" onClick={handleUpdateSessionConfig} title="Save Policy"><Save className="h-4 w-4" /></Button>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground leading-relaxed italic">Sessions with no heartbeat for longer than this period will be marked as stale and require re-authentication.</p>
+                                <p className="text-[9px] text-muted-foreground leading-relaxed italic">Sessions with no heartbeat for longer than this period will be marked as stale and require re-authentication.</p>
+                            </div>
+
+                            <Separator className="border-dashed" />
+
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Database Maintenance</Label>
+                                <Button 
+                                    variant="outline" 
+                                    className="w-full h-9 text-[10px] font-black uppercase tracking-widest text-primary border-primary/20 hover:bg-primary/5"
+                                    disabled={isCleaningSessions}
+                                    onClick={handleCleanupSessions}
+                                >
+                                    {isCleaningSessions ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-2 h-3.5 w-3.5" />}
+                                    Purge Stale Records
+                                </Button>
+                                <p className="text-[9px] text-muted-foreground leading-relaxed italic">Deletes inactive session documents from the registry to optimize performance.</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -484,8 +517,8 @@ export default function SystemSettingsPage() {
                                 <TableHeader className="bg-muted/30">
                                     <TableRow className="h-10 hover:bg-transparent">
                                         <TableHead className="pl-6 font-bold uppercase text-[9px]">Identity</TableHead>
-                                        <TableHead className="font-bold uppercase text-[9px]">Hardware / OS</TableHead>
-                                        <TableHead className="font-bold uppercase text-[9px] text-center">Last Active</TableHead>
+                                        <TableHead className="font-bold uppercase text-[9px]">Duration / Lifecycle</TableHead>
+                                        <TableHead className="font-bold uppercase text-[9px] text-center">Status</TableHead>
                                         <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Security</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -499,16 +532,27 @@ export default function SystemSettingsPage() {
                                                 <TableCell className="pl-6">
                                                     <div className="flex flex-col">
                                                         <span className="font-black text-gray-900 uppercase tracking-tighter">{s.username}</span>
-                                                        <span className="text-[9px] text-muted-foreground font-mono">ID: {s.deviceId.substring(0,6)}</span>
+                                                        <span className="text-[9px] text-muted-foreground italic truncate max-w-[120px]" title={s.userAgent}>{s.userAgent}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-[10px] max-w-[200px] truncate italic text-gray-600" title={s.userAgent}>{s.userAgent}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Timer className="h-3 w-3 text-muted-foreground" />
+                                                            <span className="text-[10px] font-bold text-gray-700">Online {formatDistanceToNow(new Date(s.loginAt))}</span>
+                                                        </div>
+                                                        <span className="text-[8px] text-muted-foreground uppercase">Started: {format(new Date(s.loginAt), "p")}</span>
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell className="text-center">
                                                     <div className="flex flex-col items-center">
-                                                        <span className={cn("text-[10px] font-bold", isStale ? "text-red-600" : "text-emerald-600")}>
-                                                            {isStale ? `${minsInactive}m ago` : 'Active Now'}
-                                                        </span>
-                                                        <span className="text-[8px] text-muted-foreground uppercase">{format(new Date(s.lastActive), "HH:mm:ss")}</span>
+                                                        <Badge variant="outline" className={cn(
+                                                            "text-[8px] font-black uppercase px-2 h-4 border-none shadow-none",
+                                                            isStale ? "text-red-600 bg-red-50" : "text-emerald-600 bg-emerald-50"
+                                                        )}>
+                                                            {isStale ? 'STALE' : 'CONNECTED'}
+                                                        </Badge>
+                                                        <span className="text-[8px] text-muted-foreground uppercase mt-1">Pulse: {minsInactive}m ago</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">
@@ -518,7 +562,7 @@ export default function SystemSettingsPage() {
                                                         className="text-destructive h-8 px-3 font-black text-[9px] uppercase tracking-widest hover:bg-red-50"
                                                         onClick={() => handleRevoke(s.id)}
                                                     >
-                                                        <LogOut className="h-3 w-3 mr-1.5" /> Revoke
+                                                        <LogOut className="h-3 w-3 mr-1.5" /> Revoke Access
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>

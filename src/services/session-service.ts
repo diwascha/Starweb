@@ -16,7 +16,8 @@ import {
     limit,
     serverTimestamp,
     DocumentData,
-    QueryDocumentSnapshot
+    QueryDocumentSnapshot,
+    writeBatch
 } from 'firebase/firestore';
 import type { SessionRecord } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -40,10 +41,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): SessionRe
 
 /**
  * Registers a new session for the current user and device.
+ * Uses a deterministic ID (userId_deviceId) to prevent record pile-up.
  */
 export const startSession = async (user: { id: string, username: string }, deviceId: string): Promise<string> => {
     const { db } = getFirebase();
-    const sessionId = doc(collection(db, SESSIONS_COLLECTION)).id;
+    // Unique ID per user-device pair ensures we only ever have one record per workstation
+    const sessionId = `${user.id}_${deviceId}`;
     const now = new Date().toISOString();
     
     const session: Omit<SessionRecord, 'id'> = {
@@ -57,7 +60,7 @@ export const startSession = async (user: { id: string, username: string }, devic
     };
 
     try {
-        await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);
+        await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session, { merge: true });
         return sessionId;
     } catch (error: any) {
         if (error.code === 'permission-denied') {
@@ -82,9 +85,7 @@ export const updateHeartbeat = async (sessionId: string) => {
     try {
         await updateDoc(docRef, { lastActive: now });
     } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            // Silently fail heartbeats unless it's a critical error
-        }
+        // Silently fail heartbeats to maintain UX
     }
 };
 
@@ -113,14 +114,18 @@ export const onSessionRevoked = (sessionId: string, onRevoke: () => void): (() =
 };
 
 /**
- * Admin: List all active sessions.
+ * Admin: List all active sessions, filtering out revoked ones to prevent pile-up.
  */
 export const onAllSessionsUpdate = (callback: (sessions: SessionRecord[]) => void): () => void => {
     const { db } = getFirebase();
     const q = query(collection(db, SESSIONS_COLLECTION), orderBy('lastActive', 'desc'));
     
     return onSnapshot(q, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
+        // Filter out revoked sessions so they disappear from the active workstation list immediately
+        const activeSessions = snapshot.docs
+            .map(fromFirestore)
+            .filter(s => !s.isRevoked);
+        callback(activeSessions);
     }, (error) => {
         if (error.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -147,4 +152,30 @@ export const revokeSession = async (sessionId: string) => {
         }
         throw error;
     }
+};
+
+/**
+ * Maintenance: Remove stale sessions that haven't sent a heartbeat within the threshold.
+ */
+export const cleanupStaleSessions = async (thresholdMinutes: number): Promise<number> => {
+    const { db } = getFirebase();
+    const cutoff = new Date(Date.now() - thresholdMinutes * 60 * 1000).toISOString();
+    const q = query(collection(db, SESSIONS_COLLECTION), where('lastActive', '<', cutoff));
+    
+    const snap = await getDocs(q);
+    if (snap.empty) return 0;
+
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => batch.delete(d.ref));
+    
+    await batch.commit().catch(err => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'sessions_cleanup_batch',
+                operation: 'write'
+            }));
+        }
+    });
+
+    return snap.size;
 };
