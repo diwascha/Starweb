@@ -687,99 +687,139 @@ export default function SystemSettingsPage() {
 
         {/* User Permission Dialog */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+            <DialogContent className="sm:max-w-4xl max-h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
                 <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
-                    <DialogTitle className="text-xl font-black uppercase tracking-tight">{editingUser ? 'Edit Permissions' : 'New User Access'}</DialogTitle>
-                    <DialogDescription className="text-xs uppercase font-bold text-muted-foreground">Define scope and operational limits.</DialogDescription>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">{editingUser ? 'Edit User Access' : 'New User Onboarding'}</DialogTitle>
+                    <DialogDescription className="text-xs uppercase font-bold text-muted-foreground">Define identity, security profile, and operational boundaries.</DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="flex-1 p-6">
-                    <div className="space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Login Username</Label>
-                                <div className="relative">
-                                    <UserIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
-                                    <Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 pl-8 font-bold" />
+                
+                <ScrollArea className="flex-1">
+                    <div className="p-8 space-y-10">
+                        {/* 1. Identity Grid */}
+                        <section className="space-y-4">
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                                <Fingerprint className="h-3.5 w-3.5" />
+                                Authentication Profile
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Login Username</Label>
+                                    <div className="relative">
+                                        <UserIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
+                                        <Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} placeholder="e.g. jdoe" className="h-10 pl-8 font-bold" />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Email Identifier</Label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
+                                        <Input value={userForm.email} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} placeholder="user@example.com" className="h-10 pl-8" />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Access Credential</Label>
+                                    <Input type="password" value={userForm.password} onChange={e => { setUserForm(p => ({...p, password: e.target.value})); setPasswordError(null); }} placeholder={editingUser ? "Leave blank to keep" : "Minimum 6 chars"} className="h-10 font-mono" />
+                                    {passwordError && <p className="text-[8px] font-black text-red-600 uppercase tracking-tighter mt-1">{passwordError}</p>}
                                 </div>
                             </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Email Identifier</Label>
-                                <div className="relative">
-                                    <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
-                                    <Input value={userForm.email} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} placeholder="user@example.com" className="h-10 pl-8" />
+
+                            <div className="flex flex-col sm:flex-row gap-6 p-4 rounded-xl bg-gray-50 border border-gray-200">
+                                <div className="flex items-center gap-3">
+                                    <Switch checked={userForm.isAdmin} onCheckedChange={v => setUserForm(p => ({...p, isAdmin: v}))} />
+                                    <div className="space-y-0.5">
+                                        <Label className="font-bold text-xs uppercase cursor-pointer">Administrative Access</Label>
+                                        <p className="text-[9px] text-muted-foreground uppercase font-medium">Bypass all modular permission checks.</p>
+                                    </div>
+                                </div>
+                                <Separator orientation="vertical" className="h-8 hidden sm:block" />
+                                <div className="flex items-center gap-3">
+                                    <Switch checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} />
+                                    <div className="space-y-0.5">
+                                        <Label className="font-bold text-xs uppercase cursor-pointer">Account Active</Label>
+                                        <p className="text-[9px] text-muted-foreground uppercase font-medium">Toggle login access without deleting record.</p>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Access Credential</Label>
-                                <Input type="password" value={userForm.password} onChange={e => { setUserForm(p => ({...p, password: e.target.value})); setPasswordError(null); }} placeholder={editingUser ? "Unchanged" : "Secure Password"} className="h-10 font-mono" />
-                                {passwordError && <p className="text-[8px] font-black text-red-600 uppercase tracking-tighter">{passwordError}</p>}
-                            </div>
-                        </div>
-                        <div className="flex gap-6 p-4 rounded-xl bg-gray-50 border border-gray-100">
-                            <div className="flex items-center gap-3"><Switch checked={userForm.isAdmin} onCheckedChange={v => setUserForm(p => ({...p, isAdmin: v}))} /><Label className="font-bold text-xs uppercase">Administrative Access</Label></div>
-                            <div className="flex items-center gap-3"><Switch checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} /><Label className="font-bold text-xs uppercase">Account Active</Label></div>
-                        </div>
-                        
+                        </section>
+
+                        {/* 2. Capability Map with Internal Scroll */}
                         {!userForm.isAdmin && (
-                            <div className="space-y-4">
-                                <h3 className="text-xs font-black uppercase tracking-widest text-primary">Granular Capability Map</h3>
-                                <Table className="text-[11px] border rounded-lg overflow-hidden">
-                                    <TableHeader className="bg-muted/50">
-                                        <TableRow className="hover:bg-transparent">
-                                            <TableHead className="font-black uppercase">Functional Module</TableHead>
-                                            <TableHead className="text-center font-black uppercase">Operational Rights</TableHead>
-                                            <TableHead className="text-center font-black uppercase">Organizational Scope</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody className="bg-white">
-                                        {modules.map(m => {
-                                            const curr = userForm.permissions[m] || { actions: [], ownerships: [] };
-                                            return (
-                                                <TableRow key={m} className="border-b last:border-0 h-14">
-                                                    <TableCell className="font-bold border-r text-gray-900">{getModuleDisplayName(m)}</TableCell>
-                                                    <TableCell className="border-r">
-                                                        <div className="flex justify-center gap-4">
+                            <section className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                                        <ListTree className="h-3.5 w-3.5" />
+                                        Granular Capability Map
+                                    </h3>
+                                    <Badge variant="outline" className="text-[8px] font-black uppercase bg-primary/5">Module Control</Badge>
+                                </div>
+                                
+                                <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+                                    <div className="bg-muted/50 border-b px-4 py-2 flex items-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+                                        <div className="flex-1">Functional Module</div>
+                                        <div className="w-[180px] text-center">Actions</div>
+                                        <div className="w-[200px] text-center">Organization Scope</div>
+                                    </div>
+                                    
+                                    <ScrollArea className="h-[400px]">
+                                        <div className="divide-y">
+                                            {modules.map(m => {
+                                                const curr = userForm.permissions[m] || { actions: [], ownerships: [] };
+                                                return (
+                                                    <div key={m} className="flex items-center p-4 hover:bg-muted/5 transition-colors group">
+                                                        <div className="flex-1">
+                                                            <p className="font-black text-gray-900 uppercase tracking-tighter text-xs">{getModuleDisplayName(m)}</p>
+                                                            <p className="text-[9px] text-muted-foreground uppercase font-bold">{m}</p>
+                                                        </div>
+                                                        
+                                                        <div className="w-[180px] flex justify-center gap-3">
                                                             {['view', 'add', 'edit', 'delete'].map(act => (
-                                                                <div key={act} className="flex flex-col items-center gap-1.5">
-                                                                    <Checkbox checked={curr.actions.includes(act as any)} onCheckedChange={v => handlePermissionChange(m, act as any, !!v)} />
-                                                                    <span className="text-[8px] font-black uppercase text-muted-foreground">{act}</span>
+                                                                <div key={act} className="flex flex-col items-center gap-1">
+                                                                    <Checkbox 
+                                                                        checked={curr.actions.includes(act as any)} 
+                                                                        onCheckedChange={v => handlePermissionChange(m, act as any, !!v)} 
+                                                                    />
+                                                                    <span className="text-[7px] font-black uppercase text-muted-foreground/60">{act}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex justify-center gap-3 flex-wrap">
-                                                            {ownershipCategories
-                                                                .filter(cat => cat.modules?.includes(m))
-                                                                .map(cat => (
-                                                                    <div key={cat.name} className="flex flex-col items-center gap-1.5">
-                                                                        <Checkbox 
-                                                                            checked={curr.ownerships.includes(cat.name)} 
-                                                                            onCheckedChange={v => handleOwnershipChange(m, cat.name, !!v)} 
-                                                                        />
-                                                                        <span className="text-[8px] font-black uppercase text-primary/70">{cat.name}</span>
-                                                                    </div>
-                                                                ))
-                                                            }
-                                                            {ownershipCategories.filter(cat => cat.modules?.includes(m)).length === 0 && (
-                                                                <span className="text-[9px] text-muted-foreground italic uppercase">No sub-scope</span>
-                                                            )}
+
+                                                        <div className="w-[200px]">
+                                                            <div className="flex justify-center gap-2 flex-wrap px-2">
+                                                                {ownershipCategories
+                                                                    .filter(cat => cat.modules?.includes(m))
+                                                                    .map(cat => (
+                                                                        <div key={cat.name} className="flex flex-col items-center gap-1">
+                                                                            <Checkbox 
+                                                                                checked={curr.ownerships.includes(cat.name)} 
+                                                                                onCheckedChange={v => handleOwnershipChange(m, cat.name, !!v)} 
+                                                                                className="h-3.5 w-3.5"
+                                                                            />
+                                                                            <span className="text-[7px] font-black uppercase text-primary/70">{cat.name}</span>
+                                                                        </div>
+                                                                    ))
+                                                                }
+                                                                {ownershipCategories.filter(cat => cat.modules?.includes(m)).length === 0 && (
+                                                                    <span className="text-[8px] text-muted-foreground italic uppercase">Global Only</span>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <ScrollBar orientation="vertical" />
+                                    </ScrollArea>
+                                </div>
+                            </section>
                         )}
                     </div>
                 </ScrollArea>
+
                 <DialogFooter className="p-6 border-t bg-white shrink-0">
-                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="font-bold text-xs uppercase h-11 px-8">Cancel</Button>
-                    <Button onClick={handleUserSubmit} disabled={isSubmittingUser} className="font-black text-xs uppercase h-11 px-12 shadow-xl shadow-primary/20">
+                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest h-11 px-8 border-gray-300">Cancel</Button>
+                    <Button onClick={handleUserSubmit} disabled={isSubmittingUser} className="font-black uppercase text-[10px] tracking-widest h-11 px-12 shadow-xl shadow-primary/20">
                         {isSubmittingUser ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
-                        Authorize & Commit Profile
+                        Authorize Access Profile
                     </Button>
                 </DialogFooter>
             </DialogContent>
