@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -59,7 +58,8 @@ import {
   ListTree,
   Monitor,
   LogOut,
-  Settings2
+  Settings2,
+  Save
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -762,6 +762,7 @@ export default function SystemSettingsPage() {
                             Download System Snapshot
                         </Button>
                     </CardContent>
+                </Card>
 
                 <Card className="border-destructive/20 bg-destructive/[0.02]">
                     <CardHeader>
