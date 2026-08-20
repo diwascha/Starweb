@@ -53,7 +53,8 @@ import {
   Mail,
   User as UserIcon,
   ShieldAlert,
-  AlertTriangle
+  AlertTriangle,
+  ListTree
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -90,6 +91,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
 import { onSettingUpdate } from '@/services/settings-service';
 import { exportData, importData } from '@/services/backup-service';
+import { Separator } from '@/components/ui/separator';
 
 const getModuleDisplayName = (m: Module): string => {
     switch (m) {
@@ -687,7 +689,7 @@ export default function SystemSettingsPage() {
 
         {/* User Permission Dialog */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-            <DialogContent className="sm:max-w-4xl max-h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
                 <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
                     <DialogTitle className="text-xl font-black uppercase tracking-tight">{editingUser ? 'Edit User Access' : 'New User Onboarding'}</DialogTitle>
                     <DialogDescription className="text-xs uppercase font-bold text-muted-foreground">Define identity, security profile, and operational boundaries.</DialogDescription>
@@ -819,7 +821,7 @@ export default function SystemSettingsPage() {
                     <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest h-11 px-8 border-gray-300">Cancel</Button>
                     <Button onClick={handleUserSubmit} disabled={isSubmittingUser} className="font-black uppercase text-[10px] tracking-widest h-11 px-12 shadow-xl shadow-primary/20">
                         {isSubmittingUser ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
-                        Authorize Access Profile
+                        Authorize & Commit Profile
                     </Button>
                 </DialogFooter>
             </DialogContent>
