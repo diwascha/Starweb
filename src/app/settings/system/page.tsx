@@ -157,7 +157,7 @@ export default function SystemSettingsPage() {
                 }
             });
 
-            setOwnershipCategories(normalized.sort((a: OwnershipCategory, b: OwnershipCategory) => a.name.localeCompare(b.name)));
+            setOwnershipCategories(normalized.sort((a: OwnershipCategory, b: OwnershipCategory = {name: '', modules: []}) => a.name.localeCompare(b.name)));
         }),
     ];
     return () => unsubs.forEach(u => u());
@@ -583,10 +583,14 @@ export default function SystemSettingsPage() {
                 </DialogHeader>
                 <ScrollArea className="flex-1 p-6">
                     <div className="space-y-8">
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="space-y-1.5">
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Login Username</Label>
                                 <Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 font-bold" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Email Address</Label>
+                                <Input value={userForm.email} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} placeholder="user@example.com" className="h-10" />
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Credential</Label>
