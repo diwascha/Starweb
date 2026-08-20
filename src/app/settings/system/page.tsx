@@ -448,7 +448,7 @@ export default function SystemSettingsPage() {
             <TabsList className="bg-muted/50 p-1 mb-6 h-auto flex-wrap">
                 <TabsTrigger value="users" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Access Control</TabsTrigger>
                 <TabsTrigger value="sessions" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
-                    <Monitor className="h-3.5 w-3.5" /> Sessions
+                    <Monitor className="h-3.5 w-3.5" /> Active Sessions
                     <Badge variant="outline" className="h-4 px-1 text-[8px] bg-primary/10">{sessions.length}</Badge>
                 </TabsTrigger>
                 <TabsTrigger value="identities" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
@@ -488,7 +488,7 @@ export default function SystemSettingsPage() {
                                                 {isRenamingWorkstation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                             </Button>
                                         </div>
-                                        <p className="text-[9px] text-muted-foreground italic leading-relaxed">Assign a descriptive name to this computer for easier administrative identification.</p>
+                                        <p className="text-[9px] text-muted-foreground italic leading-relaxed">Assign a descriptive name to this environment for easier administrative identification.</p>
                                     </div>
                                     <Button onClick={() => setIsChangePasswordDialogOpen(true)} variant="outline" className="w-full h-10 text-xs font-bold"><KeyRound className="mr-2 h-4 w-4"/> Update Password</Button>
                                 </div>
@@ -527,7 +527,7 @@ export default function SystemSettingsPage() {
                         <CardHeader className="pb-3 border-b">
                             <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
                                 <Settings2 className="h-4 w-4 text-primary" />
-                                Maintenance Controls
+                                Session Policy
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6 pt-6">
@@ -537,7 +537,7 @@ export default function SystemSettingsPage() {
                                     <Input type="number" value={sessionThreshold} onChange={e => setSessionThreshold(Number(e.target.value))} className="font-black h-9" />
                                     <Button size="icon" className="h-9 w-9" onClick={handleUpdateSessionConfig} title="Save Policy"><Save className="h-4 w-4" /></Button>
                                 </div>
-                                <p className="text-[9px] text-muted-foreground leading-relaxed italic">Sessions with no heartbeat for longer than this period will be marked as stale and require re-authentication.</p>
+                                <p className="text-[9px] text-muted-foreground leading-relaxed italic">Sessions are isolated per browser profile. If a user logs in on Chrome and Firefox, two sessions will appear.</p>
                             </div>
 
                             <Separator className="border-dashed" />
@@ -560,14 +560,14 @@ export default function SystemSettingsPage() {
 
                     <Card className="lg:col-span-2 shadow-sm border-gray-100 bg-white overflow-hidden">
                         <CardHeader className="py-4 border-b bg-muted/5">
-                            <CardTitle className="text-sm font-black uppercase tracking-tight">Active Workstations</CardTitle>
+                            <CardTitle className="text-sm font-black uppercase tracking-tight">Active Workstations & Profiles</CardTitle>
                             <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Real-time monitoring of authenticated cloud sessions.</CardDescription>
                         </CardHeader>
                         <CardContent className="p-0">
                             <Table className="text-xs">
                                 <TableHeader className="bg-muted/30">
                                     <TableRow className="h-10 hover:bg-transparent">
-                                        <TableHead className="pl-6 font-bold uppercase text-[9px]">Workstation / Label</TableHead>
+                                        <TableHead className="pl-6 font-bold uppercase text-[9px]">Environment / App</TableHead>
                                         <TableHead className="font-bold uppercase text-[9px]">User Identity</TableHead>
                                         <TableHead className="font-bold uppercase text-[9px] text-center">Status</TableHead>
                                         <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Security</TableHead>
@@ -583,7 +583,7 @@ export default function SystemSettingsPage() {
                                                 <TableCell className="pl-6">
                                                     <div className="flex flex-col">
                                                         <span className="font-black text-gray-900 uppercase tracking-tighter">{s.deviceName || `WS-${s.deviceId.substring(0,4).toUpperCase()}`}</span>
-                                                        <span className="text-[9px] text-muted-foreground italic truncate max-w-[120px]" title={s.userAgent}>{s.userAgent}</span>
+                                                        <span className="text-[8px] text-muted-foreground font-mono truncate max-w-[180px]" title={s.userAgent}>{s.userAgent}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -969,8 +969,8 @@ export default function SystemSettingsPage() {
                                 <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
                                     <div className="bg-muted/50 border-b px-4 py-2 flex items-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">
                                         <div className="flex-1">Functional Module</div>
-                                        <div className="w-[180px] text-center">Actions</div>
-                                        <div className="w-[200px] text-center">Organization Scope</div>
+                                        <div className="w-[180px] text-center">Operational Rights</div>
+                                        <div className="w-[200px] text-center">Organizational Scope</div>
                                     </div>
                                     
                                     <ScrollArea className="h-[400px]">
