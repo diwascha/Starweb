@@ -16,6 +16,21 @@
       },
       "required": ["id", "username"]
     },
+    "Session": {
+      "title": "User Session",
+      "description": "Security record for an active user login on a specific device.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "deviceId": { "type": "string" },
+        "userAgent": { "type": "string" },
+        "loginAt": { "type": "string", "format": "date-time" },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "isRevoked": { "type": "boolean" }
+      }
+    },
     "PurchaseOrder": {
       "title": "Purchase Order",
       "description": "Procurement document for raw materials.",
@@ -136,6 +151,10 @@
     "/system_users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Master user directory with security flags."
+    },
+    "/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/Session" },
+      "description": "Real-time user session and workstation monitoring."
     },
     "/purchaseOrders/{id}": {
       "schema": { "$ref": "#/entities/PurchaseOrder" },

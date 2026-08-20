@@ -1273,3 +1273,20 @@ export interface RentalBill {
   createdAt: string;
   ownership: string;
 }
+
+// --- Session Tracking ---
+export interface SessionRecord {
+  id: string; // sessionId
+  userId: string;
+  username: string;
+  deviceId: string;
+  userAgent: string;
+  loginAt: string;
+  lastActive: string;
+  isRevoked: boolean;
+  isStale?: boolean; // client-side derived or cleanup-flagged
+}
+
+export interface SessionConfig {
+  inactivityThresholdMinutes: number;
+}

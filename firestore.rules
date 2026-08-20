@@ -9,8 +9,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Centrally managed approval check. Defaults to true if field is missing for legacy support,
-    // but requires a valid user document in system_users.
     function isApproved() {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
@@ -25,7 +23,6 @@ service cloud.firestore {
 
     // --- Semi-Public Configurations ---
 
-    // Branding and basic company info must be readable for the app to boot correctly
     match /settings/companyProfile { allow read: if true; }
     match /settings/fleetCompanyProfile { allow read: if true; }
     match /settings/appBranding { allow read: if true; }
@@ -39,13 +36,8 @@ service cloud.firestore {
     // --- Identity & Access ---
 
     match /system_users/{userId} {
-      // Allow read for authenticated users to resolve identities.
-      // Allow create for signup flow.
       allow read: if isAuthenticated(); 
       allow create: if true; 
-      
-      // An admin cannot demote themselves or disable their own account to prevent lockout.
-      // Users can update their own non-security fields.
       allow update: if (isAdmin() && request.auth.uid != userId) || 
                        (isAuthenticated() && request.auth.uid == userId && 
                         request.resource.data.get('isApproved', true) == resource.data.get('isApproved', true) &&
@@ -55,6 +47,12 @@ service cloud.firestore {
                        resource.data.get('isAdmin', false) != true;
     }
 
+    match /sessions/{sessionId} {
+      // Users manage their own sessions (heartbeat/logout)
+      allow read, create, delete: if isAuthenticated();
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+    }
+
     match /usernames/{username} {
       allow read: if true;
       allow create: if isAuthenticated();
@@ -62,17 +60,15 @@ service cloud.firestore {
     }
     
     match /logs/{logId} {
-      allow create: if true; // Always allow logging to capture errors
+      allow create: if true;
       allow read, delete: if isAdmin();
     }
 
     // --- Unified Application Data Rules ---
 
-    // This catch-all ensures all documented modules follow the central isApproved requirement.
     match /{collectionName}/{docId} {
       allow read, write: if isApproved();
       
-      // Allow access to subcollections (like item history or amendments)
       match /{allPaths=**} {
         allow read, write: if isApproved();
       }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -8,7 +9,8 @@ import type {
   Action, 
   AccountOwnership,
   PageVisit,
-  OwnershipCategory
+  OwnershipCategory,
+  SessionRecord
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,7 +56,10 @@ import {
   User as UserIcon,
   ShieldAlert,
   AlertTriangle,
-  ListTree
+  ListTree,
+  Monitor,
+  LogOut,
+  Settings2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -64,6 +69,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onLogsUpdate, type SystemLog } from '@/services/log-service';
+import { onAllSessionsUpdate, revokeSession } from '@/services/session-service';
+import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { 
     DropdownMenu, 
     DropdownMenuContent, 
@@ -84,12 +91,11 @@ import {
 import { modules, actions } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, differenceInMinutes } from 'date-fns';
 import { cn, getNormalizedPath } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
-import { onSettingUpdate } from '@/services/settings-service';
 import { exportData, importData } from '@/services/backup-service';
 import { Separator } from '@/components/ui/separator';
 
@@ -120,8 +126,10 @@ export default function SystemSettingsPage() {
   const [usernames, setUsernames] = useState<{username: string, email: string}[]>([]);
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
   const [logs, setLogs] = useState<SystemLog[]>([]);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [ownershipCategories, setOwnershipCategories] = useState<OwnershipCategory[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sessionThreshold, setSessionThreshold] = useState<number>(30);
 
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -150,6 +158,12 @@ export default function SystemSettingsPage() {
         onUsernamesUpdate(setUsernames),
         onPageVisitsUpdate(setPageVisits),
         onLogsUpdate(setLogs),
+        onAllSessionsUpdate(setSessions),
+        onSettingUpdate('session_config', (s: any) => {
+            if (s?.value?.inactivityThresholdMinutes) {
+                setSessionThreshold(s.value.inactivityThresholdMinutes);
+            }
+        }),
         onSettingUpdate('ownership_categories', (s: any) => { 
             const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
             let raw = s?.value || [];
@@ -359,6 +373,24 @@ export default function SystemSettingsPage() {
     return usernames.filter(un => !activeUsernames.has(un.username.toLowerCase().trim()));
   }, [usernames, users]);
 
+  const handleUpdateSessionConfig = async () => {
+    try {
+        await setSetting('session_config', { inactivityThresholdMinutes: sessionThreshold });
+        toast({ title: 'Config Updated', description: `Inactivity threshold set to ${sessionThreshold} minutes.` });
+    } catch {
+        toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
+  const handleRevoke = async (id: string) => {
+    try {
+        await revokeSession(id);
+        toast({ title: 'Session Revoked' });
+    } catch {
+        toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8">
         <header className="flex items-center justify-between">
@@ -374,6 +406,10 @@ export default function SystemSettingsPage() {
         <Tabs defaultValue="users" className="w-full">
             <TabsList className="bg-muted/50 p-1 mb-6 h-auto flex-wrap">
                 <TabsTrigger value="users" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Access Control</TabsTrigger>
+                <TabsTrigger value="sessions" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
+                    <Monitor className="h-3.5 w-3.5" /> Sessions
+                    <Badge variant="outline" className="h-4 px-1 text-[8px] bg-primary/10">{sessions.length}</Badge>
+                </TabsTrigger>
                 <TabsTrigger value="identities" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
                     Identity Registry
                     {orphanedUsernames.length > 0 && <Badge className="bg-red-500 h-4 px-1 text-[8px]">{orphanedUsernames.length}</Badge>}
@@ -411,6 +447,86 @@ export default function SystemSettingsPage() {
                                             </TableCell>
                                         </TableRow>
                                     ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </div>
+            </TabsContent>
+
+            <TabsContent value="sessions" className="space-y-6 animate-in fade-in slide-in-from-left-2">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <Card className="lg:col-span-1 border-dashed bg-muted/5">
+                        <CardHeader>
+                            <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
+                                <Settings2 className="h-4 w-4" /> Policy
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Inactivity Timeout (Min)</Label>
+                                <div className="flex gap-2">
+                                    <Input type="number" value={sessionThreshold} onChange={e => setSessionThreshold(Number(e.target.value))} className="font-black" />
+                                    <Button size="icon" onClick={handleUpdateSessionConfig} title="Save Policy"><Save className="h-4 w-4" /></Button>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground leading-relaxed italic">Sessions with no heartbeat for longer than this period will be marked as stale and require re-authentication.</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="lg:col-span-2 shadow-sm border-gray-100 bg-white overflow-hidden">
+                        <CardHeader className="py-4 border-b bg-muted/5">
+                            <CardTitle className="text-sm font-black uppercase tracking-tight">Active Workstations</CardTitle>
+                            <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Real-time monitoring of authenticated cloud sessions.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <Table className="text-xs">
+                                <TableHeader className="bg-muted/30">
+                                    <TableRow className="h-10 hover:bg-transparent">
+                                        <TableHead className="pl-6 font-bold uppercase text-[9px]">Identity</TableHead>
+                                        <TableHead className="font-bold uppercase text-[9px]">Hardware / OS</TableHead>
+                                        <TableHead className="font-bold uppercase text-[9px] text-center">Last Active</TableHead>
+                                        <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Security</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {sessions.map(s => {
+                                        const minsInactive = differenceInMinutes(new Date(), new Date(s.lastActive));
+                                        const isStale = minsInactive > sessionThreshold;
+                                        
+                                        return (
+                                            <TableRow key={s.id} className={cn("h-14 border-b transition-colors", isStale ? "bg-red-50/30" : "hover:bg-muted/10")}>
+                                                <TableCell className="pl-6">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-black text-gray-900 uppercase tracking-tighter">{s.username}</span>
+                                                        <span className="text-[9px] text-muted-foreground font-mono">ID: {s.deviceId.substring(0,6)}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-[10px] max-w-[200px] truncate italic text-gray-600" title={s.userAgent}>{s.userAgent}</TableCell>
+                                                <TableCell className="text-center">
+                                                    <div className="flex flex-col items-center">
+                                                        <span className={cn("text-[10px] font-bold", isStale ? "text-red-600" : "text-emerald-600")}>
+                                                            {isStale ? `${minsInactive}m ago` : 'Active Now'}
+                                                        </span>
+                                                        <span className="text-[8px] text-muted-foreground uppercase">{format(new Date(s.lastActive), "HH:mm:ss")}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right pr-6">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        className="text-destructive h-8 px-3 font-black text-[9px] uppercase tracking-widest hover:bg-red-50"
+                                                        onClick={() => handleRevoke(s.id)}
+                                                    >
+                                                        <LogOut className="h-3 w-3 mr-1.5" /> Revoke
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                    {sessions.length === 0 && (
+                                        <TableRow><TableCell colSpan={4} className="h-40 text-center text-muted-foreground italic">No active sessions tracked.</TableCell></TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </CardContent>
@@ -646,7 +762,6 @@ export default function SystemSettingsPage() {
                             Download System Snapshot
                         </Button>
                     </CardContent>
-                </Card>
 
                 <Card className="border-destructive/20 bg-destructive/[0.02]">
                     <CardHeader>

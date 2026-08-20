@@ -1,3 +1,4 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
@@ -5,6 +6,7 @@ import AuthAwareLayout from '@/components/auth-aware-layout';
 import { Inter } from 'next/font/google';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UsageTracker } from '@/components/usage-tracker';
+import { SessionManager } from '@/components/session-manager';
 import icon from '@/app/signup/StarSutra.png';
 
 export const metadata: Metadata = {
@@ -32,6 +34,7 @@ export default function RootLayout({
           <FirebaseClientProvider>
             <AuthProvider>
                 <UsageTracker />
+                <SessionManager />
                 <AuthAwareLayout>
                     {children}
                 </AuthAwareLayout>
