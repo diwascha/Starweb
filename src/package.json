@@ -44,7 +44,7 @@
     "class-variance-authority": "0.7.0",
     "clsx": "2.1.1",
     "cmdk": "1.0.0",
-    "date-fns": "3.6.0",
+    "date-fns": "4.4.0",
     "dotenv": "16.5.0",
     "embla-carousel-react": "8.1.6",
     "firebase": "11.4.0",
@@ -82,6 +82,8 @@
   },
   "overrides": {
     "react": "$react",
-    "react-dom": "$react-dom"
+    "react-dom": "$react-dom",
+    "genkit": "1.41.0",
+    "date-fns": "4.4.0"
   }
 }
