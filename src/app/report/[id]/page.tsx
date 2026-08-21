@@ -1,11 +1,19 @@
+import { redirect } from 'next/navigation';
+
 /**
  * @fileOverview Placeholder for the legacy dynamic report route.
- * Real viewing logic has moved to /report/view/?id=... to support static export.
+ * Next.js static export requires dynamic segments to have generateStaticParams.
+ * Real viewing logic has moved to /report/view/?id=...
  */
+
 export function generateStaticParams() {
-  return [];
+  // Return a dummy ID to satisfy the build system for static export
+  return [{ id: 'legacy' }];
 }
 
-export default function Page() {
-  return null;
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  
+  // Gracefully redirect any legacy links to the new search-param based route
+  redirect(`/report/view/?id=${id}`);
 }
