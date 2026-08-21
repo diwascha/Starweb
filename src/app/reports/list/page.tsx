@@ -15,7 +15,8 @@ import {
     FilterX,
     ChevronLeft,
     ChevronRight,
-    ArrowLeft
+    ArrowLeft,
+    PlusCircle
 } from 'lucide-react';
 import type { Report } from '@/lib/types';
 import { onReportsUpdate, deleteReport } from '@/services/report-service';
