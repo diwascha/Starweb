@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { 
     Package, 
     Plus, 
@@ -162,34 +163,39 @@ export default function ProductsPage() {
                                     <TableCell className="text-muted-foreground font-mono text-[10px]">{getGsmDisplay(product.specification)}</TableCell>
                                     <TableCell className="text-[10px] font-bold text-gray-700 uppercase">{product.partyName || '—'}</TableCell>
                                     <TableCell className="text-right pr-6">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-48">
-                                                <DropdownMenuItem asChild>
-                                                    <Link href="/crm/pack-spec" className="flex items-center">
-                                                        <Edit className="mr-2 h-4 w-4" /> Edit Specs
-                                                    </Link>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete Variant</DropdownMenuItem>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle className="font-black uppercase tracking-tight">Purge Product?</AlertDialogTitle>
-                                                            <AlertDialogDescription>This will permanently remove the product specification from the QT catalog. Existing reports will maintain their frozen data but won't be linked to this catalog item.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel className="font-bold text-xs uppercase h-10">Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDelete(product.id)} className="bg-destructive text-white font-black text-xs uppercase h-10 shadow-lg">Delete Variant</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        <div className="flex justify-end gap-1">
+                                            <Button variant="ghost" size="icon" asChild className="h-8 w-8">
+                                                <Link href="/crm/pack-spec"><Edit className="h-4 w-4"/></Link>
+                                            </Button>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48">
+                                                    <DropdownMenuItem asChild>
+                                                        <Link href="/crm/pack-spec" className="flex items-center">
+                                                            <Edit className="mr-2 h-4 w-4" /> Edit Specs
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete Variant</DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle className="font-black uppercase tracking-tight">Purge Product?</AlertDialogTitle>
+                                                                <AlertDialogDescription>This will permanently remove the product specification from the QT catalog. Existing reports will maintain their frozen data but won't be linked to this catalog item.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel className="font-bold text-xs uppercase h-10">Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDelete(product.id)} className="bg-destructive text-white font-black text-xs uppercase h-10 shadow-lg">Delete Variant</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
