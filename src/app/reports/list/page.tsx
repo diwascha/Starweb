@@ -75,10 +75,11 @@ export default function ReportsListPage() {
     }, []);
 
     const requestSort = (key: SortKey) => {
-        setSortConfig(prev => ({
-            key,
-            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-        }));
+        let direction: SortDirection = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
     };
 
     const filteredAndSortedReports = useMemo(() => {
@@ -200,15 +201,15 @@ export default function ReportsListPage() {
                                     <TableCell className="text-right pr-6">
                                         <div className="flex justify-end gap-1">
                                             <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                                                <Link href={`/report/${report.id}`}><Eye className="h-4 w-4"/></Link>
+                                                <Link href={`/report/view/?id=${report.id}`}><Eye className="h-4 w-4"/></Link>
                                             </Button>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-48">
-                                                    <DropdownMenuItem onSelect={() => router.push(`/report/${report.id}`)}><FileText className="mr-2 h-4 w-4"/> View Report</DropdownMenuItem>
-                                                    <DropdownMenuItem onSelect={() => window.open(`/report/${report.id}?print=true`, '_blank')}><Printer className="mr-2 h-4 w-4"/> Print Document</DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => router.push(`/report/view/?id=${report.id}`)}><FileText className="mr-2 h-4 w-4"/> View Report</DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => window.open(`/report/view/?id=${report.id}&print=true`, '_blank')}><Printer className="mr-2 h-4 w-4"/> Print Document</DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>

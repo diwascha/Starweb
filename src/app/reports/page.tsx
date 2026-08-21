@@ -66,7 +66,7 @@ export default function ReportsDashboardPage() {
 
     return (
         <div className="flex flex-col gap-8">
-            <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">QT Intelligence</h1>
                     <p className="text-muted-foreground text-sm font-medium italic mt-1">Quality Test monitoring and technical data logs.</p>
@@ -98,7 +98,7 @@ export default function ReportsDashboardPage() {
                         <div className="divide-y">
                             {recentReports.map(report => (
                                 <Link 
-                                    href={`/report/${report.id}`} 
+                                    href={`/report/view/?id=${report.id}`} 
                                     key={report.id} 
                                     className="flex items-center justify-between p-4 hover:bg-muted/10 transition-colors group"
                                 >

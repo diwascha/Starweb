@@ -18,7 +18,7 @@ import {
 import type { Product, Report, ProductSpecification } from '@/lib/types';
 import { onProductsUpdate } from '@/services/product-service';
 import { addReport, onReportsUpdate } from '@/services/report-service';
-import { generateNextSerialNumber, toNepaliDate, generateId } from '@/lib/utils';
+import { generateNextSerialNumber, toNepaliDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,11 +26,12 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList, CommandItem } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 export default function NewReportPage() {
     const { user } = useAuth();
@@ -116,7 +117,7 @@ export default function NewReportPage() {
                 ownership: selectedProduct.ownership || 'Both'
             });
             toast({ title: 'Report Created', description: `Voucher #${formData.serialNumber} saved.` });
-            router.push(`/report/${reportId}`);
+            router.push(`/report/view/?id=${reportId}`);
         } catch {
             toast({ title: 'Error', variant: 'destructive' });
         } finally {
