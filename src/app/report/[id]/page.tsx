@@ -1,19 +1,21 @@
 import { redirect } from 'next/navigation';
 
 /**
- * @fileOverview Placeholder for the legacy dynamic report route.
- * Next.js static export requires dynamic segments to have generateStaticParams.
- * Real viewing logic has moved to /report/view/?id=...
+ * @fileOverview LEGACY ROUTE COMPATIBILITY LAYER
+ * Next.js static export requires every dynamic path [id] to be pre-defined.
+ * Since we use dynamic IDs from Firestore, we move the actual logic to a 
+ * static search-param route (/report/view/?id=...) which builds successfully.
+ * This file stays to satisfy the compiler and redirect any legacy deep-links.
  */
 
 export function generateStaticParams() {
-  // Return a dummy ID to satisfy the build system for static export
-  return [{ id: 'legacy' }];
+  // Satisfy Next.js "output: export" requirement by providing a dummy path
+  return [{ id: 'pre-generated-manifest' }];
 }
 
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+export default async function LegacyReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  // Gracefully redirect any legacy links to the new search-param based route
+  // Permanent redirection to the build-compliant search-param route
   redirect(`/report/view/?id=${id}`);
 }
