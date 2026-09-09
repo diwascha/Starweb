@@ -133,6 +133,72 @@ export const aggregatePerformanceMetrics = (
     })).sort((a, b) => a.employeeName.localeCompare(b.employeeName));
 };
 
+export interface PeriodPerformanceMetrics extends Omit<MonthlyPerformanceMetrics, 'bsYear' | 'bsMonth'> {
+    /** Attendance rate for each constituent month, in period order - the raw series a trend/volatility read is built from. */
+    monthlyAttendanceRates: { bsYear: number; bsMonth: number; attendanceRate: number; hasData: boolean }[];
+    /** 'Improving'/'Declining' compares the back half of the period's months to the front half; 'N/A' when the period is a single month. */
+    trend: 'Improving' | 'Declining' | 'Stable' | 'N/A';
+    /** Standard deviation of the monthly attendance rate across the period's months with data - 0 for a single-month period. */
+    volatility: number;
+}
+
+/**
+ * Same aggregation as aggregatePerformanceMetrics, but also carries each
+ * employee's month-by-month attendance-rate series across the period so a
+ * multi-month view (quarterly/six-month/yearly) can show a trend direction
+ * and a volatility (consistency) reading - both derived only from the real
+ * monthly rates, never estimated or synthesized.
+ */
+export const aggregatePerformanceMetricsWithTrend = (
+    employees: Employee[],
+    attendance: AttendanceRecord[],
+    periods: { bsYear: number; bsMonth: number }[]
+): PeriodPerformanceMetrics[] => {
+    const totals = aggregatePerformanceMetrics(employees, attendance, periods);
+    const perMonthByEmployee = new Map<string, { bsYear: number; bsMonth: number; attendanceRate: number; hasData: boolean }[]>();
+
+    for (const p of periods) {
+        const monthRows = computeMonthlyPerformanceMetrics(employees, attendance, p.bsYear, p.bsMonth);
+        const seenThisMonth = new Set<string>();
+        for (const m of monthRows) {
+            seenThisMonth.add(m.employeeId);
+            const list = perMonthByEmployee.get(m.employeeId) || [];
+            list.push({ bsYear: p.bsYear, bsMonth: p.bsMonth, attendanceRate: m.attendanceRate, hasData: true });
+            perMonthByEmployee.set(m.employeeId, list);
+        }
+        // Ensure every employee we know about has an entry for every period
+        // month, even months with no records, so the series stays aligned.
+        for (const t of totals) {
+            if (seenThisMonth.has(t.employeeId)) continue;
+            const list = perMonthByEmployee.get(t.employeeId) || [];
+            list.push({ bsYear: p.bsYear, bsMonth: p.bsMonth, attendanceRate: 0, hasData: false });
+            perMonthByEmployee.set(t.employeeId, list);
+        }
+    }
+
+    return totals.map(t => {
+        const series = (perMonthByEmployee.get(t.employeeId) || []).filter(s => s.hasData);
+        let trend: PeriodPerformanceMetrics['trend'] = 'N/A';
+        let volatility = 0;
+
+        if (series.length >= 2) {
+            const rates = series.map(s => s.attendanceRate);
+            const mean = rates.reduce((s, v) => s + v, 0) / rates.length;
+            volatility = Math.sqrt(rates.reduce((s, v) => s + (v - mean) ** 2, 0) / rates.length);
+
+            const mid = Math.ceil(series.length / 2);
+            const front = rates.slice(0, mid);
+            const back = rates.slice(mid);
+            const frontAvg = front.reduce((s, v) => s + v, 0) / front.length;
+            const backAvg = back.length > 0 ? back.reduce((s, v) => s + v, 0) / back.length : frontAvg;
+            const delta = backAvg - frontAvg;
+            trend = delta > 3 ? 'Improving' : delta < -3 ? 'Declining' : 'Stable';
+        }
+
+        return { ...t, monthlyAttendanceRates: perMonthByEmployee.get(t.employeeId) || [], trend, volatility };
+    });
+};
+
 export type BenchmarkPeriodType = 'monthly' | 'quarterly' | 'sixmonth' | 'yearly';
 
 /**

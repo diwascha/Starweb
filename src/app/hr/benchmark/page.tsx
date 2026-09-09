@@ -1,17 +1,21 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
+import { TrendingUp, TrendingDown, Minus, ArrowUpDown, ChevronUp, ChevronDown, AlertTriangle, Users, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import type { Employee, AttendanceRecord } from '@/lib/types';
+import type { Employee, AttendanceRecord, Payroll } from '@/lib/types';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate } from '@/services/attendance-service';
+import { onPayrollUpdate } from '@/services/payroll-service';
 import NepaliDate from 'nepali-date-converter';
 import {
     getFiscalYearStart,
@@ -19,12 +23,13 @@ import {
     formatFiscalYear,
 } from '@/lib/fiscal-year';
 import {
-    aggregatePerformanceMetrics,
+    aggregatePerformanceMetricsWithTrend,
     getBenchmarkPeriodGroups,
     type BenchmarkPeriodType,
+    type PeriodPerformanceMetrics,
 } from '@/lib/performance-metrics';
 
-type SortKey = 'employeeName' | 'attendanceRate' | 'workdays' | 'absentDays' | 'lateArrivals' | 'earlyDepartures' | 'regularHours' | 'overtimeHours' | 'grossHours' | 'otLoadPct';
+type SortKey = 'employeeName' | 'attendanceRate' | 'absentDays' | 'lateArrivals' | 'overtimeHours' | 'totalNet' | 'bonusAccrued';
 
 const PERIOD_TYPES: { value: BenchmarkPeriodType; label: string }[] = [
     { value: 'monthly', label: 'Monthly' },
@@ -33,14 +38,19 @@ const PERIOD_TYPES: { value: BenchmarkPeriodType; label: string }[] = [
     { value: 'yearly', label: 'Yearly' },
 ];
 
-// Metrics where a HIGHER value is the better outcome, for best/worst highlighting.
-const HIGHER_IS_BETTER: SortKey[] = ['attendanceRate', 'workdays', 'regularHours', 'grossHours'];
-// Metrics where a LOWER value is the better outcome.
-const LOWER_IS_BETTER: SortKey[] = ['absentDays', 'lateArrivals', 'earlyDepartures'];
+const ATTENDANCE_FLAG_THRESHOLD = 15; // percentage points below the group average
+
+interface ComparisonRow extends PeriodPerformanceMetrics {
+    monthsWithData: number;
+    totalNet: number;
+    bonusAccrued: number;
+    flags: string[];
+}
 
 export default function EmployeePerformanceBenchmarkPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+    const [payroll, setPayroll] = useState<Payroll[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(
@@ -48,7 +58,8 @@ export default function EmployeePerformanceBenchmarkPage() {
     );
     const [periodType, setPeriodType] = useState<BenchmarkPeriodType>('quarterly');
     const [periodIndex, setPeriodIndex] = useState<string>('0');
-    const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('All');
+    const [compareIds, setCompareIds] = useState<string[]>([]);
+    const [comparePickerOpen, setComparePickerOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'attendanceRate', direction: 'desc' });
 
     useEffect(() => {
@@ -58,9 +69,11 @@ export default function EmployeePerformanceBenchmarkPage() {
             setAttendance(data);
             setIsLoading(false);
         });
+        const unsubPay = onPayrollUpdate(setPayroll);
         return () => {
             unsubEmp();
             unsubAtt();
+            unsubPay();
         };
     }, []);
 
@@ -86,85 +99,79 @@ export default function EmployeePerformanceBenchmarkPage() {
         setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc' }));
     };
 
-    const comparisonRows = useMemo(() => {
+    const payrollTotals = useMemo(() => {
+        if (!selectedGroup) return new Map<string, { net: number; bonus: number }>();
+        const monthKeys = new Set(selectedGroup.months.map(m => `${m.bsYear}-${m.bsMonth}`));
+        const map = new Map<string, { net: number; bonus: number }>();
+        for (const p of payroll) {
+            if (!monthKeys.has(`${p.bsYear}-${p.bsMonth}`)) continue;
+            const existing = map.get(p.employeeId) || { net: 0, bonus: 0 };
+            existing.net += p.roundedNet ?? p.netPayment ?? 0;
+            existing.bonus += p.bonus ?? 0;
+            map.set(p.employeeId, existing);
+        }
+        return map;
+    }, [payroll, selectedGroup]);
+
+    const comparisonRows: ComparisonRow[] = useMemo(() => {
         if (!selectedGroup) return [];
-        const rows = aggregatePerformanceMetrics(employees, attendance, selectedGroup.months);
-        const sorted = [...rows].sort((a, b) => {
+        const rows = aggregatePerformanceMetricsWithTrend(employees, attendance, selectedGroup.months);
+        const groupMean = rows.length > 0 ? rows.reduce((s, r) => s + r.attendanceRate, 0) / rows.length : 0;
+
+        const withFinancials: ComparisonRow[] = rows.map(r => {
+            const pay = payrollTotals.get(r.employeeId) || { net: 0, bonus: 0 };
+            const flags: string[] = [];
+            if (r.workdays + r.absentDays > 0 && groupMean - r.attendanceRate > ATTENDANCE_FLAG_THRESHOLD) {
+                flags.push('Attendance well below peers');
+            }
+            if (r.trend === 'Declining') flags.push('Declining trend');
+            return {
+                ...r,
+                monthsWithData: r.monthlyAttendanceRates.filter(m => m.hasData).length,
+                totalNet: pay.net,
+                bonusAccrued: pay.bonus,
+                flags,
+            };
+        });
+
+        return [...withFinancials].sort((a, b) => {
             const aVal = sortConfig.key === 'employeeName' ? a.employeeName : a[sortConfig.key];
             const bVal = sortConfig.key === 'employeeName' ? b.employeeName : b[sortConfig.key];
             if (aVal === bVal) return 0;
             const cmp = aVal < bVal ? -1 : 1;
             return sortConfig.direction === 'asc' ? cmp : -cmp;
         });
-        return sorted;
-    }, [employees, attendance, selectedGroup, sortConfig]);
-
-    // Best/worst value per metric, for highlighting - computed once per render
-    // of the comparison table, ignoring employees with zero workdays (nothing
-    // to compare for a period they didn't work at all).
-    const extremes = useMemo(() => {
-        const active = comparisonRows.filter(r => r.workdays > 0 || r.absentDays > 0);
-        const result: Partial<Record<SortKey, { best: number; worst: number }>> = {};
-        for (const key of [...HIGHER_IS_BETTER, ...LOWER_IS_BETTER]) {
-            const values = active.map(r => r[key as keyof typeof r] as number);
-            if (values.length === 0) continue;
-            const max = Math.max(...values);
-            const min = Math.min(...values);
-            const higherBetter = HIGHER_IS_BETTER.includes(key);
-            result[key] = higherBetter ? { best: max, worst: min } : { best: min, worst: max };
-        }
-        return result;
-    }, [comparisonRows]);
-
-    const cellClass = (key: SortKey, value: number) => {
-        const ex = extremes[key];
-        if (!ex || ex.best === ex.worst) return '';
-        if (value === ex.best) return 'text-emerald-700 font-black';
-        if (value === ex.worst) return 'text-red-600 font-bold';
-        return '';
-    };
+    }, [employees, attendance, selectedGroup, payrollTotals, sortConfig]);
 
     const totals = useMemo(() => {
         if (comparisonRows.length === 0) return null;
         const sum = comparisonRows.reduce((acc, r) => ({
-            workdays: acc.workdays + r.workdays,
             absentDays: acc.absentDays + r.absentDays,
             lateArrivals: acc.lateArrivals + r.lateArrivals,
-            earlyDepartures: acc.earlyDepartures + r.earlyDepartures,
-            regularHours: acc.regularHours + r.regularHours,
             overtimeHours: acc.overtimeHours + r.overtimeHours,
-            grossHours: acc.grossHours + r.grossHours,
-        }), { workdays: 0, absentDays: 0, lateArrivals: 0, earlyDepartures: 0, regularHours: 0, overtimeHours: 0, grossHours: 0 });
-        const attendanceRate = (sum.workdays + sum.absentDays) > 0 ? (sum.workdays / (sum.workdays + sum.absentDays)) * 100 : 0;
-        return { ...sum, attendanceRate };
+            totalNet: acc.totalNet + r.totalNet,
+            bonusAccrued: acc.bonusAccrued + r.bonusAccrued,
+        }), { absentDays: 0, lateArrivals: 0, overtimeHours: 0, totalNet: 0, bonusAccrued: 0 });
+        const avgAttendance = comparisonRows.reduce((s, r) => s + r.attendanceRate, 0) / comparisonRows.length;
+        return { ...sum, avgAttendance };
     }, [comparisonRows]);
 
-    // Per-employee history across every period-of-this-type in the fiscal
-    // year, for trend tracking and a simple consistency read.
-    const employeeHistory = useMemo(() => {
-        if (selectedEmployeeId === 'All') return [];
-        const allGroups = getBenchmarkPeriodGroups(fyStart, periodType === 'monthly' ? 'monthly' : periodType, 0);
-        // For monthly, getBenchmarkPeriodGroups already returns 12 single-month groups.
-        const groups = periodType === 'monthly' ? allGroups : getBenchmarkPeriodGroups(fyStart, periodType, 0);
-        return groups.map((g, i) => {
-            const rows = aggregatePerformanceMetrics(employees, attendance, g.months);
-            const row = rows.find(r => r.employeeId === selectedEmployeeId);
-            const label = g.label || (g.months.length === 1 ? monthLabel(g.months[0].bsMonth) : `Period ${i + 1}`);
-            return { label, ...row };
-        });
-    }, [selectedEmployeeId, fyStart, periodType, employees, attendance]);
+    // Every period-of-this-type across the fiscal year, used by the
+    // multi-employee comparison table below to show trends over time.
+    const allPeriodsThisType = useMemo(() => {
+        const groups = periodType === 'monthly' ? getBenchmarkPeriodGroups(fyStart, 'monthly', 0) : periodGroups;
+        return groups.map((g, i) => ({
+            label: g.label || monthLabel(g.months[0]?.bsMonth ?? 0),
+            months: g.months,
+            rows: aggregatePerformanceMetricsWithTrend(employees, attendance, g.months),
+        }));
+    }, [fyStart, periodType, periodGroups, employees, attendance]);
 
-    const consistency = useMemo(() => {
-        const withData = employeeHistory.filter((h): h is typeof h & { attendanceRate: number } => h.attendanceRate !== undefined && (h.workdays || 0) > 0);
-        if (withData.length < 2) return null;
-        const rates = withData.map(h => h.attendanceRate);
-        const mean = rates.reduce((s, v) => s + v, 0) / rates.length;
-        const variance = rates.reduce((s, v) => s + (v - mean) ** 2, 0) / rates.length;
-        const stdDev = Math.sqrt(variance);
-        return { mean, stdDev, isConsistent: stdDev < 10 };
-    }, [employeeHistory]);
+    const compareEmployees = employees.filter(e => compareIds.includes(e.id)).sort((a, b) => a.name.localeCompare(b.name));
 
-    const selectedEmployee = employees.find(e => e.id === selectedEmployeeId);
+    const toggleCompare = (id: string) => {
+        setCompareIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
 
     return (
         <div className="flex flex-col gap-8">
@@ -207,15 +214,26 @@ export default function EmployeePerformanceBenchmarkPage() {
                             </Select>
                         </div>
                     )}
-                    <div className="space-y-1.5 w-[200px]">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employee History</Label>
-                        <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={isLoading}>
-                            <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Employees" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="All">All Employees (Comparison Only)</SelectItem>
-                                {[...employees].sort((a, b) => a.name.localeCompare(b.name)).map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Compare Employees</Label>
+                        <Popover open={comparePickerOpen} onOpenChange={setComparePickerOpen}>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="h-9 bg-white font-bold text-xs justify-start min-w-[200px]">
+                                    <Users className="mr-2 h-3.5 w-3.5" />
+                                    {compareIds.length === 0 ? 'Select 2+ employees...' : `${compareIds.length} employee(s) selected`}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[260px] p-0" align="start">
+                                <ScrollArea className="h-[280px] p-2">
+                                    {[...employees].sort((a, b) => a.name.localeCompare(b.name)).map(e => (
+                                        <label key={e.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-xs">
+                                            <Checkbox checked={compareIds.includes(e.id)} onCheckedChange={() => toggleCompare(e.id)} />
+                                            {e.name}
+                                        </label>
+                                    ))}
+                                </ScrollArea>
+                            </PopoverContent>
+                        </Popover>
                     </div>
                 </CardContent>
             </Card>
@@ -226,7 +244,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                         Comparison{selectedGroup ? ` - ${selectedGroup.label || monthLabel(selectedGroup.months[0]?.bsMonth ?? 0)}, FY ${formatFiscalYear(fyStart)}` : ''}
                     </CardTitle>
                     <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
-                        Best value per column in <span className="text-emerald-700 font-black">green</span>, worst in <span className="text-red-600 font-bold">red</span>. Click a column header to sort.
+                        Click a column header to sort. Trend and Volatility need 2+ months in the selected period.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -235,48 +253,57 @@ export default function EmployeePerformanceBenchmarkPage() {
                             <TableHeader className="bg-muted/30">
                                 <TableRow className="h-11">
                                     <SortableHead label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} className="sticky left-0 bg-background z-20 border-r pl-6" />
-                                    <SortableHead label="Workdays" sortKey="workdays" sortConfig={sortConfig} onSort={requestSort} align="center" />
-                                    <SortableHead label="Attendance %" sortKey="attendanceRate" sortConfig={sortConfig} onSort={requestSort} align="center" className="text-blue-700" />
+                                    <TableHead className="text-center font-bold uppercase px-3">Months</TableHead>
+                                    <SortableHead label="Avg Attend %" sortKey="attendanceRate" sortConfig={sortConfig} onSort={requestSort} align="center" className="text-blue-700" />
+                                    <TableHead className="text-center font-bold uppercase px-3">Trend</TableHead>
+                                    <TableHead className="text-center font-bold uppercase px-3">Volatility</TableHead>
                                     <SortableHead label="Absent" sortKey="absentDays" sortConfig={sortConfig} onSort={requestSort} align="center" className="text-red-600" />
                                     <SortableHead label="Late" sortKey="lateArrivals" sortConfig={sortConfig} onSort={requestSort} align="center" className="text-amber-600" />
-                                    <SortableHead label="Early" sortKey="earlyDepartures" sortConfig={sortConfig} onSort={requestSort} align="center" className="text-amber-600" />
-                                    <SortableHead label="Regular Hrs" sortKey="regularHours" sortConfig={sortConfig} onSort={requestSort} align="right" />
                                     <SortableHead label="OT Hrs" sortKey="overtimeHours" sortConfig={sortConfig} onSort={requestSort} align="right" />
-                                    <SortableHead label="Gross Hrs" sortKey="grossHours" sortConfig={sortConfig} onSort={requestSort} align="right" className="bg-muted/20" />
-                                    <SortableHead label="OT Load %" sortKey="otLoadPct" sortConfig={sortConfig} onSort={requestSort} align="center" />
+                                    <SortableHead label="Total Net" sortKey="totalNet" sortConfig={sortConfig} onSort={requestSort} align="right" />
+                                    <SortableHead label="Bonus Accrued" sortKey="bonusAccrued" sortConfig={sortConfig} onSort={requestSort} align="right" />
+                                    <TableHead className="font-bold uppercase px-3 pr-6">Flags</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {comparisonRows.length === 0 ? (
-                                    <TableRow><TableCell colSpan={10} className="text-center py-20 text-muted-foreground italic">No calculated attendance found for this period.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={11} className="text-center py-20 text-muted-foreground italic">No calculated attendance found for this period.</TableCell></TableRow>
                                 ) : comparisonRows.map(r => (
-                                    <TableRow key={r.employeeId} className={cn("hover:bg-muted/20 h-12 border-b", r.employeeId === selectedEmployeeId && "bg-primary/5")}>
+                                    <TableRow key={r.employeeId} className={cn("hover:bg-muted/20 h-12 border-b", compareIds.includes(r.employeeId) && "bg-primary/5")}>
                                         <TableCell className="sticky left-0 bg-background z-10 border-r pl-6 font-black text-gray-900 uppercase tracking-tighter">{r.employeeName}</TableCell>
-                                        <TableCell className={cn("text-center tabular-nums px-3", cellClass('workdays', r.workdays))}>{r.workdays}</TableCell>
-                                        <TableCell className={cn("text-center tabular-nums px-3", cellClass('attendanceRate', r.attendanceRate) || 'text-blue-700 font-bold')}>{r.attendanceRate.toFixed(1)}%</TableCell>
-                                        <TableCell className={cn("text-center tabular-nums px-3 font-bold", cellClass('absentDays', r.absentDays) || 'text-red-700')}>{r.absentDays}</TableCell>
-                                        <TableCell className={cn("text-center tabular-nums px-3 font-bold", cellClass('lateArrivals', r.lateArrivals) || 'text-amber-700')}>{r.lateArrivals}</TableCell>
-                                        <TableCell className={cn("text-center tabular-nums px-3 font-bold", cellClass('earlyDepartures', r.earlyDepartures) || 'text-amber-700')}>{r.earlyDepartures}</TableCell>
-                                        <TableCell className={cn("text-right tabular-nums px-3", cellClass('regularHours', r.regularHours))}>{r.regularHours.toFixed(1)}</TableCell>
-                                        <TableCell className={cn("text-right tabular-nums px-3 font-bold text-blue-700")}>+{r.overtimeHours.toFixed(1)}</TableCell>
-                                        <TableCell className={cn("text-right tabular-nums px-3 font-black bg-muted/10", cellClass('grossHours', r.grossHours))}>{r.grossHours.toFixed(1)}</TableCell>
-                                        <TableCell className="text-center tabular-nums px-3">{r.otLoadPct.toFixed(0)}%</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{r.monthsWithData}</TableCell>
+                                        <TableCell className={cn("text-center tabular-nums px-3 font-bold", r.flags.includes('Attendance well below peers') ? 'text-red-600' : 'text-blue-700')}>{r.attendanceRate.toFixed(1)}%</TableCell>
+                                        <TableCell className="text-center px-3"><TrendBadge trend={r.trend} /></TableCell>
+                                        <TableCell className="text-center tabular-nums px-3 text-muted-foreground">{r.trend !== 'N/A' ? `±${r.volatility.toFixed(1)}%` : '—'}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3 font-bold text-red-700">{r.absentDays}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3 font-bold text-amber-700">{r.lateArrivals}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3 font-bold text-blue-700">+{r.overtimeHours.toFixed(1)}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3 font-bold">{r.totalNet.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{r.bonusAccrued > 0 ? r.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</TableCell>
+                                        <TableCell className="px-3 pr-6">
+                                            {r.flags.length > 0 ? (
+                                                <div className="flex items-center gap-1 text-red-600">
+                                                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                                                    <span className="text-[10px] font-bold">{r.flags.join('; ')}</span>
+                                                </div>
+                                            ) : <span className="text-muted-foreground">—</span>}
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                             {totals && (
                                 <TableFooter className="bg-muted/50 font-black h-12 border-t-2">
                                     <TableRow>
-                                        <TableCell className="sticky left-0 bg-background z-20 border-r pl-6 text-gray-900 uppercase tracking-tighter">Totals ({comparisonRows.length})</TableCell>
-                                        <TableCell className="text-center tabular-nums px-3">{totals.workdays}</TableCell>
-                                        <TableCell className="text-center tabular-nums px-3">{totals.attendanceRate.toFixed(1)}%</TableCell>
+                                        <TableCell className="sticky left-0 bg-background z-20 border-r pl-6 text-gray-900 uppercase tracking-tighter">Total / Avg ({comparisonRows.length})</TableCell>
+                                        <TableCell></TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{totals.avgAttendance.toFixed(1)}%</TableCell>
+                                        <TableCell colSpan={2}></TableCell>
                                         <TableCell className="text-center tabular-nums px-3">{totals.absentDays}</TableCell>
                                         <TableCell className="text-center tabular-nums px-3">{totals.lateArrivals}</TableCell>
-                                        <TableCell className="text-center tabular-nums px-3">{totals.earlyDepartures}</TableCell>
-                                        <TableCell className="text-right tabular-nums px-3">{totals.regularHours.toFixed(1)}</TableCell>
                                         <TableCell className="text-right tabular-nums px-3">+{totals.overtimeHours.toFixed(1)}</TableCell>
-                                        <TableCell className="text-right tabular-nums px-3">{totals.grossHours.toFixed(1)}</TableCell>
-                                        <TableCell className="text-center px-3"></TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{totals.totalNet.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{totals.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                        <TableCell className="pr-6"></TableCell>
                                     </TableRow>
                                 </TableFooter>
                             )}
@@ -286,51 +313,54 @@ export default function EmployeePerformanceBenchmarkPage() {
                 </CardContent>
             </Card>
 
-            {selectedEmployeeId !== 'All' && (
+            {compareEmployees.length >= 2 && (
                 <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                     <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
                         <div>
-                            <CardTitle className="text-sm font-black uppercase tracking-tight">{selectedEmployee?.name || 'Employee'} - Performance History</CardTitle>
+                            <CardTitle className="text-sm font-black uppercase tracking-tight">Head-to-Head: {compareEmployees.map(e => e.name).join(' vs ')}</CardTitle>
                             <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
                                 Every {PERIOD_TYPES.find(p => p.value === periodType)?.label.toLowerCase()} period in FY {formatFiscalYear(fyStart)}, oldest first.
                             </CardDescription>
                         </div>
-                        {consistency && (
-                            <Badge variant="outline" className={cn("text-[9px] font-black uppercase h-6 px-3", consistency.isConsistent ? "border-emerald-200 text-emerald-700" : "border-amber-200 text-amber-700")}>
-                                {consistency.isConsistent ? 'Consistent Attendance' : 'Variable Attendance'} (±{consistency.stdDev.toFixed(1)}%)
-                            </Badge>
-                        )}
+                        <Button variant="ghost" size="sm" onClick={() => setCompareIds([])} className="h-8 text-[10px] font-bold uppercase text-muted-foreground">
+                            <X className="mr-1.5 h-3.5 w-3.5" /> Clear
+                        </Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <ScrollArea className="w-full">
                             <Table className="text-[11px] border-collapse">
                                 <TableHeader className="bg-muted/30">
-                                    <TableRow className="h-10">
-                                        <TableHead className="pl-6 font-black uppercase text-gray-900">Period</TableHead>
-                                        <TableHead className="text-center font-bold uppercase px-3">Workdays</TableHead>
-                                        <TableHead className="text-center font-bold uppercase px-3 text-blue-700">Attendance %</TableHead>
-                                        <TableHead className="text-center font-bold uppercase px-3 text-red-600">Absent</TableHead>
-                                        <TableHead className="text-center font-bold uppercase px-3 text-amber-600">Late</TableHead>
-                                        <TableHead className="text-center font-bold uppercase px-3 text-amber-600">Early</TableHead>
-                                        <TableHead className="text-right font-bold uppercase px-3">Regular Hrs</TableHead>
-                                        <TableHead className="text-right font-bold uppercase px-3">OT Hrs</TableHead>
-                                        <TableHead className="text-right font-black uppercase px-3 pr-6">Gross Hrs</TableHead>
+                                    <TableRow className="h-9">
+                                        <TableHead rowSpan={2} className="align-bottom pl-6 font-black uppercase text-gray-900 border-r">Period</TableHead>
+                                        {compareEmployees.map(e => (
+                                            <TableHead key={e.id} colSpan={3} className="text-center font-black uppercase text-gray-900 border-r border-l">{e.name}</TableHead>
+                                        ))}
+                                    </TableRow>
+                                    <TableRow className="h-9">
+                                        {compareEmployees.map(e => (
+                                            <Fragment key={e.id}>
+                                                <TableHead className="text-center font-bold uppercase text-blue-700 px-2 border-l">Attend %</TableHead>
+                                                <TableHead className="text-center font-bold uppercase text-amber-700 px-2">Late</TableHead>
+                                                <TableHead className="text-center font-bold uppercase px-2 border-r">OT Hrs</TableHead>
+                                            </Fragment>
+                                        ))}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {employeeHistory.every(h => !h.workdays && !h.absentDays) ? (
-                                        <TableRow><TableCell colSpan={9} className="text-center py-16 text-muted-foreground italic">No records found for this employee in FY {formatFiscalYear(fyStart)}.</TableCell></TableRow>
-                                    ) : employeeHistory.map((h, i) => (
-                                        <TableRow key={`hist-${i}`} className="h-11 border-b hover:bg-muted/20">
-                                            <TableCell className="pl-6 font-bold text-gray-900">{h.label}</TableCell>
-                                            <TableCell className="text-center tabular-nums px-3">{h.workdays ?? 0}</TableCell>
-                                            <TableCell className="text-center tabular-nums px-3 font-bold text-blue-700">{(h.attendanceRate ?? 0).toFixed(1)}%</TableCell>
-                                            <TableCell className="text-center tabular-nums px-3 font-bold text-red-700">{h.absentDays ?? 0}</TableCell>
-                                            <TableCell className="text-center tabular-nums px-3 font-bold text-amber-700">{h.lateArrivals ?? 0}</TableCell>
-                                            <TableCell className="text-center tabular-nums px-3 font-bold text-amber-700">{h.earlyDepartures ?? 0}</TableCell>
-                                            <TableCell className="text-right tabular-nums px-3">{(h.regularHours ?? 0).toFixed(1)}</TableCell>
-                                            <TableCell className="text-right tabular-nums px-3 font-bold text-blue-700">+{(h.overtimeHours ?? 0).toFixed(1)}</TableCell>
-                                            <TableCell className="text-right tabular-nums px-3 pr-6 font-black">{(h.grossHours ?? 0).toFixed(1)}</TableCell>
+                                    {allPeriodsThisType.map((period, i) => (
+                                        <TableRow key={`hth-${i}`} className="h-11 border-b hover:bg-muted/20">
+                                            <TableCell className="pl-6 font-bold text-gray-900 border-r">{period.label}</TableCell>
+                                            {compareEmployees.map(e => {
+                                                const row = period.rows.find(r => r.employeeId === e.id);
+                                                const hasData = (row?.workdays || 0) + (row?.absentDays || 0) > 0;
+                                                return (
+                                                    <Fragment key={e.id}>
+                                                        <TableCell className="text-center tabular-nums px-2 border-l font-bold text-blue-700">{hasData ? `${row!.attendanceRate.toFixed(0)}%` : '—'}</TableCell>
+                                                        <TableCell className="text-center tabular-nums px-2 font-bold text-amber-700">{hasData ? row!.lateArrivals : '—'}</TableCell>
+                                                        <TableCell className="text-center tabular-nums px-2 border-r">{hasData ? `+${row!.overtimeHours.toFixed(1)}` : '—'}</TableCell>
+                                                    </Fragment>
+                                                );
+                                            })}
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -340,6 +370,10 @@ export default function EmployeePerformanceBenchmarkPage() {
                     </CardContent>
                 </Card>
             )}
+
+            {compareEmployees.length === 1 && (
+                <p className="text-[10px] text-muted-foreground italic px-1">Select at least one more employee above to see a head-to-head comparison over time.</p>
+            )}
         </div>
     );
 }
@@ -347,6 +381,21 @@ export default function EmployeePerformanceBenchmarkPage() {
 function monthLabel(bsMonth: number): string {
     const names = ['Baishakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'];
     return names[bsMonth] || '';
+}
+
+function TrendBadge({ trend }: { trend: PeriodPerformanceMetrics['trend'] }) {
+    if (trend === 'N/A') return <span className="text-muted-foreground text-[10px]">—</span>;
+    const config = {
+        Improving: { icon: TrendingUp, cls: 'border-emerald-200 text-emerald-700' },
+        Declining: { icon: TrendingDown, cls: 'border-red-200 text-red-700' },
+        Stable: { icon: Minus, cls: 'border-gray-200 text-muted-foreground' },
+    }[trend];
+    const Icon = config.icon;
+    return (
+        <Badge variant="outline" className={cn("text-[9px] font-black uppercase h-5 px-1.5 gap-1", config.cls)}>
+            <Icon className="h-2.5 w-2.5" /> {trend}
+        </Badge>
+    );
 }
 
 function SortableHead({ label, sortKey, sortConfig, onSort, align = 'left', className }: {
