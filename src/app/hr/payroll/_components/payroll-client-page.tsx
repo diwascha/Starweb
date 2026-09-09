@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Payroll } from '@/lib/types';
+import type { Payroll, Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Download, Printer, Loader2, View } from 'lucide-react';
 import { onPayrollUpdate } from '@/services/payroll-service';
+import { onEmployeesUpdate } from '@/services/employee-service';
 import { useRouter } from 'next/navigation';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { NEPALI_MONTHS } from '@/lib/constants';
+import GeneratePayslipsButton from './generate-payslips-button';
 
 const customEmployeeOrder = [
     "Tika Gurung", "Anju Bista", "Madhu Bhandari", "Amrita Lama", "sunil chaudhary",
@@ -25,6 +27,7 @@ interface PayrollClientPageProps {
 
 export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: PayrollClientPageProps) {
     const [allPayroll, setAllPayroll] = useState<Payroll[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
@@ -33,7 +36,11 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             setAllPayroll(payrolls);
             setIsLoading(false);
         });
-        return () => unsubPayroll();
+        const unsubEmployees = onEmployeesUpdate(setEmployees);
+        return () => {
+            unsubPayroll();
+            unsubEmployees();
+        };
     }, []);
 
     const monthlyPayroll = useMemo(() => {
@@ -109,6 +116,12 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                     <Button variant="outline" size="sm" onClick={handleExport} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest border-gray-300">
                         <Download className="mr-1.5 h-3.5 w-3.5" /> Export XLSX
                     </Button>
+                    <GeneratePayslipsButton
+                        payrollRecords={monthlyPayroll}
+                        employees={employees}
+                        bsYear={parseInt(selectedBsYear)}
+                        bsMonthName={NEPALI_MONTHS[parseInt(selectedBsMonth)]?.name || ''}
+                    />
                     <Button size="sm" onClick={() => window.print()} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest">
                         <Printer className="mr-1.5 h-3.5 w-3.5" /> Print Sheet
                     </Button>

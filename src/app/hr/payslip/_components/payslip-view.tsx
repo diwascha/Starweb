@@ -3,22 +3,34 @@
 import type { Employee, Payroll, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Save, Loader2, ArrowLeft } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { toWords } from '@/lib/utils';
-import { format } from 'date-fns';
-import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
 import { useState, useEffect } from 'react';
-import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
 import { onSettingUpdate } from '@/services/settings-service';
 
-const defaultCompanyProfile: CompanyProfile = {
+export const defaultCompanyProfile: CompanyProfile = {
   nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
   nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
   address: "Hetauda 08, Bagmati Province, Nepal",
   phone: "N/A",
   email: "N/A",
   pan: "N/A"
+};
+
+/**
+ * Matches PR_RoundNet from the payroll VBA module: floors to whole rupees,
+ * then rounds the units digit to the nearest 5 (e.g. 15003 -> 15000,
+ * 15004 -> 15005, 15008 -> 15010). Only used as a fallback when a record
+ * has no stored roundedNet - historical/imported net figures are never
+ * recomputed.
+ */
+const roundNetToFive = (net: number): number => {
+  if (net <= 0) return net;
+  const baseInt = Math.floor(net);
+  let d = baseInt % 10;
+  if (d < 0) d += 10;
+  if (d <= 3) return baseInt - d;
+  if (d < 8) return baseInt - d + 5;
+  return baseInt - d + 10;
 };
 
 interface PayslipViewProps {
@@ -28,33 +40,162 @@ interface PayslipViewProps {
   bsMonthName: string;
 }
 
+export function SlipCopy({ label, employee, payroll, bsYear, bsMonthName, companyProfile }: {
+  label: string;
+  employee: Employee;
+  payroll: Payroll;
+  bsYear: number;
+  bsMonthName: string;
+  companyProfile: CompanyProfile;
+}) {
+  const basic = payroll?.regularPay ?? 0;
+  const allowance = payroll?.allowance ?? 0;
+  const ot = payroll?.otPay ?? 0;
+  const bonus = payroll?.bonus ?? 0;
+  const tds = payroll?.tds ?? 0;
+  const advance = payroll?.advance ?? 0;
+
+  const grossSalary = payroll?.salaryTotal ?? (basic + allowance + ot + bonus - tds);
+  const totalDeductions = tds + advance;
+  const netSalary = payroll?.roundedNet ?? roundNetToFive(payroll?.netPayment ?? (grossSalary - advance));
+
+  const monthDays = (payroll?.presentDays ?? 0) + (payroll?.extraDays ?? 0) + (payroll?.leaveDays ?? 0);
+
+  const fmt = (n: number) => (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+  return (
+    <div className="border-2 border-black text-black text-[11px] px-3 py-2">
+      <p className="text-[8px] font-bold text-gray-500 mb-1">[ {label} ]</p>
+
+      <header className="text-center space-y-0.5 mb-1 pb-1 border-b border-black">
+        <h1 className="text-sm font-bold uppercase">{companyProfile.nameEn || 'YOUR COMPANY NAME HERE'}</h1>
+        {companyProfile.address && <p className="text-[10px]">{companyProfile.address}</p>}
+        {companyProfile.addressLine2 && <p className="text-[10px]">{companyProfile.addressLine2}</p>}
+        {companyProfile.phone && <p className="text-[10px]">{companyProfile.phone}</p>}
+        {(companyProfile.headerNote1 || companyProfile.headerNote2) && (
+          <p className="text-[9px] italic">
+            {[companyProfile.headerNote1, companyProfile.headerNote2].filter(Boolean).join('   ')}
+          </p>
+        )}
+      </header>
+
+      <div className="text-center font-bold text-[13px] border-b border-black pb-1 mb-1">Salary Slip</div>
+      <div className="text-center italic text-[10px] mb-1">For the Month of: {bsMonthName}, {bsYear} (BS)</div>
+
+      <div className="grid grid-cols-2 gap-x-4 text-[10px] mb-1 pb-1 border-b border-black">
+        <div className="space-y-0.5">
+          <div><span className="font-bold">Staff Name :</span> {employee.name}</div>
+          <div><span className="font-bold">Department :</span> {employee.department || '—'}</div>
+          <div><span className="font-bold">Designation :</span> {employee.position || '—'}</div>
+          <div><span className="font-bold">Contact :</span> {employee.mobileNumber || '—'}</div>
+        </div>
+        <div className="space-y-0.5 text-right">
+          <div><span className="font-bold">Month Days :</span> {monthDays}</div>
+          <div><span className="font-bold">Leave Days :</span> {payroll?.leaveDays ?? 0}</div>
+          <div><span className="font-bold">Extra Days :</span> {payroll?.extraDays ?? 0}</div>
+          <div><span className="font-bold">Present Days :</span> {payroll?.presentDays ?? 0}</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 border-2 border-black">
+        <div className="border-r border-black">
+          <div className="text-center font-bold border-b border-black py-0.5">Earning</div>
+          <div className="grid grid-cols-2 font-bold text-center border-b border-black">
+            <div className="border-r border-black py-0.5">Head</div>
+            <div className="py-0.5">Rs.</div>
+          </div>
+          {[
+            ['Basic', basic],
+            ['Allowance', allowance],
+            ['OT', ot],
+            ['Bonus', bonus],
+          ].map(([lbl, amt]) => (
+            <div key={lbl as string} className="grid grid-cols-2 border-b border-dotted border-gray-400">
+              <div className="border-r border-black px-1">{lbl}</div>
+              <div className="text-right px-1">{fmt(amt as number)}</div>
+            </div>
+          ))}
+          <div className="grid grid-cols-2 h-[17px]">
+            <div className="border-r border-black"></div>
+            <div></div>
+          </div>
+          <div className="grid grid-cols-2 font-bold border-t border-b border-black bg-gray-100">
+            <div className="border-r border-black px-1">Gross Salary</div>
+            <div className="text-right px-1">{fmt(grossSalary)}</div>
+          </div>
+        </div>
+        <div>
+          <div className="text-center font-bold border-b border-black py-0.5">Deduction</div>
+          <div className="grid grid-cols-2 font-bold text-center border-b border-black">
+            <div className="border-r border-black py-0.5">Head</div>
+            <div className="py-0.5">Rs.</div>
+          </div>
+          {[
+            ['Professional Tax / TDS', tds],
+            ['Advance', advance],
+          ].map(([lbl, amt]) => (
+            <div key={lbl as string} className="grid grid-cols-2 border-b border-dotted border-gray-400">
+              <div className="border-r border-black px-1">{lbl}</div>
+              <div className="text-right px-1">{fmt(amt as number)}</div>
+            </div>
+          ))}
+          <div className="grid grid-cols-2 h-[34px]">
+            <div className="border-r border-black"></div>
+            <div></div>
+          </div>
+          <div className="grid grid-cols-2 font-bold border-t border-b border-black bg-gray-100">
+            <div className="border-r border-black px-1">Deductions</div>
+            <div className="text-right px-1">{fmt(totalDeductions)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="font-bold text-[12px] border-2 border-t-0 border-black bg-gray-200 px-2 py-1 flex justify-between">
+        <span>Net Salary</span>
+        <span>{fmt(netSalary)}</span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 mt-4 text-[10px]">
+        <div><div className="border-t border-black pt-0.5">{companyProfile.preparedBy || ' '}</div><p className="text-right font-bold">Prepared by</p></div>
+        <div><div className="border-t border-black pt-0.5">{companyProfile.checkedBy || ' '}</div><p className="text-right font-bold">Checked by</p></div>
+        <div><div className="border-t border-black pt-0.5">{companyProfile.authorisedBy || ' '}</div><p className="text-right font-bold">Authorised by</p></div>
+      </div>
+
+      {(companyProfile.footerNote1 || companyProfile.footerNote2) && (
+        <div className="mt-2 pt-1 border-t border-black text-[8px] italic">
+          {companyProfile.footerNote1 && <p>{companyProfile.footerNote1}</p>}
+          {companyProfile.footerNote2 && <p>{companyProfile.footerNote2}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: PayslipViewProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   const router = useRouter();
-  const generationDate = new Date();
-  const nepaliGenerationDate = new NepaliDate(generationDate);
 
   useEffect(() => {
     const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
     return () => unsub();
   }, []);
-  
+
   const handlePrint = () => {
     setTimeout(() => {
         window.print();
     }, 100);
   };
-  
+
   const handleSaveAsPdf = async () => {
     const printableArea = document.querySelector('.printable-area') as HTMLElement;
     if (!printableArea) return;
-    
+
     setIsGeneratingPdf(true);
     try {
         const jsPDF = (await import('jspdf')).default;
         const html2canvas = (await import('html2canvas')).default;
-        
+
         const canvas = await html2canvas(printableArea, { scale: 2 });
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
@@ -68,22 +209,6 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
         setIsGeneratingPdf(false);
     }
   };
-  
-  const earnings = [
-      { label: "Normal Pay", amount: payroll?.regularPay ?? 0 },
-      { label: "Overtime Pay", amount: payroll?.otPay ?? 0 },
-      { label: "Allowance", amount: payroll?.allowance ?? 0 },
-      { label: "Bonus", amount: payroll?.bonus ?? 0 },
-  ];
-  
-  const deductions = [
-      { label: "Absent Deduction", amount: payroll?.deduction ?? 0 },
-      { label: "TDS (1%)", amount: payroll?.tds ?? 0 },
-      { label: "Advance", amount: payroll?.advance ?? 0 },
-  ];
-
-  const totalEarnings = earnings.reduce((sum, item) => sum + item.amount, 0);
-  const totalDeductions = deductions.reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <>
@@ -101,94 +226,14 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
             <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" />Print</Button>
         </div>
       </div>
-      
-       <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
-        <header className="text-center space-y-1 mb-4">
-            <h1 className="text-xl font-bold uppercase">{companyProfile.nameEn}</h1>
-            <h2 className="text-lg font-semibold">{companyProfile.nameNp}</h2>
-            <p className="text-sm">{companyProfile.address}</p>
-            <h2 className="text-lg font-semibold underline mt-1">Payslip for {bsMonthName}, {bsYear}</h2>
-        </header>
-        
-        <div className="text-right text-xs">
-          <span className="font-semibold">Date:</span> {nepaliGenerationDate.format('YYYY/MM/DD')} B.S. ({format(generationDate, 'yyyy-MM-dd')})
-        </div>
 
-        <Separator className="my-2 bg-gray-300"/>
-
-        <div className="grid grid-cols-2 text-xs mb-2 gap-x-4">
-            <div><span className="font-semibold">Employee Name:</span> {employee.name}</div>
-            <div><span className="font-semibold">Department:</span> {employee.department}</div>
-            <div><span className="font-semibold">Position:</span> {employee.position}</div>
-        </div>
-
-        <Separator className="my-2 bg-gray-300"/>
-        
-        <div className="grid grid-cols-2 gap-4">
-            <div className="border border-gray-300 rounded-md">
-                 <Table>
-                    <TableHeader>
-                        <TableRow className="bg-gray-100 font-bold">
-                            <TableHead colSpan={2} className="h-8 px-2 text-xs text-black">Earnings</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {earnings.map(item => (
-                            <TableRow key={item.label} className="border-b-gray-300">
-                                <TableCell className="px-2 py-1 text-xs">{item.label}</TableCell>
-                                <TableCell className="px-2 py-1 text-xs text-right">{(item.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                 </Table>
-            </div>
-             <div className="border border-gray-300 rounded-md">
-                 <Table>
-                     <TableHeader>
-                      <TableRow className="bg-gray-100 font-bold">
-                        <TableHead colSpan={2} className="h-8 px-2 text-xs text-black">Deductions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {deductions.map(item => (
-                            <TableRow key={item.label} className="border-b-gray-300">
-                                <TableCell className="px-2 py-1 text-xs">{item.label}</TableCell>
-                                <TableCell className="px-2 py-1 text-xs text-right">{(item.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                 </Table>
-            </div>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4 mt-2">
-            <div className="border border-gray-300 rounded-md bg-gray-50">
-                <Table><TableBody><TableRow className="font-bold">
-                    <TableCell className="h-8 px-2 text-xs">Total Earnings</TableCell>
-                    <TableCell className="h-8 px-2 text-xs text-right">{totalEarnings.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                </TableRow></TableBody></Table>
-            </div>
-             <div className="border border-gray-300 rounded-md bg-gray-50">
-                <Table><TableBody><TableRow className="font-bold">
-                    <TableCell className="h-8 px-2 text-xs">Total Deductions</TableCell>
-                    <TableCell className="h-8 px-2 text-xs text-right">{totalDeductions.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                </TableRow></TableBody></Table>
-            </div>
-        </div>
-        
-        <div className="mt-4 p-2 bg-blue-100 border border-blue-300 rounded-md text-center">
-            <p className="font-semibold text-sm">Net Salary: NPR {(payroll?.netPayment ?? 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-            <p className="text-xs font-medium">In Words: {toWords(payroll?.netPayment ?? 0)}</p>
-        </div>
-
-        <div className="mt-8 grid grid-cols-2 gap-8 pt-16 text-xs text-center">
-            <div><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Employer's Signature</p></div>
-            <div><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Employee's Signature</p></div>
-        </div>
+      <div className="printable-area space-y-2 bg-white">
+        <SlipCopy label="Employee Copy" employee={employee} payroll={payroll} bsYear={bsYear} bsMonthName={bsMonthName} companyProfile={companyProfile} />
+        <SlipCopy label="Employer Copy" employee={employee} payroll={payroll} bsYear={bsYear} bsMonthName={bsMonthName} companyProfile={companyProfile} />
       </div>
        <style jsx global>{`
         @media print {
-          @page { size: A4; margin: 0.5in; }
+          @page { size: A4; margin: 0.2in; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fff; }
           body * { visibility: hidden; }
           .printable-area, .printable-area * { visibility: visible; }

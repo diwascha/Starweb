@@ -542,6 +542,28 @@ export default function GeneralSettingsPage() {
                     </CardContent>
                 </Card>
                 <Card className="shadow-sm border-gray-100 overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between bg-primary/5 py-4 px-6 border-b">
+                        <div>
+                            <CardTitle className="text-lg font-black tracking-tight">Payslip Details</CardTitle>
+                            <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Header, footer, and signature lines shown on the Salary Slip.</CardDescription>
+                        </div>
+                        <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">
+                            {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-3.5" />}
+                            Update
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1.5 md:col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Address Line 2</Label><Input value={companyProfile.addressLine2 || ''} onChange={e => setCompanyProfile(p => ({...p, addressLine2: e.target.value}))} /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Header Note 1 (e.g. PAN)</Label><Input value={companyProfile.headerNote1 || ''} onChange={e => setCompanyProfile(p => ({...p, headerNote1: e.target.value}))} /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Header Note 2</Label><Input value={companyProfile.headerNote2 || ''} onChange={e => setCompanyProfile(p => ({...p, headerNote2: e.target.value}))} /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Footer Note 1</Label><Input value={companyProfile.footerNote1 || ''} onChange={e => setCompanyProfile(p => ({...p, footerNote1: e.target.value}))} /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Footer Note 2</Label><Input value={companyProfile.footerNote2 || ''} onChange={e => setCompanyProfile(p => ({...p, footerNote2: e.target.value}))} /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Prepared By</Label><Input value={companyProfile.preparedBy || ''} onChange={e => setCompanyProfile(p => ({...p, preparedBy: e.target.value}))} /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Checked By</Label><Input value={companyProfile.checkedBy || ''} onChange={e => setCompanyProfile(p => ({...p, checkedBy: e.target.value}))} /></div>
+                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Authorised By</Label><Input value={companyProfile.authorisedBy || ''} onChange={e => setCompanyProfile(p => ({...p, authorisedBy: e.target.value}))} /></div>
+                    </CardContent>
+                </Card>
+                <Card className="shadow-sm border-gray-100 overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between bg-muted/20 py-4 px-6 border-b">
                         <CardTitle className="text-lg font-black tracking-tight">Sijan Logistics Profile</CardTitle>
                         <Button onClick={handleSaveFleetProfile} disabled={isSavingFleetProfile} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">

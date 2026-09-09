@@ -1198,6 +1198,16 @@ export interface CompanyProfile {
   logoURL?: string;
   lastModifiedBy?: string;
   lastModifiedAt?: string;
+  // Payslip-specific fields, matching the VBA "COMPANY DETAILS" section
+  // (Rates sheet H/I columns) that drives the Salary Slip template.
+  addressLine2?: string;
+  headerNote1?: string; // e.g. "PAN: 123456789"
+  headerNote2?: string;
+  footerNote1?: string; // e.g. "This is a computer-generated payslip."
+  footerNote2?: string;
+  preparedBy?: string;
+  checkedBy?: string;
+  authorisedBy?: string;
 }
 
 export interface AppBranding {
