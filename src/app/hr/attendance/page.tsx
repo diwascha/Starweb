@@ -44,7 +44,7 @@ import {
     type AttendancePeriodLock
 } from '@/services/attendance-service';
 import { onHolidaysUpdate, onLeaveRequestsUpdate } from '@/services/hr-admin-service';
-import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate } from '@/lib/utils';
+import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate, getAttendanceRowHighlight } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -524,8 +524,10 @@ export default function AttendanceRegistryPage() {
                         <TableBody>
                             {isDataLoading ? (
                                 <TableRow key="loading-row"><TableCell colSpan={17} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
-                            ) : paginatedRecords.map(r => (
-                                <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors">
+                            ) : paginatedRecords.map(r => {
+                                const highlight = getAttendanceRowHighlight(r);
+                                return (
+                                <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors" style={highlight ? { backgroundColor: highlight } : undefined}>
                                     <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
                                     <TableCell className="font-mono font-bold text-blue-900">{r.dateBS}</TableCell>
                                     <TableCell className="font-black text-gray-900">{r.employeeName}</TableCell>
@@ -550,7 +552,8 @@ export default function AttendanceRegistryPage() {
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(r)}><Edit className="h-4 w-4 text-primary"/></Button>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                                );
+                            })}
                             {!isDataLoading && paginatedRecords.length === 0 && (
                                 <TableRow key="no-records-row">
                                     <TableCell colSpan={17} className="h-60 text-center text-muted-foreground italic">

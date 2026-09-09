@@ -201,6 +201,28 @@ export const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {
     }
 };
 
+/**
+ * Row highlight color for an attendance record, reproducing the VBA
+ * workbook's HighlightRow calls exactly (same RGB values, same rule order):
+ *   - Public Holiday: light green
+ *   - Absent on a Saturday: yellow (Saturday's own color, not the red used
+ *     for an absence on a working day)
+ *   - Absent on a working day: red
+ *   - Saturday (worked or not, when not absent): yellow
+ *   - "Review Hours" flag on an otherwise-normal working day: dark orange
+ *   - Everything else (Present, Leave, etc.): no highlight
+ * Purely a display concern - reads already-calculated fields, never alters
+ * the record or the calculation that produced it.
+ */
+export const getAttendanceRowHighlight = (record: { date: string; status: string; remarks?: string | null }): string | null => {
+    const isSaturday = new Date(record.date).getDay() === 6;
+    if (record.status === 'Public Holiday') return '#C6EFCE';
+    if (record.status === 'Absent') return isSaturday ? '#FFFF99' : '#FFC7CE';
+    if (record.status === 'Saturday') return '#FFFF99';
+    if (record.remarks && record.remarks.includes('Review Hours')) return '#FF8C00';
+    return null;
+};
+
 export const getAttendanceBadgeVariant = (status: AttendanceStatus) => {
     switch (status) {
         case 'Present': return 'outline';
