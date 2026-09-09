@@ -7,7 +7,7 @@ import {
     query, 
     where, 
 } from 'firebase/firestore';
-import { startOfDay, isEqual, isWithinInterval, format } from 'date-fns';
+import { startOfDay, isEqual, isWithinInterval, format, getWeek } from 'date-fns';
 import type { AttendanceRecord, HrConfig } from '@/lib/types';
 import { getEmployees } from '../employee-service';
 import { getHolidays, getLeaveRequests } from '../hr-admin-service';
@@ -79,6 +79,16 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const results: Omit<AttendanceRecord, 'id'>[] = [];
     const now = createTimestamp();
 
+    // Tracks how many late/early incidents (beyond grace) each employee has
+    // already used up this period, so the first N are forgiven per
+    // Free_Late/Free_Early. Logs are processed in chronological order, so a
+    // single running counter per employee (or per employee+week) is enough -
+    // no need to pre-group by employee first.
+    const lateIncidentCounts = new Map<string, number>();
+    const earlyIncidentCounts = new Map<string, number>();
+    const periodKey = (employeeId: string, period: 'WEEKLY' | 'MONTHLY', date: Date) =>
+        period === 'MONTHLY' ? employeeId : `${employeeId}-${getWeek(date)}`;
+
     for (const log of rawLogs) {
         const employee = employeeMap.get(log.employeeName.toLowerCase().trim());
         if (!employee) continue;
@@ -100,14 +110,37 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
             else {
                 const sOn = timeToMinutes(log.onDuty); const sOff = timeToMinutes(log.offDuty); const aIn = timeToMinutes(log.clockIn); const aOut = timeToMinutes(log.clockOut);
                 const lateMin = Math.max(0, aIn - sOn); const earlyMin = Math.max(0, sOff - aOut);
-                let latePen = 0; if (lateMin > config.hours.graceMin) latePen = Math.ceil((lateMin - config.hours.graceMin) / config.hours.blockMin) * config.hours.blockMin;
-                let earlyPen = 0; if (earlyMin > config.hours.graceMin) earlyPen = Math.ceil((earlyMin - config.hours.graceMin) / config.hours.blockMin) * config.hours.blockMin;
+
+                let latePen = 0;
+                if (lateMin > config.hours.graceMin) {
+                    const key = periodKey(employee.id, config.hours.freeLatePeriod, logDate);
+                    const usedPasses = (lateIncidentCounts.get(key) || 0) + 1;
+                    lateIncidentCounts.set(key, usedPasses);
+                    if (usedPasses > config.hours.freeLate) {
+                        latePen = Math.ceil((lateMin - config.hours.graceMin) / config.hours.blockMin) * config.hours.blockMin;
+                    }
+                }
+                let earlyPen = 0;
+                if (earlyMin > config.hours.graceMin) {
+                    const key = periodKey(employee.id, config.hours.freeEarlyPeriod, logDate);
+                    const usedPasses = (earlyIncidentCounts.get(key) || 0) + 1;
+                    earlyIncidentCounts.set(key, usedPasses);
+                    if (usedPasses > config.hours.freeEarly) {
+                        earlyPen = Math.ceil((earlyMin - config.hours.graceMin) / config.hours.blockMin) * config.hours.blockMin;
+                    }
+                }
+
                 const effIn = sOn + latePen; const effOut = sOff - earlyPen;
                 let paid = effOut > effIn ? applyFixedBreak(effIn, effOut, breakStartMins, breakEndMins) : 0;
                 let extra = log.statusFromMachine.toUpperCase().includes('EXTRAOK') ? (Math.floor((Math.max(0, sOn-aIn)+5)/30)*0.5 + Math.floor((Math.max(0, aOut-sOff)+5)/30)*0.5) : 0;
                 const gross = roundToNearest(paid + extra, config.hours.roundStep);
                 reg = Math.min(gross, config.hours.baseDayHours); ot = Math.max(0, gross - config.hours.baseDayHours);
                 finalStatus = 'Present';
+
+                const netActualHours = aOut > aIn ? applyFixedBreak(aIn, aOut, breakStartMins, breakEndMins) : 0;
+                if (netActualHours > config.hours.reviewThresh) {
+                    finalRemarks = finalRemarks ? `${finalRemarks}; Review Hours` : 'Review Hours';
+                }
             }
         }
 
