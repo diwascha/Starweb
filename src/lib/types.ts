@@ -469,6 +469,7 @@ export interface Payroll {
     ownership: string;
     source?: 'legacy-import' | 'consolidated-ledger-import' | 'recalculated'; // Provenance: historical imports are never overwritten by recalculation.
     sourceSheet?: string;
+    roundedNet?: number; // "Rounded Net" column, when the source sheet has one - the actual rupee-rounded payout amount.
 }
 
 export interface BehaviorAnalyticsEntry {

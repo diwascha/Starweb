@@ -107,7 +107,7 @@ export const getHeaderMap = (headerRow: any[]) => {
         rate: ['base'], regularPay: ['basic pay'], otPay: ['ot pay'], totalPay: ['gross'],
         absentDays: ['absent days'], deduction: ['absent amt.', 'deduction'], allowance: ['allowance'],
         bonus: ['bonus'], salaryTotal: ['gross salary'], tds: ['tds'], advance: ['advance'],
-        netPayment: ['final net', 'net'], remark: ['remark']
+        netPayment: ['final net', 'net'], roundedNet: ['rounded net'], remark: ['remark']
     };
     const cells = headerRow.map(h => String(h || '').trim().toLowerCase());
 

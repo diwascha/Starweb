@@ -1,13 +1,14 @@
 /**
- * @fileOverview Legacy monthly-sheet payroll importer.
+ * @fileOverview Monthly-sheet payroll block importer.
  *
- * The older salary workbooks (FY 2077/78 through 2082/83) do not have a
- * "Consolidated Ledger" sheet. Instead every month is its own sheet with two
- * unrelated horizontal blocks: an attendance log starting at column A, and a
- * payroll summary block (one row per employee) starting at whichever column
- * is literally headed "Employee". `processAttendanceImport` (lib/attendance.ts)
- * already reads the first block; this module reads the second one, which was
- * previously dropped on import entirely.
+ * Both the older standalone salary workbooks (FY 2077/78 through 2082/83)
+ * and the monthly detail sheets inside the newer "Consolidated Ledger"
+ * workbook (Shrawan 2083 onward) share the same two-block layout per sheet:
+ * an attendance log starting at column A, and a payroll summary block (one
+ * row per employee) starting at whichever column is literally headed
+ * "Employee". `processAttendanceImport` (lib/attendance.ts) reads the first
+ * block; this module reads the second one. The `source` parameter records
+ * which workbook family a row came from so the two can be told apart later.
  *
  * This data is historical: it is stored as-is and never recomputed.
  */
@@ -29,7 +30,7 @@ export interface LegacyPayrollImportResult {
  * Returns the column where the block's own "Employee" header sits, or null
  * if the sheet has no such block (e.g. it's a pure attendance sheet).
  */
-const findPayrollBlockStart = (headerRow: any[]): number | null => {
+export const findPayrollBlockStart = (headerRow: any[]): number | null => {
     let lastIdx = -1;
     headerRow.forEach((h, i) => {
         if (String(h || '').trim().toLowerCase() === 'employee') lastIdx = i;
@@ -56,7 +57,8 @@ export const importLegacyPayrollSheet = async (
     bsYear: number,
     bsMonth: number,
     sourceSheet: string,
-    importedBy: string
+    importedBy: string,
+    source: Payroll['source'] = 'legacy-import'
 ): Promise<LegacyPayrollImportResult> => {
     const result: LegacyPayrollImportResult = { payrollRecords: 0, newEmployees: 0 };
     const startCol = findPayrollBlockStart(headerRow);
@@ -115,6 +117,11 @@ export const importLegacyPayrollSheet = async (
         const rate = coerceNumber(get('rate'));
         const employee = ensureEmployee(rawName, rate);
 
+        // A "Rounded Net" column, when present, is the actual rupee-rounded
+        // payout amount - more authoritative than the unrounded "Net" figure.
+        const roundedNetRaw = get('roundedNet');
+        const netPayment = roundedNetRaw !== undefined ? coerceNumber(roundedNetRaw) : coerceNumber(get('netPayment'));
+
         const payrollId = `${bsYear}-${bsMonth}-${employee.id}`;
         const entry: Omit<Payroll, 'id'> = {
             bsYear,
@@ -141,12 +148,13 @@ export const importLegacyPayrollSheet = async (
             salaryTotal: coerceNumber(get('salaryTotal')),
             advance: coerceNumber(get('advance')),
             bonus: coerceNumber(get('bonus')),
-            netPayment: coerceNumber(get('netPayment')),
+            netPayment,
+            roundedNet: roundedNetRaw !== undefined ? coerceNumber(roundedNetRaw) : undefined,
             remark: String(get('remark') || ''),
             createdBy: importedBy,
             createdAt: now,
             ownership: employee.ownership || 'Both',
-            source: 'legacy-import',
+            source,
             sourceSheet,
         };
         batch.set(doc(collection(db, COLLECTIONS.PAYROLL), payrollId), entry, { merge: true });

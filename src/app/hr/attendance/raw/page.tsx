@@ -35,9 +35,14 @@ import {
 } from '@/services/attendance/data';
 import { addRawMachineLogs, addBulkManualLogs } from '@/services/attendance/import';
 import { importLegacyPayrollSheet } from '@/services/payroll/legacy-import';
-import { importConsolidatedLedger } from '@/services/vba-import-service';
+import {
+    previewLedgerSheet,
+    importLedgerWorkbook,
+    CONSOLIDATED_LEDGER_SUMMARY_SHEET,
+    type LedgerSheetPreview,
+    type ConfirmedSheetMapping,
+} from '@/services/attendance/ledger-import';
 import { resolvePeriodFromSheetName } from '@/lib/attendance';
-import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -70,12 +75,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
 
-const CONSOLIDATED_LEDGER_SHEET = 'Consolidated Ledger';
+interface MappingRow extends LedgerSheetPreview {
+    year: string;
+    month: string;
+    includeAttendance: boolean;
+    includePayroll: boolean;
+}
 
 export default function MachineLogsPage() {
     const { user, hasPermission } = useAuth();
     const { toast } = useToast();
-    const router = useRouter();
 
     const [logs, setLogs] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -94,9 +103,15 @@ export default function MachineLogsPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Consolidated Ledger import (new VBA-driven workbook format, FY2083/84+)
+    const [isReadingLedger, setIsReadingLedger] = useState(false);
     const [isImportingLedger, setIsImportingLedger] = useState(false);
     const [ledgerImportProgress, setLedgerImportProgress] = useState<string | null>(null);
     const ledgerFileInputRef = useRef<HTMLInputElement>(null);
+    const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
+    const [mappingRows, setMappingRows] = useState<MappingRow[]>([]);
+    const [hasConsolidatedSummary, setHasConsolidatedSummary] = useState(false);
+    const [includeConsolidatedSummary, setIncludeConsolidatedSummary] = useState(true);
+    const ledgerSheetsRef = useRef<Map<string, any[][]>>(new Map());
 
     // Filters
     const [filterMonth, setFilterMonth] = useState<string>('All');
@@ -157,9 +172,13 @@ export default function MachineLogsPage() {
     const totalPages = Math.ceil(filteredAndSortedLogs.length / itemsPerPage);
 
     // Sheets that hold something other than a month's attendance/payroll data
-    // (dashboards, lookup tables, logs, or the newer Consolidated Ledger format
-    // which has its own dedicated importer at /hr/payroll/import).
-    const NON_ATTENDANCE_SHEETS = new Set(['dashboard', 'log', 'rates', 'consolidated ledger', 'sheet1', 'sheet2']);
+    // (dashboards, lookup tables, logs, or the Consolidated Ledger summary
+    // sheet, which "Import Consolidated Ledger" handles separately). Sheets
+    // named "Sheet1"/"Sheet2" are NOT excluded here - that default Excel
+    // name is common enough on real exports that skipping it by name would
+    // silently drop legitimate data; a sheet with no recognizable header is
+    // already skipped gracefully per-sheet below.
+    const NON_ATTENDANCE_SHEETS = new Set(['dashboard', 'log', 'rates', 'consolidated ledger']);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -256,72 +275,116 @@ export default function MachineLogsPage() {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    // Phase 1: read the workbook and build a per-sheet preview for the user
+    // to confirm (or correct) before anything is written.
     const handleLedgerFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file || !user) return;
+        if (!file) return;
 
-        setIsImportingLedger(true);
-        setLedgerImportProgress('Reading spreadsheet...');
-
+        setIsReadingLedger(true);
         try {
             const XLSX = await import('xlsx');
             const reader = new FileReader();
-            reader.onload = async (event) => {
+            reader.onload = (event) => {
                 try {
                     const data = new Uint8Array(event.target?.result as ArrayBuffer);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
-                    const sheetName = workbook.SheetNames.find(
-                        (name) => name.trim().toLowerCase() === CONSOLIDATED_LEDGER_SHEET.toLowerCase()
+                    const candidateSheets = workbook.SheetNames.filter(
+                        name => !NON_ATTENDANCE_SHEETS.has(name.trim().toLowerCase()) || name.trim().toLowerCase() === CONSOLIDATED_LEDGER_SUMMARY_SHEET
                     );
 
-                    if (!sheetName) {
-                        toast({
-                            title: 'Sheet Not Found',
-                            description: `Could not find a sheet named "${CONSOLIDATED_LEDGER_SHEET}" in this workbook. Available sheets: ${workbook.SheetNames.join(', ')}`,
-                            variant: 'destructive',
+                    const sheetsMap = new Map<string, any[][]>();
+                    const rows: MappingRow[] = [];
+                    let foundSummary = false;
+                    const fallbackYear = new NepaliDate().getYear();
+                    const fallbackMonth = new NepaliDate().getMonth();
+
+                    for (const sheetName of candidateSheets) {
+                        const grid = XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[sheetName], { header: 1, defval: null });
+                        sheetsMap.set(sheetName, grid);
+                        const preview = previewLedgerSheet(sheetName, grid);
+                        if (preview.isConsolidatedSummary) {
+                            foundSummary = true;
+                            continue;
+                        }
+                        rows.push({
+                            ...preview,
+                            year: String(preview.guessedYear ?? fallbackYear),
+                            month: String(preview.guessedMonth ?? fallbackMonth),
+                            includeAttendance: preview.hasAttendance,
+                            includePayroll: preview.hasPayroll,
                         });
+                    }
+
+                    if (rows.length === 0 && !foundSummary) {
+                        toast({ title: 'Nothing Recognizable', description: `No attendance/payroll sheets or a "Consolidated Ledger" summary sheet were found. Available sheets: ${workbook.SheetNames.join(', ')}`, variant: 'destructive' });
                         return;
                     }
 
-                    const worksheet = workbook.Sheets[sheetName];
-                    const grid = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
-
-                    const headerRow = grid[1] || [];
-                    if (String(headerRow[0] || '').trim().toLowerCase() !== 'employee') {
-                        toast({
-                            title: 'Unexpected Sheet Layout',
-                            description: `Row 2, Column A was expected to read "Employee" but found "${headerRow[0] ?? '(empty)'}". The ledger layout may have changed.`,
-                            variant: 'destructive',
-                        });
-                        return;
-                    }
-
-                    setLedgerImportProgress('Mapping data blocks...');
-                    const result = await importConsolidatedLedger(grid, user.username, (current, total) => {
-                        setLedgerImportProgress(`Processing row ${current} of ${total}`);
-                    });
-
-                    toast({
-                        title: 'Ledger Import Successful',
-                        description: `Finalized: ${result.payroll} Payroll, ${result.behaviorLedger} Behavior, ${result.bonusSummaries} Bonus, and ${result.behaviorAnalytics} Analytics records.`,
-                    });
-
-                    setTimeout(() => router.push('/hr/payroll'), 1000);
+                    ledgerSheetsRef.current = sheetsMap;
+                    setMappingRows(rows);
+                    setHasConsolidatedSummary(foundSummary);
+                    setIncludeConsolidatedSummary(foundSummary);
+                    setIsMappingDialogOpen(true);
                 } catch (error: any) {
-                    toast({ title: 'Ledger Import Failed', description: error.message || 'Failed to read the Excel file.', variant: 'destructive' });
+                    toast({ title: 'Could Not Read File', description: error.message || 'Failed to parse the Excel file.', variant: 'destructive' });
                 } finally {
-                    setIsImportingLedger(false);
-                    setLedgerImportProgress(null);
+                    setIsReadingLedger(false);
                 }
             };
             reader.readAsArrayBuffer(file);
         } catch (err) {
-            setIsImportingLedger(false);
-            setLedgerImportProgress(null);
+            setIsReadingLedger(false);
             toast({ title: 'System Error', description: 'Failed to load spreadsheet processor.', variant: 'destructive' });
         }
         if (ledgerFileInputRef.current) ledgerFileInputRef.current.value = '';
+    };
+
+    // Phase 2: commit exactly what the user confirmed in the mapping dialog.
+    const handleConfirmLedgerImport = async () => {
+        if (!user) return;
+        const mappings: ConfirmedSheetMapping[] = mappingRows
+            .filter(r => r.includeAttendance || r.includePayroll)
+            .map(r => ({
+                sheetName: r.sheetName,
+                year: parseInt(r.year, 10),
+                month: parseInt(r.month, 10),
+                includeAttendance: r.includeAttendance,
+                includePayroll: r.includePayroll,
+            }));
+
+        if (mappings.length === 0 && !includeConsolidatedSummary) {
+            toast({ title: 'Nothing Selected', description: 'Select at least one sheet to import.', variant: 'destructive' });
+            return;
+        }
+
+        setIsImportingLedger(true);
+        setIsMappingDialogOpen(false);
+        setLedgerImportProgress('Starting import...');
+        try {
+            const result = await importLedgerWorkbook(
+                ledgerSheetsRef.current,
+                mappings,
+                includeConsolidatedSummary && hasConsolidatedSummary,
+                user.username,
+                (label) => setLedgerImportProgress(`Processing: ${label}`)
+            );
+
+            toast({
+                title: 'Ledger Import Complete',
+                description: `${result.attendanceRecords} attendance records, ${result.payrollRecords} payroll records${result.bonusSummaries || result.behaviorLedger || result.behaviorAnalytics ? `, ${result.bonusSummaries} bonus summaries, ${result.behaviorLedger} behavior ledger, ${result.behaviorAnalytics} analytics entries` : ''}${result.newEmployees ? `, ${result.newEmployees} new employees onboarded` : ''}.${result.skippedSheets.length ? ` Skipped: ${result.skippedSheets.join(', ')}.` : ''}`,
+            });
+        } catch (error: any) {
+            toast({ title: 'Ledger Import Failed', description: error.message || 'Failed to import the confirmed sheets.', variant: 'destructive' });
+        } finally {
+            setIsImportingLedger(false);
+            setLedgerImportProgress(null);
+        }
+    };
+
+    const updateMappingRow = (sheetName: string, updates: Partial<MappingRow>) => {
+        setMappingRows(prev => prev.map(r => r.sheetName === sheetName ? { ...r, ...updates } : r));
     };
 
     const requestSort = (key: SortKey) => {
@@ -351,7 +414,7 @@ export default function MachineLogsPage() {
                     />
                     <Button
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={isImporting || isImportingLedger}
+                        disabled={isImporting || isImportingLedger || isReadingLedger}
                         className="h-10 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20"
                     >
                         {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
@@ -368,11 +431,11 @@ export default function MachineLogsPage() {
                     <Button
                         variant="outline"
                         onClick={() => ledgerFileInputRef.current?.click()}
-                        disabled={isImporting || isImportingLedger}
+                        disabled={isImporting || isImportingLedger || isReadingLedger}
                         className="h-10 font-black text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5"
                     >
-                        {isImportingLedger ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Terminal className="mr-2 h-4 w-4"/>}
-                        {isImportingLedger ? 'Processing...' : 'Import Consolidated Ledger'}
+                        {(isImportingLedger || isReadingLedger) ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Terminal className="mr-2 h-4 w-4"/>}
+                        {isReadingLedger ? 'Reading...' : isImportingLedger ? 'Processing...' : 'Import Consolidated Ledger'}
                     </Button>
                 </div>
             </header>
@@ -561,6 +624,93 @@ export default function MachineLogsPage() {
                     </CardFooter>
                 )}
             </Card>
+
+            <Dialog open={isMappingDialogOpen} onOpenChange={setIsMappingDialogOpen}>
+                <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900">Confirm Sheet Placement</DialogTitle>
+                        <DialogDescription>
+                            Confirm the year and month each sheet belongs to before importing. Attendance rows use their own dates when present; the payroll block has no date column of its own, so this is what files it under a period.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {hasConsolidatedSummary && (
+                        <label className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20 cursor-pointer">
+                            <Checkbox checked={includeConsolidatedSummary} onCheckedChange={(v) => setIncludeConsolidatedSummary(Boolean(v))} />
+                            <div>
+                                <p className="text-xs font-black uppercase text-gray-900">Also Import "Consolidated Ledger" Summary</p>
+                                <p className="text-[10px] text-muted-foreground">Imports its own pre-computed Bonus, Behavior, and Analytics sections.</p>
+                            </div>
+                        </label>
+                    )}
+
+                    <div className="border rounded-lg overflow-hidden">
+                        <Table className="text-xs">
+                            <TableHeader className="bg-muted/30">
+                                <TableRow>
+                                    <TableHead className="pl-4 font-bold">Sheet</TableHead>
+                                    <TableHead className="text-center font-bold">Year (BS)</TableHead>
+                                    <TableHead className="text-center font-bold">Month (BS)</TableHead>
+                                    <TableHead className="text-center font-bold">Attendance</TableHead>
+                                    <TableHead className="text-center font-bold">Payroll</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {mappingRows.map(row => (
+                                    <TableRow key={row.sheetName} className="h-14">
+                                        <TableCell className="pl-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-gray-900">{row.sheetName}</span>
+                                                <span className="text-[9px] text-muted-foreground uppercase">{row.rowCount} rows{!row.hasAttendance && !row.hasPayroll ? ' - no recognizable data' : ''}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Select value={row.year} onValueChange={(v) => updateMappingRow(row.sheetName, { year: v })}>
+                                                <SelectTrigger className="h-8 w-[90px] mx-auto"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {Array.from({ length: 15 }, (_, i) => 2077 + i).map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Select value={row.month} onValueChange={(v) => updateMappingRow(row.sheetName, { month: v })}>
+                                                <SelectTrigger className="h-8 w-[120px] mx-auto"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Checkbox
+                                                checked={row.includeAttendance}
+                                                disabled={!row.hasAttendance}
+                                                onCheckedChange={(v) => updateMappingRow(row.sheetName, { includeAttendance: Boolean(v) })}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Checkbox
+                                                checked={row.includePayroll}
+                                                disabled={!row.hasPayroll}
+                                                onCheckedChange={(v) => updateMappingRow(row.sheetName, { includePayroll: Boolean(v) })}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {mappingRows.length === 0 && (
+                                    <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground italic">No monthly sheets detected - only the summary sheet, if selected above, will be imported.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsMappingDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleConfirmLedgerImport} className="font-black text-xs uppercase tracking-widest">
+                            Confirm & Import
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -52,10 +52,13 @@ export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | Do
         salaryTotal: coerceNumber(data.salaryTotal),
         advance: coerceNumber(data.advance),
         netPayment: coerceNumber(data.netPayment),
+        roundedNet: data.roundedNet !== undefined ? coerceNumber(data.roundedNet) : undefined,
         remark: String(data.remark || ''),
         createdBy: String(data.createdBy || 'System'),
         createdAt: String(data.createdAt || ''),
         ownership: data.ownership || 'Both',
+        source: data.source || undefined,
+        sourceSheet: data.sourceSheet || undefined,
     };
 };
 
