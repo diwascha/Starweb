@@ -69,10 +69,10 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             salaryTotal: acc.salaryTotal + (curr.salaryTotal || 0),
             advance: acc.advance + (curr.advance || 0),
             netPayment: acc.netPayment + (curr.netPayment || 0),
-            bonus: acc.bonus + (curr.bonus || 0),
-        }), { 
-            regularHours: 0, otHours: 0, absentDays: 0, regularPay: 0, otPay: 0, allowance: 0, 
-            totalPay: 0, tds: 0, salaryTotal: 0, advance: 0, netPayment: 0, bonus: 0
+            roundedNet: acc.roundedNet + (curr.roundedNet ?? curr.netPayment ?? 0),
+        }), {
+            regularHours: 0, otHours: 0, absentDays: 0, regularPay: 0, otPay: 0, allowance: 0,
+            totalPay: 0, tds: 0, salaryTotal: 0, advance: 0, netPayment: 0, roundedNet: 0
         });
     }, [monthlyPayroll]);
 
@@ -83,7 +83,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             'Regular Hrs': p.regularHours,
             'OT Hrs': p.otHours,
             'Absent Days': p.absentDays,
-            'Base': p.rate,
+            'Base (Salary or Rate)': p.rate,
             'Basic Pay': p.regularPay,
             'OT Pay': p.otPay,
             'Allowance': p.allowance,
@@ -91,8 +91,8 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             'TDS': p.tds,
             'Gross Salary': p.salaryTotal,
             'Advance': p.advance,
-            'Bonus': p.bonus,
-            'Final Net': p.netPayment,
+            'Net': p.netPayment,
+            'Rounded Net': p.roundedNet ?? p.netPayment,
             'Remarks': p.remark,
         }));
         
@@ -127,28 +127,29 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                         <Table className="text-[11px] border-collapse">
                             <TableHeader>
                                 <TableRow className="bg-muted/50 font-black h-11 border-b-2">
-                                    <TableHead className="sticky left-0 bg-background z-20 border-r min-w-[160px] text-gray-900 uppercase tracking-tighter">Employee Name</TableHead>
-                                    <TableHead className="text-right uppercase px-3">Reg. Hrs</TableHead>
+                                    <TableHead className="sticky left-0 bg-background z-20 border-r min-w-[160px] text-gray-900 uppercase tracking-tighter">Employee</TableHead>
+                                    <TableHead className="text-right uppercase px-3">Regular Hrs</TableHead>
                                     <TableHead className="text-right uppercase px-3">OT Hrs</TableHead>
-                                    <TableHead className="text-right uppercase px-3 text-red-600">Absent</TableHead>
-                                    <TableHead className="text-right uppercase px-3 text-muted-foreground">Base</TableHead>
+                                    <TableHead className="text-right uppercase px-3 text-red-600">Absent Days</TableHead>
+                                    <TableHead className="text-right uppercase px-3 text-muted-foreground">Base (Salary or Rate)</TableHead>
                                     <TableHead className="text-right uppercase px-3 font-bold text-blue-900">Basic Pay</TableHead>
                                     <TableHead className="text-right uppercase px-3">OT Pay</TableHead>
-                                    <TableHead className="text-right uppercase px-3">Extra</TableHead>
+                                    <TableHead className="text-right uppercase px-3">Allowance</TableHead>
                                     <TableHead className="text-right uppercase px-3 font-black bg-muted/20">Gross</TableHead>
                                     <TableHead className="text-right uppercase px-3 text-red-600">TDS</TableHead>
+                                    <TableHead className="text-right uppercase px-3 font-bold">Gross Salary</TableHead>
                                     <TableHead className="text-right uppercase px-3 font-black text-orange-600">Advance</TableHead>
-                                    <TableHead className="text-right uppercase px-3 text-emerald-600">Bonus</TableHead>
-                                    <TableHead className="text-right uppercase px-3 font-black text-emerald-700 bg-emerald-50/30">Final Net</TableHead>
-                                    <TableHead className="min-w-[150px] uppercase px-3">Remark</TableHead>
+                                    <TableHead className="text-right uppercase px-3 font-black">Net</TableHead>
+                                    <TableHead className="text-right uppercase px-3 font-black text-emerald-700 bg-emerald-50/30">Rounded Net</TableHead>
+                                    <TableHead className="min-w-[150px] uppercase px-3">Remarks</TableHead>
                                     <TableHead className="print:hidden sticky right-0 bg-background z-10 border-l"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow><TableCell colSpan={15} className="text-center py-20"><Loader2 className="mr-2 h-8 w-8 animate-spin inline-block opacity-20" /></TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={16} className="text-center py-20"><Loader2 className="mr-2 h-8 w-8 animate-spin inline-block opacity-20" /></TableCell></TableRow>
                                 ) : monthlyPayroll.length === 0 ? (
-                                    <TableRow><TableCell colSpan={15} className="text-center py-20 text-muted-foreground italic">No financial records for this period.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={16} className="text-center py-20 text-muted-foreground italic">No financial records for this period.</TableCell></TableRow>
                                 ) : monthlyPayroll.map(p => (
                                     <TableRow key={p.id} className="hover:bg-muted/30 h-12 border-b transition-colors group">
                                         <TableCell className="font-black sticky left-0 bg-background z-10 border-r text-gray-900 group-hover:text-primary">{p.employeeName}</TableCell>
@@ -161,9 +162,10 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                                         <TableCell className="text-right tabular-nums px-3">{(p.allowance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right tabular-nums px-3 font-black bg-muted/10">{(p.totalPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right tabular-nums px-3 text-red-600 font-medium">{(p.tds || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3 font-bold">{(p.salaryTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right tabular-nums px-3 text-orange-600 font-bold">{(p.advance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-right tabular-nums px-3 text-emerald-600 font-black">{(p.bonus || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-right tabular-nums px-3 font-black text-emerald-700 bg-emerald-50/20">{(p.netPayment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3 font-bold">{(p.netPayment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3 font-black text-emerald-700 bg-emerald-50/20">{(p.roundedNet ?? p.netPayment ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-[10px] text-muted-foreground italic truncate max-w-[150px] px-3">{p.remark}</TableCell>
                                         <TableCell className="print:hidden sticky right-0 bg-background z-10 border-l px-2">
                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => router.push(`/hr/payslip?employeeId=${p.employeeId}&year=${selectedBsYear}&month=${selectedBsMonth}`)}>
@@ -186,9 +188,10 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                                         <TableCell className="text-right tabular-nums px-3">{totals.allowance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right tabular-nums px-3">{totals.totalPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right tabular-nums px-3">{totals.tds.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{totals.salaryTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right tabular-nums px-3">{totals.advance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-right tabular-nums px-3">{totals.bonus.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-right tabular-nums px-3 text-emerald-700">{totals.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{totals.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3 text-emerald-700">{totals.roundedNet.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell colSpan={2} className="print:hidden"></TableCell>
                                     </TableRow>
                                 </TableFooter>

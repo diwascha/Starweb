@@ -15,6 +15,7 @@
  */
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
+import { format } from 'date-fns';
 import type { AttendanceRecord, Employee } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
@@ -27,6 +28,40 @@ import { importConsolidatedLedger } from '../vba-import-service';
 export const CONSOLIDATED_LEDGER_SUMMARY_SHEET = 'consolidated ledger';
 // Sheets that are never a month's attendance/payroll data, regardless of name.
 export const NON_DATA_SHEETS = new Set(['dashboard', 'log', 'rates']);
+
+/**
+ * Looks up a column by header name (case/whitespace-insensitive, substring
+ * match) in a row's raw imported data. Historical sheets don't all carry the
+ * same columns, so any of these may legitimately be absent.
+ */
+const findRawColumn = (rawImportData: Record<string, any>, aliases: string[]): any => {
+    const entries = Object.entries(rawImportData);
+    for (const alias of aliases) {
+        const exact = entries.find(([key]) => key.trim().toLowerCase() === alias);
+        if (exact) return exact[1];
+    }
+    for (const alias of aliases) {
+        const partial = entries.find(([key]) => key.trim().toLowerCase().includes(alias));
+        if (partial) return partial[1];
+    }
+    return undefined;
+};
+
+/** Parses an Excel duration cell (decimal hours, "H:MM" text, or a time-of-day fraction) into hours. */
+const parseDurationHours = (raw: any): number | null => {
+    if (raw === null || raw === undefined || raw === '') return null;
+    if (typeof raw === 'number') {
+        return raw < 1 ? raw * 24 : raw;
+    }
+    const str = String(raw).trim();
+    if (!str || str === '-') return null;
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(str)) {
+        const [h, m] = str.split(':').map(Number);
+        return (h || 0) + (m || 0) / 60;
+    }
+    const num = parseFloat(str);
+    return isNaN(num) ? null : num;
+};
 
 export interface CalculatedAttendanceImportResult {
     attendanceRecords: number;
@@ -96,6 +131,7 @@ export const importCalculatedAttendanceSheet = async (
         const employee = ensureEmployee(row.employeeName);
         const dateKey = row.dateADISO.slice(0, 10);
         const docId = `${employee.id}_${dateKey}_ledger`;
+        const weekdayFromSheet = String(findRawColumn(row.rawImportData, ['weekday', 'week day']) ?? '').trim();
         const record: Omit<AttendanceRecord, 'id'> = {
             date: row.dateADISO,
             dateBS: row.dateBS,
@@ -115,6 +151,11 @@ export const importCalculatedAttendanceSheet = async (
             calculatedBy: importedBy,
             remarks: row.remarks || null,
             rowIndex: row.importRowIndex,
+            weekday: weekdayFromSheet || format(new Date(row.dateADISO), 'EEEE'),
+            absent: row.status === 'Absent',
+            gTime: parseDurationHours(findRawColumn(row.rawImportData, ['g. time', 'g time', 'gross time'])),
+            breakHours: parseDurationHours(findRawColumn(row.rawImportData, ['break'])),
+            gHours: parseDurationHours(findRawColumn(row.rawImportData, ['g. hours', 'g hours'])),
         };
         batch.set(doc(getAttendanceCollection(), docId), record, { merge: true });
         writeCount++;

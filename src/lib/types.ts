@@ -296,7 +296,7 @@ export interface AttendanceRecord {
     offDuty: string | null;
     clockIn: string | null;
     clockOut: string | null;
-    status: string; 
+    status: string;
     grossHours: number;
     overtimeHours: number;
     regularHours: number;
@@ -305,6 +305,11 @@ export interface AttendanceRecord {
     remarks: string | null;
     sourceLogId?: string; // Link to the raw machine log
     rowIndex?: number; // Preserves original import order
+    weekday?: string; // Day-of-week name, matching the Excel "Weekday" column
+    absent?: boolean; // Matches the Excel "Absent" boolean column
+    gTime?: number | null; // "G. Time": raw clock-in-to-clock-out span, before break subtraction
+    breakHours?: number | null; // "Break": time subtracted for the fixed break window
+    gHours?: number | null; // "G. Hours": net worked hours after break, before rounding/rules
 }
 
 export interface HrShift {

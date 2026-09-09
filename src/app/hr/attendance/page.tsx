@@ -49,7 +49,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import NepaliDate from 'nepali-date-converter';
 import { format as formatDate, startOfDay, isEqual, isWithinInterval } from 'date-fns';
 import { NEPALI_MONTHS } from '@/lib/constants';
@@ -450,36 +450,49 @@ export default function AttendanceRegistryPage() {
                             <TableRow className="hover:bg-transparent h-12">
                                 <TableHead className="pl-6 font-bold">
                                     <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs font-bold text-foreground hover:bg-transparent">
-                                        Date (AD) <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'date' ? "opacity-100" : "opacity-30")} />
+                                        Date <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'date' ? "opacity-100" : "opacity-30")} />
                                     </Button>
                                 </TableHead>
-                                <TableHead className="font-bold">Date (BS)</TableHead>
-                                <TableHead className="font-bold">Employee Name</TableHead>
-                                <TableHead className="text-center font-bold">Status</TableHead>
-                                <TableHead className="text-center font-bold">Clock In/Out</TableHead>
-                                <TableHead className="text-right font-bold">Normal Hrs</TableHead>
-                                <TableHead className="text-right font-bold">OT Hrs</TableHead>
+                                <TableHead className="font-bold">BS Date</TableHead>
+                                <TableHead className="font-bold">Name</TableHead>
+                                <TableHead className="font-bold">Weekday</TableHead>
+                                <TableHead className="text-center font-bold">On duty</TableHead>
+                                <TableHead className="text-center font-bold">Off duty</TableHead>
+                                <TableHead className="text-center font-bold">Clock In</TableHead>
+                                <TableHead className="text-center font-bold">Clock Out</TableHead>
+                                <TableHead className="text-center font-bold">Absent</TableHead>
+                                <TableHead className="text-right font-bold">G. Time</TableHead>
+                                <TableHead className="text-right font-bold">Break</TableHead>
+                                <TableHead className="text-right font-bold">G. Hours</TableHead>
+                                <TableHead className="text-right font-bold">Gross Hours</TableHead>
+                                <TableHead className="text-right font-bold">Overtime</TableHead>
+                                <TableHead className="text-right font-bold">Regular Hours</TableHead>
                                 <TableHead className="font-bold">Remarks</TableHead>
                                 <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isDataLoading ? (
-                                <TableRow key="loading-row"><TableCell colSpan={9} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                                <TableRow key="loading-row"><TableCell colSpan={17} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                             ) : paginatedRecords.map(r => (
                                 <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors">
                                     <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
                                     <TableCell className="font-mono font-bold text-blue-900">{r.dateBS}</TableCell>
                                     <TableCell className="font-black text-gray-900">{r.employeeName}</TableCell>
-                                    <TableCell className="text-center"><Badge variant={getAttendanceBadgeVariant(r.status as any)} className="text-[9px] font-black uppercase h-5">{r.status}</Badge></TableCell>
-                                    <TableCell className="text-center font-medium text-blue-800">
-                                        <div className="flex flex-col">
-                                            <span>{formatTimeForDisplay(r.clockIn)} — {formatTimeForDisplay(r.clockOut)}</span>
-                                            <span className="text-[8px] uppercase text-muted-foreground">Ref: {formatTimeForDisplay(r.onDuty)} — {formatTimeForDisplay(r.offDuty)}</span>
-                                        </div>
+                                    <TableCell className="text-[10px] text-muted-foreground uppercase">{r.weekday || '—'}</TableCell>
+                                    <TableCell className="text-center text-[11px] text-muted-foreground">{formatTimeForDisplay(r.onDuty)}</TableCell>
+                                    <TableCell className="text-center text-[11px] text-muted-foreground">{formatTimeForDisplay(r.offDuty)}</TableCell>
+                                    <TableCell className="text-center font-medium text-blue-800">{formatTimeForDisplay(r.clockIn)}</TableCell>
+                                    <TableCell className="text-center font-medium text-blue-800">{formatTimeForDisplay(r.clockOut)}</TableCell>
+                                    <TableCell className="text-center">
+                                        {r.absent ? <Badge variant="destructive" className="text-[9px] font-black uppercase h-5">Yes</Badge> : <span className="text-[10px] text-muted-foreground">No</span>}
                                     </TableCell>
-                                    <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>
+                                    <TableCell className="text-right text-[11px] text-muted-foreground">{r.gTime != null ? r.gTime.toFixed(2) : '—'}</TableCell>
+                                    <TableCell className="text-right text-[11px] text-muted-foreground">{r.breakHours != null ? r.breakHours.toFixed(2) : '—'}</TableCell>
+                                    <TableCell className="text-right text-[11px] text-muted-foreground">{r.gHours != null ? r.gHours.toFixed(2) : '—'}</TableCell>
+                                    <TableCell className="text-right font-bold text-gray-900">{r.grossHours.toFixed(1)}</TableCell>
                                     <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>
+                                    <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>
                                     <TableCell className="max-w-[200px] truncate text-[10px] text-muted-foreground italic" title={getDisplayRemark(r)}>
                                         {getDisplayRemark(r)}
                                     </TableCell>
@@ -490,7 +503,7 @@ export default function AttendanceRegistryPage() {
                             ))}
                             {!isDataLoading && paginatedRecords.length === 0 && (
                                 <TableRow key="no-records-row">
-                                    <TableCell colSpan={9} className="h-60 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={17} className="h-60 text-center text-muted-foreground italic">
                                         <div className="flex flex-col items-center gap-3">
                                             <AlertCircle className="h-10 w-10 opacity-10"/>
                                             <p>No processed records found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Run the Hourly Calculation Logic to generate records.</span></p>
@@ -500,6 +513,7 @@ export default function AttendanceRegistryPage() {
                             )}
                         </TableBody>
                     </Table>
+                    <ScrollBar orientation="horizontal" />
                 </ScrollArea>
             </CardContent>
             {(totalPages > 1 || itemsPerPage !== -1) && (

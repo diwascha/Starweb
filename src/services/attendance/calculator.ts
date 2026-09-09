@@ -144,7 +144,26 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
             }
         }
 
-        results.push({ date: log.date, dateBS: log.dateBS, bsYear: year, bsMonth: month, employeeName: employee.name, employeeId: employee.id, onDuty: log.onDuty, offDuty: log.offDuty, clockIn: log.clockIn, clockOut: log.clockOut, status: finalStatus, regularHours: reg, overtimeHours: ot, grossHours: reg + ot, calculatedAt: now, calculatedBy, remarks: finalRemarks || null, sourceLogId: log.id, rowIndex: log.rowIndex });
+        let gTime: number | null = null;
+        let breakHours: number | null = null;
+        let gHours: number | null = null;
+        if (log.clockIn && log.clockOut) {
+            const aIn = timeToMinutes(log.clockIn);
+            const aOut = timeToMinutes(log.clockOut);
+            if (aOut > aIn) {
+                gTime = (aOut - aIn) / 60;
+                gHours = applyFixedBreak(aIn, aOut, breakStartMins, breakEndMins);
+                breakHours = gTime - gHours;
+            }
+        }
+
+        results.push({
+            date: log.date, dateBS: log.dateBS, bsYear: year, bsMonth: month, employeeName: employee.name, employeeId: employee.id,
+            onDuty: log.onDuty, offDuty: log.offDuty, clockIn: log.clockIn, clockOut: log.clockOut, status: finalStatus,
+            regularHours: reg, overtimeHours: ot, grossHours: reg + ot, calculatedAt: now, calculatedBy,
+            remarks: finalRemarks || null, sourceLogId: log.id, rowIndex: log.rowIndex,
+            weekday: format(logDate, 'EEEE'), absent: finalStatus === 'Absent', gTime, breakHours, gHours,
+        });
     }
 
     const CHUNK = 400;
