@@ -84,7 +84,7 @@ export const addRawMachineLogs = async (
                 clockIn: p.clockIn, clockOut: p.clockOut, statusFromMachine: p.status,
                 regularHoursFromMachine: p.regularHours, overtimeHoursFromMachine: p.overtimeHours,
                 remarks: p.remarks, importId, importedAt: now, importedBy, sourceSheet: sourceSheetName,
-                rawPayload: p.rawPayload, rowIndex: p.importRowIndex,
+                rawPayload: p.rawImportData, rowIndex: p.importRowIndex,
             };
             const docRef = doc(getRawLogsCollection(), compositeKey);
             if (!existing) { operations.push({ ref: docRef, data: logData }); createdCount++; }

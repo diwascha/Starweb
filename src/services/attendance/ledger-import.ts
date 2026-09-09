@@ -231,13 +231,23 @@ export const importLedgerWorkbook = async (
         if (!grid) continue;
 
         onProgress(mapping.sheetName);
-        try {
-            if (mapping.includeAttendance) {
+
+        // Attendance and payroll are two independent blocks on the same
+        // sheet - a failure in one (e.g. a Firestore rejection specific to
+        // one field) must not silently discard the other's already-written
+        // records, and must not disappear as an unexplained "skipped sheet".
+        if (mapping.includeAttendance) {
+            try {
                 const attResult = await importCalculatedAttendanceSheet(grid, mapping.sheetName, importedBy);
                 result.attendanceRecords += attResult.attendanceRecords;
                 result.newEmployees += attResult.newEmployees;
+            } catch (error: any) {
+                console.error(`Ledger import: attendance block failed for sheet "${mapping.sheetName}"`, error);
+                result.skippedSheets.push(`${mapping.sheetName} (attendance: ${error?.message || 'unknown error'})`);
             }
-            if (mapping.includePayroll) {
+        }
+        if (mapping.includePayroll) {
+            try {
                 const { headerRow, headerIndex } = processAttendanceImport(grid);
                 if (headerIndex >= 0) {
                     const payResult = await importLegacyPayrollSheet(
@@ -247,9 +257,10 @@ export const importLedgerWorkbook = async (
                     result.payrollRecords += payResult.payrollRecords;
                     result.newEmployees += payResult.newEmployees;
                 }
+            } catch (error: any) {
+                console.error(`Ledger import: payroll block failed for sheet "${mapping.sheetName}"`, error);
+                result.skippedSheets.push(`${mapping.sheetName} (payroll: ${error?.message || 'unknown error'})`);
             }
-        } catch {
-            result.skippedSheets.push(mapping.sheetName);
         }
     }
 

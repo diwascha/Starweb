@@ -149,13 +149,15 @@ export const importLegacyPayrollSheet = async (
             advance: coerceNumber(get('advance')),
             bonus: coerceNumber(get('bonus')),
             netPayment,
-            roundedNet: roundedNetRaw !== undefined ? coerceNumber(roundedNetRaw) : undefined,
             remark: String(get('remark') || ''),
             createdBy: importedBy,
             createdAt: now,
             ownership: employee.ownership || 'Both',
             source,
             sourceSheet,
+            // Firestore rejects an explicit `undefined` field value, so this
+            // is only present at all when the sheet actually has the column.
+            ...(roundedNetRaw !== undefined ? { roundedNet: coerceNumber(roundedNetRaw) } : {}),
         };
         batch.set(doc(collection(db, COLLECTIONS.PAYROLL), payrollId), entry, { merge: true });
         writeCount++;
