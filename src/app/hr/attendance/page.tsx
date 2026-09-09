@@ -33,6 +33,7 @@ import {
     updateAttendanceRecord,
     deleteAttendanceRecord,
     deleteAttendanceForMonth,
+    deleteAttendanceAndPayrollForFiscalYear,
     getAttendanceForMonth,
     getAttendanceYears,
     onAttendanceUpdate,
@@ -257,14 +258,35 @@ export default function AttendanceRegistryPage() {
     }
   };
 
+  const [isDeletingFiscalYear, setIsDeletingFiscalYear] = useState(false);
+
   const handleDeleteMonth = async () => {
     if (selectedFyMonthIndex === 'All') return;
     try {
         const target = getFiscalYearMonths(parseInt(selectedFiscalYear))[parseInt(selectedFyMonthIndex)];
-        await deleteAttendanceForMonth(target.bsYear, target.bsMonth);
-        toast({ title: 'Period Cleared' });
+        const result = await deleteAttendanceForMonth(target.bsYear, target.bsMonth);
+        if (result.locked) {
+            toast({ title: 'Period Locked', description: 'Unlock this period before deleting it.', variant: 'destructive' });
+        } else {
+            toast({ title: 'Period Cleared', description: 'Attendance and payroll for this month have been removed.' });
+        }
     } catch {
         toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteFiscalYear = async () => {
+    setIsDeletingFiscalYear(true);
+    try {
+        const result = await deleteAttendanceAndPayrollForFiscalYear(getFiscalYearMonths(fyStart));
+        toast({
+            title: 'Fiscal Year Cleared',
+            description: `Removed attendance and payroll for ${result.monthsDeleted} month(s).${result.monthsSkippedLocked ? ` ${result.monthsSkippedLocked} locked month(s) were skipped.` : ''}`,
+        });
+    } catch {
+        toast({ title: 'Error', description: 'Could not clear the fiscal year.', variant: 'destructive' });
+    } finally {
+        setIsDeletingFiscalYear(false);
     }
   };
 
@@ -424,18 +446,46 @@ export default function AttendanceRegistryPage() {
                 )}
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm" disabled={selectedFyMonthIndex === 'All'} title={selectedFyMonthIndex === 'All' ? 'Select a specific month to clear.' : undefined} className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={selectedFyMonthIndex === 'All' || isCurrentViewLocked}
+                            title={selectedFyMonthIndex === 'All' ? 'Select a specific month to clear.' : isCurrentViewLocked ? 'Unlock this period before deleting it.' : undefined}
+                            className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]"
+                        >
                             <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Clear Period
                         </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
                             <AlertDialogTitle>Clear Processed Records?</AlertDialogTitle>
-                            <AlertDialogDescription>This will remove all calculated work hours for this month. Raw machine data will be preserved.</AlertDialogDescription>
+                            <AlertDialogDescription>This will remove all calculated work hours and payroll for this month. Raw machine data will be preserved.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction onClick={handleDeleteMonth} className="bg-destructive text-white">Clear Now</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={isDeletingFiscalYear}
+                            className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]"
+                        >
+                            {isDeletingFiscalYear ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />} Clear Fiscal Year
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Clear All Data for FY {formatFiscalYear(fyStart)}?</AlertDialogTitle>
+                            <AlertDialogDescription>This will remove all calculated work hours and payroll for every month in this fiscal year. Locked months are skipped. Raw machine data will be preserved. This action is irreversible.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteFiscalYear} className="bg-destructive text-white">Clear Fiscal Year</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>

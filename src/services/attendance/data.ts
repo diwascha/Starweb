@@ -6,11 +6,12 @@ import {
     onSnapshot, 
     DocumentData, 
     QueryDocumentSnapshot, 
-    getDocs, 
-    query, 
-    where, 
-    updateDoc, 
-    deleteDoc, 
+    getDocs,
+    getDoc,
+    query,
+    where,
+    updateDoc,
+    deleteDoc,
     orderBy,
     writeBatch
 } from 'firebase/firestore';
@@ -167,20 +168,68 @@ export const deleteAttendanceRecord = async (id: string) => {
     });
 };
 
-export const deleteAttendanceForMonth = async (year: number, month: number) => {
+/**
+ * True if either the attendance or the payroll period lock for this BS
+ * year/month is set. Deletion (single-month or fiscal-year-wide) must never
+ * touch a locked period - that lock exists specifically to protect a
+ * finalized or imported month from being wiped.
+ */
+const isPeriodLocked = async (bsYear: number, bsMonth: number): Promise<boolean> => {
     const { db } = getFirebase();
-    const q = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
-    const snap = await getDocs(q);
+    const id = `${bsYear}-${bsMonth}`;
+    const [attLock, payLock] = await Promise.all([
+        getDoc(doc(collection(db, 'attendance_periods'), id)),
+        getDoc(doc(collection(db, 'payroll_periods'), id)),
+    ]);
+    return Boolean(attLock.data()?.locked) || Boolean(payLock.data()?.locked);
+};
+
+/**
+ * Deletes processed Attendance and Payroll records for one BS year/month
+ * together - payroll is derived from attendance, so leaving stale payroll
+ * behind after wiping its source attendance would be worse than deleting
+ * nothing. Refuses (no-op) if the period is locked.
+ */
+export const deleteAttendanceForMonth = async (year: number, month: number): Promise<{ deleted: boolean; locked: boolean }> => {
+    if (await isPeriodLocked(year, month)) {
+        return { deleted: false, locked: true };
+    }
+    const { db } = getFirebase();
+    const [attSnap, paySnap] = await Promise.all([
+        getDocs(query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month))),
+        getDocs(query(collection(db, COLLECTIONS.PAYROLL), where('bsYear', '==', year), where('bsMonth', '==', month))),
+    ]);
     const batch = writeBatch(db);
-    snap.forEach(d => batch.delete(d.ref));
-    batch.commit().catch(async (err: any) => {
+    attSnap.forEach(d => batch.delete(d.ref));
+    paySnap.forEach(d => batch.delete(d.ref));
+    await batch.commit().catch(async (err: any) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'attendance_batch_delete',
                 operation: 'write'
             }));
         }
+        throw err;
     });
+    return { deleted: true, locked: false };
+};
+
+/**
+ * Deletes processed Attendance and Payroll records for every month in a
+ * fiscal year (Shrawan through Ashadh), skipping any month whose period is
+ * locked. Used for bulk test-data cleanup, never on locked/finalized data.
+ */
+export const deleteAttendanceAndPayrollForFiscalYear = async (
+    fyMonths: { bsYear: number; bsMonth: number }[]
+): Promise<{ monthsDeleted: number; monthsSkippedLocked: number }> => {
+    let monthsDeleted = 0;
+    let monthsSkippedLocked = 0;
+    for (const { bsYear, bsMonth } of fyMonths) {
+        const result = await deleteAttendanceForMonth(bsYear, bsMonth);
+        if (result.deleted) monthsDeleted++;
+        else if (result.locked) monthsSkippedLocked++;
+    }
+    return { monthsDeleted, monthsSkippedLocked };
 };
 
 export const deleteAllRawLogs = async (): Promise<void> => {
