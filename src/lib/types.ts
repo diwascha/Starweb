@@ -438,6 +438,7 @@ export interface BehaviorLedgerEntry {
     phWorked: number;
     extraOkHours: number;
     otHours: number;
+    source?: 'excel-import' | 'generated'; // Provenance: pulled from the source workbook's own ledger vs computed here from attendance.
 }
 
 export interface Payroll {
@@ -494,6 +495,7 @@ export interface BehaviorAnalyticsEntry {
     performanceInsight: string;
     bestDayOfWeek: string;
     worstDayOfWeek: string;
+    source?: 'excel-import' | 'generated'; // Provenance: pulled from the source workbook's own ledger vs computed here from attendance.
 }
 
 export interface AnalyticsData {

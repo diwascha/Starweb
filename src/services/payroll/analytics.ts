@@ -1,5 +1,5 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
 import type { Employee, AttendanceRecord, AnalyticsData, AnalyticsReport, BehaviorLedgerEntry, BehaviorAnalyticsEntry } from '@/lib/types';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
@@ -125,6 +125,7 @@ export const generateBehaviorAnalyticsForMonth = async (
             id, runTime: now, periodBS, periodAD: '', bsYear, bsMonth, bsMonthName: monthName,
             employeeId, employeeName: emp.name, workdays, onTimeDays, onTimePct, lateDays, earlyDays,
             missingPunches, absentDays, satWorked, phWorked, extraOkHours: 0, otHours,
+            source: 'generated',
         };
         batch.set(doc(db, 'behavior_ledger', id), ledgerEntry, { merge: true });
 
@@ -154,6 +155,7 @@ export const generateBehaviorAnalyticsForMonth = async (
             id, runTime: now, periodBS, periodAD: '', bsYear, bsMonth, employeeId, employeeName: emp.name,
             behaviorInsight, punctualityTrend, absencePattern, otImpact, shiftEndBehavior, performanceInsight,
             bestDayOfWeek: bestDay, worstDayOfWeek: worstDay,
+            source: 'generated',
         };
         batch.set(doc(db, 'behavior_analytics', id), analyticsEntry, { merge: true });
         generated++;
@@ -161,4 +163,51 @@ export const generateBehaviorAnalyticsForMonth = async (
 
     if (generated > 0) await batch.commit();
     return { generated };
+};
+
+/**
+ * Backfills behavior ledger/analytics for every historical period that has
+ * calculated attendance but no behavior data yet - whether because the
+ * source workbook never carried a Behavior Ledger/Bonus section for that
+ * month, or because the period was recalculated after import. Periods that
+ * already have data (imported or previously generated) are left untouched.
+ */
+export const generateMissingBehaviorAnalytics = async (
+    allEmployees: Employee[],
+    allAttendance: AttendanceRecord[],
+    generatedBy: string
+): Promise<{ periodsProcessed: number; employeesGenerated: number; periodsSkipped: number }> => {
+    const { db } = getFirebase();
+
+    const periodKey = (bsYear: number, bsMonth: number) => `${bsYear}-${bsMonth}`;
+    const attendancePeriods = new Map<string, { bsYear: number; bsMonth: number }>();
+    allAttendance.forEach(r => {
+        if (!r.bsYear) return;
+        attendancePeriods.set(periodKey(r.bsYear, r.bsMonth), { bsYear: r.bsYear, bsMonth: r.bsMonth });
+    });
+
+    const existingSnap = await getDocs(collection(db, 'behavior_ledger'));
+    const existingPeriods = new Set<string>();
+    existingSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.bsYear) existingPeriods.add(periodKey(Number(data.bsYear), Number(data.bsMonth)));
+    });
+
+    let periodsProcessed = 0;
+    let employeesGenerated = 0;
+    let periodsSkipped = 0;
+
+    for (const [key, { bsYear, bsMonth }] of attendancePeriods) {
+        if (existingPeriods.has(key)) {
+            periodsSkipped++;
+            continue;
+        }
+        const result = await generateBehaviorAnalyticsForMonth(bsYear, bsMonth, allEmployees, allAttendance, generatedBy);
+        if (result.generated > 0) {
+            periodsProcessed++;
+            employeesGenerated += result.generated;
+        }
+    }
+
+    return { periodsProcessed, employeesGenerated, periodsSkipped };
 };

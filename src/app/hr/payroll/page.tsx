@@ -301,6 +301,7 @@ export default function UnifiedWorkforcePage() {
                                 size="sm"
                                 onClick={handleGlobalRefresh}
                                 disabled={isLoadingData || isRefreshing}
+                                title="Re-runs the Behavioral Intelligence and Analytics tabs' on-screen calculations for the selected period. Data itself is always live (Firestore), so this is just a manual nudge to recompute charts/insights - not a data delete or re-import."
                                 className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
                             >
                                 {isRefreshing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-2 h-3.5 w-3.5" />}

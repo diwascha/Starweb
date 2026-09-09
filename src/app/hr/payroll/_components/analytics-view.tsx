@@ -11,8 +11,8 @@ import type {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, CheckCircle2, Calendar, Zap, ShieldCheck, Sparkles, Loader2 } from 'lucide-react';
-import { generateAnalyticsForMonth, generateBehaviorAnalyticsForMonth } from '@/services/payroll-service';
+import { AlertTriangle, CheckCircle2, Calendar, Zap, ShieldCheck, Sparkles, Loader2, Info, FileSpreadsheet, Cpu } from 'lucide-react';
+import { generateAnalyticsForMonth, generateBehaviorAnalyticsForMonth, generateMissingBehaviorAnalytics } from '@/services/payroll-service';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,7 @@ interface AnalyticsViewProps {
 export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employees, attendance, refreshTrigger }: AnalyticsViewProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isBackfilling, setIsBackfilling] = useState(false);
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
     const [behavioralPatterns, setBehavioralPatterns] = useState<BehaviorLedgerEntry[]>([]);
     const [behavioralInsights, setBehavioralAnalytics] = useState<BehaviorAnalyticsEntry[]>([]);
@@ -96,10 +97,52 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
         }
     };
 
+    const handleBackfillAll = async () => {
+        if (!user) return;
+        setIsBackfilling(true);
+        try {
+            const result = await generateMissingBehaviorAnalytics(employees, attendance, user.username);
+            if (result.periodsProcessed === 0) {
+                toast({ title: 'Nothing To Backfill', description: `All ${result.periodsSkipped} period(s) with attendance already have behavioral data.` });
+            } else {
+                toast({
+                    title: 'Backfill Complete',
+                    description: `Generated behavioral analytics for ${result.periodsProcessed} period(s), ${result.employeesGenerated} employee-record(s) total. ${result.periodsSkipped} period(s) already had data.`,
+                });
+            }
+            if (selectedBsYear && selectedBsMonth !== '') {
+                await fetchImportedLedgerData(parseInt(selectedBsYear, 10), parseInt(selectedBsMonth, 10));
+            }
+        } catch (error) {
+            toast({ title: 'Backfill Failed', description: 'Could not generate analytics for all missing periods.', variant: 'destructive' });
+        } finally {
+            setIsBackfilling(false);
+        }
+    };
+
     const hasNoBehaviorData = behavioralPatterns.length === 0 && behavioralInsights.length === 0;
 
     return (
         <div className="space-y-6">
+            <Card className="border-dashed border-gray-200 bg-muted/10 shadow-none">
+                <CardContent className="py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="flex items-start gap-2.5 text-left">
+                        <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            <span className="inline-flex items-center gap-1 font-black text-gray-700 uppercase text-[9px] mr-1"><FileSpreadsheet className="h-3 w-3" /> From Excel</span>
+                            means this period's Behavior Ledger/Bonus data came straight from the source workbook's own sheet at import time.
+                            {' '}
+                            <span className="inline-flex items-center gap-1 font-black text-indigo-600 uppercase text-[9px] mr-1"><Cpu className="h-3 w-3" /> Generated</span>
+                            means the source workbook had no such section for that month, so it was computed here directly from calculated attendance. Neither overwrites the other.
+                        </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleBackfillAll} disabled={isBackfilling || employees.length === 0} className="h-9 px-4 font-black text-[10px] uppercase tracking-widest border-indigo-200 text-indigo-700 hover:bg-indigo-50 shrink-0">
+                        {isBackfilling ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-2 h-3.5 w-3.5" />}
+                        Generate All Missing Analytics
+                    </Button>
+                </CardContent>
+            </Card>
+
             {analyticsData && hasNoBehaviorData && (
                 <Card className="border-dashed border-indigo-200 bg-indigo-50/20 shadow-none">
                     <CardContent className="py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -144,7 +187,8 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
                                                 <TableHead className="text-center font-bold uppercase text-amber-600">Late</TableHead>
                                                 <TableHead className="text-center font-bold uppercase text-red-600">Absent</TableHead>
                                                 <TableHead className="text-center font-bold uppercase">Sat/PH</TableHead>
-                                                <TableHead className="text-right pr-6 font-black uppercase text-primary">Efficiency %</TableHead>
+                                                <TableHead className="text-right font-black uppercase text-primary">Efficiency %</TableHead>
+                                                <TableHead className="text-center pr-6 font-bold uppercase">Source</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -155,10 +199,11 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
                                                     <TableCell className="text-center tabular-nums font-bold text-amber-700">{p.lateDays}</TableCell>
                                                     <TableCell className="text-center tabular-nums font-bold text-red-700">{p.absentDays}</TableCell>
                                                     <TableCell className="text-center tabular-nums">{p.satWorked}/{p.phWorked}</TableCell>
-                                                    <TableCell className="text-right pr-6 font-black tabular-nums text-blue-700">{p.onTimePct?.toFixed(1)}%</TableCell>
+                                                    <TableCell className="text-right font-black tabular-nums text-blue-700">{p.onTimePct?.toFixed(1)}%</TableCell>
+                                                    <TableCell className="text-center pr-6"><SourceBadge source={p.source} /></TableCell>
                                                 </TableRow>
                                             )) : (
-                                                <TableRow><TableCell colSpan={6} className="text-center py-20 text-muted-foreground italic">No behavioral data found for selected month.</TableCell></TableRow>
+                                                <TableRow><TableCell colSpan={7} className="text-center py-20 text-muted-foreground italic">No behavioral data found for selected month.</TableCell></TableRow>
                                             )}
                                         </TableBody>
                                     </Table>
@@ -178,9 +223,12 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
                                     <div className="divide-y divide-indigo-100">
                                         {behavioralInsights.map(bi => (
                                             <div key={`insight-${bi.id}`} className="p-4 space-y-2 hover:bg-white transition-colors">
-                                                <div className="flex justify-between items-start">
+                                                <div className="flex justify-between items-start gap-2">
                                                     <span className="font-black text-[11px] text-gray-900 uppercase tracking-tighter">{bi.employeeName}</span>
-                                                    <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-1">{bi.performanceInsight}</Badge>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <SourceBadge source={bi.source} />
+                                                        <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-1">{bi.performanceInsight}</Badge>
+                                                    </div>
                                                 </div>
                                                 <p className="text-[10px] text-gray-700 italic border-l-2 border-indigo-200 pl-2 mt-2 leading-relaxed">{bi.behaviorInsight}</p>
                                                 <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 border-t border-indigo-100/70">
@@ -238,4 +286,22 @@ function InsightField({ label, value }: { label: string; value?: string }) {
             <p className="text-[9px] font-bold text-gray-700 leading-tight">{value}</p>
         </div>
     );
+}
+
+function SourceBadge({ source }: { source?: 'excel-import' | 'generated' }) {
+    if (source === 'excel-import') {
+        return (
+            <Badge variant="outline" className="text-[7px] font-black uppercase h-4 px-1 gap-0.5 border-gray-300 text-gray-600">
+                <FileSpreadsheet className="h-2.5 w-2.5" /> Excel
+            </Badge>
+        );
+    }
+    if (source === 'generated') {
+        return (
+            <Badge variant="outline" className="text-[7px] font-black uppercase h-4 px-1 gap-0.5 border-indigo-200 text-indigo-600">
+                <Cpu className="h-2.5 w-2.5" /> Generated
+            </Badge>
+        );
+    }
+    return <Badge variant="outline" className="text-[7px] font-black uppercase h-4 px-1 border-gray-200 text-muted-foreground">Unknown</Badge>;
 }
