@@ -1,4 +1,8 @@
-import type { Employee, AttendanceRecord, AnalyticsData, AnalyticsReport } from '@/lib/types';
+import { getFirebase } from '@/lib/firebase';
+import { collection, doc, writeBatch } from 'firebase/firestore';
+import type { Employee, AttendanceRecord, AnalyticsData, AnalyticsReport, BehaviorLedgerEntry, BehaviorAnalyticsEntry } from '@/lib/types';
+import { NEPALI_MONTHS } from '@/lib/constants';
+import { createTimestamp } from '@/lib/service-utils';
 import { format, startOfDay } from 'date-fns';
 
 export const isAnalyticsRow = (name: string): boolean => {
@@ -30,18 +34,131 @@ export const extractPatternInsights = (jsonData: any[][]): string[] => {
 
 export const generateAnalyticsForMonth = (bsYear: number, bsMonth: number, allEmployees: Employee[], allAttendance: AttendanceRecord[], importedReport?: AnalyticsReport | null): AnalyticsData => {
     const monthly = allAttendance.filter(r => r.bsYear === bsYear && r.bsMonth === bsMonth);
-    const dayStats: Record<string, any> = {};
+    const dayStats: Record<string, { count: number; late: number; onTime: number; absent: number }> = {};
+    let saturdayWorked = 0; let saturdayTotal = 0;
+
     monthly.forEach(r => {
         const day = format(new Date(r.date), 'EEEE');
-        if (!dayStats[day]) dayStats[day] = { count: 0, late: 0, absent: 0 };
+        if (!dayStats[day]) dayStats[day] = { count: 0, late: 0, onTime: 0, absent: 0 };
         dayStats[day].count++;
         if (r.status === 'Absent') dayStats[day].absent++;
+
+        const isLate = Boolean(r.onDuty && r.clockIn && r.clockIn > r.onDuty);
+        if (r.status === 'Present') {
+            if (isLate) dayStats[day].late++; else dayStats[day].onTime++;
+        }
+
+        if (day === 'Saturday') {
+            saturdayTotal++;
+            if (r.status === 'Saturday' && ((r.regularHours || 0) + (r.overtimeHours || 0)) > 0) saturdayWorked++;
+        }
     });
+
+    let highestAbsenteeism = { day: 'N/A', count: 0 };
+    let highestLateArrivals = { day: 'N/A', count: 0 };
+    let mostPunctualWeekday = { day: 'N/A', rate: 0 };
+
+    for (const day in dayStats) {
+        const s = dayStats[day];
+        if (s.absent > highestAbsenteeism.count) highestAbsenteeism = { day, count: s.absent };
+        if (s.late > highestLateArrivals.count) highestLateArrivals = { day, count: s.late };
+        const punctual = s.onTime + s.late;
+        const rate = punctual > 0 ? (s.onTime / punctual) * 100 : 0;
+        if (punctual > 0 && rate > mostPunctualWeekday.rate) mostPunctualWeekday = { day, rate };
+    }
+
+    const saturdayUtilization = saturdayTotal > 0 ? (saturdayWorked / saturdayTotal) * 100 : 0;
+
     return {
         punctuality: [], behavior: [], workforce: [], patterns: [],
-        highestAbsenteeism: { day: 'N/A', count: 0 },
-        highestLateArrivals: { day: 'N/A', count: 0 },
-        lateHotspots: [], saturdayUtilization: 0, mostPunctualWeekday: { day: 'N/A', rate: 0 },
+        highestAbsenteeism,
+        highestLateArrivals,
+        lateHotspots: [], saturdayUtilization, mostPunctualWeekday,
         worstShiftStart: { time: 'N/A', rate: 0 }, importedReport
     };
+};
+
+/**
+ * Fills in the "Behavioral Scoreboard" (behavior_ledger) and "Intelligence
+ * Insights" (behavior_analytics) collections directly from processed
+ * attendance, for periods where the source Excel never produced these
+ * VBA-computed sections (every legacy monthly sheet, and any month of the
+ * new format that skipped the analytics macro). Purely additive: existing
+ * per-employee entries are left untouched.
+ */
+export const generateBehaviorAnalyticsForMonth = async (
+    bsYear: number,
+    bsMonth: number,
+    allEmployees: Employee[],
+    allAttendance: AttendanceRecord[],
+    generatedBy: string
+): Promise<{ generated: number }> => {
+    const { db } = getFirebase();
+    const monthly = allAttendance.filter(r => r.bsYear === bsYear && r.bsMonth === bsMonth);
+    if (monthly.length === 0) return { generated: 0 };
+
+    const monthName = NEPALI_MONTHS.find(m => m.value === bsMonth)?.name || '';
+    const periodBS = `${monthName} ${bsYear}`;
+    const now = createTimestamp();
+    const batch = writeBatch(db);
+    let generated = 0;
+
+    const employeeIds = new Set(monthly.map(r => r.employeeId));
+    for (const employeeId of employeeIds) {
+        const emp = allEmployees.find(e => e.id === employeeId);
+        if (!emp) continue;
+        const empRecords = monthly.filter(r => r.employeeId === employeeId);
+        const workRecords = empRecords.filter(r => r.status === 'Present');
+        const workdays = workRecords.length;
+        const lateDays = workRecords.filter(r => r.onDuty && r.clockIn && r.clockIn > r.onDuty).length;
+        const earlyDays = workRecords.filter(r => r.offDuty && r.clockOut && r.clockOut < r.offDuty).length;
+        const onTimeDays = workdays - lateDays;
+        const onTimePct = workdays > 0 ? (onTimeDays / workdays) * 100 : 0;
+        const missingPunches = empRecords.filter(r => (r.status || '').includes('Miss')).length;
+        const absentDays = empRecords.filter(r => r.status === 'Absent').length;
+        const satWorked = empRecords.filter(r => r.status === 'Saturday' && ((r.regularHours || 0) + (r.overtimeHours || 0)) > 0).length;
+        const phWorked = empRecords.filter(r => r.status === 'Public Holiday' && ((r.regularHours || 0) + (r.overtimeHours || 0)) > 0).length;
+        const otHours = empRecords.reduce((s, r) => s + (r.overtimeHours || 0), 0);
+
+        const id = `${employeeId}_${bsYear}_${bsMonth}`;
+        const ledgerEntry: BehaviorLedgerEntry = {
+            id, runTime: now, periodBS, periodAD: '', bsYear, bsMonth, bsMonthName: monthName,
+            employeeId, employeeName: emp.name, workdays, onTimeDays, onTimePct, lateDays, earlyDays,
+            missingPunches, absentDays, satWorked, phWorked, extraOkHours: 0, otHours,
+        };
+        batch.set(doc(db, 'behavior_ledger', id), ledgerEntry, { merge: true });
+
+        const dayCounts: Record<string, { late: number; total: number }> = {};
+        empRecords.forEach(r => {
+            const day = format(new Date(r.date), 'EEEE');
+            if (!dayCounts[day]) dayCounts[day] = { late: 0, total: 0 };
+            dayCounts[day].total++;
+            if (r.onDuty && r.clockIn && r.clockIn > r.onDuty) dayCounts[day].late++;
+        });
+        let bestDay = 'N/A'; let worstDay = 'N/A'; let bestRate = -1; let worstRate = -1;
+        for (const day in dayCounts) {
+            const { late, total } = dayCounts[day];
+            const lateRate = total > 0 ? late / total : 0;
+            if (bestRate === -1 || lateRate < bestRate) { bestRate = lateRate; bestDay = day; }
+            if (worstRate === -1 || lateRate > worstRate) { worstRate = lateRate; worstDay = day; }
+        }
+
+        const punctualityTrend = onTimePct >= 90 ? 'Consistently punctual' : onTimePct >= 70 ? 'Occasionally late' : 'Often late';
+        const absencePattern = absentDays === 0 ? 'Perfect attendance' : absentDays <= 2 ? 'Minor absences' : 'Frequent absences';
+        const otImpact = otHours === 0 ? 'No overtime' : otHours < 10 ? 'Balanced workload' : 'Heavy overtime load';
+        const shiftEndBehavior = earlyDays === 0 ? 'Stays till shift end' : earlyDays <= 2 ? 'Occasionally leaves early' : 'Frequently leaves early';
+        const performanceInsight = onTimePct >= 90 && absentDays === 0 ? 'Strong performer' : onTimePct >= 70 && absentDays <= 2 ? 'Meets expectations' : 'Needs improvement';
+        const behaviorInsight = `${lateDays} late day(s) and ${absentDays} absence(s) out of ${workdays} worked day(s) this period.`;
+
+        const analyticsEntry: BehaviorAnalyticsEntry = {
+            id, runTime: now, periodBS, periodAD: '', bsYear, bsMonth, employeeId, employeeName: emp.name,
+            behaviorInsight, punctualityTrend, absencePattern, otImpact, shiftEndBehavior, performanceInsight,
+            bestDayOfWeek: bestDay, worstDayOfWeek: worstDay,
+        };
+        batch.set(doc(db, 'behavior_analytics', id), analyticsEntry, { merge: true });
+        generated++;
+    }
+
+    if (generated > 0) await batch.commit();
+    return { generated };
 };

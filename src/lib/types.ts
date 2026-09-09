@@ -467,6 +467,8 @@ export interface Payroll {
     remark?: string;
     bonus?: number;
     ownership: string;
+    source?: 'legacy-import' | 'consolidated-ledger-import' | 'recalculated'; // Provenance: historical imports are never overwritten by recalculation.
+    sourceSheet?: string;
 }
 
 export interface BehaviorAnalyticsEntry {

@@ -223,14 +223,16 @@ export const getAttendanceYears = async (): Promise<number[]> => {
     const { db } = getFirebase();
     const years = new Set<number>();
     try {
-        const [attSnap, blSnap, paySnap] = await Promise.all([
+        const [attSnap, blSnap, paySnap, rawSnap] = await Promise.all([
             getDocs(getAttendanceCollection()),
             getDocs(collection(db, 'behavior_ledger')),
-            getDocs(collection(db, COLLECTIONS.PAYROLL))
+            getDocs(collection(db, COLLECTIONS.PAYROLL)),
+            getDocs(getRawLogsCollection())
         ]);
         attSnap.docs.forEach(d => years.add(d.data().bsYear as number));
         blSnap.docs.forEach(d => years.add(d.data().bsYear as number));
         paySnap.docs.forEach(d => years.add(d.data().bsYear as number));
+        rawSnap.docs.forEach(d => years.add(d.data().bsYear as number));
     } catch (e) {}
     return Array.from(years).sort((a, b) => b - a);
 };

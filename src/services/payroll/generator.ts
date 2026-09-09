@@ -69,16 +69,28 @@ export const getHeaderMap = (headerRow: any[]) => {
     const map: Record<string, number> = {};
     const payrollHeaders: Record<string, string[]> = {
         name: ['employee', 'staff name', 'name'], otHours: ['ot hrs'], regularHours: ['regular hrs'],
+        totalHours: ['total hour', 'total hrs'],
         rate: ['base'], regularPay: ['basic pay'], otPay: ['ot pay'], totalPay: ['gross'],
-        absentDays: ['absent days'], deduction: ['absent amt.'], allowance: ['allowance'],
+        absentDays: ['absent days'], deduction: ['absent amt.', 'deduction'], allowance: ['allowance'],
         bonus: ['bonus'], salaryTotal: ['gross salary'], tds: ['tds'], advance: ['advance'],
-        netPayment: ['final net'], remark: ['remark']
+        netPayment: ['final net', 'net'], remark: ['remark']
     };
-    headerRow.forEach((h, i) => {
-        const cell = String(h || '').trim().toLowerCase();
+    const cells = headerRow.map(h => String(h || '').trim().toLowerCase());
+
+    // Pass 1: exact matches only. Runs first so a column like "Gross" isn't
+    // later overwritten by "Gross Salary" just because it contains "gross".
+    cells.forEach((cell, i) => {
         for (const key in payrollHeaders) {
-            if (payrollHeaders[key].some(alias => cell === alias || cell.includes(alias))) map[key] = i;
+            if (map[key] === undefined && payrollHeaders[key].includes(cell)) map[key] = i;
         }
     });
+
+    // Pass 2: substring fallback for anything an exact match didn't resolve.
+    cells.forEach((cell, i) => {
+        for (const key in payrollHeaders) {
+            if (map[key] === undefined && payrollHeaders[key].some(alias => cell.includes(alias))) map[key] = i;
+        }
+    });
+
     return map;
 };

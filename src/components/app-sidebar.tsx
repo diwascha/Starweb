@@ -36,8 +36,9 @@ import {
   ArrowRightLeft, 
   TrendingUp, 
   BarChart2, 
-  Notebook, 
-  Download, 
+  Notebook,
+  Download,
+  Upload,
   Calculator, 
   PanelLeft, 
   PanelRight, 
@@ -363,9 +364,9 @@ export function AppSidebar() {
                     <SidebarSeparator />
                     <SidebarMenuItem>
                         <CollapsibleTrigger asChild>
-                            <SidebarMenuButton tooltip="HRMS" isActive={getIsActive('/hr')}>
-                                <Building2 />
-                                <span>HRMS</span>
+                            <SidebarMenuButton tooltip="Human Resources" isActive={getIsActive('/hr')}>
+                                <Users />
+                                <span>Human Resources</span>
                                 <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                             </SidebarMenuButton>
                         </CollapsibleTrigger>
@@ -375,14 +376,15 @@ export function AppSidebar() {
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/hr', true)}><Link href="/hr" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees" className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Employees</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                
+
                                 <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Attendance</SidebarGroupLabel>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance/raw')}><Link href="/hr/attendance/raw" className="flex items-center gap-2"><HardDrive className="h-3.5 w-3.5" /><span>Machine Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/office')}><Link href="/hr/office" className="flex items-center gap-2"><Settings2 className="h-4 w-4" /><span>HR Office Hub</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/office')}><Link href="/hr/office" className="flex items-center gap-2"><Settings2 className="h-4 w-4" /><span>Operations & Logic</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance', true)}><Link href="/hr/attendance" className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /><span>Registry</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                
+
                                 <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Financials</SidebarGroupLabel>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Workforce Ledger</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll/import')}><Link href="/hr/payroll/import" className="flex items-center gap-2"><Upload className="h-3.5 w-3.5" /><span>Import Ledger</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll', true)}><Link href="/hr/payroll" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Workforce Ledger</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>
                     </SidebarMenuItem>

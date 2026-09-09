@@ -39,7 +39,7 @@ import {
 } from '@/services/hr-admin-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
-import { runHourlyCalculation } from '@/services/attendance-service';
+import { runHourlyCalculation, getAttendanceYears } from '@/services/attendance-service';
 import type { HrShift, HrConfig, LeaveRequest, Employee, PublicHoliday } from '@/lib/types';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { createTimestamp } from '@/lib/service-utils';
@@ -112,6 +112,7 @@ export default function HrOfficePage() {
     const [isCalculating, setIsCalculating] = useState(false);
     const [selectedYear, setSelectedYear] = useState<string>(String(new NepaliDate().getYear()));
     const [selectedMonth, setSelectedMonth] = useState<string>(String(new NepaliDate().getMonth()));
+    const [calcYears, setCalcYears] = useState<number[]>([new NepaliDate().getYear()]);
 
     const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
     const [editingShift, setEditingShift] = useState<HrShift | null>(null);
@@ -139,6 +140,10 @@ export default function HrOfficePage() {
                 if (s?.value) setHrConfig(s.value);
             })
         ];
+        getAttendanceYears().then(years => {
+            const current = new NepaliDate().getYear();
+            setCalcYears(years.includes(current) ? years : [current, ...years].sort((a, b) => b - a));
+        });
         return () => unsubs.forEach(u => u());
     }, []);
 
@@ -284,7 +289,7 @@ export default function HrOfficePage() {
                                             <Label className="text-[10px] font-black uppercase text-muted-foreground">Year (BS)</Label>
                                             <Select value={selectedYear} onValueChange={setSelectedYear}>
                                                 <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                                                <SelectContent>{[2080, 2081, 2082, 2083].map(y => <SelectItem key={`yr-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                                                <SelectContent>{calcYears.map(y => <SelectItem key={`yr-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </div>
                                         <div className="space-y-1.5">

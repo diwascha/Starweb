@@ -11,8 +11,10 @@ import type {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, CheckCircle2, Calendar, Zap, ShieldCheck } from 'lucide-react';
-import { generateAnalyticsForMonth } from '@/services/payroll-service';
+import { AlertTriangle, CheckCircle2, Calendar, Zap, ShieldCheck, Sparkles, Loader2 } from 'lucide-react';
+import { generateAnalyticsForMonth, generateBehaviorAnalyticsForMonth } from '@/services/payroll-service';
+import { useAuth } from '@/hooks/use-auth';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -29,11 +31,13 @@ interface AnalyticsViewProps {
 
 export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employees, attendance, refreshTrigger }: AnalyticsViewProps) {
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
     const [behavioralPatterns, setBehavioralPatterns] = useState<BehaviorLedgerEntry[]>([]);
     const [behavioralInsights, setBehavioralAnalytics] = useState<BehaviorAnalyticsEntry[]>([]);
 
     const { toast } = useToast();
+    const { user } = useAuth();
 
     const fetchImportedLedgerData = useCallback(async (year: number, month: number) => {
         const { db } = getFirebase();
@@ -71,9 +75,45 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
     useEffect(() => {
         handleGenerateAnalytics(refreshTrigger !== undefined && refreshTrigger > 0);
     }, [handleGenerateAnalytics, refreshTrigger]);
-    
+
+    const handleAutoGenerate = async () => {
+        if (!selectedBsYear || selectedBsMonth === '' || !user) return;
+        setIsGenerating(true);
+        try {
+            const year = parseInt(selectedBsYear, 10);
+            const month = parseInt(selectedBsMonth, 10);
+            const result = await generateBehaviorAnalyticsForMonth(year, month, employees, attendance, user.username);
+            if (result.generated === 0) {
+                toast({ title: 'No Attendance Found', description: 'Calculate attendance for this period first (HR > Attendance > Calculate), then generate analytics.', variant: 'destructive' });
+            } else {
+                toast({ title: 'Analytics Generated', description: `Computed behavioral metrics for ${result.generated} employee(s) directly from attendance.` });
+                await fetchImportedLedgerData(year, month);
+            }
+        } catch (error) {
+            toast({ title: 'Generation Failed', description: 'Could not compute analytics for this period.', variant: 'destructive' });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const hasNoBehaviorData = behavioralPatterns.length === 0 && behavioralInsights.length === 0;
+
     return (
         <div className="space-y-6">
+            {analyticsData && hasNoBehaviorData && (
+                <Card className="border-dashed border-indigo-200 bg-indigo-50/20 shadow-none">
+                    <CardContent className="py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div className="text-center sm:text-left">
+                            <p className="text-xs font-black uppercase text-indigo-700">No Behavioral Data For This Period</p>
+                            <p className="text-[11px] text-muted-foreground">The source workbook didn't include a bonus/behavior ledger for this month. Generate one directly from calculated attendance.</p>
+                        </div>
+                        <Button size="sm" onClick={handleAutoGenerate} disabled={isGenerating} className="h-9 px-4 font-black text-[10px] uppercase tracking-widest shrink-0">
+                            {isGenerating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-2 h-3.5 w-3.5" />}
+                            Generate Analytics
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
             {analyticsData && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

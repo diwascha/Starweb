@@ -11,7 +11,7 @@ import {
 import type { RawMachineLog, Employee, HrShift } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
-import { processAttendanceImport } from '@/lib/attendance';
+import { processAttendanceImport, resolveDominantPeriod } from '@/lib/attendance';
 import { getEmployees } from '../employee-service';
 import { getRawLogsCollection, fromFirestoreLog } from './data';
 import { format, startOfDay } from 'date-fns';
@@ -25,15 +25,16 @@ export const addRawMachineLogs = async (
     sourceSheetName: string,
     onProgress: (progress: number, total: number) => void,
     options: { overwrite: boolean } = { overwrite: false }
-): Promise<{ createdCount: number, updatedCount: number, skippedCount: number, newEmployeesCount: number }> => {
+): Promise<{ createdCount: number, updatedCount: number, skippedCount: number, newEmployeesCount: number, headerRow: any[], headerIndex: number, dominantPeriod: { year: number, month: number } | null }> => {
     const { db } = getFirebase();
     const importId = `imp-${Date.now()}`;
     const now = createTimestamp();
     const CHUNK_SIZE = 400;
 
     try {
-        const { processedData } = processAttendanceImport(jsonData);
-        if (processedData.length === 0) return { createdCount: 0, updatedCount: 0, skippedCount: 0, newEmployeesCount: 0 };
+        const { processedData, headerRow, headerIndex } = processAttendanceImport(jsonData);
+        const dominantPeriod = resolveDominantPeriod(processedData);
+        if (processedData.length === 0) return { createdCount: 0, updatedCount: 0, skippedCount: 0, newEmployeesCount: 0, headerRow, headerIndex, dominantPeriod };
 
         const employees = await getEmployees();
         const existingEmpNames = new Set(employees.map(e => e.name.toLowerCase().trim()));
@@ -98,7 +99,7 @@ export const addRawMachineLogs = async (
             await batch.commit();
             onProgress(i + chunk.length, operations.length);
         }
-        return { createdCount, updatedCount, skippedCount, newEmployeesCount };
+        return { createdCount, updatedCount, skippedCount, newEmployeesCount, headerRow, headerIndex, dominantPeriod };
     } catch (error: any) {
         if (error.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({

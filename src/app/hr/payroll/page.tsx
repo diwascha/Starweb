@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Award, BarChart2, Upload, Loader2, Trash2, RefreshCcw } from 'lucide-react';
+import { FileText, Award, BarChart2, Upload, Loader2, Trash2, RefreshCcw, Calculator, Lock, LockOpen, History } from 'lucide-react';
 import PayrollClientPage from './_components/payroll-client-page';
 import BonusView from './_components/bonus-view';
 import AnalyticsView from './_components/analytics-view';
@@ -15,7 +15,7 @@ import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
 import { getAttendanceYears, onAttendanceUpdate } from '@/services/attendance-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { deletePayrollForMonth } from '@/services/payroll-service';
+import { deletePayrollForMonth, calculateAndSavePayrollForMonth, onPeriodLocksUpdate, setPeriodLock, type PayrollPeriodLock } from '@/services/payroll-service';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -36,7 +36,7 @@ export default function UnifiedWorkforcePage() {
     const searchParams = useSearchParams();
     const activeTab = searchParams.get('tab') || "payroll";
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, hasPermission } = useAuth();
     const { toast } = useToast();
 
     // Global Selection State
@@ -50,13 +50,17 @@ export default function UnifiedWorkforcePage() {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [isPurging, setIsPurging] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isRecalculating, setIsRecalculating] = useState(false);
+    const [isTogglingLock, setIsTogglingLock] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [periodLocks, setPeriodLocks] = useState<PayrollPeriodLock[]>([]);
 
     useEffect(() => {
         setIsLoadingData(true);
         const unsubEmp = onEmployeesUpdate(setEmployees);
         const unsubAtt = onAttendanceUpdate(setAttendance);
-        
+        const unsubLocks = onPeriodLocksUpdate(setPeriodLocks);
+
         getAttendanceYears().then(years => {
             const current = new NepaliDate();
             const validYears = years.length > 0 ? years : [current.getYear()];
@@ -72,6 +76,7 @@ export default function UnifiedWorkforcePage() {
         return () => {
             unsubEmp();
             unsubAtt();
+            unsubLocks();
         };
     }, []);
 
@@ -80,6 +85,26 @@ export default function UnifiedWorkforcePage() {
         return `${m?.name || '...'}, ${selectedBsYear || '...'}`;
     }, [selectedBsMonth, selectedBsYear]);
 
+    // Recalculation only applies to the live system, starting FY 2083/84
+    // (Shrawan 2083 onward). Everything before that is imported history from
+    // the old Excel workbooks and is never recomputed.
+    const RECALC_CUTOFF_YEAR = 2083;
+    const RECALC_CUTOFF_MONTH = 3; // Shrawan
+    const isHistoricalPeriod = useMemo(() => {
+        if (!selectedBsYear || selectedBsMonth === '') return true;
+        const year = parseInt(selectedBsYear);
+        const month = parseInt(selectedBsMonth);
+        return year < RECALC_CUTOFF_YEAR || (year === RECALC_CUTOFF_YEAR && month < RECALC_CUTOFF_MONTH);
+    }, [selectedBsYear, selectedBsMonth]);
+
+    const currentLock = useMemo(() => {
+        if (!selectedBsYear || selectedBsMonth === '') return undefined;
+        const year = parseInt(selectedBsYear);
+        const month = parseInt(selectedBsMonth);
+        return periodLocks.find(l => l.bsYear === year && l.bsMonth === month);
+    }, [periodLocks, selectedBsYear, selectedBsMonth]);
+    const isLocked = Boolean(currentLock?.locked);
+
     const handlePurgePeriod = async () => {
         if (!selectedBsYear || selectedBsMonth === '') return;
         setIsPurging(true);
@@ -87,14 +112,52 @@ export default function UnifiedWorkforcePage() {
             const year = parseInt(selectedBsYear);
             const month = parseInt(selectedBsMonth);
             await deletePayrollForMonth(year, month);
-            toast({ 
-                title: 'Period Purged', 
-                description: `All associated records for ${periodName} have been removed from the system.` 
+            toast({
+                title: 'Period Purged',
+                description: `All associated records for ${periodName} have been removed from the system.`
             });
         } catch (error) {
             toast({ title: 'Purge Failed', description: 'Could not remove period data.', variant: 'destructive' });
         } finally {
             setIsPurging(false);
+        }
+    };
+
+    const handleRecalculate = async () => {
+        if (!selectedBsYear || selectedBsMonth === '' || !user) return;
+        setIsRecalculating(true);
+        try {
+            const year = parseInt(selectedBsYear);
+            const month = parseInt(selectedBsMonth);
+            const result = await calculateAndSavePayrollForMonth(year, month, employees, attendance, user.username);
+            toast({
+                title: 'Payroll Recalculated',
+                description: `Recomputed pay for ${result.employeeCount} active employee(s) in ${periodName} from attendance.`,
+            });
+        } catch (error) {
+            toast({ title: 'Recalculation Failed', description: 'Could not recompute payroll for this period.', variant: 'destructive' });
+        } finally {
+            setIsRecalculating(false);
+        }
+    };
+
+    const handleToggleLock = async () => {
+        if (!selectedBsYear || selectedBsMonth === '' || !user) return;
+        setIsTogglingLock(true);
+        try {
+            const year = parseInt(selectedBsYear);
+            const month = parseInt(selectedBsMonth);
+            await setPeriodLock(year, month, !isLocked, user.username);
+            toast({
+                title: isLocked ? 'Period Unlocked' : 'Period Locked',
+                description: isLocked
+                    ? `${periodName} can be recalculated or purged again.`
+                    : `${periodName} is now protected from recalculation and purge.`,
+            });
+        } catch (error) {
+            toast({ title: 'Action Failed', description: 'Could not update the period lock.', variant: 'destructive' });
+        } finally {
+            setIsTogglingLock(false);
         }
     };
 
@@ -145,9 +208,40 @@ export default function UnifiedWorkforcePage() {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
+                            {isHistoricalPeriod ? (
+                                <span className="flex items-center gap-1.5 h-9 px-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-muted/40 rounded-md">
+                                    <History className="h-3.5 w-3.5" /> Historical (Imported)
+                                </span>
+                            ) : hasPermission('hr', 'edit') && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleRecalculate}
+                                    disabled={isLoadingData || isRecalculating || isLocked}
+                                    title={isLocked ? 'Unlock this period to recalculate.' : 'Recompute payroll from attendance for this period.'}
+                                    className="h-9 px-4 font-black text-[10px] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5"
+                                >
+                                    {isRecalculating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Calculator className="mr-2 h-3.5 w-3.5" />}
+                                    Recalculate
+                                </Button>
+                            )}
+
+                            {hasPermission('hr', 'edit') && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleToggleLock}
+                                    disabled={isLoadingData || isTogglingLock}
+                                    className="h-9 px-4 font-black text-[10px] uppercase tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
+                                >
+                                    {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : isLocked ? <Lock className="mr-2 h-3.5 w-3.5 text-amber-600" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
+                                    {isLocked ? 'Unlock Period' : 'Lock Period'}
+                                </Button>
+                            )}
+
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="text-destructive h-9 px-4 font-black text-[10px] uppercase tracking-widest hover:bg-red-50" disabled={isLoadingData || isPurging}>
+                                    <Button variant="ghost" size="sm" className="text-destructive h-9 px-4 font-black text-[10px] uppercase tracking-widest hover:bg-red-50" disabled={isLoadingData || isPurging || isLocked}>
                                         {isPurging ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-2 h-3.5 w-3.5" />}
                                         Purge Period
                                     </Button>
@@ -156,7 +250,7 @@ export default function UnifiedWorkforcePage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Purge Period Records?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This will permanently delete all **Payroll**, **Bonus Ledger**, **Behavioral Metrics**, and **Analytics Reports** for **{periodName}**. 
+                                            This will permanently delete all **Payroll**, **Bonus Ledger**, **Behavioral Metrics**, and **Analytics Reports** for **{periodName}**.
                                             This action is irreversible.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
@@ -169,11 +263,11 @@ export default function UnifiedWorkforcePage() {
                                 </AlertDialogContent>
                             </AlertDialog>
 
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={handleGlobalRefresh} 
-                                disabled={isLoadingData || isRefreshing} 
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleGlobalRefresh}
+                                disabled={isLoadingData || isRefreshing}
                                 className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
                             >
                                 {isRefreshing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-2 h-3.5 w-3.5" />}

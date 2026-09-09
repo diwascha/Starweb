@@ -33,6 +33,8 @@ import {
     deleteRawLogsForMonth 
 } from '@/services/attendance/data';
 import { addRawMachineLogs, addBulkManualLogs } from '@/services/attendance/import';
+import { importLegacyPayrollSheet } from '@/services/payroll/legacy-import';
+import { resolvePeriodFromSheetName } from '@/lib/attendance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -82,6 +84,7 @@ export default function MachineLogsPage() {
     const [isImporting, setIsImporting] = useState(false);
     const [importProgress, setImportProgress] = useState(0);
     const [importTotal, setImportTotal] = useState(0);
+    const [currentSheetLabel, setCurrentSheetLabel] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Filters
@@ -96,6 +99,12 @@ export default function MachineLogsPage() {
         });
         return () => unsub();
     }, []);
+
+    const availableYears = useMemo(() => {
+        const years = new Set(logs.map(l => l.bsYear));
+        years.add(new NepaliDate().getYear());
+        return Array.from(years).sort((a, b) => b - a);
+    }, [logs]);
 
     const filteredAndSortedLogs = useMemo(() => {
         let filtered = [...logs];
@@ -136,42 +145,96 @@ export default function MachineLogsPage() {
 
     const totalPages = Math.ceil(filteredAndSortedLogs.length / itemsPerPage);
 
+    // Sheets that hold something other than a month's attendance/payroll data
+    // (dashboards, lookup tables, logs, or the newer Consolidated Ledger format
+    // which has its own dedicated importer at /hr/payroll/import).
+    const NON_ATTENDANCE_SHEETS = new Set(['dashboard', 'log', 'rates', 'consolidated ledger', 'sheet1', 'sheet2']);
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !user) return;
 
         setIsImporting(true);
         setImportProgress(0);
+        setCurrentSheetLabel(null);
 
         try {
             const XLSX = await import('xlsx');
             const reader = new FileReader();
             reader.onload = async (event) => {
+                const totals = { created: 0, updated: 0, newEmployees: 0, payroll: 0 };
+                const skippedSheets: string[] = [];
+                const failedSheets: string[] = [];
+
                 try {
                     const data = new Uint8Array(event.target?.result as ArrayBuffer);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    const firstSheet = workbook.SheetNames[0];
-                    const jsonData = XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[firstSheet], { header: 1 });
-
-                    const result = await addRawMachineLogs(
-                        jsonData, 
-                        user.username, 
-                        firstSheet,
-                        (current, total) => {
-                            setImportProgress(current);
-                            setImportTotal(total);
-                        },
-                        { overwrite: true }
+                    const dataSheets = workbook.SheetNames.filter(
+                        name => !NON_ATTENDANCE_SHEETS.has(name.trim().toLowerCase())
                     );
 
-                    toast({ 
-                        title: 'Import Successful', 
-                        description: `Created ${result.createdCount} and updated ${result.updatedCount} logs.` 
-                    });
+                    for (let i = 0; i < dataSheets.length; i++) {
+                        const sheetName = dataSheets[i];
+                        setCurrentSheetLabel(`Sheet ${i + 1} of ${dataSheets.length}: ${sheetName}`);
+                        const jsonData = XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[sheetName], { header: 1 });
+
+                        try {
+                            const result = await addRawMachineLogs(
+                                jsonData,
+                                user.username,
+                                sheetName,
+                                (current, total) => {
+                                    setImportProgress(current);
+                                    setImportTotal(total);
+                                },
+                                { overwrite: true }
+                            );
+
+                            totals.created += result.createdCount;
+                            totals.updated += result.updatedCount;
+                            totals.newEmployees += result.newEmployeesCount;
+
+                            const period = result.dominantPeriod || resolvePeriodFromSheetName(sheetName);
+                            if (period && result.headerIndex >= 0) {
+                                const payrollResult = await importLegacyPayrollSheet(
+                                    jsonData,
+                                    result.headerRow,
+                                    result.headerIndex,
+                                    period.year,
+                                    period.month,
+                                    sheetName,
+                                    user.username
+                                );
+                                totals.payroll += payrollResult.payrollRecords;
+                                totals.newEmployees += payrollResult.newEmployees;
+                            }
+                        } catch (sheetError: any) {
+                            // A sheet with no recognizable "Name"/"Date" header isn't an
+                            // attendance sheet (e.g. a stray notes tab) - skip it, don't
+                            // fail the whole import.
+                            skippedSheets.push(sheetName);
+                        }
+                    }
+
+                    if (totals.created + totals.updated + totals.payroll === 0) {
+                        toast({
+                            title: 'Nothing Imported',
+                            description: skippedSheets.length > 0
+                                ? `No recognizable attendance data found. Skipped sheets: ${skippedSheets.join(', ')}`
+                                : 'No data rows found in this workbook.',
+                            variant: 'destructive',
+                        });
+                    } else {
+                        toast({
+                            title: 'Import Successful',
+                            description: `${dataSheets.length - skippedSheets.length} sheet(s) processed - ${totals.created} created, ${totals.updated} updated attendance logs, ${totals.payroll} payroll records imported${totals.newEmployees ? `, ${totals.newEmployees} new employees onboarded` : ''}.${skippedSheets.length ? ` Skipped: ${skippedSheets.join(', ')}.` : ''}`,
+                        });
+                    }
                 } catch (error: any) {
                     toast({ title: 'Import Failed', description: error.message, variant: 'destructive' });
                 } finally {
                     setIsImporting(false);
+                    setCurrentSheetLabel(null);
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -225,6 +288,11 @@ export default function MachineLogsPage() {
                             <Loader2 className="h-6 w-6 text-primary animate-spin" />
                             <div className="space-y-1">
                                 <p className="text-sm font-black uppercase text-gray-900">Synchronizing Cloud Registry</p>
+                                {currentSheetLabel && (
+                                    <p className="text-[10px] text-primary font-black uppercase tracking-widest">
+                                        {currentSheetLabel}
+                                    </p>
+                                )}
                                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                                     Processing row {importProgress} of {importTotal}...
                                 </p>
@@ -240,7 +308,7 @@ export default function MachineLogsPage() {
                     <Select value={filterYear} onValueChange={setFilterYear}>
                         <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            {[2080, 2081, 2082, 2083].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                            {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
