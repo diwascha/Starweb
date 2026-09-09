@@ -12,7 +12,8 @@ import {
     CalendarCheck,
     Settings2,
     Upload,
-    Calculator
+    Calculator,
+    TrendingUp
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,6 +26,7 @@ const hrModules = [
     { name: 'Attendance Logs', description: 'Validated work-hour records and metrics.', href: '/hr/attendance', icon: Calendar },
     { name: 'HR Setting', description: 'Configure rules, shifts, holidays, and leaves.', href: '/hr/office', icon: Settings2 },
     { name: 'Payroll', description: 'Consolidated Payroll, Bonus, and Analytics.', href: '/hr/payroll', icon: FileText },
+    { name: 'Performance Benchmark', description: 'Compare employees and track performance trends over time.', href: '/hr/benchmark', icon: TrendingUp },
 ];
 
 function DashboardSkeleton() {

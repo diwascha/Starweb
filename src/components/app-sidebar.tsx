@@ -383,6 +383,7 @@ export function AppSidebar() {
 
                                 <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Financials</SidebarGroupLabel>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll', true)}><Link href="/hr/payroll" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Payroll</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/benchmark')}><Link href="/hr/benchmark" className="flex items-center gap-2"><TrendingUp className="h-3.5 w-3.5" /><span>Performance Benchmark</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>
                     </SidebarMenuItem>
