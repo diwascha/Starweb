@@ -82,6 +82,19 @@ export default function MachineLogsPage() {
     const [filterMonth, setFilterMonth] = useState<string>('All');
     const [filterYear, setFilterYear] = useState<string>(String(new NepaliDate().getYear()));
 
+    const [isPurging, setIsPurging] = useState(false);
+    const handlePurgeAllLogs = async () => {
+        setIsPurging(true);
+        try {
+            await deleteAllRawLogs();
+            toast({ title: 'Machine History Cleared', description: 'All raw log records have been removed.' });
+        } catch (error: any) {
+            toast({ title: 'Purge Failed', description: error?.message || 'Could not remove raw log records.', variant: 'destructive' });
+        } finally {
+            setIsPurging(false);
+        }
+    };
+
     useEffect(() => {
         setIsLoading(true);
         const unsub = onRawLogsUpdate((data) => {
@@ -337,8 +350,8 @@ export default function MachineLogsPage() {
                     )}
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-9 text-destructive hover:bg-red-50 uppercase font-black text-[9px]">
-                                <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Purge Logs
+                            <Button variant="ghost" size="sm" disabled={isPurging} className="h-9 text-destructive hover:bg-red-50 uppercase font-black text-[9px]">
+                                {isPurging ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />} Purge Logs
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -348,7 +361,7 @@ export default function MachineLogsPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={deleteAllRawLogs} className="bg-destructive text-white">Wipe Registry</AlertDialogAction>
+                                <AlertDialogAction onClick={handlePurgeAllLogs} className="bg-destructive text-white">Wipe Registry</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>

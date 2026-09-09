@@ -1,8 +1,27 @@
 /**
  * Utility functions for common service layer operations.
  */
+import { getFirebase } from './firebase';
+import { writeBatch, type DocumentReference } from 'firebase/firestore';
 
 export const createTimestamp = () => new Date().toISOString();
+
+/**
+ * Deletes an arbitrary number of documents, chunked to stay under
+ * Firestore's 500-operation-per-batch hard limit. A plain writeBatch()
+ * over an unbounded list of refs throws once it crosses 500 and the
+ * whole batch is rejected - nothing gets deleted, silently, if that
+ * error isn't awaited and surfaced. Always await this and let any
+ * rejection propagate to the caller.
+ */
+export const deleteDocsInChunks = async (refs: DocumentReference[], chunkSize = 400): Promise<void> => {
+    const { db } = getFirebase();
+    for (let i = 0; i < refs.length; i += chunkSize) {
+        const batch = writeBatch(db);
+        refs.slice(i, i + chunkSize).forEach(ref => batch.delete(ref));
+        await batch.commit();
+    }
+};
 
 /**
  * Ensures numeric fields are actually numbers, even if stored as strings in DB.

@@ -12,13 +12,13 @@ import {
     where,
     updateDoc,
     deleteDoc,
-    orderBy,
-    writeBatch
+    orderBy
 } from 'firebase/firestore';
 import type { AttendanceRecord, RawMachineLog } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { deleteDocsInChunks } from '@/lib/service-utils';
 
 export const getAttendanceCollection = () => {
     const { db } = getFirebase();
@@ -140,20 +140,20 @@ export const deleteRawLog = async (id: string) => {
     });
 };
 
-export const deleteRawLogsForMonth = async (year: number, month: number) => {
-    const { db } = getFirebase();
+export const deleteRawLogsForMonth = async (year: number, month: number): Promise<void> => {
     const q = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const snap = await getDocs(q);
-    const batch = writeBatch(db);
-    snap.forEach(d => batch.delete(d.ref));
-    batch.commit().catch(async (err: any) => {
+    try {
+        await deleteDocsInChunks(snap.docs.map(d => d.ref));
+    } catch (err: any) {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'raw_machine_logs_batch_delete',
                 operation: 'write'
             }));
         }
-    });
+        throw err;
+    }
 };
 
 export const deleteAttendanceRecord = async (id: string) => {
@@ -199,10 +199,9 @@ export const deleteAttendanceForMonth = async (year: number, month: number): Pro
         getDocs(query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month))),
         getDocs(query(collection(db, COLLECTIONS.PAYROLL), where('bsYear', '==', year), where('bsMonth', '==', month))),
     ]);
-    const batch = writeBatch(db);
-    attSnap.forEach(d => batch.delete(d.ref));
-    paySnap.forEach(d => batch.delete(d.ref));
-    await batch.commit().catch(async (err: any) => {
+    try {
+        await deleteDocsInChunks([...attSnap.docs, ...paySnap.docs].map(d => d.ref));
+    } catch (err: any) {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'attendance_batch_delete',
@@ -210,7 +209,7 @@ export const deleteAttendanceForMonth = async (year: number, month: number): Pro
             }));
         }
         throw err;
-    });
+    }
     return { deleted: true, locked: false };
 };
 
@@ -233,19 +232,19 @@ export const deleteAttendanceAndPayrollForFiscalYear = async (
 };
 
 export const deleteAllRawLogs = async (): Promise<void> => {
-    const { db } = getFirebase();
     const snap = await getDocs(getRawLogsCollection());
     if (snap.empty) return;
-    const batch = writeBatch(db);
-    snap.docs.forEach(d => batch.delete(d.ref));
-    batch.commit().catch(async (err: any) => {
+    try {
+        await deleteDocsInChunks(snap.docs.map(d => d.ref));
+    } catch (err: any) {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'raw_machine_logs_purge',
                 operation: 'write'
             }));
         }
-    });
+        throw err;
+    }
 };
 
 export const deleteAllAttendance = async (): Promise<void> => {
@@ -256,16 +255,17 @@ export const deleteAllAttendance = async (): Promise<void> => {
         getDocs(collection(db, COLLECTIONS.PAYROLL)),
         getDocs(collection(db, 'analytics_reports'))
     ]);
-    const batch = writeBatch(db);
-    snaps.forEach(snap => snap.forEach(d => batch.delete(d.ref)));
-    batch.commit().catch(async (err: any) => {
+    try {
+        await deleteDocsInChunks(snaps.flatMap(snap => snap.docs.map(d => d.ref)));
+    } catch (err: any) {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'attendance_system_purge',
                 operation: 'write'
             }));
         }
-    });
+        throw err;
+    }
 };
 
 export const getAttendanceYears = async (): Promise<number[]> => {

@@ -45,10 +45,16 @@ export const isInFiscalYear = (bsYear: number, bsMonth: number, fyStartYear: num
 
 /**
  * Derives the sorted (descending) list of fiscal years present in a set of
- * BS year/month pairs - e.g. from attendance or payroll records.
+ * BS year/month pairs - e.g. from attendance or payroll records. Records
+ * with a missing/zero bsYear (e.g. a bad import row) are excluded so they
+ * never surface as a bogus "-1/00"-style bucket in a fiscal-year picker.
  */
 export const getAvailableFiscalYears = (periods: FiscalYearMonth[]): number[] => {
-    const years = new Set(periods.map(p => getFiscalYearStart(p.bsYear, p.bsMonth)));
+    const years = new Set(
+        periods
+            .filter(p => p.bsYear > 0)
+            .map(p => getFiscalYearStart(p.bsYear, p.bsMonth))
+    );
     return Array.from(years).sort((a, b) => b - a);
 };
 
