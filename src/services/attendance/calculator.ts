@@ -8,9 +8,9 @@ import {
     where, 
 } from 'firebase/firestore';
 import { startOfDay, isEqual, isWithinInterval, format, getWeek } from 'date-fns';
-import type { AttendanceRecord, HrConfig } from '@/lib/types';
+import type { AttendanceRecord, HrConfig, HrShift } from '@/lib/types';
 import { getEmployees } from '../employee-service';
-import { getHolidays, getLeaveRequests } from '../hr-admin-service';
+import { getHolidays, getLeaveRequests, getShifts } from '../hr-admin-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 import { getSetting } from '../settings-service';
@@ -45,8 +45,11 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     const config = (configSetting?.value as HrConfig) || null;
     if (!config) throw new Error("HR Operational Rules not found.");
 
-    const breakStartMins = config.hours.breakStart ? timeToMinutes(config.hours.breakStart) : 12 * 60;
-    const breakEndMins = config.hours.breakEnd ? timeToMinutes(config.hours.breakEnd) : 13 * 60;
+    // Default (config-level) break window, used for any employee with no shift
+    // assigned - this is the pre-existing single-schedule behavior and stays
+    // untouched so employees on the standard shift calculate exactly as before.
+    const defaultBreakStartMins = config.hours.breakStart ? timeToMinutes(config.hours.breakStart) : 12 * 60;
+    const defaultBreakEndMins = config.hours.breakEnd ? timeToMinutes(config.hours.breakEnd) : 13 * 60;
 
     const qRaw = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const rawSnap = await getDocs(qRaw).catch(err => {
@@ -58,8 +61,9 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
     
     if (rawSnap.empty) throw new Error("No raw machine logs found for selected period.");
 
-    const [employees, holidays, leaveRequests] = await Promise.all([getEmployees(), getHolidays(), getLeaveRequests()]);
+    const [employees, holidays, leaveRequests, shifts] = await Promise.all([getEmployees(), getHolidays(), getLeaveRequests(), getShifts()]);
     const employeeMap = new Map(employees.map(e => [e.name.toLowerCase().trim(), e]));
+    const shiftMap = new Map(shifts.map(s => [s.id, s]));
     
     const qProcessed = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const processedSnap = await getDocs(qProcessed).catch(err => {
@@ -93,6 +97,18 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         const employee = employeeMap.get(log.employeeName.toLowerCase().trim());
         if (!employee) continue;
 
+        // Employee -> Assigned Shift -> Break Configuration. An employee with
+        // no shift assigned keeps using the config-level default, so nothing
+        // changes for anyone until a shift is explicitly assigned to them.
+        const shift: HrShift | undefined = employee.shiftId ? shiftMap.get(employee.shiftId) : undefined;
+        const breakStartMins = shift?.breakStart ? timeToMinutes(shift.breakStart) : defaultBreakStartMins;
+        const breakEndMins = shift?.breakEnd ? timeToMinutes(shift.breakEnd) : defaultBreakEndMins;
+        // Raw log values (from a real punch import) always win; a shift's
+        // onDuty/offDuty only fills in when the raw row has none, e.g. rows
+        // created via Bulk Clock In/Out which don't carry a schedule of their own.
+        const effOnDuty = log.onDuty || shift?.onDuty || null;
+        const effOffDuty = log.offDuty || shift?.offDuty || null;
+
         const logDate = startOfDay(new Date(log.date));
         const holiday = holidays.find(h => isEqual(startOfDay(new Date(h.date)), logDate));
         const leave = leaveRequests.find(l => l.employeeId === employee.id && l.status === 'Approved' && isWithinInterval(logDate, { start: startOfDay(new Date(l.startDate)), end: startOfDay(new Date(l.endDate)) }));
@@ -106,9 +122,9 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         } else if (logDate.getDay() === 6) { finalStatus = 'Saturday';
             if (log.clockIn && log.clockOut) ot = roundToNearest(applyFixedBreak(timeToMinutes(log.clockIn), timeToMinutes(log.clockOut), breakStartMins, breakEndMins), config.hours.roundStep);
         } else {
-            if (!log.onDuty || !log.offDuty || !log.clockIn || !log.clockOut) { finalStatus = (log.clockIn || log.clockOut) ? 'C/I/O Miss' : 'Absent'; finalRemarks = "Incomplete Punches"; }
+            if (!effOnDuty || !effOffDuty || !log.clockIn || !log.clockOut) { finalStatus = (log.clockIn || log.clockOut) ? 'C/I/O Miss' : 'Absent'; finalRemarks = "Incomplete Punches"; }
             else {
-                const sOn = timeToMinutes(log.onDuty); const sOff = timeToMinutes(log.offDuty); const aIn = timeToMinutes(log.clockIn); const aOut = timeToMinutes(log.clockOut);
+                const sOn = timeToMinutes(effOnDuty); const sOff = timeToMinutes(effOffDuty); const aIn = timeToMinutes(log.clockIn); const aOut = timeToMinutes(log.clockOut);
                 const lateMin = Math.max(0, aIn - sOn); const earlyMin = Math.max(0, sOff - aOut);
 
                 let latePen = 0;
@@ -159,7 +175,7 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
 
         results.push({
             date: log.date, dateBS: log.dateBS, bsYear: year, bsMonth: month, employeeName: employee.name, employeeId: employee.id,
-            onDuty: log.onDuty, offDuty: log.offDuty, clockIn: log.clockIn, clockOut: log.clockOut, status: finalStatus,
+            onDuty: effOnDuty, offDuty: effOffDuty, clockIn: log.clockIn, clockOut: log.clockOut, status: finalStatus,
             regularHours: reg, overtimeHours: ot, grossHours: reg + ot, calculatedAt: now, calculatedBy,
             remarks: finalRemarks || null, sourceLogId: log.id, rowIndex: log.rowIndex,
             weekday: format(logDate, 'EEEE'), absent: finalStatus === 'Absent', gTime, breakHours, gHours,

@@ -224,7 +224,8 @@ export interface Employee {
   documentNumber?: string;
   referredBy?: string;
   photoURL?: string;
-  
+  shiftId?: string; // Assigned HrShift id; falls back to the default shift, then to HrConfig.hours
+
   // Advanced HR Fields
   bloodGroup?: BloodGroup;
   emergencyContactName?: string;

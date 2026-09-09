@@ -157,3 +157,57 @@ export const addBulkManualLogs = async (
     }
     return operations.length;
 };
+
+/**
+ * Bulk Clock In / Clock Out: stamps just one side of the punch (clockIn or
+ * clockOut) for every selected employee on one date, merging into whatever
+ * raw log already exists for that employee+date. Unlike addBulkManualLogs
+ * (which writes a full day's worth of data in one shot and is meant for
+ * backfilling), this never touches statusFromMachine, the other punch side,
+ * onDuty/offDuty, or remarks - so clocking a group in during the morning and
+ * clocking them out again in the evening never clobbers either record, and
+ * each employee's individual attendance stays intact.
+ */
+export const bulkClockInOut = async (
+    date: Date,
+    employeeNames: string[],
+    action: 'IN' | 'OUT',
+    time: string,
+    performedBy: string
+): Promise<number> => {
+    const { db } = getFirebase();
+    const now = createTimestamp();
+    const adDate = startOfDay(date);
+    const nepaliDate = new NepaliDate(adDate);
+    const dateISO = adDate.toISOString();
+    const dateBS = nepaliDate.format('YYYY/MM/DD');
+    const bsYear = nepaliDate.getYear();
+    const bsMonth = nepaliDate.getMonth();
+    const CHUNK_SIZE = 400;
+
+    const operations = employeeNames.map(name => {
+        const compositeKey = `${name.toLowerCase().trim()}_${format(adDate, 'yyyy-MM-dd')}`;
+        const data: Partial<RawMachineLog> = {
+            date: dateISO, dateBS, bsYear, bsMonth, employeeName: name,
+            importedAt: now, importedBy: performedBy, sourceSheet: 'Bulk Clock Action', isManual: true,
+        };
+        if (action === 'IN') data.clockIn = time; else data.clockOut = time;
+        return { ref: doc(getRawLogsCollection(), compositeKey), data };
+    });
+
+    for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
+        const chunk = operations.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach(o => batch.set(o.ref, o.data, { merge: true }));
+        await batch.commit().catch(err => {
+            if (err.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: 'raw_machine_logs_bulk_clock',
+                    operation: 'write'
+                }));
+            }
+            throw err;
+        });
+    }
+    return operations.length;
+};

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { AttendanceRecord, Employee, AttendanceStatus, PublicHoliday, LeaveRequest } from '@/lib/types';
+import type { AttendanceRecord, Employee, AttendanceStatus, PublicHoliday, LeaveRequest, HrShift } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -24,11 +24,15 @@ import {
     ChevronLeft,
     ChevronRight,
     Lock,
-    LockOpen
+    LockOpen,
+    CalendarClock,
+    LogIn,
+    LogOut,
+    Users
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
-import { onEmployeesUpdate } from '@/services/employee-service';
+import { onEmployeesUpdate, updateEmployee } from '@/services/employee-service';
 import {
     updateAttendanceRecord,
     deleteAttendanceRecord,
@@ -41,12 +45,14 @@ import {
     runHourlyCalculation,
     onAttendancePeriodLocksUpdate,
     setAttendancePeriodLock,
+    bulkClockInOut,
     type AttendancePeriodLock
 } from '@/services/attendance-service';
-import { onHolidaysUpdate, onLeaveRequestsUpdate } from '@/services/hr-admin-service';
+import { onHolidaysUpdate, onLeaveRequestsUpdate, onShiftsUpdate } from '@/services/hr-admin-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate, getAttendanceRowHighlight } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -98,11 +104,28 @@ export default function AttendanceRegistryPage() {
   const [periodLocks, setPeriodLocks] = useState<AttendancePeriodLock[]>([]);
   const [isTogglingLock, setIsTogglingLock] = useState(false);
 
+  const [shifts, setShifts] = useState<HrShift[]>([]);
+
+  // Shift Reschedule dialog
+  const [isShiftAssignOpen, setIsShiftAssignOpen] = useState(false);
+  const [shiftAssignEmployeeId, setShiftAssignEmployeeId] = useState<string>('');
+  const [shiftAssignShiftId, setShiftAssignShiftId] = useState<string>('none');
+  const [isSavingShiftAssign, setIsSavingShiftAssign] = useState(false);
+
+  // Bulk Clock In/Out dialog
+  const [isBulkClockOpen, setIsBulkClockOpen] = useState(false);
+  const [bulkClockDate, setBulkClockDate] = useState<string>(formatDate(new Date(), 'yyyy-MM-dd'));
+  const [bulkClockActionType, setBulkClockActionType] = useState<'IN' | 'OUT'>('IN');
+  const [bulkClockTime, setBulkClockTime] = useState<string>('08:00');
+  const [bulkClockSelectedIds, setBulkClockSelectedIds] = useState<string[]>([]);
+  const [isBulkClocking, setIsBulkClocking] = useState(false);
+
   useEffect(() => {
     onEmployeesUpdate(setEmployees);
     const unsubHolidays = onHolidaysUpdate(setHolidays);
     const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
     const unsubLocks = onAttendancePeriodLocksUpdate(setPeriodLocks);
+    const unsubShifts = onShiftsUpdate(setShifts);
     const unsubAttendance = onAttendanceUpdate((data) => {
         setAttendance(data);
         setIsDataLoading(false);
@@ -111,6 +134,7 @@ export default function AttendanceRegistryPage() {
         unsubLocks();
         unsubHolidays();
         unsubLeaves();
+        unsubShifts();
         unsubAttendance();
     };
   }, []);
@@ -228,6 +252,57 @@ export default function AttendanceRegistryPage() {
   const sortedEmployeesForFilter = useMemo(() => {
     return [...employees].sort((a, b) => a.name.localeCompare(b.name));
   }, [employees]);
+
+  const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
+  const shiftMap = useMemo(() => new Map(shifts.map(s => [s.id, s])), [shifts]);
+
+  const activeEmployeesForBulkClock = useMemo(() => {
+    return [...employees].filter(e => e.status === 'Working').sort((a, b) => a.name.localeCompare(b.name));
+  }, [employees]);
+
+  const handleOpenShiftAssign = (employeeId: string) => {
+    const emp = employeeMap.get(employeeId);
+    setShiftAssignEmployeeId(employeeId);
+    setShiftAssignShiftId(emp?.shiftId || 'none');
+    setIsShiftAssignOpen(true);
+  };
+
+  const handleSaveShiftAssign = async () => {
+    if (!shiftAssignEmployeeId) return;
+    setIsSavingShiftAssign(true);
+    try {
+        await updateEmployee(shiftAssignEmployeeId, { shiftId: shiftAssignShiftId === 'none' ? '' : shiftAssignShiftId });
+        toast({ title: 'Shift Updated', description: 'The employee has been rescheduled. Existing clock-in/out records were not changed.' });
+        setIsShiftAssignOpen(false);
+    } catch {
+        toast({ title: 'Error', description: 'Could not update the assigned shift.', variant: 'destructive' });
+    } finally {
+        setIsSavingShiftAssign(false);
+    }
+  };
+
+  const toggleBulkClockEmployee = (employeeId: string) => {
+    setBulkClockSelectedIds(prev => prev.includes(employeeId) ? prev.filter(id => id !== employeeId) : [...prev, employeeId]);
+  };
+
+  const handleRunBulkClock = async () => {
+    if (!user || bulkClockSelectedIds.length === 0 || !bulkClockDate || !bulkClockTime) return;
+    setIsBulkClocking(true);
+    try {
+        const names = bulkClockSelectedIds.map(id => employeeMap.get(id)?.name).filter((n): n is string => Boolean(n));
+        const count = await bulkClockInOut(new Date(bulkClockDate), names, bulkClockActionType, bulkClockTime, user.username);
+        toast({
+            title: `Bulk Clock ${bulkClockActionType === 'IN' ? 'In' : 'Out'} Applied`,
+            description: `Updated the raw log for ${count} employee(s) on ${bulkClockDate}. Run Calculation to reflect this in the table below.`,
+        });
+        setIsBulkClockOpen(false);
+        setBulkClockSelectedIds([]);
+    } catch {
+        toast({ title: 'Error', description: 'Could not apply the bulk clock action.', variant: 'destructive' });
+    } finally {
+        setIsBulkClocking(false);
+    }
+  };
 
   const handleOpenEditDialog = (record: AttendanceRecord) => {
     setEditingRecord(record);
@@ -355,6 +430,13 @@ export default function AttendanceRegistryPage() {
                     <Link href="/hr/attendance/raw"><HardDrive className="mr-2 h-3.5 w-3.5"/> View Raw Dump</Link>
                 </Button>
                 <LedgerImportButton />
+                <Button
+                    variant="outline"
+                    onClick={() => { setBulkClockSelectedIds([]); setBulkClockActionType('IN'); setBulkClockTime('08:00'); setIsBulkClockOpen(true); }}
+                    className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200"
+                >
+                    <Users className="mr-2 h-3.5 w-3.5"/> Bulk Clock In/Out
+                </Button>
                 {selectedFyMonthIndex !== 'All' && (
                     <Button
                         variant="outline"
@@ -505,6 +587,7 @@ export default function AttendanceRegistryPage() {
                                 </TableHead>
                                 <TableHead className="font-bold">BS Date</TableHead>
                                 <TableHead className="font-bold">Name</TableHead>
+                                <TableHead className="font-bold">Shift</TableHead>
                                 <TableHead className="font-bold">Weekday</TableHead>
                                 <TableHead className="text-center font-bold">On duty</TableHead>
                                 <TableHead className="text-center font-bold">Off duty</TableHead>
@@ -523,7 +606,7 @@ export default function AttendanceRegistryPage() {
                         </TableHeader>
                         <TableBody>
                             {isDataLoading ? (
-                                <TableRow key="loading-row"><TableCell colSpan={17} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                                <TableRow key="loading-row"><TableCell colSpan={18} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                             ) : paginatedRecords.map(r => {
                                 const highlight = getAttendanceRowHighlight(r);
                                 return (
@@ -531,6 +614,24 @@ export default function AttendanceRegistryPage() {
                                     <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
                                     <TableCell className="font-mono font-bold text-blue-900">{r.dateBS}</TableCell>
                                     <TableCell className="font-black text-gray-900">{r.employeeName}</TableCell>
+                                    <TableCell>
+                                        {(() => {
+                                            const emp = employeeMap.get(r.employeeId);
+                                            const shift = emp?.shiftId ? shiftMap.get(emp.shiftId) : undefined;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => emp && handleOpenShiftAssign(emp.id)}
+                                                    disabled={!emp}
+                                                    className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    title={emp ? 'Reschedule shift' : 'Employee not found'}
+                                                >
+                                                    <CalendarClock className="h-3 w-3" />
+                                                    {shift ? shift.name : 'Standard'}
+                                                </button>
+                                            );
+                                        })()}
+                                    </TableCell>
                                     <TableCell className="text-[10px] text-muted-foreground uppercase">{r.weekday || '—'}</TableCell>
                                     <TableCell className="text-center text-[11px] text-muted-foreground">{formatTimeForDisplay(r.onDuty)}</TableCell>
                                     <TableCell className="text-center text-[11px] text-muted-foreground">{formatTimeForDisplay(r.offDuty)}</TableCell>
@@ -556,7 +657,7 @@ export default function AttendanceRegistryPage() {
                             })}
                             {!isDataLoading && paginatedRecords.length === 0 && (
                                 <TableRow key="no-records-row">
-                                    <TableCell colSpan={17} className="h-60 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={18} className="h-60 text-center text-muted-foreground italic">
                                         <div className="flex flex-col items-center gap-3">
                                             <AlertCircle className="h-10 w-10 opacity-10"/>
                                             <p>No processed records found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Run the Hourly Calculation Logic to generate records.</span></p>
@@ -682,6 +783,102 @@ export default function AttendanceRegistryPage() {
                     <Button onClick={handleRunCalculation} disabled={isCalculating || isCalcTargetLocked} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
                         {isCalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Calculator className="mr-2 h-4 w-4"/>}
                         {isCalculating ? 'Processing...' : isCalcTargetLocked ? 'Period Locked' : 'Run Attendance Processor'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        {/* Shift Reschedule Dialog */}
+        <Dialog open={isShiftAssignOpen} onOpenChange={setIsShiftAssignOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-black text-gray-900">Reschedule Shift</DialogTitle>
+                    <DialogDescription>
+                        {employeeMap.get(shiftAssignEmployeeId)?.name || 'Employee'} — assigning a shift only changes how future calculations read this employee's break window and default duty times. Existing clock-in/out records are never touched.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-1.5 py-2">
+                    <Label className="text-[10px] font-black uppercase text-muted-foreground">Assigned Shift</Label>
+                    <Select value={shiftAssignShiftId} onValueChange={setShiftAssignShiftId}>
+                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">Standard (HR Operational Rules default)</SelectItem>
+                            {shifts.map(s => (
+                                <SelectItem key={`shift-opt-${s.id}`} value={s.id}>
+                                    {s.name} ({formatTimeForDisplay(s.onDuty)}–{formatTimeForDisplay(s.offDuty)}, break {formatTimeForDisplay(s.breakStart)}–{formatTimeForDisplay(s.breakEnd)})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {shifts.length === 0 && (
+                        <p className="text-[10px] text-muted-foreground italic pt-1">No shifts defined yet. Define shift patterns from HR Settings → Shift Pattern Registry.</p>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleSaveShiftAssign} disabled={isSavingShiftAssign} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                        {isSavingShiftAssign ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CalendarClock className="mr-2 h-4 w-4"/>}
+                        Save Reschedule
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        {/* Bulk Clock In/Out Dialog */}
+        <Dialog open={isBulkClockOpen} onOpenChange={setIsBulkClockOpen}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-black text-gray-900">Bulk Clock In / Clock Out</DialogTitle>
+                    <DialogDescription>Stamp a single clock time for multiple employees on one date. Only the selected side (In or Out) is written — the other punch and any existing record are preserved.</DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-3 gap-4 py-2">
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Date</Label>
+                        <Input type="date" value={bulkClockDate} onChange={e => setBulkClockDate(e.target.value)} className="h-10" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Action</Label>
+                        <Select value={bulkClockActionType} onValueChange={(v) => setBulkClockActionType(v as 'IN' | 'OUT')}>
+                            <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="IN"><span className="inline-flex items-center gap-1.5"><LogIn className="h-3.5 w-3.5"/> Clock In</span></SelectItem>
+                                <SelectItem value="OUT"><span className="inline-flex items-center gap-1.5"><LogOut className="h-3.5 w-3.5"/> Clock Out</span></SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Time</Label>
+                        <Input type="time" value={bulkClockTime} onChange={e => setBulkClockTime(e.target.value)} className="h-10" />
+                    </div>
+                </div>
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Select Employees ({bulkClockSelectedIds.length} selected)</Label>
+                        <div className="flex items-center gap-3">
+                            <button type="button" className="text-[10px] font-bold uppercase text-primary hover:underline" onClick={() => setBulkClockSelectedIds(activeEmployeesForBulkClock.map(e => e.id))}>Select All</button>
+                            <button type="button" className="text-[10px] font-bold uppercase text-muted-foreground hover:underline" onClick={() => setBulkClockSelectedIds([])}>Clear</button>
+                        </div>
+                    </div>
+                    <ScrollArea className="h-[240px] rounded-lg border p-2">
+                        {activeEmployeesForBulkClock.length === 0 ? (
+                            <p className="text-[10px] text-muted-foreground italic px-2 py-2">No active employees found.</p>
+                        ) : activeEmployeesForBulkClock.map(e => {
+                            const shift = e.shiftId ? shiftMap.get(e.shiftId) : undefined;
+                            return (
+                                <label key={`bulk-emp-${e.id}`} className="flex items-center justify-between gap-2 px-2 py-2 rounded hover:bg-muted/50 cursor-pointer text-xs">
+                                    <span className="flex items-center gap-2">
+                                        <Checkbox checked={bulkClockSelectedIds.includes(e.id)} onCheckedChange={() => toggleBulkClockEmployee(e.id)} />
+                                        <span className="font-bold">{e.name}</span>
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground uppercase">{shift ? shift.name : 'Standard'}</span>
+                                </label>
+                            );
+                        })}
+                    </ScrollArea>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleRunBulkClock} disabled={isBulkClocking || bulkClockSelectedIds.length === 0} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                        {isBulkClocking ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : bulkClockActionType === 'IN' ? <LogIn className="mr-2 h-4 w-4"/> : <LogOut className="mr-2 h-4 w-4"/>}
+                        {isBulkClocking ? 'Applying...' : `Apply Clock ${bulkClockActionType === 'IN' ? 'In' : 'Out'} to ${bulkClockSelectedIds.length} Employee(s)`}
                     </Button>
                 </DialogFooter>
             </DialogContent>

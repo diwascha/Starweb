@@ -27,6 +27,12 @@ const getLeaveRequestsCollection = () => {
 
 // --- Shift Management ---
 
+export const getShifts = async (): Promise<HrShift[]> => {
+    const q = query(getShiftsCollection(), orderBy('name'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as HrShift));
+};
+
 export const onShiftsUpdate = (callback: (shifts: HrShift[]) => void) => {
     const q = query(getShiftsCollection(), orderBy('name'));
     return onSnapshot(q, (snapshot) => {
