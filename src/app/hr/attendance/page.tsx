@@ -49,6 +49,7 @@ import NepaliDate from 'nepali-date-converter';
 import { format as formatDate, startOfDay, isEqual, isWithinInterval } from 'date-fns';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import Link from 'next/link';
+import LedgerImportButton from './_components/ledger-import-button';
 
 type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
 type SortDirection = 'asc' | 'desc';
@@ -274,6 +275,7 @@ export default function AttendanceRegistryPage() {
                 <Button variant="outline" asChild className="h-10 uppercase text-[10px] font-black tracking-widest">
                     <Link href="/hr/attendance/raw"><HardDrive className="mr-2 h-3.5 w-3.5"/> View Raw Dump</Link>
                 </Button>
+                <LedgerImportButton />
                 <Button
                     onClick={() => { setCalcYear(selectedBsYear || String(new NepaliDate().getYear())); setCalcMonth(selectedBsMonth); setIsCalcDialogOpen(true); }}
                     className="h-10 uppercase text-[10px] font-black tracking-widest shadow-lg shadow-primary/20"
