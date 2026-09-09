@@ -2,16 +2,16 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { 
-    Users, 
-    Calendar, 
-    FileText, 
-    Award, 
-    Wallet, 
-    BarChart2, 
+import {
+    Users,
+    Calendar,
+    FileText,
+    Award,
+    Wallet,
+    BarChart2,
     CalendarCheck,
     Settings2,
-    HardDrive,
+    Upload,
     Calculator
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -21,10 +21,10 @@ import { Separator } from '@/components/ui/separator';
 
 const hrModules = [
     { name: 'Employees', description: 'Manage employee records and wage information.', href: '/hr/employees', icon: Users },
-    { name: 'Machine Logs', description: 'Direct raw data dump from attendance machines.', href: '/hr/attendance/raw', icon: HardDrive },
-    { name: 'Attendance Registry', description: 'Validated work-hour records and metrics.', href: '/hr/attendance', icon: Calendar },
-    { name: 'Operations & Logic', description: 'Configure rules, shifts, holidays, and leaves.', href: '/hr/office', icon: Settings2 },
-    { name: 'Workforce Ledger', description: 'Consolidated Payroll, Bonus, and Analytics.', href: '/hr/payroll', icon: FileText },
+    { name: 'Data Import', description: 'Machine punch logs and master ledger workbooks.', href: '/hr/attendance/raw', icon: Upload },
+    { name: 'Attendance Logs', description: 'Validated work-hour records and metrics.', href: '/hr/attendance', icon: Calendar },
+    { name: 'HR Setting', description: 'Configure rules, shifts, holidays, and leaves.', href: '/hr/office', icon: Settings2 },
+    { name: 'Payroll', description: 'Consolidated Payroll, Bonus, and Analytics.', href: '/hr/payroll', icon: FileText },
 ];
 
 function DashboardSkeleton() {

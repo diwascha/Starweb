@@ -246,7 +246,7 @@ export default function AttendanceRegistryPage() {
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary/10 rounded-xl"><UserCheck className="h-6 w-6 text-primary"/></div>
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Attendance Registry</h1>
+                    <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Attendance Logs</h1>
                     <p className="text-muted-foreground text-sm font-medium italic">Validated labor metrics and work-hour records.</p>
                 </div>
             </div>

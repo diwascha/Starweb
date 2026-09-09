@@ -8,7 +8,7 @@ import {
     Search, 
     FilterX, 
     Loader2, 
-    FileSpreadsheet, 
+    FileSpreadsheet,
     AlertTriangle,
     CheckCircle2,
     Plus,
@@ -18,7 +18,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Users,
-    ArrowUpDown
+    ArrowUpDown,
+    Terminal
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,9 @@ import {
 } from '@/services/attendance/data';
 import { addRawMachineLogs, addBulkManualLogs } from '@/services/attendance/import';
 import { importLegacyPayrollSheet } from '@/services/payroll/legacy-import';
+import { importConsolidatedLedger } from '@/services/vba-import-service';
 import { resolvePeriodFromSheetName } from '@/lib/attendance';
+import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -67,10 +70,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
 
+const CONSOLIDATED_LEDGER_SHEET = 'Consolidated Ledger';
+
 export default function MachineLogsPage() {
     const { user, hasPermission } = useAuth();
     const { toast } = useToast();
-    
+    const router = useRouter();
+
     const [logs, setLogs] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -86,6 +92,11 @@ export default function MachineLogsPage() {
     const [importTotal, setImportTotal] = useState(0);
     const [currentSheetLabel, setCurrentSheetLabel] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Consolidated Ledger import (new VBA-driven workbook format, FY2083/84+)
+    const [isImportingLedger, setIsImportingLedger] = useState(false);
+    const [ledgerImportProgress, setLedgerImportProgress] = useState<string | null>(null);
+    const ledgerFileInputRef = useRef<HTMLInputElement>(null);
 
     // Filters
     const [filterMonth, setFilterMonth] = useState<string>('All');
@@ -245,6 +256,74 @@ export default function MachineLogsPage() {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    const handleLedgerFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !user) return;
+
+        setIsImportingLedger(true);
+        setLedgerImportProgress('Reading spreadsheet...');
+
+        try {
+            const XLSX = await import('xlsx');
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+
+                    const sheetName = workbook.SheetNames.find(
+                        (name) => name.trim().toLowerCase() === CONSOLIDATED_LEDGER_SHEET.toLowerCase()
+                    );
+
+                    if (!sheetName) {
+                        toast({
+                            title: 'Sheet Not Found',
+                            description: `Could not find a sheet named "${CONSOLIDATED_LEDGER_SHEET}" in this workbook. Available sheets: ${workbook.SheetNames.join(', ')}`,
+                            variant: 'destructive',
+                        });
+                        return;
+                    }
+
+                    const worksheet = workbook.Sheets[sheetName];
+                    const grid = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
+
+                    const headerRow = grid[1] || [];
+                    if (String(headerRow[0] || '').trim().toLowerCase() !== 'employee') {
+                        toast({
+                            title: 'Unexpected Sheet Layout',
+                            description: `Row 2, Column A was expected to read "Employee" but found "${headerRow[0] ?? '(empty)'}". The ledger layout may have changed.`,
+                            variant: 'destructive',
+                        });
+                        return;
+                    }
+
+                    setLedgerImportProgress('Mapping data blocks...');
+                    const result = await importConsolidatedLedger(grid, user.username, (current, total) => {
+                        setLedgerImportProgress(`Processing row ${current} of ${total}`);
+                    });
+
+                    toast({
+                        title: 'Ledger Import Successful',
+                        description: `Finalized: ${result.payroll} Payroll, ${result.behaviorLedger} Behavior, ${result.bonusSummaries} Bonus, and ${result.behaviorAnalytics} Analytics records.`,
+                    });
+
+                    setTimeout(() => router.push('/hr/payroll'), 1000);
+                } catch (error: any) {
+                    toast({ title: 'Ledger Import Failed', description: error.message || 'Failed to read the Excel file.', variant: 'destructive' });
+                } finally {
+                    setIsImportingLedger(false);
+                    setLedgerImportProgress(null);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } catch (err) {
+            setIsImportingLedger(false);
+            setLedgerImportProgress(null);
+            toast({ title: 'System Error', description: 'Failed to load spreadsheet processor.', variant: 'destructive' });
+        }
+        if (ledgerFileInputRef.current) ledgerFileInputRef.current.value = '';
+    };
+
     const requestSort = (key: SortKey) => {
         setSortConfig(prev => ({
             key,
@@ -258,25 +337,42 @@ export default function MachineLogsPage() {
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-xl"><HardDrive className="h-6 w-6 text-primary"/></div>
                     <div>
-                        <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Machine Logs</h1>
-                        <p className="text-muted-foreground text-sm font-medium italic">Direct data dump from biometric machines.</p>
+                        <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Data Import</h1>
+                        <p className="text-muted-foreground text-sm font-medium italic">Machine punch logs and master ledger workbooks, in one place.</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        onChange={handleFileUpload} 
-                        accept=".xlsx,.xls" 
-                        className="hidden" 
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        accept=".xlsx,.xls"
+                        className="hidden"
                     />
-                    <Button 
-                        onClick={() => fileInputRef.current?.click()} 
-                        disabled={isImporting}
+                    <Button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isImporting || isImportingLedger}
                         className="h-10 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20"
                     >
                         {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
-                        {isImporting ? 'Reading...' : 'Import Excel'}
+                        {isImporting ? 'Reading...' : 'Import Machine Logs'}
+                    </Button>
+
+                    <input
+                        type="file"
+                        ref={ledgerFileInputRef}
+                        onChange={handleLedgerFileUpload}
+                        accept=".xls,.xlsx,.xlsm"
+                        className="hidden"
+                    />
+                    <Button
+                        variant="outline"
+                        onClick={() => ledgerFileInputRef.current?.click()}
+                        disabled={isImporting || isImportingLedger}
+                        className="h-10 font-black text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5"
+                    >
+                        {isImportingLedger ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Terminal className="mr-2 h-4 w-4"/>}
+                        {isImportingLedger ? 'Processing...' : 'Import Consolidated Ledger'}
                     </Button>
                 </div>
             </header>
@@ -297,6 +393,22 @@ export default function MachineLogsPage() {
                                     Processing row {importProgress} of {importTotal}...
                                 </p>
                             </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {isImportingLedger && (
+                <Card className="bg-primary/5 border-primary/20 animate-in fade-in zoom-in-95">
+                    <CardContent className="py-6 flex items-center gap-4">
+                        <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                        <div className="space-y-1">
+                            <p className="text-sm font-black uppercase text-gray-900">Processing Master Ledger</p>
+                            {ledgerImportProgress && (
+                                <p className="text-[10px] text-primary font-black uppercase tracking-widest animate-pulse">
+                                    {ledgerImportProgress}
+                                </p>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -429,7 +541,7 @@ export default function MachineLogsPage() {
                                         <TableCell colSpan={7} className="h-60 text-center text-muted-foreground italic">
                                             <div className="flex flex-col items-center gap-3">
                                                 <HardDrive className="h-10 w-10 opacity-10"/>
-                                                <p>No raw machine data found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Click 'Import Excel' to ingest biometric data.</span></p>
+                                                <p>No raw machine data found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Click 'Import Machine Logs' to ingest biometric data.</span></p>
                                             </div>
                                         </TableCell>
                                     </TableRow>

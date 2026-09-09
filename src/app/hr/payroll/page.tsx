@@ -177,7 +177,7 @@ export default function UnifiedWorkforcePage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Workforce Ledger</h1>
+                    <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Payroll</h1>
                     <p className="text-muted-foreground text-sm font-medium">Consolidated view for period: <span className="text-primary font-bold">{periodName}</span></p>
                 </div>
             </header>
@@ -274,8 +274,8 @@ export default function UnifiedWorkforcePage() {
                                 Sync Metrics
                             </Button>
 
-                            <Button variant="outline" onClick={() => router.push('/hr/payroll/import')} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5">
-                                <Upload className="mr-2 h-3.5 w-3.5" /> Import Ledger
+                            <Button variant="outline" onClick={() => router.push('/hr/attendance/raw')} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5">
+                                <Upload className="mr-2 h-3.5 w-3.5" /> Import Data
                             </Button>
                         </div>
                     </div>
