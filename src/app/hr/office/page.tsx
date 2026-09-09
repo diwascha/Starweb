@@ -11,12 +11,9 @@ import {
     CalendarIcon,
     X,
     CheckCircle2,
-    Calculator,
     Save,
     Loader2,
-    PlayCircle,
     ArrowRight,
-    ShieldAlert,
     RefreshCcw,
     CalendarCheck,
     Briefcase,
@@ -39,7 +36,6 @@ import {
 } from '@/services/hr-admin-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
-import { runHourlyCalculation, getAttendanceYears } from '@/services/attendance-service';
 import type { HrShift, HrConfig, LeaveRequest, Employee, PublicHoliday } from '@/lib/types';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { createTimestamp } from '@/lib/service-utils';
@@ -50,9 +46,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { NEPALI_MONTHS } from '@/lib/constants';
-import NepaliDate from 'nepali-date-converter';
-import { useRouter } from 'next/navigation';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format, differenceInDays } from 'date-fns';
@@ -97,8 +90,7 @@ const INITIAL_HR_CONFIG: HrConfig = {
 export default function HrOfficePage() {
     const { user } = useAuth();
     const { toast } = useToast();
-    const router = useRouter();
-    
+
     const [activeTab, setActiveTab] = useState("operations");
     const [shifts, setShifts] = useState<HrShift[]>([]);
     const [hrConfig, setHrConfig] = useState<HrConfig>(INITIAL_HR_CONFIG);
@@ -108,11 +100,6 @@ export default function HrOfficePage() {
     const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
-
-    const [isCalculating, setIsCalculating] = useState(false);
-    const [selectedYear, setSelectedYear] = useState<string>(String(new NepaliDate().getYear()));
-    const [selectedMonth, setSelectedMonth] = useState<string>(String(new NepaliDate().getMonth()));
-    const [calcYears, setCalcYears] = useState<number[]>([new NepaliDate().getYear()]);
 
     const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
     const [editingShift, setEditingShift] = useState<HrShift | null>(null);
@@ -140,10 +127,6 @@ export default function HrOfficePage() {
                 if (s?.value) setHrConfig(s.value);
             })
         ];
-        getAttendanceYears().then(years => {
-            const current = new NepaliDate().getYear();
-            setCalcYears(years.includes(current) ? years : [current, ...years].sort((a, b) => b - a));
-        });
         return () => unsubs.forEach(u => u());
     }, []);
 
@@ -161,27 +144,6 @@ export default function HrOfficePage() {
             toast({ title: 'Update Failed', variant: 'destructive' });
         } finally {
             setIsSavingConfig(false);
-        }
-    };
-
-    const handleRunCalculation = async () => {
-        if (!user) return;
-        setIsCalculating(true);
-        try {
-            const { processed } = await runHourlyCalculation(
-                parseInt(selectedYear),
-                parseInt(selectedMonth),
-                user.username
-            );
-            toast({ 
-                title: 'Calculation Successful', 
-                description: `Successfully processed ${processed} attendance records.` 
-            });
-            router.push('/hr/attendance');
-        } catch (error: any) {
-            toast({ title: 'Calculation Failed', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsCalculating(false);
         }
     };
 
@@ -276,41 +238,6 @@ export default function HrOfficePage() {
                 <TabsContent value="operations" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-6">
-                            <Card className="shadow-lg border-primary/20 overflow-hidden ring-4 ring-primary/5">
-                                <CardHeader className="bg-primary/5 border-b py-5 px-6">
-                                    <CardTitle className="text-sm font-black uppercase text-gray-900 flex items-center gap-2">
-                                        <Calculator className="h-4 w-4 text-primary"/>
-                                        Calculation Execution
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-6 space-y-6">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Year (BS)</Label>
-                                            <Select value={selectedYear} onValueChange={setSelectedYear}>
-                                                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                                                <SelectContent>{calcYears.map(y => <SelectItem key={`yr-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Month (BS)</Label>
-                                            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                                                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                                                <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`mo-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="p-4 rounded-lg bg-blue-50 border-2 border-blue-100 flex gap-4">
-                                        <ShieldAlert className="h-4 w-4 text-blue-600 shrink-0" />
-                                        <p className="text-[10px] text-blue-800 leading-relaxed font-medium italic">Running this will overwrite all existing attendance records for the selected period.</p>
-                                    </div>
-                                    <Button onClick={handleRunCalculation} disabled={isCalculating} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
-                                        {isCalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlayCircle className="mr-2 h-4 w-4"/>}
-                                        {isCalculating ? 'Processing...' : 'Run Attendance Processor'}
-                                    </Button>
-                                </CardContent>
-                            </Card>
-
                             <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                                 <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
                                     <div>

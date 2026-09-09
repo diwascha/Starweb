@@ -34,7 +34,8 @@ import {
     getAttendanceForMonth, 
     getAttendanceYears, 
     onAttendanceUpdate,
-    deleteAllAttendance 
+    deleteAllAttendance,
+    runHourlyCalculation
 } from '@/services/attendance-service';
 import { onHolidaysUpdate, onLeaveRequestsUpdate } from '@/services/hr-admin-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate } from '@/lib/utils';
@@ -77,6 +78,11 @@ export default function AttendanceRegistryPage() {
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [editForm, setEditForm] = useState({ clockIn: '', clockOut: '', status: '' as any, regularHours: 0, overtimeHours: 0, remarks: '' });
   const [isDataLoading, setIsDataLoading] = useState(true);
+
+  const [isCalcDialogOpen, setIsCalcDialogOpen] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [calcYear, setCalcYear] = useState<string>(String(new NepaliDate().getYear()));
+  const [calcMonth, setCalcMonth] = useState<string>(String(new NepaliDate().getMonth()));
 
   useEffect(() => {
     onEmployeesUpdate(setEmployees);
@@ -240,6 +246,20 @@ export default function AttendanceRegistryPage() {
     setSearchQuery('');
   };
 
+  const handleRunCalculation = async () => {
+    if (!user) return;
+    setIsCalculating(true);
+    try {
+        const { processed } = await runHourlyCalculation(parseInt(calcYear), parseInt(calcMonth), user.username);
+        toast({ title: 'Calculation Successful', description: `Processed ${processed} attendance records for the selected period.` });
+        setIsCalcDialogOpen(false);
+    } catch (error: any) {
+        toast({ title: 'Calculation Failed', description: error.message, variant: 'destructive' });
+    } finally {
+        setIsCalculating(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8">
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -254,8 +274,11 @@ export default function AttendanceRegistryPage() {
                 <Button variant="outline" asChild className="h-10 uppercase text-[10px] font-black tracking-widest">
                     <Link href="/hr/attendance/raw"><HardDrive className="mr-2 h-3.5 w-3.5"/> View Raw Dump</Link>
                 </Button>
-                <Button asChild className="h-10 uppercase text-[10px] font-black tracking-widest shadow-lg shadow-primary/20">
-                    <Link href="/hr/office"><Calculator className="mr-2 h-3.5 w-3.5"/> Run Calculation</Link>
+                <Button
+                    onClick={() => { setCalcYear(selectedBsYear || String(new NepaliDate().getYear())); setCalcMonth(selectedBsMonth); setIsCalcDialogOpen(true); }}
+                    className="h-10 uppercase text-[10px] font-black tracking-widest shadow-lg shadow-primary/20"
+                >
+                    <Calculator className="mr-2 h-3.5 w-3.5"/> Run Calculation
                 </Button>
             </div>
         </header>
@@ -468,6 +491,42 @@ export default function AttendanceRegistryPage() {
                     <div className="space-y-1.5 col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Status / Remarks</Label><Input value={editForm.remarks} onChange={e => setEditForm({...editForm, remarks: e.target.value})} className="h-10" /></div>
                 </div>
                 <DialogFooter><Button onClick={handleSaveEdit} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">Confirm Adjustments</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        {/* Run Calculation Dialog */}
+        <Dialog open={isCalcDialogOpen} onOpenChange={setIsCalcDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-black text-gray-900">Run Attendance Processor</DialogTitle>
+                    <DialogDescription>Apply HR Operational Rules to raw machine logs to generate work-hour records.</DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-4 py-2">
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Year (BS)</Label>
+                        <Select value={calcYear} onValueChange={setCalcYear}>
+                            <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                            <SelectContent>{bsYears.map(y => <SelectItem key={`calc-yr-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Month (BS)</Label>
+                        <Select value={calcMonth} onValueChange={setCalcMonth}>
+                            <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                            <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`calc-mo-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div className="p-3 rounded-lg bg-blue-50 border-2 border-blue-100 flex gap-3">
+                    <AlertCircle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-blue-800 leading-relaxed font-medium italic">Running this will overwrite any existing processed records for the selected period. Configure shift/break/rounding rules under HR Setting first.</p>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleRunCalculation} disabled={isCalculating} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                        {isCalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Calculator className="mr-2 h-4 w-4"/>}
+                        {isCalculating ? 'Processing...' : 'Run Attendance Processor'}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     </div>
