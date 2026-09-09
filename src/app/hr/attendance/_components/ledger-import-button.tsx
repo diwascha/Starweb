@@ -78,6 +78,12 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                         const preview = previewLedgerSheet(sheetName, grid);
                         if (preview.isConsolidatedSummary) {
                             foundSummary = true;
+                        }
+                        // A sheet named "Consolidated Ledger" that carries no
+                        // normal per-row attendance/payroll data is purely the
+                        // VBA 5-section summary format - handled exclusively
+                        // via the "Also Import" checkbox below, not this table.
+                        if (preview.isConsolidatedSummary && !preview.hasAttendance && !preview.hasPayroll) {
                             continue;
                         }
                         rows.push({
@@ -231,7 +237,10 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                                         <TableCell className="pl-4">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-gray-900">{row.sheetName}</span>
-                                                <span className="text-[9px] text-muted-foreground uppercase">{row.rowCount} rows{!row.hasAttendance && !row.hasPayroll ? ' - no recognizable data' : ''}</span>
+                                                <span className="text-[9px] text-muted-foreground uppercase">
+                                                    {row.rowCount} rows{!row.hasAttendance && !row.hasPayroll ? ' - no recognizable data' : ''}
+                                                    {row.isConsolidatedSummary ? ' - also the Consolidated Ledger summary sheet' : ''}
+                                                </span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center">

@@ -188,12 +188,19 @@ export interface LedgerSheetPreview {
  * before anything is committed. The payroll block has no date column of its
  * own, so this guess - or the user's correction of it - is the only source
  * of truth for which period payroll-only rows land in.
+ *
+ * A sheet literally named "Consolidated Ledger" is ALSO checked for a normal
+ * monthly attendance/payroll layout (Name/Date rows plus an "Employee"
+ * payroll block), same as any other sheet - not every workbook that carries
+ * this name is the VBA-generated 5-section summary sheet, and even when it
+ * is, some source files still cram real monthly attendance/payroll rows onto
+ * it too. Flagging it as the summary sheet must never by itself suppress the
+ * normal detection path - either or both can end up populated, and the
+ * caller decides (via includeAttendance/includePayroll and
+ * includeConsolidatedSummary) which of them to actually import.
  */
 export const previewLedgerSheet = (sheetName: string, grid: any[][]): LedgerSheetPreview => {
     const isConsolidatedSummary = sheetName.trim().toLowerCase() === CONSOLIDATED_LEDGER_SUMMARY_SHEET;
-    if (isConsolidatedSummary) {
-        return { sheetName, isConsolidatedSummary: true, hasAttendance: false, hasPayroll: false, guessedYear: null, guessedMonth: null, rowCount: grid.length };
-    }
 
     let hasAttendance = false;
     let hasPayroll = false;
@@ -211,7 +218,8 @@ export const previewLedgerSheet = (sheetName: string, grid: any[][]): LedgerShee
             hasPayroll = findPayrollBlockStart(headerRow) !== null;
         }
     } catch {
-        // No parseable "Name"/"Date" header at all - not an attendance/payroll sheet.
+        // No parseable "Name"/"Date" header at all - not a normal
+        // attendance/payroll sheet. Still fine if it's the VBA summary sheet.
     }
 
     if (guessedYear === null) {
@@ -219,7 +227,7 @@ export const previewLedgerSheet = (sheetName: string, grid: any[][]): LedgerShee
         if (fallback) { guessedYear = fallback.year; guessedMonth = fallback.month; }
     }
 
-    return { sheetName, isConsolidatedSummary: false, hasAttendance, hasPayroll, guessedYear, guessedMonth, rowCount: grid.length };
+    return { sheetName, isConsolidatedSummary, hasAttendance, hasPayroll, guessedYear, guessedMonth, rowCount: grid.length };
 };
 
 /* =========================

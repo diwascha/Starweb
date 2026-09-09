@@ -1,25 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import type { 
-    Employee, 
-    AttendanceRecord, 
-    BehaviorLedgerEntry,
-    BehaviorAnalyticsEntry,
-    AnalyticsData
-} from '@/lib/types';
+import { useState, useEffect, useMemo } from 'react';
+import type { Employee, AttendanceRecord, BehaviorLedgerEntry, BehaviorAnalyticsEntry } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, CheckCircle2, Calendar, Zap, ShieldCheck, Sparkles, Loader2, Info, FileSpreadsheet, Cpu } from 'lucide-react';
-import { generateAnalyticsForMonth, generateBehaviorAnalyticsForMonth, generateMissingBehaviorAnalytics } from '@/services/payroll-service';
-import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { FileSpreadsheet, Cpu, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 import { getFirebase } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { computeMonthlyPerformanceMetrics, type MonthlyPerformanceMetrics } from '@/lib/performance-metrics';
 
 interface AnalyticsViewProps {
     selectedBsYear: string;
@@ -29,261 +19,159 @@ interface AnalyticsViewProps {
     refreshTrigger?: number;
 }
 
+interface RowData extends MonthlyPerformanceMetrics {
+    source?: 'excel-import' | 'generated';
+    performanceInsight?: string;
+}
+
 export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employees, attendance, refreshTrigger }: AnalyticsViewProps) {
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [isBackfilling, setIsBackfilling] = useState(false);
-    const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-    const [behavioralPatterns, setBehavioralPatterns] = useState<BehaviorLedgerEntry[]>([]);
-    const [behavioralInsights, setBehavioralAnalytics] = useState<BehaviorAnalyticsEntry[]>([]);
+    const [behaviorLedger, setBehaviorLedger] = useState<BehaviorLedgerEntry[]>([]);
+    const [behaviorAnalytics, setBehaviorAnalytics] = useState<BehaviorAnalyticsEntry[]>([]);
 
-    const { toast } = useToast();
-    const { user } = useAuth();
-
-    const fetchImportedLedgerData = useCallback(async (year: number, month: number) => {
-        const { db } = getFirebase();
-        try {
-            const [blSnap, baSnap] = await Promise.all([
-                getDocs(query(collection(db, 'behavior_ledger'), where("bsYear", "==", year), where("bsMonth", "==", month))),
-                getDocs(query(collection(db, 'behavior_analytics'), where("bsYear", "==", year), where("bsMonth", "==", month)))
-            ]);
-            
-            setBehavioralPatterns(blSnap.docs.map(d => ({ id: d.id, ...d.data() } as BehaviorLedgerEntry)));
-            setBehavioralAnalytics(baSnap.docs.map(d => ({ id: d.id, ...d.data() } as BehaviorAnalyticsEntry)));
-        } catch (e) {
-            console.error("Ledger Sync Failure", e);
-        }
-    }, []);
-
-    const handleGenerateAnalytics = useCallback(async (isManual = false) => {
-        if (!selectedBsYear || selectedBsMonth === '' || employees.length === 0) return;
-        
-        setIsProcessing(true);
-        try {
-            const year = parseInt(selectedBsYear, 10);
-            const month = parseInt(selectedBsMonth, 10);
-            
-            await fetchImportedLedgerData(year, month);
-            const data = generateAnalyticsForMonth(year, month, employees, attendance, null);
-            setAnalyticsData(data);
-        } catch (error) {
-            if (isManual) toast({ title: "Computation Failed", variant: "destructive" });
-        } finally {
-            setIsProcessing(false);
-        }
-    }, [selectedBsYear, selectedBsMonth, employees, attendance, fetchImportedLedgerData, toast]);
-
+    // This view only ever READS behavior_ledger/behavior_analytics - it never
+    // generates or overwrites them. That happens exclusively through the
+    // Payroll page's "Sync Metrics" action (per the selected month), which
+    // bumps refreshTrigger when it's done so this re-fetches.
     useEffect(() => {
-        handleGenerateAnalytics(refreshTrigger !== undefined && refreshTrigger > 0);
-    }, [handleGenerateAnalytics, refreshTrigger]);
+        if (!selectedBsYear || selectedBsMonth === '') return;
+        const year = parseInt(selectedBsYear, 10);
+        const month = parseInt(selectedBsMonth, 10);
+        const { db } = getFirebase();
+        Promise.all([
+            getDocs(query(collection(db, 'behavior_ledger'), where('bsYear', '==', year), where('bsMonth', '==', month))),
+            getDocs(query(collection(db, 'behavior_analytics'), where('bsYear', '==', year), where('bsMonth', '==', month))),
+        ]).then(([blSnap, baSnap]) => {
+            setBehaviorLedger(blSnap.docs.map(d => ({ id: d.id, ...d.data() } as BehaviorLedgerEntry)));
+            setBehaviorAnalytics(baSnap.docs.map(d => ({ id: d.id, ...d.data() } as BehaviorAnalyticsEntry)));
+        }).catch(() => {
+            setBehaviorLedger([]);
+            setBehaviorAnalytics([]);
+        });
+    }, [selectedBsYear, selectedBsMonth, refreshTrigger]);
 
-    const handleAutoGenerate = async () => {
-        if (!selectedBsYear || selectedBsMonth === '' || !user) return;
-        setIsGenerating(true);
-        try {
-            const year = parseInt(selectedBsYear, 10);
-            const month = parseInt(selectedBsMonth, 10);
-            const result = await generateBehaviorAnalyticsForMonth(year, month, employees, attendance, user.username);
-            if (result.generated === 0) {
-                toast({ title: 'No Attendance Found', description: 'Calculate attendance for this period first (HR > Attendance > Calculate), then generate analytics.', variant: 'destructive' });
-            } else {
-                toast({ title: 'Analytics Generated', description: `Computed behavioral metrics for ${result.generated} employee(s) directly from attendance.` });
-                await fetchImportedLedgerData(year, month);
-            }
-        } catch (error) {
-            toast({ title: 'Generation Failed', description: 'Could not compute analytics for this period.', variant: 'destructive' });
-        } finally {
-            setIsGenerating(false);
-        }
-    };
+    const rows: RowData[] = useMemo(() => {
+        if (!selectedBsYear || selectedBsMonth === '') return [];
+        const year = parseInt(selectedBsYear, 10);
+        const month = parseInt(selectedBsMonth, 10);
+        const metrics = computeMonthlyPerformanceMetrics(employees, attendance, year, month);
+        const ledgerByEmployee = new Map(behaviorLedger.map(l => [l.employeeId, l]));
+        const insightByEmployee = new Map(behaviorAnalytics.map(a => [a.employeeId, a]));
+        return metrics.map(m => ({
+            ...m,
+            source: ledgerByEmployee.get(m.employeeId)?.source,
+            performanceInsight: insightByEmployee.get(m.employeeId)?.performanceInsight,
+        }));
+    }, [employees, attendance, selectedBsYear, selectedBsMonth, behaviorLedger, behaviorAnalytics]);
 
-    const handleBackfillAll = async () => {
-        if (!user) return;
-        setIsBackfilling(true);
-        try {
-            const result = await generateMissingBehaviorAnalytics(employees, attendance, user.username);
-            if (result.periodsProcessed === 0) {
-                toast({ title: 'Nothing To Backfill', description: `All ${result.periodsSkipped} period(s) with attendance already have behavioral data.` });
-            } else {
-                toast({
-                    title: 'Backfill Complete',
-                    description: `Generated behavioral analytics for ${result.periodsProcessed} period(s), ${result.employeesGenerated} employee-record(s) total. ${result.periodsSkipped} period(s) already had data.`,
-                });
-            }
-            if (selectedBsYear && selectedBsMonth !== '') {
-                await fetchImportedLedgerData(parseInt(selectedBsYear, 10), parseInt(selectedBsMonth, 10));
-            }
-        } catch (error) {
-            toast({ title: 'Backfill Failed', description: 'Could not generate analytics for all missing periods.', variant: 'destructive' });
-        } finally {
-            setIsBackfilling(false);
-        }
-    };
+    const totals = useMemo(() => {
+        if (rows.length === 0) return null;
+        const sum = rows.reduce((acc, r) => ({
+            workdays: acc.workdays + r.workdays,
+            absentDays: acc.absentDays + r.absentDays,
+            lateArrivals: acc.lateArrivals + r.lateArrivals,
+            earlyDepartures: acc.earlyDepartures + r.earlyDepartures,
+            satPhWorked: acc.satPhWorked + r.satPhWorked,
+            regularHours: acc.regularHours + r.regularHours,
+            overtimeHours: acc.overtimeHours + r.overtimeHours,
+            grossHours: acc.grossHours + r.grossHours,
+        }), { workdays: 0, absentDays: 0, lateArrivals: 0, earlyDepartures: 0, satPhWorked: 0, regularHours: 0, overtimeHours: 0, grossHours: 0 });
+        const attendanceRate = (sum.workdays + sum.absentDays) > 0 ? (sum.workdays / (sum.workdays + sum.absentDays)) * 100 : 0;
+        const otLoadPct = sum.grossHours > 0 ? (sum.overtimeHours / sum.grossHours) * 100 : 0;
+        return { ...sum, attendanceRate, otLoadPct };
+    }, [rows]);
 
-    const hasNoBehaviorData = behavioralPatterns.length === 0 && behavioralInsights.length === 0;
+    const hasAnyBehaviorData = behaviorLedger.length > 0 || behaviorAnalytics.length > 0;
 
     return (
         <div className="space-y-6">
             <Card className="border-dashed border-gray-200 bg-muted/10 shadow-none">
-                <CardContent className="py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <div className="flex items-start gap-2.5 text-left">
-                        <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            <span className="inline-flex items-center gap-1 font-black text-gray-700 uppercase text-[9px] mr-1"><FileSpreadsheet className="h-3 w-3" /> From Excel</span>
-                            means this period's Behavior Ledger/Bonus data came straight from the source workbook's own sheet at import time.
-                            {' '}
-                            <span className="inline-flex items-center gap-1 font-black text-indigo-600 uppercase text-[9px] mr-1"><Cpu className="h-3 w-3" /> Generated</span>
-                            means the source workbook had no such section for that month, so it was computed here directly from calculated attendance. Neither overwrites the other.
-                        </p>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={handleBackfillAll} disabled={isBackfilling || employees.length === 0} className="h-9 px-4 font-black text-[10px] uppercase tracking-widest border-indigo-200 text-indigo-700 hover:bg-indigo-50 shrink-0">
-                        {isBackfilling ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-2 h-3.5 w-3.5" />}
-                        Generate All Missing Analytics
-                    </Button>
+                <CardContent className="py-3 flex items-start gap-2.5">
+                    <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Attendance-derived columns (Workdays through Gross Hrs) are always live, computed straight from calculated attendance.
+                        {' '}
+                        <span className="inline-flex items-center gap-1 font-black text-gray-700 uppercase text-[9px] mx-1"><FileSpreadsheet className="h-3 w-3" /> Excel</span>
+                        means the Insight column came from the source workbook's own Behavior Ledger.
+                        {' '}
+                        <span className="inline-flex items-center gap-1 font-black text-indigo-600 uppercase text-[9px] mx-1"><Cpu className="h-3 w-3" /> Generated</span>
+                        means it was computed here. Use <span className="font-black text-gray-700">Sync Metrics</span> above to populate the Insight column for this month if it's blank.
+                    </p>
                 </CardContent>
             </Card>
 
-            {analyticsData && hasNoBehaviorData && (
-                <Card className="border-dashed border-indigo-200 bg-indigo-50/20 shadow-none">
-                    <CardContent className="py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <div className="text-center sm:text-left">
-                            <p className="text-xs font-black uppercase text-indigo-700">No Behavioral Data For This Period</p>
-                            <p className="text-[11px] text-muted-foreground">The source workbook didn't include a bonus/behavior ledger for this month. Generate one directly from calculated attendance.</p>
-                        </div>
-                        <Button size="sm" onClick={handleAutoGenerate} disabled={isGenerating} className="h-9 px-4 font-black text-[10px] uppercase tracking-widest shrink-0">
-                            {isGenerating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-2 h-3.5 w-3.5" />}
-                            Generate Analytics
-                        </Button>
-                    </CardContent>
-                </Card>
+            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <CardHeader className="bg-muted/10 border-b py-4 px-6">
+                    <CardTitle className="text-sm font-black uppercase tracking-tight">Monthly Performance Scoreboard</CardTitle>
+                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Employees as rows, metrics as columns - derived from calculated attendance for this period.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <ScrollArea className="w-full">
+                        <Table className="text-[11px] border-collapse">
+                            <TableHeader className="bg-muted/30">
+                                <TableRow className="h-11">
+                                    <TableHead className="sticky left-0 bg-background z-20 border-r pl-6 font-black uppercase text-gray-900">Employee</TableHead>
+                                    <TableHead className="text-center font-bold uppercase px-3">Workdays</TableHead>
+                                    <TableHead className="text-center font-bold uppercase px-3 text-blue-700">Attendance %</TableHead>
+                                    <TableHead className="text-center font-bold uppercase px-3 text-red-600">Absent</TableHead>
+                                    <TableHead className="text-center font-bold uppercase px-3 text-amber-600">Late</TableHead>
+                                    <TableHead className="text-center font-bold uppercase px-3 text-amber-600">Early</TableHead>
+                                    <TableHead className="text-center font-bold uppercase px-3">Sat/PH</TableHead>
+                                    <TableHead className="text-right font-bold uppercase px-3">Regular Hrs</TableHead>
+                                    <TableHead className="text-right font-bold uppercase px-3">OT Hrs</TableHead>
+                                    <TableHead className="text-right font-black uppercase px-3 bg-muted/20">Gross Hrs</TableHead>
+                                    <TableHead className="text-center font-bold uppercase px-3">OT Load %</TableHead>
+                                    <TableHead className="text-center font-bold uppercase px-3">Source</TableHead>
+                                    <TableHead className="min-w-[200px] font-bold uppercase px-3 pr-6">Insight</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {rows.length === 0 ? (
+                                    <TableRow><TableCell colSpan={13} className="text-center py-20 text-muted-foreground italic">No calculated attendance found for this period.</TableCell></TableRow>
+                                ) : rows.map(r => (
+                                    <TableRow key={r.employeeId} className="hover:bg-muted/20 h-12 border-b">
+                                        <TableCell className="sticky left-0 bg-background z-10 border-r pl-6 font-black text-gray-900 uppercase tracking-tighter">{r.employeeName}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{r.workdays}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3 font-bold text-blue-700">{r.attendanceRate.toFixed(1)}%</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3 font-bold text-red-700">{r.absentDays}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3 font-bold text-amber-700">{r.lateArrivals}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3 font-bold text-amber-700">{r.earlyDepartures}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{r.satPhWorked}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{r.regularHours.toFixed(1)}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3 font-bold text-blue-700">+{r.overtimeHours.toFixed(1)}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3 font-black bg-muted/10">{r.grossHours.toFixed(1)}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{r.otLoadPct.toFixed(0)}%</TableCell>
+                                        <TableCell className="text-center px-3"><SourceBadge source={r.source} /></TableCell>
+                                        <TableCell className="px-3 pr-6 text-[10px] text-muted-foreground italic truncate max-w-[220px]" title={r.performanceInsight}>{r.performanceInsight || '—'}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                            {totals && (
+                                <TableFooter className="bg-muted/50 font-black h-12 border-t-2">
+                                    <TableRow>
+                                        <TableCell className="sticky left-0 bg-background z-20 border-r pl-6 text-gray-900 uppercase tracking-tighter">Totals ({rows.length} employees)</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{totals.workdays}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{totals.attendanceRate.toFixed(1)}%</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{totals.absentDays}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{totals.lateArrivals}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{totals.earlyDepartures}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{totals.satPhWorked}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{totals.regularHours.toFixed(1)}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">+{totals.overtimeHours.toFixed(1)}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{totals.grossHours.toFixed(1)}</TableCell>
+                                        <TableCell className="text-center tabular-nums px-3">{totals.otLoadPct.toFixed(0)}%</TableCell>
+                                        <TableCell colSpan={2} className="pr-6"></TableCell>
+                                    </TableRow>
+                                </TableFooter>
+                            )}
+                        </Table>
+                        <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                </CardContent>
+            </Card>
+
+            {!hasAnyBehaviorData && rows.length > 0 && (
+                <p className="text-[10px] text-muted-foreground italic px-1">No Insight data yet for this month - click <span className="font-bold">Sync Metrics</span> above to generate it.</p>
             )}
-            {analyticsData && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <InsightCard title="Peak Absenteeism" value={analyticsData.highestAbsenteeism.day} sub={`${analyticsData.highestAbsenteeism.count} instances`} icon={AlertTriangle} color="red" />
-                        <InsightCard title="Peak Tardiness" value={analyticsData.highestLateArrivals.day} sub={`${analyticsData.highestLateArrivals.count} instances`} icon={Zap} color="amber" />
-                        <InsightCard title="Punctuality Leader" value={analyticsData.mostPunctualWeekday.day} sub={`${analyticsData.mostPunctualWeekday.rate.toFixed(1)}%`} icon={CheckCircle2} color="emerald" />
-                        <InsightCard title="Sat. Utilization" value={`${analyticsData.saturdayUtilization.toFixed(0)}%`} sub="Shift coverage" icon={Calendar} color="blue" />
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <Card className="lg:col-span-2 shadow-sm border-gray-100 bg-white overflow-hidden">
-                            <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle className="text-sm font-black uppercase tracking-tight">Behavioral Scoreboard</CardTitle>
-                                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Pre-computed metrics from master ledger.</CardDescription>
-                                </div>
-                                <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">
-                                    <ShieldCheck className="mr-1 h-3 w-3"/> Cloud Verified
-                                </Badge>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                <ScrollArea className="w-full">
-                                    <Table className="text-[11px]">
-                                        <TableHeader className="bg-muted/30">
-                                            <TableRow className="h-10">
-                                                <TableHead className="pl-6 font-black uppercase text-gray-900 border-r">Employee</TableHead>
-                                                <TableHead className="text-center font-bold uppercase">Days</TableHead>
-                                                <TableHead className="text-center font-bold uppercase text-amber-600">Late</TableHead>
-                                                <TableHead className="text-center font-bold uppercase text-red-600">Absent</TableHead>
-                                                <TableHead className="text-center font-bold uppercase">Sat/PH</TableHead>
-                                                <TableHead className="text-right font-black uppercase text-primary">Efficiency %</TableHead>
-                                                <TableHead className="text-center pr-6 font-bold uppercase">Source</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {behavioralPatterns.length > 0 ? behavioralPatterns.map((p) => (
-                                                <TableRow key={`ledger-row-${p.id}`} className="hover:bg-muted/20 h-12 border-b">
-                                                    <TableCell className="pl-6 font-black text-gray-900 border-r uppercase tracking-tighter">{p.employeeName}</TableCell>
-                                                    <TableCell className="text-center tabular-nums">{p.workdays}</TableCell>
-                                                    <TableCell className="text-center tabular-nums font-bold text-amber-700">{p.lateDays}</TableCell>
-                                                    <TableCell className="text-center tabular-nums font-bold text-red-700">{p.absentDays}</TableCell>
-                                                    <TableCell className="text-center tabular-nums">{p.satWorked}/{p.phWorked}</TableCell>
-                                                    <TableCell className="text-right font-black tabular-nums text-blue-700">{p.onTimePct?.toFixed(1)}%</TableCell>
-                                                    <TableCell className="text-center pr-6"><SourceBadge source={p.source} /></TableCell>
-                                                </TableRow>
-                                            )) : (
-                                                <TableRow><TableCell colSpan={7} className="text-center py-20 text-muted-foreground italic">No behavioral data found for selected month.</TableCell></TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="shadow-sm border-indigo-200 bg-indigo-50/10 h-fit">
-                            <CardHeader className="py-4 border-b border-indigo-100">
-                                <CardTitle className="text-xs font-black uppercase tracking-widest text-indigo-700 flex items-center gap-2">
-                                    <Zap className="h-3.5 w-3.5" /> Intelligence Insights
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                <ScrollArea className="h-[500px]">
-                                    <div className="divide-y divide-indigo-100">
-                                        {behavioralInsights.map(bi => (
-                                            <div key={`insight-${bi.id}`} className="p-4 space-y-2 hover:bg-white transition-colors">
-                                                <div className="flex justify-between items-start gap-2">
-                                                    <span className="font-black text-[11px] text-gray-900 uppercase tracking-tighter">{bi.employeeName}</span>
-                                                    <div className="flex items-center gap-1 shrink-0">
-                                                        <SourceBadge source={bi.source} />
-                                                        <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-1">{bi.performanceInsight}</Badge>
-                                                    </div>
-                                                </div>
-                                                <p className="text-[10px] text-gray-700 italic border-l-2 border-indigo-200 pl-2 mt-2 leading-relaxed">{bi.behaviorInsight}</p>
-                                                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 border-t border-indigo-100/70">
-                                                    <InsightField label="Punctuality" value={bi.punctualityTrend} />
-                                                    <InsightField label="Absence" value={bi.absencePattern} />
-                                                    <InsightField label="OT Impact" value={bi.otImpact} />
-                                                    <InsightField label="Shift End" value={bi.shiftEndBehavior} />
-                                                    <InsightField label="Best Day" value={bi.bestDayOfWeek} />
-                                                    <InsightField label="Worst Day" value={bi.worstDayOfWeek} />
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {behavioralInsights.length === 0 && (
-                                            <div className="text-center py-20 opacity-40 italic text-xs uppercase font-black">Waiting for data sync...</div>
-                                        )}
-                                    </div>
-                                </ScrollArea>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function InsightCard({ title, value, sub, icon: Icon, color }: any) {
-    const colors: any = {
-        red: "bg-red-50 border-red-100 text-red-600",
-        amber: "bg-amber-50 border-amber-100 text-amber-600",
-        emerald: "bg-emerald-50 border-emerald-100 text-emerald-600",
-        blue: "bg-blue-50 border-blue-100 text-blue-600"
-    };
-    return (
-        <Card className={cn("shadow-none border-none ring-1 ring-black/5 overflow-hidden", colors[color])}>
-            <CardContent className="p-4 flex items-center justify-between">
-                <div className="space-y-1">
-                    <p className="text-[9px] font-black uppercase tracking-widest opacity-70">{title}</p>
-                    <p className="text-lg font-black leading-none">{value}</p>
-                    <p className="text-[8px] font-bold uppercase opacity-60">{sub}</p>
-                </div>
-                <div className="p-2.5 rounded-xl bg-white/50 shadow-inner">
-                    <Icon className="h-4 w-4 opacity-80" />
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function InsightField({ label, value }: { label: string; value?: string }) {
-    if (!value) return null;
-    return (
-        <div className="space-y-0.5">
-            <p className="text-[7px] font-black uppercase tracking-widest text-indigo-400">{label}</p>
-            <p className="text-[9px] font-bold text-gray-700 leading-tight">{value}</p>
         </div>
     );
 }
@@ -303,5 +191,5 @@ function SourceBadge({ source }: { source?: 'excel-import' | 'generated' }) {
             </Badge>
         );
     }
-    return <Badge variant="outline" className="text-[7px] font-black uppercase h-4 px-1 border-gray-200 text-muted-foreground">Unknown</Badge>;
+    return <Badge variant="outline" className="text-[7px] font-black uppercase h-4 px-1 border-gray-200 text-muted-foreground">Not Synced</Badge>;
 }

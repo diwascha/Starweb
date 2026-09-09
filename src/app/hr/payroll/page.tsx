@@ -15,7 +15,7 @@ import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
 import { getAttendanceYears, onAttendanceUpdate } from '@/services/attendance-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { deletePayrollForMonth, calculateAndSavePayrollForMonth, onPeriodLocksUpdate, setPeriodLock, type PayrollPeriodLock } from '@/services/payroll-service';
+import { deletePayrollForMonth, calculateAndSavePayrollForMonth, onPeriodLocksUpdate, setPeriodLock, hasBehaviorAnalyticsForMonth, generateBehaviorAnalyticsForMonth, type PayrollPeriodLock } from '@/services/payroll-service';
 import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -136,7 +136,11 @@ export default function UnifiedWorkforcePage() {
         const month = parseInt(selectedBsMonth);
         return periodLocks.find(l => l.bsYear === year && l.bsMonth === month);
     }, [periodLocks, selectedBsYear, selectedBsMonth]);
-    const isLocked = Boolean(currentLock?.locked);
+    // Calculation controls default to LOCKED: a period with no lock doc yet
+    // (i.e. nobody has ever explicitly unlocked it) must still block Sync
+    // Metrics / Recalculate / Purge until the user deliberately unlocks it.
+    // Only an explicit locked:false doc counts as unlocked.
+    const isLocked = currentLock ? currentLock.locked : true;
 
     const handlePurgePeriod = async () => {
         if (!selectedBsYear || selectedBsMonth === '') return;
@@ -157,15 +161,19 @@ export default function UnifiedWorkforcePage() {
     };
 
     const handleRecalculate = async () => {
-        if (!selectedBsYear || selectedBsMonth === '' || !user) return;
+        if (!selectedBsYear || selectedBsMonth === '' || !user || isLocked) return;
         setIsRecalculating(true);
         try {
             const year = parseInt(selectedBsYear);
             const month = parseInt(selectedBsMonth);
             const result = await calculateAndSavePayrollForMonth(year, month, employees, attendance, user.username);
+            // Return to the locked state immediately after a successful
+            // calculation, so finalized data can't be recalculated again
+            // without another deliberate unlock.
+            await setPeriodLock(year, month, true, user.username);
             toast({
                 title: 'Payroll Recalculated',
-                description: `Recomputed pay for ${result.employeeCount} active employee(s) in ${periodName} from attendance.`,
+                description: `Recomputed pay for ${result.employeeCount} active employee(s) in ${periodName} from attendance. Period re-locked.`,
             });
         } catch (error) {
             toast({ title: 'Recalculation Failed', description: 'Could not recompute payroll for this period.', variant: 'destructive' });
@@ -182,28 +190,48 @@ export default function UnifiedWorkforcePage() {
             const month = parseInt(selectedBsMonth);
             await setPeriodLock(year, month, !isLocked, user.username);
             toast({
-                title: isLocked ? 'Period Unlocked' : 'Period Locked',
+                title: isLocked ? 'Calculation Unlocked' : 'Calculation Locked',
                 description: isLocked
-                    ? `${periodName} can be recalculated or purged again.`
-                    : `${periodName} is now protected from recalculation and purge.`,
+                    ? `${periodName} can now be recalculated or synced. It re-locks automatically once you do.`
+                    : `${periodName} is protected again - Sync Metrics, Recalculate, and Purge are blocked until unlocked.`,
             });
         } catch (error) {
-            toast({ title: 'Action Failed', description: 'Could not update the period lock.', variant: 'destructive' });
+            toast({ title: 'Action Failed', description: 'Could not update the calculation lock.', variant: 'destructive' });
         } finally {
             setIsTogglingLock(false);
         }
     };
 
-    const handleGlobalRefresh = () => {
+    // Unified Sync Metrics: for the selected month ONLY, show its existing
+    // behavior analytics if any exist, or generate them once if they don't.
+    // Never touches any other month's data. Re-locks the period afterward,
+    // same as Recalculate, since this is a calculation action.
+    const handleSyncMetrics = async () => {
+        if (!selectedBsYear || selectedBsMonth === '' || !user || isLocked) return;
         setIsRefreshing(true);
-        setRefreshTrigger(prev => prev + 1);
-        setTimeout(() => {
+        try {
+            const year = parseInt(selectedBsYear);
+            const month = parseInt(selectedBsMonth);
+            const alreadyHasData = await hasBehaviorAnalyticsForMonth(year, month);
+            if (alreadyHasData) {
+                toast({ title: 'Analytics Up To Date', description: `${periodName} already has behavioral analytics on record - showing existing data.` });
+            } else {
+                const result = await generateBehaviorAnalyticsForMonth(year, month, employees, attendance, user.username);
+                toast({
+                    title: result.generated > 0 ? 'Analytics Generated' : 'No Attendance Found',
+                    description: result.generated > 0
+                        ? `Computed behavioral analytics for ${result.generated} employee(s) in ${periodName}.`
+                        : `No calculated attendance found for ${periodName} - nothing to analyze yet.`,
+                    variant: result.generated > 0 ? 'default' : 'destructive',
+                });
+            }
+            await setPeriodLock(year, month, true, user.username);
+            setRefreshTrigger(prev => prev + 1);
+        } catch (error) {
+            toast({ title: 'Sync Failed', description: 'Could not sync metrics for this period.', variant: 'destructive' });
+        } finally {
             setIsRefreshing(false);
-            toast({ 
-                title: 'Data Synchronized', 
-                description: `Workforce metrics updated for ${periodName}.` 
-            });
-        }, 800);
+        }
     };
 
     return (
@@ -251,7 +279,7 @@ export default function UnifiedWorkforcePage() {
                                     size="sm"
                                     onClick={handleRecalculate}
                                     disabled={isLoadingData || isRecalculating || isLocked}
-                                    title={isLocked ? 'Unlock this period to recalculate.' : 'Recompute payroll from attendance for this period.'}
+                                    title={isLocked ? 'Unlock Calculation first to recalculate.' : 'Recompute payroll from attendance for this period.'}
                                     className="h-9 px-4 font-black text-[10px] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5"
                                 >
                                     {isRecalculating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Calculator className="mr-2 h-3.5 w-3.5" />}
@@ -261,14 +289,17 @@ export default function UnifiedWorkforcePage() {
 
                             {hasPermission('hr', 'edit') && (
                                 <Button
-                                    variant="outline"
+                                    variant={isLocked ? 'default' : 'outline'}
                                     size="sm"
                                     onClick={handleToggleLock}
                                     disabled={isLoadingData || isTogglingLock}
-                                    className="h-9 px-4 font-black text-[10px] uppercase tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
+                                    title="Sync Metrics and Recalculate are blocked until this period is unlocked. It re-locks automatically after either action completes."
+                                    className={isLocked
+                                        ? "h-9 px-4 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20"
+                                        : "h-9 px-4 font-black text-[10px] uppercase tracking-widest border-amber-300 text-amber-700 hover:bg-amber-50"}
                                 >
-                                    {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : isLocked ? <Lock className="mr-2 h-3.5 w-3.5 text-amber-600" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
-                                    {isLocked ? 'Unlock Period' : 'Lock Period'}
+                                    {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : isLocked ? <Lock className="mr-2 h-3.5 w-3.5" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
+                                    {isLocked ? 'Unlock Calculation' : 'Lock Calculation'}
                                 </Button>
                             )}
 
@@ -296,17 +327,21 @@ export default function UnifiedWorkforcePage() {
                                 </AlertDialogContent>
                             </AlertDialog>
 
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleGlobalRefresh}
-                                disabled={isLoadingData || isRefreshing}
-                                title="Re-runs the Behavioral Intelligence and Analytics tabs' on-screen calculations for the selected period. Data itself is always live (Firestore), so this is just a manual nudge to recompute charts/insights - not a data delete or re-import."
-                                className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
-                            >
-                                {isRefreshing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-2 h-3.5 w-3.5" />}
-                                Sync Metrics
-                            </Button>
+                            {hasPermission('hr', 'edit') && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleSyncMetrics}
+                                    disabled={isLoadingData || isRefreshing || isLocked}
+                                    title={isLocked
+                                        ? 'Unlock Calculation first to sync.'
+                                        : "Shows this month's behavioral analytics if they already exist, or generates them once if they don't. Only affects the selected month."}
+                                    className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
+                                >
+                                    {isRefreshing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-2 h-3.5 w-3.5" />}
+                                    Sync Metrics
+                                </Button>
+                            )}
 
                             <Button variant="outline" onClick={() => router.push('/hr/attendance/raw')} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5">
                                 <Upload className="mr-2 h-3.5 w-3.5" /> Import Data

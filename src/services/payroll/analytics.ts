@@ -1,5 +1,5 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs, query, where } from 'firebase/firestore';
 import type { Employee, AttendanceRecord, AnalyticsData, AnalyticsReport, BehaviorLedgerEntry, BehaviorAnalyticsEntry } from '@/lib/types';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
@@ -166,48 +166,14 @@ export const generateBehaviorAnalyticsForMonth = async (
 };
 
 /**
- * Backfills behavior ledger/analytics for every historical period that has
- * calculated attendance but no behavior data yet - whether because the
- * source workbook never carried a Behavior Ledger/Bonus section for that
- * month, or because the period was recalculated after import. Periods that
- * already have data (imported or previously generated) are left untouched.
+ * True if the selected month already has any behavior_ledger data - whether
+ * pulled straight from the source workbook at import time or computed here
+ * previously. Sync Metrics uses this to decide, for the one selected month
+ * only, whether to show what's already there or generate it fresh; it never
+ * looks at (or touches) any other month.
  */
-export const generateMissingBehaviorAnalytics = async (
-    allEmployees: Employee[],
-    allAttendance: AttendanceRecord[],
-    generatedBy: string
-): Promise<{ periodsProcessed: number; employeesGenerated: number; periodsSkipped: number }> => {
+export const hasBehaviorAnalyticsForMonth = async (bsYear: number, bsMonth: number): Promise<boolean> => {
     const { db } = getFirebase();
-
-    const periodKey = (bsYear: number, bsMonth: number) => `${bsYear}-${bsMonth}`;
-    const attendancePeriods = new Map<string, { bsYear: number; bsMonth: number }>();
-    allAttendance.forEach(r => {
-        if (!r.bsYear) return;
-        attendancePeriods.set(periodKey(r.bsYear, r.bsMonth), { bsYear: r.bsYear, bsMonth: r.bsMonth });
-    });
-
-    const existingSnap = await getDocs(collection(db, 'behavior_ledger'));
-    const existingPeriods = new Set<string>();
-    existingSnap.docs.forEach(d => {
-        const data = d.data();
-        if (data.bsYear) existingPeriods.add(periodKey(Number(data.bsYear), Number(data.bsMonth)));
-    });
-
-    let periodsProcessed = 0;
-    let employeesGenerated = 0;
-    let periodsSkipped = 0;
-
-    for (const [key, { bsYear, bsMonth }] of attendancePeriods) {
-        if (existingPeriods.has(key)) {
-            periodsSkipped++;
-            continue;
-        }
-        const result = await generateBehaviorAnalyticsForMonth(bsYear, bsMonth, allEmployees, allAttendance, generatedBy);
-        if (result.generated > 0) {
-            periodsProcessed++;
-            employeesGenerated += result.generated;
-        }
-    }
-
-    return { periodsProcessed, employeesGenerated, periodsSkipped };
+    const snap = await getDocs(query(collection(db, 'behavior_ledger'), where('bsYear', '==', bsYear), where('bsMonth', '==', bsMonth)));
+    return !snap.empty;
 };
