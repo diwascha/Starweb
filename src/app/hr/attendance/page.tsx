@@ -22,20 +22,25 @@ import {
     UserCheck,
     AlertCircle,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Lock,
+    LockOpen
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { 
-    updateAttendanceRecord, 
-    deleteAttendanceRecord, 
-    deleteAttendanceForMonth, 
-    getAttendanceForMonth, 
-    getAttendanceYears, 
+import {
+    updateAttendanceRecord,
+    deleteAttendanceRecord,
+    deleteAttendanceForMonth,
+    getAttendanceForMonth,
+    getAttendanceYears,
     onAttendanceUpdate,
     deleteAllAttendance,
-    runHourlyCalculation
+    runHourlyCalculation,
+    onAttendancePeriodLocksUpdate,
+    setAttendancePeriodLock,
+    type AttendancePeriodLock
 } from '@/services/attendance-service';
 import { onHolidaysUpdate, onLeaveRequestsUpdate } from '@/services/hr-admin-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate } from '@/lib/utils';
@@ -77,7 +82,8 @@ export default function AttendanceRegistryPage() {
     String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()))
   );
   const [selectedFyMonthIndex, setSelectedFyMonthIndex] = useState<string>('All');
-  
+  const fyStart = parseInt(selectedFiscalYear);
+
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [editForm, setEditForm] = useState({ clockIn: '', clockOut: '', status: '' as any, regularHours: 0, overtimeHours: 0, remarks: '' });
@@ -88,15 +94,20 @@ export default function AttendanceRegistryPage() {
   const [calcYear, setCalcYear] = useState<string>(String(new NepaliDate().getYear()));
   const [calcMonth, setCalcMonth] = useState<string>(String(new NepaliDate().getMonth()));
 
+  const [periodLocks, setPeriodLocks] = useState<AttendancePeriodLock[]>([]);
+  const [isTogglingLock, setIsTogglingLock] = useState(false);
+
   useEffect(() => {
     onEmployeesUpdate(setEmployees);
     const unsubHolidays = onHolidaysUpdate(setHolidays);
     const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
+    const unsubLocks = onAttendancePeriodLocksUpdate(setPeriodLocks);
     const unsubAttendance = onAttendanceUpdate((data) => {
         setAttendance(data);
         setIsDataLoading(false);
     });
     return () => {
+        unsubLocks();
         unsubHolidays();
         unsubLeaves();
         unsubAttendance();
@@ -263,8 +274,19 @@ export default function AttendanceRegistryPage() {
     setSearchQuery('');
   };
 
+  const isCalcTargetLocked = useMemo(() => {
+    return periodLocks.some(l => l.locked && l.bsYear === parseInt(calcYear) && l.bsMonth === parseInt(calcMonth));
+  }, [periodLocks, calcYear, calcMonth]);
+
+  const currentViewLock = useMemo(() => {
+    if (selectedFyMonthIndex === 'All') return undefined;
+    const target = getFiscalYearMonths(fyStart)[parseInt(selectedFyMonthIndex)];
+    return periodLocks.find(l => l.bsYear === target.bsYear && l.bsMonth === target.bsMonth);
+  }, [periodLocks, selectedFyMonthIndex, fyStart]);
+  const isCurrentViewLocked = Boolean(currentViewLock?.locked);
+
   const handleRunCalculation = async () => {
-    if (!user) return;
+    if (!user || isCalcTargetLocked) return;
     setIsCalculating(true);
     try {
         const { processed } = await runHourlyCalculation(parseInt(calcYear), parseInt(calcMonth), user.username);
@@ -274,6 +296,25 @@ export default function AttendanceRegistryPage() {
         toast({ title: 'Calculation Failed', description: error.message, variant: 'destructive' });
     } finally {
         setIsCalculating(false);
+    }
+  };
+
+  const handleToggleLock = async () => {
+    if (selectedFyMonthIndex === 'All' || !user) return;
+    setIsTogglingLock(true);
+    try {
+        const target = getFiscalYearMonths(fyStart)[parseInt(selectedFyMonthIndex)];
+        await setAttendancePeriodLock(target.bsYear, target.bsMonth, !isCurrentViewLocked, user.username);
+        toast({
+            title: isCurrentViewLocked ? 'Period Unlocked' : 'Period Locked',
+            description: isCurrentViewLocked
+                ? 'This period can be recalculated again.'
+                : 'This period is now protected from recalculation.',
+        });
+    } catch (error) {
+        toast({ title: 'Action Failed', description: 'Could not update the period lock.', variant: 'destructive' });
+    } finally {
+        setIsTogglingLock(false);
     }
   };
 
@@ -292,6 +333,17 @@ export default function AttendanceRegistryPage() {
                     <Link href="/hr/attendance/raw"><HardDrive className="mr-2 h-3.5 w-3.5"/> View Raw Dump</Link>
                 </Button>
                 <LedgerImportButton />
+                {selectedFyMonthIndex !== 'All' && (
+                    <Button
+                        variant="outline"
+                        onClick={handleToggleLock}
+                        disabled={isTogglingLock}
+                        className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
+                    >
+                        {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : isCurrentViewLocked ? <Lock className="mr-2 h-3.5 w-3.5 text-amber-600" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
+                        {isCurrentViewLocked ? 'Unlock Period' : 'Lock Period'}
+                    </Button>
+                )}
                 <Button
                     onClick={() => {
                         if (selectedFyMonthIndex !== 'All') {
@@ -548,14 +600,21 @@ export default function AttendanceRegistryPage() {
                         </Select>
                     </div>
                 </div>
-                <div className="p-3 rounded-lg bg-blue-50 border-2 border-blue-100 flex gap-3">
-                    <AlertCircle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-blue-800 leading-relaxed font-medium italic">Running this will overwrite any existing processed records for the selected period. Configure shift/break/rounding rules under HR Setting first.</p>
-                </div>
+                {isCalcTargetLocked ? (
+                    <div className="p-3 rounded-lg bg-amber-50 border-2 border-amber-200 flex gap-3">
+                        <Lock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-amber-800 leading-relaxed font-medium italic">This period is locked. Unlock it from the Attendance Logs header before re-running the calculation.</p>
+                    </div>
+                ) : (
+                    <div className="p-3 rounded-lg bg-blue-50 border-2 border-blue-100 flex gap-3">
+                        <AlertCircle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-blue-800 leading-relaxed font-medium italic">Running this will overwrite any existing processed records for the selected period. Configure shift/break/rounding rules under HR Setting first.</p>
+                    </div>
+                )}
                 <DialogFooter>
-                    <Button onClick={handleRunCalculation} disabled={isCalculating} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                    <Button onClick={handleRunCalculation} disabled={isCalculating || isCalcTargetLocked} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
                         {isCalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Calculator className="mr-2 h-4 w-4"/>}
-                        {isCalculating ? 'Processing...' : 'Run Attendance Processor'}
+                        {isCalculating ? 'Processing...' : isCalcTargetLocked ? 'Period Locked' : 'Run Attendance Processor'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
