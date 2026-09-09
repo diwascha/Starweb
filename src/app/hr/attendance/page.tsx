@@ -50,6 +50,7 @@ import { format as formatDate, startOfDay, isEqual, isWithinInterval } from 'dat
 import { NEPALI_MONTHS } from '@/lib/constants';
 import Link from 'next/link';
 import LedgerImportButton from './_components/ledger-import-button';
+import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
 
 type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
 type SortDirection = 'asc' | 'desc';
@@ -72,8 +73,10 @@ export default function AttendanceRegistryPage() {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   
   const [bsYears, setBsYears] = useState<number[]>([]);
-  const [selectedBsYear, setSelectedBsYear] = useState<string>(String(new NepaliDate().getYear()));
-  const [selectedBsMonth, setSelectedBsMonth] = useState<string>(String(new NepaliDate().getMonth()));
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(
+    String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()))
+  );
+  const [selectedFyMonthIndex, setSelectedFyMonthIndex] = useState<string>('All');
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
@@ -107,7 +110,13 @@ export default function AttendanceRegistryPage() {
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedBsYear, selectedBsMonth, searchQuery, filterEmployeeName, filterStatus, itemsPerPage]);
+  }, [selectedFiscalYear, selectedFyMonthIndex, searchQuery, filterEmployeeName, filterStatus, itemsPerPage]);
+
+  const availableFiscalYears = useMemo(() => {
+    const years = getAvailableFiscalYears(attendance.map(r => ({ bsYear: r.bsYear, bsMonth: r.bsMonth })));
+    const current = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
+    return years.includes(current) ? years : [current, ...years].sort((a, b) => b - a);
+  }, [attendance]);
 
   const requestSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -160,8 +169,13 @@ export default function AttendanceRegistryPage() {
   }, [holidays, leaveRequests]);
 
   const filteredAndSortedRecords = useMemo(() => {
-    let filtered = attendance.filter(r => r.bsYear === parseInt(selectedBsYear) && r.bsMonth === parseInt(selectedBsMonth));
-    
+    const fyStart = parseInt(selectedFiscalYear);
+    let filtered = attendance.filter(r => getFiscalYearStart(r.bsYear, r.bsMonth) === fyStart);
+    if (selectedFyMonthIndex !== 'All') {
+        const target = getFiscalYearMonths(fyStart)[parseInt(selectedFyMonthIndex)];
+        filtered = filtered.filter(r => r.bsYear === target.bsYear && r.bsMonth === target.bsMonth);
+    }
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(record => record.employeeName.toLowerCase().includes(q));
@@ -186,7 +200,7 @@ export default function AttendanceRegistryPage() {
         return a.employeeName.localeCompare(b.employeeName);
     });
     return filtered;
-  }, [attendance, selectedBsYear, selectedBsMonth, sortConfig, searchQuery, filterEmployeeName, filterStatus]);
+  }, [attendance, selectedFiscalYear, selectedFyMonthIndex, sortConfig, searchQuery, filterEmployeeName, filterStatus]);
 
   const paginatedRecords = useMemo(() => {
     if (itemsPerPage === -1) return filteredAndSortedRecords;
@@ -233,8 +247,10 @@ export default function AttendanceRegistryPage() {
   };
 
   const handleDeleteMonth = async () => {
+    if (selectedFyMonthIndex === 'All') return;
     try {
-        await deleteAttendanceForMonth(parseInt(selectedBsYear), parseInt(selectedBsMonth));
+        const target = getFiscalYearMonths(parseInt(selectedFiscalYear))[parseInt(selectedFyMonthIndex)];
+        await deleteAttendanceForMonth(target.bsYear, target.bsMonth);
         toast({ title: 'Period Cleared' });
     } catch {
         toast({ title: 'Error', variant: 'destructive' });
@@ -277,7 +293,17 @@ export default function AttendanceRegistryPage() {
                 </Button>
                 <LedgerImportButton />
                 <Button
-                    onClick={() => { setCalcYear(selectedBsYear || String(new NepaliDate().getYear())); setCalcMonth(selectedBsMonth); setIsCalcDialogOpen(true); }}
+                    onClick={() => {
+                        if (selectedFyMonthIndex !== 'All') {
+                            const target = getFiscalYearMonths(parseInt(selectedFiscalYear))[parseInt(selectedFyMonthIndex)];
+                            setCalcYear(String(target.bsYear));
+                            setCalcMonth(String(target.bsMonth));
+                        } else {
+                            setCalcYear(String(new NepaliDate().getYear()));
+                            setCalcMonth(String(new NepaliDate().getMonth()));
+                        }
+                        setIsCalcDialogOpen(true);
+                    }}
                     className="h-10 uppercase text-[10px] font-black tracking-widest shadow-lg shadow-primary/20"
                 >
                     <Calculator className="mr-2 h-3.5 w-3.5"/> Run Calculation
@@ -286,18 +312,21 @@ export default function AttendanceRegistryPage() {
         </header>
 
         <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-end bg-muted/20 p-4 rounded-xl border border-dashed">
-            <div className="space-y-1.5 w-[100px]">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
-                <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
+            <div className="space-y-1.5 w-[110px]">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
+                <Select value={selectedFiscalYear} onValueChange={setSelectedFiscalYear}>
                     <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>{bsYears.map(y => <SelectItem key={`year-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                    <SelectContent>{availableFiscalYears.map(y => <SelectItem key={`fy-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}</SelectContent>
                 </Select>
             </div>
-            <div className="space-y-1.5 w-[140px]">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
-                <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
+            <div className="space-y-1.5 w-[150px]">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month</Label>
+                <Select value={selectedFyMonthIndex} onValueChange={setSelectedFyMonthIndex}>
                     <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`month-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                        <SelectItem value="All">All Months</SelectItem>
+                        {Array.from({ length: 12 }, (_, i) => i).map(i => <SelectItem key={`fym-${i}`} value={String(i)}>{fiscalMonthName(i)}</SelectItem>)}
+                    </SelectContent>
                 </Select>
             </div>
             <div className="space-y-1.5 w-[180px]">
@@ -343,7 +372,7 @@ export default function AttendanceRegistryPage() {
                 )}
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]">
+                        <Button variant="ghost" size="sm" disabled={selectedFyMonthIndex === 'All'} title={selectedFyMonthIndex === 'All' ? 'Select a specific month to clear.' : undefined} className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]">
                             <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Clear Period
                         </Button>
                     </AlertDialogTrigger>

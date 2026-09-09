@@ -16,6 +16,7 @@ import NepaliDate from 'nepali-date-converter';
 import { getAttendanceYears, onAttendanceUpdate } from '@/services/attendance-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { deletePayrollForMonth, calculateAndSavePayrollForMonth, onPeriodLocksUpdate, setPeriodLock, type PayrollPeriodLock } from '@/services/payroll-service';
+import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +43,7 @@ export default function UnifiedWorkforcePage() {
     // Global Selection State
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
+    const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>('');
     const [bsYears, setBsYears] = useState<number[]>([]);
     
     // Global Dataset State
@@ -67,8 +69,10 @@ export default function UnifiedWorkforcePage() {
             setBsYears(validYears);
             
             if (!selectedBsYear) {
-                setSelectedBsYear(String(validYears.includes(current.getYear()) ? current.getYear() : validYears[0]));
+                const defYear = validYears.includes(current.getYear()) ? current.getYear() : validYears[0];
+                setSelectedBsYear(String(defYear));
                 setSelectedBsMonth(String(current.getMonth()));
+                setSelectedFiscalYear(String(getFiscalYearStart(defYear, current.getMonth())));
             }
             setIsLoadingData(false);
         });
@@ -79,6 +83,35 @@ export default function UnifiedWorkforcePage() {
             unsubLocks();
         };
     }, []);
+
+    const availableFiscalYears = useMemo(() => {
+        const years = getAvailableFiscalYears(attendance.map(a => ({ bsYear: a.bsYear, bsMonth: a.bsMonth })));
+        const current = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
+        return years.includes(current) ? years : [current, ...years].sort((a, b) => b - a);
+    }, [attendance]);
+
+    const fyMonths = useMemo(() => {
+        const fy = selectedFiscalYear || String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()));
+        return getFiscalYearMonths(parseInt(fy));
+    }, [selectedFiscalYear]);
+
+    const selectedFyMonthIndex = useMemo(() => {
+        const idx = fyMonths.findIndex(m => String(m.bsYear) === selectedBsYear && String(m.bsMonth) === selectedBsMonth);
+        return idx >= 0 ? String(idx) : '0';
+    }, [fyMonths, selectedBsYear, selectedBsMonth]);
+
+    const handleFiscalYearChange = (fy: string) => {
+        setSelectedFiscalYear(fy);
+        const target = getFiscalYearMonths(parseInt(fy))[0]; // default to Shrawan
+        setSelectedBsYear(String(target.bsYear));
+        setSelectedBsMonth(String(target.bsMonth));
+    };
+
+    const handleFyMonthChange = (idxStr: string) => {
+        const target = fyMonths[parseInt(idxStr)];
+        setSelectedBsYear(String(target.bsYear));
+        setSelectedBsMonth(String(target.bsMonth));
+    };
 
     const periodName = useMemo(() => {
         const m = NEPALI_MONTHS.find(m => m.value === parseInt(selectedBsMonth));
@@ -188,20 +221,20 @@ export default function UnifiedWorkforcePage() {
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div className="flex flex-col sm:flex-row items-center gap-3">
                             <div className="flex items-center gap-2">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Year</Label>
-                                <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoadingData}>
-                                    <SelectTrigger className="w-[100px] h-9 bg-white"><SelectValue placeholder="Year" /></SelectTrigger>
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Fiscal Year</Label>
+                                <Select value={selectedFiscalYear} onValueChange={handleFiscalYearChange} disabled={isLoadingData}>
+                                    <SelectTrigger className="w-[110px] h-9 bg-white"><SelectValue placeholder="FY" /></SelectTrigger>
                                     <SelectContent>
-                                        {bsYears.map(y => <SelectItem key={`year-opt-${y}`} value={String(y)}>{y}</SelectItem>)}
+                                        {availableFiscalYears.map(y => <SelectItem key={`fy-opt-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Month</Label>
-                                <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoadingData}>
+                                <Select value={selectedFyMonthIndex} onValueChange={handleFyMonthChange} disabled={isLoadingData}>
                                     <SelectTrigger className="w-[140px] h-9 bg-white"><SelectValue placeholder="Month" /></SelectTrigger>
                                     <SelectContent>
-                                        {NEPALI_MONTHS.map(m => <SelectItem key={`month-opt-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}
+                                        {fyMonths.map((m, i) => <SelectItem key={`fy-month-opt-${i}`} value={String(i)}>{fiscalMonthName(i)}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
