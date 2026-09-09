@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo, Fragment, type ReactNode } from 'react';
 import { TrendingUp, TrendingDown, Minus, ArrowUpDown, ChevronUp, ChevronDown, AlertTriangle, Users, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { cn } from '@/lib/utils';
 import type { Employee, AttendanceRecord, Payroll } from '@/lib/types';
 import { onEmployeesUpdate } from '@/services/employee-service';
@@ -61,6 +62,14 @@ export default function EmployeePerformanceBenchmarkPage() {
     const [compareIds, setCompareIds] = useState<string[]>([]);
     const [comparePickerOpen, setComparePickerOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'attendanceRate', direction: 'desc' });
+
+    // Column-header filters (Excel-style): each is an independent multi-select,
+    // combined with AND across columns and OR within a column's own values.
+    const [filterEmployeeIds, setFilterEmployeeIds] = useState<string[]>([]);
+    const [filterTrends, setFilterTrends] = useState<string[]>([]);
+    const [filterFlagged, setFilterFlagged] = useState<string[]>([]);
+    const [filterDepartments, setFilterDepartments] = useState<string[]>([]);
+    const [filterPositions, setFilterPositions] = useState<string[]>([]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -113,12 +122,12 @@ export default function EmployeePerformanceBenchmarkPage() {
         return map;
     }, [payroll, selectedGroup]);
 
-    const comparisonRows: ComparisonRow[] = useMemo(() => {
+    const allComparisonRows: ComparisonRow[] = useMemo(() => {
         if (!selectedGroup) return [];
         const rows = aggregatePerformanceMetricsWithTrend(employees, attendance, selectedGroup.months);
         const groupMean = rows.length > 0 ? rows.reduce((s, r) => s + r.attendanceRate, 0) / rows.length : 0;
 
-        const withFinancials: ComparisonRow[] = rows.map(r => {
+        return rows.map(r => {
             const pay = payrollTotals.get(r.employeeId) || { net: 0, bonus: 0 };
             const flags: string[] = [];
             if (r.workdays + r.absentDays > 0 && groupMean - r.attendanceRate > ATTENDANCE_FLAG_THRESHOLD) {
@@ -133,15 +142,54 @@ export default function EmployeePerformanceBenchmarkPage() {
                 flags,
             };
         });
+    }, [employees, attendance, selectedGroup, payrollTotals]);
 
-        return [...withFinancials].sort((a, b) => {
+    const employeeFilterOptions = useMemo(
+        () => [...allComparisonRows].sort((a, b) => a.employeeName.localeCompare(b.employeeName)).map(r => ({ value: r.employeeId, label: r.employeeName })),
+        [allComparisonRows]
+    );
+    const departmentFilterOptions = useMemo(() => {
+        const set = new Set(employees.map(e => e.department).filter((d): d is NonNullable<typeof d> => Boolean(d)));
+        return Array.from(set).sort().map(d => ({ value: d, label: d }));
+    }, [employees]);
+    const positionFilterOptions = useMemo(() => {
+        const set = new Set(employees.map(e => e.position).filter((p): p is NonNullable<typeof p> => Boolean(p)));
+        return Array.from(set).sort().map(p => ({ value: p, label: p }));
+    }, [employees]);
+
+    const hasActiveFilters = filterEmployeeIds.length > 0 || filterTrends.length > 0 || filterFlagged.length > 0 || filterDepartments.length > 0 || filterPositions.length > 0;
+    const resetFilters = () => {
+        setFilterEmployeeIds([]);
+        setFilterTrends([]);
+        setFilterFlagged([]);
+        setFilterDepartments([]);
+        setFilterPositions([]);
+    };
+
+    const comparisonRows: ComparisonRow[] = useMemo(() => {
+        const employeeById = new Map(employees.map(e => [e.id, e]));
+        const filtered = allComparisonRows.filter(r => {
+            if (filterEmployeeIds.length > 0 && !filterEmployeeIds.includes(r.employeeId)) return false;
+            if (filterTrends.length > 0 && !filterTrends.includes(r.trend)) return false;
+            if (filterFlagged.length === 1) {
+                const isFlagged = r.flags.length > 0;
+                if (filterFlagged[0] === 'flagged' && !isFlagged) return false;
+                if (filterFlagged[0] === 'clean' && isFlagged) return false;
+            }
+            const emp = employeeById.get(r.employeeId);
+            if (filterDepartments.length > 0 && !(emp?.department && filterDepartments.includes(emp.department))) return false;
+            if (filterPositions.length > 0 && !(emp?.position && filterPositions.includes(emp.position))) return false;
+            return true;
+        });
+
+        return [...filtered].sort((a, b) => {
             const aVal = sortConfig.key === 'employeeName' ? a.employeeName : a[sortConfig.key];
             const bVal = sortConfig.key === 'employeeName' ? b.employeeName : b[sortConfig.key];
             if (aVal === bVal) return 0;
             const cmp = aVal < bVal ? -1 : 1;
             return sortConfig.direction === 'asc' ? cmp : -cmp;
         });
-    }, [employees, attendance, selectedGroup, payrollTotals, sortConfig]);
+    }, [allComparisonRows, employees, filterEmployeeIds, filterTrends, filterFlagged, filterDepartments, filterPositions, sortConfig]);
 
     const totals = useMemo(() => {
         if (comparisonRows.length === 0) return null;
@@ -235,6 +283,23 @@ export default function EmployeePerformanceBenchmarkPage() {
                             </PopoverContent>
                         </Popover>
                     </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Department</Label>
+                        <FilterDropdown label="Department" options={departmentFilterOptions} selected={filterDepartments} onChange={setFilterDepartments} />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Position</Label>
+                        <FilterDropdown label="Position" options={positionFilterOptions} selected={filterPositions} onChange={setFilterPositions} />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Flags</Label>
+                        <FilterDropdown label="Flags" options={[{ value: 'flagged', label: 'Flagged only' }, { value: 'clean', label: 'No flags' }]} selected={filterFlagged} onChange={setFilterFlagged} />
+                    </div>
+                    {hasActiveFilters && (
+                        <Button variant="ghost" size="sm" onClick={resetFilters} className="h-9 text-[10px] font-bold uppercase text-muted-foreground">
+                            <X className="mr-1.5 h-3.5 w-3.5" /> Reset Filters
+                        </Button>
+                    )}
                 </CardContent>
             </Card>
 
@@ -244,7 +309,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                         Comparison{selectedGroup ? ` - ${selectedGroup.label || monthLabel(selectedGroup.months[0]?.bsMonth ?? 0)}, FY ${formatFiscalYear(fyStart)}` : ''}
                     </CardTitle>
                     <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
-                        Click a column header to sort. Trend and Volatility need 2+ months in the selected period.
+                        Click a column header to sort, or its funnel icon to filter. Trend and Volatility need 2+ months in the selected period.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -252,10 +317,17 @@ export default function EmployeePerformanceBenchmarkPage() {
                         <Table className="text-[11px] border-collapse">
                             <TableHeader className="bg-muted/30">
                                 <TableRow className="h-11">
-                                    <SortableHead label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} className="sticky left-0 bg-background z-20 border-r pl-6" />
+                                    <SortableHead label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} className="sticky left-0 bg-background z-20 border-r pl-6">
+                                        <MultiSelectFilter label="Employee" options={employeeFilterOptions} selected={filterEmployeeIds} onChange={setFilterEmployeeIds} />
+                                    </SortableHead>
                                     <TableHead className="text-center font-bold uppercase px-3">Months</TableHead>
                                     <SortableHead label="Avg Attend %" sortKey="attendanceRate" sortConfig={sortConfig} onSort={requestSort} align="center" className="text-blue-700" />
-                                    <TableHead className="text-center font-bold uppercase px-3">Trend</TableHead>
+                                    <TableHead className="text-center font-bold uppercase px-3">
+                                        <span className="inline-flex items-center gap-1">
+                                            Trend
+                                            <MultiSelectFilter label="Trend" options={[{ value: 'Improving', label: 'Improving' }, { value: 'Declining', label: 'Declining' }, { value: 'Stable', label: 'Stable' }, { value: 'N/A', label: 'N/A' }]} selected={filterTrends} onChange={setFilterTrends} />
+                                        </span>
+                                    </TableHead>
                                     <TableHead className="text-center font-bold uppercase px-3">Volatility</TableHead>
                                     <SortableHead label="Absent" sortKey="absentDays" sortConfig={sortConfig} onSort={requestSort} align="center" className="text-red-600" />
                                     <SortableHead label="Late" sortKey="lateArrivals" sortConfig={sortConfig} onSort={requestSort} align="center" className="text-amber-600" />
@@ -398,21 +470,57 @@ function TrendBadge({ trend }: { trend: PeriodPerformanceMetrics['trend'] }) {
     );
 }
 
-function SortableHead({ label, sortKey, sortConfig, onSort, align = 'left', className }: {
+function SortableHead({ label, sortKey, sortConfig, onSort, align = 'left', className, children }: {
     label: string;
     sortKey: SortKey;
     sortConfig: { key: SortKey; direction: 'asc' | 'desc' };
     onSort: (key: SortKey) => void;
     align?: 'left' | 'center' | 'right';
     className?: string;
+    children?: ReactNode;
 }) {
     const isActive = sortConfig.key === sortKey;
     return (
         <TableHead className={cn('font-black uppercase px-3', align === 'center' && 'text-center', align === 'right' && 'text-right', className)}>
-            <button onClick={() => onSort(sortKey)} className={cn("inline-flex items-center gap-1 hover:text-primary transition-colors", isActive && "text-primary")}>
-                {label}
-                {isActive ? (sortConfig.direction === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
-            </button>
+            <span className="inline-flex items-center gap-1">
+                <button onClick={() => onSort(sortKey)} className={cn("inline-flex items-center gap-1 hover:text-primary transition-colors", isActive && "text-primary")}>
+                    {label}
+                    {isActive ? (sortConfig.direction === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                </button>
+                {children}
+            </span>
         </TableHead>
+    );
+}
+
+function FilterDropdown({ label, options, selected, onChange }: {
+    label: string;
+    options: { value: string; label: string }[];
+    selected: string[];
+    onChange: (selected: string[]) => void;
+}) {
+    const toggle = (value: string) => {
+        onChange(selected.includes(value) ? selected.filter(v => v !== value) : [...selected, value]);
+    };
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("h-9 bg-white font-bold text-xs justify-start min-w-[150px]", selected.length > 0 && "border-primary text-primary")}>
+                    {selected.length === 0 ? `All ${label}s` : `${selected.length} selected`}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0" align="start">
+                <ScrollArea className="max-h-[240px] p-2">
+                    {options.length === 0 ? (
+                        <p className="text-[10px] text-muted-foreground italic px-2 py-2">No options.</p>
+                    ) : options.map(opt => (
+                        <label key={opt.value} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-xs">
+                            <Checkbox checked={selected.includes(opt.value)} onCheckedChange={() => toggle(opt.value)} />
+                            {opt.label}
+                        </label>
+                    ))}
+                </ScrollArea>
+            </PopoverContent>
+        </Popover>
     );
 }
