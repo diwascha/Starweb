@@ -1,19 +1,18 @@
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    doc, 
-    onSnapshot, 
-    DocumentData, 
-    QueryDocumentSnapshot, 
-    getDocs, 
-    query, 
-    where, 
-    limit,
-    deleteDoc
+import {
+    collection,
+    doc,
+    onSnapshot,
+    DocumentData,
+    QueryDocumentSnapshot,
+    getDocs,
+    query,
+    where,
+    limit
 } from 'firebase/firestore';
 import type { Payroll } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
-import { coerceNumber, deleteDocsInChunks } from '@/lib/service-utils';
+import { coerceNumber } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -108,40 +107,7 @@ export const getPayrollForEmployee = async (employeeId: string, bsYear: number, 
     }
 };
 
-export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
-    const { db } = getFirebase();
-    const year = Number(bsYear); const month = Number(bsMonth);
-    const collections = [COLLECTIONS.PAYROLL, 'bonus_ledger', 'behavior_ledger', 'behavior_analytics'];
-
-    try {
-        await deleteDoc(doc(db, 'analytics_reports', `${year}-${month}`));
-    } catch (err: any) {
-        // A missing analytics_reports doc is expected for most periods - only
-        // surface a genuine permission problem, and don't let it block the
-        // rest of the purge below.
-        if (err?.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'analytics_reports',
-                operation: 'delete',
-            }));
-        }
-    }
-
-    for (const collName of collections) {
-        const q = query(collection(db, collName), where("bsYear", "==", year), where("bsMonth", "==", month));
-        try {
-            const snap = await getDocs(q);
-            if (!snap.empty) {
-                await deleteDocsInChunks(snap.docs.map(d => d.ref));
-            }
-        } catch (err: any) {
-            if (err?.code === 'permission-denied') {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: collName,
-                    operation: 'write',
-                }));
-            }
-            throw err;
-        }
-    }
-};
+// Period deletion (Payroll + Attendance + derived metrics together) now
+// lives in attendance/data.ts as deleteAttendanceForMonth - both pages
+// share that one implementation instead of each deleting a different subset
+// of collections.

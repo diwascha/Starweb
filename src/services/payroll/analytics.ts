@@ -4,6 +4,7 @@ import type { Employee, AttendanceRecord, AnalyticsData, AnalyticsReport, Behavi
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 import { format, startOfDay } from 'date-fns';
+import { isPeriodLocked } from '../attendance/data';
 
 export const isAnalyticsRow = (name: string): boolean => {
     const n = String(name || '').trim().toLowerCase();
@@ -94,6 +95,14 @@ export const generateBehaviorAnalyticsForMonth = async (
     generatedBy: string
 ): Promise<{ generated: number }> => {
     const { db } = getFirebase();
+
+    // A locked period - including every imported ledger month, which is
+    // locked by default - must never have metrics generated or rebuilt from
+    // it, even to "just" fill in a gap.
+    if (await isPeriodLocked(bsYear, bsMonth)) {
+        throw new Error("This period is locked and cannot be synced. Unlock it first.");
+    }
+
     const monthly = allAttendance.filter(r => r.bsYear === bsYear && r.bsMonth === bsMonth);
     if (monthly.length === 0) return { generated: 0 };
 

@@ -24,6 +24,7 @@ import { getEmployees } from '../employee-service';
 import { getAttendanceCollection } from './data';
 import { findPayrollBlockStart, importLegacyPayrollSheet } from '../payroll/legacy-import';
 import { importConsolidatedLedger } from '../vba-import-service';
+import { setFiscalYearPeriodLock } from '../period-lock';
 
 export const CONSOLIDATED_LEDGER_SUMMARY_SHEET = 'consolidated ledger';
 // Sheets that are never a month's attendance/payroll data, regardless of name.
@@ -274,6 +275,13 @@ export const importLedgerWorkbook = async (
         skippedSheets: [],
     };
 
+    // Every period actually written to during this import gets locked by
+    // default once the import finishes - imported historical data must be
+    // protected from accidental recalculation/deletion from the moment it
+    // lands, not left open until someone remembers to lock it manually.
+    const importedPeriods = new Map<string, { bsYear: number; bsMonth: number }>();
+    const markImported = (bsYear: number, bsMonth: number) => importedPeriods.set(`${bsYear}-${bsMonth}`, { bsYear, bsMonth });
+
     for (const mapping of mappings) {
         if (!mapping.includeAttendance && !mapping.includePayroll) continue;
         const grid = sheets.get(mapping.sheetName);
@@ -290,6 +298,7 @@ export const importLedgerWorkbook = async (
                 const attResult = await importCalculatedAttendanceSheet(grid, mapping.sheetName, importedBy);
                 result.attendanceRecords += attResult.attendanceRecords;
                 result.newEmployees += attResult.newEmployees;
+                if (attResult.attendanceRecords > 0) markImported(mapping.year, mapping.month);
             } catch (error: any) {
                 console.error(`Ledger import: attendance block failed for sheet "${mapping.sheetName}"`, error);
                 result.skippedSheets.push(`${mapping.sheetName} (attendance: ${error?.message || 'unknown error'})`);
@@ -305,6 +314,7 @@ export const importLedgerWorkbook = async (
                     );
                     result.payrollRecords += payResult.payrollRecords;
                     result.newEmployees += payResult.newEmployees;
+                    if (payResult.payrollRecords > 0) markImported(mapping.year, mapping.month);
                 }
             } catch (error: any) {
                 console.error(`Ledger import: payroll block failed for sheet "${mapping.sheetName}"`, error);
@@ -325,6 +335,14 @@ export const importLedgerWorkbook = async (
             result.bonusSummaries += summaryResult.bonusSummaries;
             result.behaviorLedger += summaryResult.behaviorLedger;
             result.behaviorAnalytics += summaryResult.behaviorAnalytics;
+        }
+    }
+
+    if (importedPeriods.size > 0) {
+        try {
+            await setFiscalYearPeriodLock(Array.from(importedPeriods.values()), true, importedBy);
+        } catch (error) {
+            console.error('Ledger import: failed to auto-lock imported periods', error);
         }
     }
 

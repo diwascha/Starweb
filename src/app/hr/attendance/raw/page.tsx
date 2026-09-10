@@ -37,6 +37,7 @@ import {
 } from '@/services/attendance/data';
 import { addRawMachineLogs, addBulkManualLogs, bulkClockInOut } from '@/services/attendance/import';
 import { importLegacyPayrollSheet } from '@/services/payroll/legacy-import';
+import { setFiscalYearPeriodLock } from '@/services/period-lock';
 import { resolvePeriodFromSheetName } from '@/lib/attendance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -280,6 +281,10 @@ export default function MachineLogsPage() {
                 const totals = { created: 0, updated: 0, newEmployees: 0, payroll: 0 };
                 const skippedSheets: string[] = [];
                 const failedSheets: string[] = [];
+                // Every period a legacy payroll block actually lands in gets
+                // locked by default once the import finishes - historical
+                // imported data must be protected from the moment it lands.
+                const importedPeriods = new Map<string, { bsYear: number; bsMonth: number }>();
 
                 try {
                     const data = new Uint8Array(event.target?.result as ArrayBuffer);
@@ -322,12 +327,23 @@ export default function MachineLogsPage() {
                                 );
                                 totals.payroll += payrollResult.payrollRecords;
                                 totals.newEmployees += payrollResult.newEmployees;
+                                if (payrollResult.payrollRecords > 0) {
+                                    importedPeriods.set(`${period.year}-${period.month}`, { bsYear: period.year, bsMonth: period.month });
+                                }
                             }
                         } catch (sheetError: any) {
                             // A sheet with no recognizable "Name"/"Date" header isn't an
                             // attendance sheet (e.g. a stray notes tab) - skip it, don't
                             // fail the whole import.
                             skippedSheets.push(sheetName);
+                        }
+                    }
+
+                    if (importedPeriods.size > 0) {
+                        try {
+                            await setFiscalYearPeriodLock(Array.from(importedPeriods.values()), true, user.username);
+                        } catch (lockError) {
+                            console.error('Legacy payroll import: failed to auto-lock imported periods', lockError);
                         }
                     }
 

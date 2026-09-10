@@ -43,12 +43,12 @@ import {
     deleteAllAttendance,
     runHourlyCalculation,
     onAttendancePeriodLocksUpdate,
-    setAttendancePeriodLock,
     bulkClockInOut,
     onRawLogsUpdate,
     updateRawLog,
     type AttendancePeriodLock
 } from '@/services/attendance-service';
+import { setFiscalYearPeriodLock, setCombinedPeriodLock } from '@/services/period-lock';
 import { onHolidaysUpdate, onLeaveRequestsUpdate, onShiftsUpdate } from '@/services/hr-admin-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate, getAttendanceRowHighlight } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -68,7 +68,7 @@ import Link from 'next/link';
 import LedgerImportButton from './_components/ledger-import-button';
 import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
 
-type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
+type SortKey = 'date' | 'dateBS' | 'employeeName' | 'status' | 'clockIn' | 'clockOut' | 'gTime' | 'breakHours' | 'gHours' | 'grossHours' | 'regularHours' | 'overtimeHours' | 'remarks';
 type SortDirection = 'asc' | 'desc';
 
 type ColumnKey = 'bsDate' | 'shift' | 'weekday' | 'onDuty' | 'offDuty' | 'clockIn' | 'clockOut' | 'absent' | 'gTime' | 'breakHours' | 'gHours' | 'overtime' | 'regularHours' | 'remarks';
@@ -111,6 +111,16 @@ export default function AttendanceRegistryPage() {
   const [filterOnDuty, setFilterOnDuty] = useState<string[]>([]);
   const [filterOffDuty, setFilterOffDuty] = useState<string[]>([]);
   const [filterAbsent, setFilterAbsent] = useState<string[]>([]);
+  const [filterBsDate, setFilterBsDate] = useState<string[]>([]);
+  const [filterClockIn, setFilterClockIn] = useState<string[]>([]);
+  const [filterClockOut, setFilterClockOut] = useState<string[]>([]);
+  const [filterGTime, setFilterGTime] = useState<string[]>([]);
+  const [filterBreakHours, setFilterBreakHours] = useState<string[]>([]);
+  const [filterGHours, setFilterGHours] = useState<string[]>([]);
+  const [filterGrossHours, setFilterGrossHours] = useState<string[]>([]);
+  const [filterOvertimeHours, setFilterOvertimeHours] = useState<string[]>([]);
+  const [filterRegularHours, setFilterRegularHours] = useState<string[]>([]);
+  const [filterRemarks, setFilterRemarks] = useState<string[]>([]);
   
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(
     String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()))
@@ -181,7 +191,12 @@ export default function AttendanceRegistryPage() {
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedFiscalYear, selectedFyMonthIndex, searchQuery, filterEmployeeName, filterStatus, itemsPerPage]);
+  }, [
+    selectedFiscalYear, selectedFyMonthIndex, searchQuery, filterEmployeeName, filterStatus, itemsPerPage,
+    filterShifts, filterWeekdays, filterOnDuty, filterOffDuty, filterAbsent, filterBsDate, filterClockIn,
+    filterClockOut, filterGTime, filterBreakHours, filterGHours, filterGrossHours, filterOvertimeHours,
+    filterRegularHours, filterRemarks,
+  ]);
 
   const availableFiscalYears = useMemo(() => {
     const years = getAvailableFiscalYears(attendance.map(r => ({ bsYear: r.bsYear, bsMonth: r.bsMonth })));
@@ -248,6 +263,28 @@ export default function AttendanceRegistryPage() {
     return shift ? shift.name : 'Standard';
   }, [employeeMap, shiftMap]);
 
+  // Sorts by the same value shown in the column - remarks in particular
+  // sorts by the derived display text (getDisplayRemark), not the raw
+  // stored remarks field, since that's what the Remarks column shows.
+  const getSortableValue = useCallback((r: AttendanceRecord, key: SortKey): string | number => {
+    switch (key) {
+        case 'date': return r.date;
+        case 'dateBS': return r.dateBS;
+        case 'employeeName': return r.employeeName;
+        case 'status': return r.status;
+        case 'clockIn': return r.clockIn || '';
+        case 'clockOut': return r.clockOut || '';
+        case 'gTime': return r.gTime ?? -1;
+        case 'breakHours': return r.breakHours ?? -1;
+        case 'gHours': return r.gHours ?? -1;
+        case 'grossHours': return r.grossHours;
+        case 'regularHours': return r.regularHours;
+        case 'overtimeHours': return r.overtimeHours;
+        case 'remarks': return getDisplayRemark(r);
+        default: return '';
+    }
+  }, [getDisplayRemark]);
+
   const filteredAndSortedRecords = useMemo(() => {
     const fyStart = parseInt(selectedFiscalYear);
     let filtered = attendance.filter(r => getFiscalYearStart(r.bsYear, r.bsMonth) === fyStart);
@@ -289,9 +326,49 @@ export default function AttendanceRegistryPage() {
         filtered = filtered.filter(record => filterAbsent.includes(record.absent ? 'Yes' : 'No'));
     }
 
+    if (filterBsDate.length > 0) {
+        filtered = filtered.filter(record => filterBsDate.includes(record.dateBS));
+    }
+
+    if (filterClockIn.length > 0) {
+        filtered = filtered.filter(record => filterClockIn.includes(formatTimeForDisplay(record.clockIn)));
+    }
+
+    if (filterClockOut.length > 0) {
+        filtered = filtered.filter(record => filterClockOut.includes(formatTimeForDisplay(record.clockOut)));
+    }
+
+    if (filterGTime.length > 0) {
+        filtered = filtered.filter(record => filterGTime.includes(record.gTime != null ? record.gTime.toFixed(2) : '—'));
+    }
+
+    if (filterBreakHours.length > 0) {
+        filtered = filtered.filter(record => filterBreakHours.includes(record.breakHours != null ? record.breakHours.toFixed(2) : '—'));
+    }
+
+    if (filterGHours.length > 0) {
+        filtered = filtered.filter(record => filterGHours.includes(record.gHours != null ? record.gHours.toFixed(2) : '—'));
+    }
+
+    if (filterGrossHours.length > 0) {
+        filtered = filtered.filter(record => filterGrossHours.includes(record.grossHours.toFixed(1)));
+    }
+
+    if (filterOvertimeHours.length > 0) {
+        filtered = filtered.filter(record => filterOvertimeHours.includes(record.overtimeHours.toFixed(1)));
+    }
+
+    if (filterRegularHours.length > 0) {
+        filtered = filtered.filter(record => filterRegularHours.includes(record.regularHours.toFixed(1)));
+    }
+
+    if (filterRemarks.length > 0) {
+        filtered = filtered.filter(record => filterRemarks.includes(getDisplayRemark(record)));
+    }
+
     filtered.sort((a, b) => {
-        const aVal = a[sortConfig.key];
-        const bVal = b[sortConfig.key];
+        const aVal = getSortableValue(a, sortConfig.key);
+        const bVal = getSortableValue(b, sortConfig.key);
         if (aVal !== bVal) {
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             return sortConfig.direction === 'asc' ? 1 : -1;
@@ -300,7 +377,7 @@ export default function AttendanceRegistryPage() {
         return a.employeeName.localeCompare(b.employeeName);
     });
     return filtered;
-  }, [attendance, selectedFiscalYear, selectedFyMonthIndex, sortConfig, searchQuery, filterEmployeeName, filterStatus, filterShifts, filterWeekdays, filterOnDuty, filterOffDuty, filterAbsent, getRecordShiftName]);
+  }, [attendance, selectedFiscalYear, selectedFyMonthIndex, sortConfig, searchQuery, filterEmployeeName, filterStatus, filterShifts, filterWeekdays, filterOnDuty, filterOffDuty, filterAbsent, filterBsDate, filterClockIn, filterClockOut, filterGTime, filterBreakHours, filterGHours, filterGrossHours, filterOvertimeHours, filterRegularHours, filterRemarks, getRecordShiftName, getSortableValue, getDisplayRemark]);
 
   const paginatedRecords = useMemo(() => {
     if (itemsPerPage === -1) return filteredAndSortedRecords;
@@ -340,6 +417,56 @@ export default function AttendanceRegistryPage() {
     const times = Array.from(new Set(attendance.map(r => formatTimeForDisplay(r.offDuty)))).sort();
     return times.map(t => ({ value: t, label: t }));
   }, [attendance]);
+
+  const bsDateFilterOptions = useMemo(() => {
+    const dates = Array.from(new Set(attendance.map(r => r.dateBS))).sort();
+    return dates.map(d => ({ value: d, label: d }));
+  }, [attendance]);
+
+  const clockInFilterOptions = useMemo(() => {
+    const times = Array.from(new Set(attendance.map(r => formatTimeForDisplay(r.clockIn)))).sort();
+    return times.map(t => ({ value: t, label: t }));
+  }, [attendance]);
+
+  const clockOutFilterOptions = useMemo(() => {
+    const times = Array.from(new Set(attendance.map(r => formatTimeForDisplay(r.clockOut)))).sort();
+    return times.map(t => ({ value: t, label: t }));
+  }, [attendance]);
+
+  const gTimeFilterOptions = useMemo(() => {
+    const vals = Array.from(new Set(attendance.map(r => r.gTime != null ? r.gTime.toFixed(2) : '—'))).sort();
+    return vals.map(v => ({ value: v, label: v }));
+  }, [attendance]);
+
+  const breakHoursFilterOptions = useMemo(() => {
+    const vals = Array.from(new Set(attendance.map(r => r.breakHours != null ? r.breakHours.toFixed(2) : '—'))).sort();
+    return vals.map(v => ({ value: v, label: v }));
+  }, [attendance]);
+
+  const gHoursFilterOptions = useMemo(() => {
+    const vals = Array.from(new Set(attendance.map(r => r.gHours != null ? r.gHours.toFixed(2) : '—'))).sort();
+    return vals.map(v => ({ value: v, label: v }));
+  }, [attendance]);
+
+  const grossHoursFilterOptions = useMemo(() => {
+    const vals = Array.from(new Set(attendance.map(r => r.grossHours.toFixed(1)))).sort((a, b) => parseFloat(a) - parseFloat(b));
+    return vals.map(v => ({ value: v, label: v }));
+  }, [attendance]);
+
+  const overtimeHoursFilterOptions = useMemo(() => {
+    const vals = Array.from(new Set(attendance.map(r => r.overtimeHours.toFixed(1)))).sort((a, b) => parseFloat(a) - parseFloat(b));
+    return vals.map(v => ({ value: v, label: v }));
+  }, [attendance]);
+
+  const regularHoursFilterOptions = useMemo(() => {
+    const vals = Array.from(new Set(attendance.map(r => r.regularHours.toFixed(1)))).sort((a, b) => parseFloat(a) - parseFloat(b));
+    return vals.map(v => ({ value: v, label: v }));
+  }, [attendance]);
+
+  const remarksFilterOptions = useMemo(() => {
+    const vals = Array.from(new Set(attendance.map(r => getDisplayRemark(r)))).sort((a, b) => a.localeCompare(b));
+    return vals.map(v => ({ value: v, label: v }));
+  }, [attendance, getDisplayRemark]);
 
   const handleToggleOtOk = async (record: AttendanceRecord, approved: boolean) => {
     if (!record.sourceLogId) {
@@ -474,8 +601,24 @@ export default function AttendanceRegistryPage() {
     setFilterOnDuty([]);
     setFilterOffDuty([]);
     setFilterAbsent([]);
+    setFilterBsDate([]);
+    setFilterClockIn([]);
+    setFilterClockOut([]);
+    setFilterGTime([]);
+    setFilterBreakHours([]);
+    setFilterGHours([]);
+    setFilterGrossHours([]);
+    setFilterOvertimeHours([]);
+    setFilterRegularHours([]);
+    setFilterRemarks([]);
     setSearchQuery('');
   };
+
+  const hasActiveColumnFilters = filterEmployeeName !== 'All' || filterStatus !== 'All' || filterShifts.length > 0
+    || filterWeekdays.length > 0 || filterOnDuty.length > 0 || filterOffDuty.length > 0 || filterAbsent.length > 0
+    || filterBsDate.length > 0 || filterClockIn.length > 0 || filterClockOut.length > 0 || filterGTime.length > 0
+    || filterBreakHours.length > 0 || filterGHours.length > 0 || filterGrossHours.length > 0
+    || filterOvertimeHours.length > 0 || filterRegularHours.length > 0 || filterRemarks.length > 0;
 
   // The calculation always targets the month currently selected in the page
   // filters - never a month picked independently inside the dialog - so
@@ -498,9 +641,10 @@ export default function AttendanceRegistryPage() {
     setIsCalculating(true);
     try {
         const { processed } = await runHourlyCalculation(calcTargetMonth.bsYear, calcTargetMonth.bsMonth, user.username);
-        // Re-lock immediately so the just-calculated period can't be
-        // recalculated again without another deliberate unlock.
-        await setAttendancePeriodLock(calcTargetMonth.bsYear, calcTargetMonth.bsMonth, true, user.username);
+        // Re-lock immediately (both Attendance and Payroll together) so the
+        // just-calculated period can't be recalculated again without another
+        // deliberate unlock.
+        await setCombinedPeriodLock(calcTargetMonth.bsYear, calcTargetMonth.bsMonth, true, user.username);
         setCalcResult({ processed });
         setCalcStep('result');
     } catch (error: any) {
@@ -510,22 +654,27 @@ export default function AttendanceRegistryPage() {
     }
   };
 
-  const handleToggleLock = async () => {
-    if (selectedFyMonthIndex === 'All' || !user) return;
+  // Lock/Unlock is a fiscal-year-wide bulk action, not a single-period
+  // toggle: it covers every month in the currently selected fiscal year,
+  // and always locks/unlocks Attendance and Payroll together for each of
+  // those months (setFiscalYearPeriodLock writes both collections).
+  const [bulkLockConfirm, setBulkLockConfirm] = useState<'lock' | 'unlock' | null>(null);
+
+  const handleBulkPeriodLock = async (locked: boolean) => {
+    if (!user) return;
     setIsTogglingLock(true);
     try {
-        const target = getFiscalYearMonths(fyStart)[parseInt(selectedFyMonthIndex)];
-        await setAttendancePeriodLock(target.bsYear, target.bsMonth, !isCurrentViewLocked, user.username);
+        const fyMonths = getFiscalYearMonths(fyStart);
+        await setFiscalYearPeriodLock(fyMonths, locked, user.username);
         toast({
-            title: isCurrentViewLocked ? 'Period Unlocked' : 'Period Locked',
-            description: isCurrentViewLocked
-                ? 'This period can be recalculated again.'
-                : 'This period is now protected from recalculation.',
+            title: locked ? 'Fiscal Year Locked' : 'Fiscal Year Unlocked',
+            description: `${locked ? 'Locked' : 'Unlocked'} Attendance and Payroll records for all ${fyMonths.length} months of FY ${formatFiscalYear(fyStart)}.`,
         });
     } catch (error) {
-        toast({ title: 'Action Failed', description: 'Could not update the period lock.', variant: 'destructive' });
+        toast({ title: 'Action Failed', description: 'Could not update the period locks.', variant: 'destructive' });
     } finally {
         setIsTogglingLock(false);
+        setBulkLockConfirm(null);
     }
   };
 
@@ -575,13 +724,23 @@ export default function AttendanceRegistryPage() {
                 </DropdownMenu>
                 <Button
                     variant="outline"
-                    onClick={handleToggleLock}
-                    disabled={isTogglingLock || selectedFyMonthIndex === 'All'}
-                    title={selectedFyMonthIndex === 'All' ? 'Select a specific month to lock/unlock it.' : undefined}
+                    onClick={() => setBulkLockConfirm('lock')}
+                    disabled={isTogglingLock}
+                    title={`Lock Attendance and Payroll for every month of FY ${formatFiscalYear(fyStart)}.`}
+                    className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200 text-amber-700 hover:bg-amber-50"
+                >
+                    {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Lock className="mr-2 h-3.5 w-3.5" />}
+                    Lock All
+                </Button>
+                <Button
+                    variant="outline"
+                    onClick={() => setBulkLockConfirm('unlock')}
+                    disabled={isTogglingLock}
+                    title={`Unlock Attendance and Payroll for every month of FY ${formatFiscalYear(fyStart)}.`}
                     className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
                 >
-                    {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : isCurrentViewLocked ? <Lock className="mr-2 h-3.5 w-3.5 text-amber-600" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
-                    {isCurrentViewLocked ? 'Unlock Period' : 'Lock Period'}
+                    {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
+                    Unlock All
                 </Button>
                 <Button
                     onClick={() => {
@@ -654,7 +813,7 @@ export default function AttendanceRegistryPage() {
             </div>
             
             <div className="flex items-center gap-2">
-                {(filterEmployeeName !== 'All' || filterStatus !== 'All' || filterShifts.length > 0 || filterWeekdays.length > 0 || filterOnDuty.length > 0 || filterOffDuty.length > 0 || filterAbsent.length > 0 || searchQuery !== '') && (
+                {(hasActiveColumnFilters || searchQuery !== '') && (
                     <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-9 text-muted-foreground hover:text-foreground font-bold uppercase text-[10px]">
                         <FilterX className="mr-1.5 h-3.5 w-3.5" /> Reset
                     </Button>
@@ -668,17 +827,17 @@ export default function AttendanceRegistryPage() {
                             title={selectedFyMonthIndex === 'All' ? 'Select a specific month to clear.' : isCurrentViewLocked ? 'Unlock this period before deleting it.' : undefined}
                             className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]"
                         >
-                            <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Clear Period
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete Records
                         </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Clear Processed Records?</AlertDialogTitle>
-                            <AlertDialogDescription>This will remove all calculated work hours and payroll for this month. Raw machine data will be preserved.</AlertDialogDescription>
+                            <AlertDialogTitle>Delete Records for This Period?</AlertDialogTitle>
+                            <AlertDialogDescription>This will permanently delete Attendance, Payroll, and derived metrics (bonus ledger, behavioral analytics) for this month. Raw machine data will be preserved. This action is irreversible.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteMonth} className="bg-destructive text-white">Clear Now</AlertDialogAction>
+                            <AlertDialogAction onClick={handleDeleteMonth} className="bg-destructive text-white">Confirm Delete</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
@@ -707,6 +866,30 @@ export default function AttendanceRegistryPage() {
             </div>
         </div>
 
+        <AlertDialog open={bulkLockConfirm !== null} onOpenChange={(open) => { if (!open) setBulkLockConfirm(null); }}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>
+                        {bulkLockConfirm === 'lock' ? `Lock All of FY ${formatFiscalYear(fyStart)}?` : `Unlock All of FY ${formatFiscalYear(fyStart)}?`}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {bulkLockConfirm === 'lock'
+                            ? `This locks Attendance and Payroll records for every month of FY ${formatFiscalYear(fyStart)} (${getFiscalYearMonths(fyStart).length} months). Locked months cannot be recalculated, synced, or deleted until unlocked again.`
+                            : `This unlocks Attendance and Payroll records for every month of FY ${formatFiscalYear(fyStart)} (${getFiscalYearMonths(fyStart).length} months), allowing them to be recalculated, synced, or deleted. Use this deliberately - imported historical months are locked by default to protect them.`}
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={() => handleBulkPeriodLock(bulkLockConfirm === 'lock')}
+                        className={bulkLockConfirm === 'lock' ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-destructive text-white hover:bg-destructive/90'}
+                    >
+                        {bulkLockConfirm === 'lock' ? 'Lock All' : 'Unlock All'}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
         <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
             <CardContent className="p-0">
                 <ScrollArea className="w-full">
@@ -714,7 +897,11 @@ export default function AttendanceRegistryPage() {
                         <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
                             <TableRow className="hover:bg-transparent h-12">
                                 <SortableHead label="Date" sortKey="date" sortConfig={sortConfig} onSort={requestSort} className="pl-6 text-left" />
-                                {isColVisible('bsDate') && <TableHead className="font-bold">BS Date</TableHead>}
+                                {isColVisible('bsDate') && (
+                                    <SortableHead label="BS Date" sortKey="dateBS" sortConfig={sortConfig} onSort={requestSort} className="text-left">
+                                        <MultiSelectFilter label="BS Date" options={bsDateFilterOptions} selected={filterBsDate} onChange={setFilterBsDate} />
+                                    </SortableHead>
+                                )}
                                 <SortableHead label="Name" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} className="text-left">
                                     <MultiSelectFilter label="Employee" options={sortedEmployeesForFilter.map(e => ({ value: e.name, label: e.name }))} selected={filterEmployeeName === 'All' ? [] : [filterEmployeeName]} onChange={(sel) => setFilterEmployeeName(sel.length === 0 ? 'All' : sel[sel.length - 1])} />
                                 </SortableHead>
@@ -738,24 +925,54 @@ export default function AttendanceRegistryPage() {
                                         <span className="inline-flex items-center gap-1 justify-center">Off duty <MultiSelectFilter label="Off Duty" options={offDutyFilterOptions} selected={filterOffDuty} onChange={setFilterOffDuty} /></span>
                                     </TableHead>
                                 )}
-                                {isColVisible('clockIn') && <TableHead className="text-center font-bold">Clock In</TableHead>}
-                                {isColVisible('clockOut') && <TableHead className="text-center font-bold">Clock Out</TableHead>}
+                                {isColVisible('clockIn') && (
+                                    <SortableHead label="Clock In" sortKey="clockIn" sortConfig={sortConfig} onSort={requestSort} align="center">
+                                        <MultiSelectFilter label="Clock In" options={clockInFilterOptions} selected={filterClockIn} onChange={setFilterClockIn} />
+                                    </SortableHead>
+                                )}
+                                {isColVisible('clockOut') && (
+                                    <SortableHead label="Clock Out" sortKey="clockOut" sortConfig={sortConfig} onSort={requestSort} align="center">
+                                        <MultiSelectFilter label="Clock Out" options={clockOutFilterOptions} selected={filterClockOut} onChange={setFilterClockOut} />
+                                    </SortableHead>
+                                )}
                                 {isColVisible('absent') && (
                                     <TableHead className="text-center font-bold">
                                         <span className="inline-flex items-center gap-1 justify-center">Absent <MultiSelectFilter label="Absent" options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]} selected={filterAbsent} onChange={setFilterAbsent} /></span>
                                     </TableHead>
                                 )}
-                                {isColVisible('gTime') && <TableHead className="text-right font-bold">G. Time</TableHead>}
-                                {isColVisible('breakHours') && <TableHead className="text-right font-bold">Break</TableHead>}
-                                {isColVisible('gHours') && <TableHead className="text-right font-bold">G. Hours</TableHead>}
-                                <TableHead className="text-right font-bold">Gross Hours</TableHead>
+                                {isColVisible('gTime') && (
+                                    <SortableHead label="G. Time" sortKey="gTime" sortConfig={sortConfig} onSort={requestSort} align="right">
+                                        <MultiSelectFilter label="G. Time" options={gTimeFilterOptions} selected={filterGTime} onChange={setFilterGTime} />
+                                    </SortableHead>
+                                )}
+                                {isColVisible('breakHours') && (
+                                    <SortableHead label="Break" sortKey="breakHours" sortConfig={sortConfig} onSort={requestSort} align="right">
+                                        <MultiSelectFilter label="Break" options={breakHoursFilterOptions} selected={filterBreakHours} onChange={setFilterBreakHours} />
+                                    </SortableHead>
+                                )}
+                                {isColVisible('gHours') && (
+                                    <SortableHead label="G. Hours" sortKey="gHours" sortConfig={sortConfig} onSort={requestSort} align="right">
+                                        <MultiSelectFilter label="G. Hours" options={gHoursFilterOptions} selected={filterGHours} onChange={setFilterGHours} />
+                                    </SortableHead>
+                                )}
+                                <SortableHead label="Gross Hours" sortKey="grossHours" sortConfig={sortConfig} onSort={requestSort} align="right">
+                                    <MultiSelectFilter label="Gross Hours" options={grossHoursFilterOptions} selected={filterGrossHours} onChange={setFilterGrossHours} />
+                                </SortableHead>
                                 {isColVisible('overtime') && (
-                                    <SortableHead label="Overtime" sortKey="overtimeHours" sortConfig={sortConfig} onSort={requestSort} align="right" />
+                                    <SortableHead label="Overtime" sortKey="overtimeHours" sortConfig={sortConfig} onSort={requestSort} align="right">
+                                        <MultiSelectFilter label="Overtime" options={overtimeHoursFilterOptions} selected={filterOvertimeHours} onChange={setFilterOvertimeHours} />
+                                    </SortableHead>
                                 )}
                                 {isColVisible('regularHours') && (
-                                    <SortableHead label="Regular Hours" sortKey="regularHours" sortConfig={sortConfig} onSort={requestSort} align="right" />
+                                    <SortableHead label="Regular Hours" sortKey="regularHours" sortConfig={sortConfig} onSort={requestSort} align="right">
+                                        <MultiSelectFilter label="Regular Hours" options={regularHoursFilterOptions} selected={filterRegularHours} onChange={setFilterRegularHours} />
+                                    </SortableHead>
                                 )}
-                                {isColVisible('remarks') && <TableHead className="font-bold">Remarks</TableHead>}
+                                {isColVisible('remarks') && (
+                                    <SortableHead label="Remarks" sortKey="remarks" sortConfig={sortConfig} onSort={requestSort} className="text-left">
+                                        <MultiSelectFilter label="Remarks" options={remarksFilterOptions} selected={filterRemarks} onChange={setFilterRemarks} />
+                                    </SortableHead>
+                                )}
                                 <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
                             </TableRow>
                         </TableHeader>

@@ -192,7 +192,7 @@ export const deleteAttendanceRecord = async (id: string) => {
  * touch a locked period - that lock exists specifically to protect a
  * finalized or imported month from being wiped.
  */
-const isPeriodLocked = async (bsYear: number, bsMonth: number): Promise<boolean> => {
+export const isPeriodLocked = async (bsYear: number, bsMonth: number): Promise<boolean> => {
     const { db } = getFirebase();
     const id = `${bsYear}-${bsMonth}`;
     const [attLock, payLock] = await Promise.all([
@@ -208,17 +208,41 @@ const isPeriodLocked = async (bsYear: number, bsMonth: number): Promise<boolean>
  * behind after wiping its source attendance would be worse than deleting
  * nothing. Refuses (no-op) if the period is locked.
  */
+/**
+ * "Delete Records" for one BS period: removes every derived record tied to
+ * it - Attendance, Payroll, and the metrics generated from Payroll (bonus
+ * ledger, behavior ledger/analytics, the saved analytics report) - in one
+ * pass, so nothing is left half-deleted regardless of which page (Attendance
+ * Logs or Payroll) triggered it. Refuses (no-op) on a locked period.
+ */
 export const deleteAttendanceForMonth = async (year: number, month: number): Promise<{ deleted: boolean; locked: boolean }> => {
     if (await isPeriodLocked(year, month)) {
         return { deleted: false, locked: true };
     }
     const { db } = getFirebase();
-    const [attSnap, paySnap] = await Promise.all([
+
+    try {
+        await deleteDoc(doc(db, 'analytics_reports', `${year}-${month}`));
+    } catch (err: any) {
+        // A missing analytics_reports doc is expected for most periods - only
+        // surface a genuine permission problem, and don't let it block the
+        // rest of the deletion below.
+        if (err?.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'analytics_reports',
+                operation: 'delete',
+            }));
+        }
+    }
+
+    const metricsCollections = ['bonus_ledger', 'behavior_ledger', 'behavior_analytics'];
+    const [attSnap, paySnap, ...metricsSnaps] = await Promise.all([
         getDocs(query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month))),
         getDocs(query(collection(db, COLLECTIONS.PAYROLL), where('bsYear', '==', year), where('bsMonth', '==', month))),
+        ...metricsCollections.map(name => getDocs(query(collection(db, name), where('bsYear', '==', year), where('bsMonth', '==', month)))),
     ]);
     try {
-        await deleteDocsInChunks([...attSnap.docs, ...paySnap.docs].map(d => d.ref));
+        await deleteDocsInChunks([...attSnap.docs, ...paySnap.docs, ...metricsSnaps.flatMap(s => s.docs)].map(d => d.ref));
     } catch (err: any) {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({

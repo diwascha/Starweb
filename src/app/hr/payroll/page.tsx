@@ -14,9 +14,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
-import { getAttendanceYears, onAttendanceUpdate } from '@/services/attendance-service';
+import { getAttendanceYears, onAttendanceUpdate, deleteAttendanceForMonth } from '@/services/attendance-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { deletePayrollForMonth, calculateAndSavePayrollForMonth, onPeriodLocksUpdate, setPeriodLock, hasBehaviorAnalyticsForMonth, generateBehaviorAnalyticsForMonth, type PayrollPeriodLock } from '@/services/payroll-service';
+import { calculateAndSavePayrollForMonth, onPeriodLocksUpdate, hasBehaviorAnalyticsForMonth, generateBehaviorAnalyticsForMonth, type PayrollPeriodLock } from '@/services/payroll-service';
+import { setCombinedPeriodLock } from '@/services/period-lock';
 import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -144,23 +145,27 @@ export default function UnifiedWorkforcePage() {
     }, [periodLocks, selectedBsYear, selectedBsMonth]);
     // Calculation controls default to LOCKED: a period with no lock doc yet
     // (i.e. nobody has ever explicitly unlocked it) must still block Sync
-    // Metrics / Recalculate / Purge until the user deliberately unlocks it.
+    // Metrics / Recalculate / Delete Records until the user deliberately unlocks it.
     // Only an explicit locked:false doc counts as unlocked.
     const isLocked = currentLock ? currentLock.locked : true;
 
-    const handlePurgePeriod = async () => {
+    const handleDeleteRecords = async () => {
         if (!selectedBsYear || selectedBsMonth === '') return;
         setIsPurging(true);
         try {
             const year = parseInt(selectedBsYear);
             const month = parseInt(selectedBsMonth);
-            await deletePayrollForMonth(year, month);
-            toast({
-                title: 'Period Purged',
-                description: `All associated records for ${periodName} have been removed from the system.`
-            });
+            const result = await deleteAttendanceForMonth(year, month);
+            if (result.locked) {
+                toast({ title: 'Period Locked', description: 'Unlock this period before deleting its records.', variant: 'destructive' });
+            } else {
+                toast({
+                    title: 'Records Deleted',
+                    description: `Attendance, Payroll, and derived metrics for ${periodName} have been removed.`
+                });
+            }
         } catch (error) {
-            toast({ title: 'Purge Failed', description: 'Could not remove period data.', variant: 'destructive' });
+            toast({ title: 'Deletion Failed', description: 'Could not remove period data.', variant: 'destructive' });
         } finally {
             setIsPurging(false);
         }
@@ -176,7 +181,7 @@ export default function UnifiedWorkforcePage() {
             // Return to the locked state immediately after a successful
             // calculation, so finalized data can't be recalculated again
             // without another deliberate unlock.
-            await setPeriodLock(year, month, true, user.username);
+            await setCombinedPeriodLock(year, month, true, user.username);
             setCalcResultText(`Recomputed pay (including bonus accrual) for ${result.employeeCount} employee(s) in ${periodName} from attendance. The period has been re-locked.`);
             setCalcDialogStep('result');
         } catch (error) {
@@ -193,12 +198,12 @@ export default function UnifiedWorkforcePage() {
         try {
             const year = parseInt(selectedBsYear);
             const month = parseInt(selectedBsMonth);
-            await setPeriodLock(year, month, !isLocked, user.username);
+            await setCombinedPeriodLock(year, month, !isLocked, user.username);
             toast({
                 title: isLocked ? 'Calculation Unlocked' : 'Calculation Locked',
                 description: isLocked
                     ? `${periodName} can now be recalculated or synced. It re-locks automatically once you do.`
-                    : `${periodName} is protected again - Sync Metrics, Recalculate, and Purge are blocked until unlocked.`,
+                    : `${periodName} is protected again - Sync Metrics, Recalculate, and Delete Records are blocked until unlocked.`,
             });
         } catch (error) {
             toast({ title: 'Action Failed', description: 'Could not update the calculation lock.', variant: 'destructive' });
@@ -228,7 +233,7 @@ export default function UnifiedWorkforcePage() {
                         : `No calculated attendance found for ${periodName} - nothing to analyze yet. The period has still been re-locked.`
                 );
             }
-            await setPeriodLock(year, month, true, user.username);
+            await setCombinedPeriodLock(year, month, true, user.username);
             setRefreshTrigger(prev => prev + 1);
             setCalcDialogStep('result');
         } catch (error) {
@@ -323,21 +328,21 @@ export default function UnifiedWorkforcePage() {
                                 <AlertDialogTrigger asChild>
                                     <Button variant="ghost" size="sm" className="text-destructive h-9 px-4 font-black text-[10px] uppercase tracking-widest hover:bg-red-50" disabled={isLoadingData || isPurging || isLocked}>
                                         {isPurging ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-2 h-3.5 w-3.5" />}
-                                        Purge Period
+                                        Delete Records
                                     </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>Purge Period Records?</AlertDialogTitle>
+                                        <AlertDialogTitle>Delete Records for This Period?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This will permanently delete all **Payroll**, **Bonus Ledger**, **Behavioral Metrics**, and **Analytics Reports** for **{periodName}**.
+                                            This will permanently delete all **Attendance**, **Payroll**, **Bonus Ledger**, **Behavioral Metrics**, and **Analytics Reports** for **{periodName}**.
                                             This action is irreversible.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handlePurgePeriod} className="bg-destructive text-white hover:bg-destructive/90">
-                                            Confirm Data Purge
+                                        <AlertDialogAction onClick={handleDeleteRecords} className="bg-destructive text-white hover:bg-destructive/90">
+                                            Confirm Delete
                                         </AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>

@@ -7,6 +7,7 @@ import { COLLECTIONS, DEFAULT_HR_CONFIG } from '@/lib/constants';
 import { createTimestamp, logServiceError, coerceNumber } from '@/lib/service-utils';
 import { getPayrollCollection } from './data';
 import { extractSection, extractPatternInsights, isAnalyticsRow } from './analytics';
+import { isPeriodLocked } from '../attendance/data';
 
 /**
  * Calculates and persists monthly payroll records based on validated attendance.
@@ -23,6 +24,14 @@ import { extractSection, extractPatternInsights, isAnalyticsRow } from './analyt
  */
 export const calculateAndSavePayrollForMonth = async (bsYear: number, bsMonth: number, allEmployees: Employee[], allAttendance: AttendanceRecord[], calculatedBy: string): Promise<{ employeeCount: number }> => {
     const { db } = getFirebase();
+
+    // Enforced here, not just as a disabled button in the UI: a locked
+    // period (an imported ledger month, or one deliberately finalized)
+    // must never be recomputed, even by a direct/programmatic call.
+    if (await isPeriodLocked(bsYear, bsMonth)) {
+        throw new Error("This period is locked and cannot be recalculated. Unlock it first.");
+    }
+
     const configSetting = await getSetting('hr_config');
     const config = (configSetting?.value as HrConfig) || DEFAULT_HR_CONFIG;
     const { defaultHourly, fallbackHourly, tdsRate, monthDays, stdWorkdays } = config.payroll;

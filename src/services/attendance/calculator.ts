@@ -14,7 +14,7 @@ import { getHolidays, getLeaveRequests, getShifts } from '../hr-admin-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 import { getSetting } from '../settings-service';
-import { getAttendanceCollection, getRawLogsCollection, fromFirestoreLog } from './data';
+import { getAttendanceCollection, getRawLogsCollection, fromFirestoreLog, isPeriodLocked } from './data';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
@@ -41,6 +41,14 @@ const applyFixedBreak = (startMins: number, endMins: number, breakStartMins: num
 
 export const runHourlyCalculation = async (year: number, month: number, calculatedBy: string): Promise<{ processed: number }> => {
     const { db } = getFirebase();
+
+    // Enforced here, not just as a disabled button in the UI: a locked
+    // period (an imported ledger month, or one deliberately finalized)
+    // must never be recomputed, even by a direct/programmatic call.
+    if (await isPeriodLocked(year, month)) {
+        throw new Error("This period is locked and cannot be recalculated. Unlock it first.");
+    }
+
     const configSetting = await getSetting('hr_config');
     const config = (configSetting?.value as HrConfig) || null;
     if (!config) throw new Error("HR Operational Rules not found.");
