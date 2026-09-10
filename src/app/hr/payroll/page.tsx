@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Award, BarChart2, Upload, Loader2, Trash2, RefreshCcw, Calculator, Lock, LockOpen, History } from 'lucide-react';
+import { FileText, Award, BarChart2, Upload, Loader2, Trash2, RefreshCcw, Calculator, Lock, LockOpen, History, UserCheck } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import PayrollClientPage from './_components/payroll-client-page';
 import BonusView from './_components/bonus-view';
 import AnalyticsView from './_components/analytics-view';
@@ -56,6 +57,11 @@ export default function UnifiedWorkforcePage() {
     const [isTogglingLock, setIsTogglingLock] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [periodLocks, setPeriodLocks] = useState<PayrollPeriodLock[]>([]);
+
+    // Recalculate / Sync Metrics confirm -> run -> result flow
+    const [pendingCalcAction, setPendingCalcAction] = useState<'recalculate' | 'sync' | null>(null);
+    const [calcDialogStep, setCalcDialogStep] = useState<'confirm' | 'result'>('confirm');
+    const [calcResultText, setCalcResultText] = useState<string>('');
 
     useEffect(() => {
         setIsLoadingData(true);
@@ -171,12 +177,11 @@ export default function UnifiedWorkforcePage() {
             // calculation, so finalized data can't be recalculated again
             // without another deliberate unlock.
             await setPeriodLock(year, month, true, user.username);
-            toast({
-                title: 'Payroll Recalculated',
-                description: `Recomputed pay for ${result.employeeCount} active employee(s) in ${periodName} from attendance. Period re-locked.`,
-            });
+            setCalcResultText(`Recomputed pay (including bonus accrual) for ${result.employeeCount} employee(s) in ${periodName} from attendance. The period has been re-locked.`);
+            setCalcDialogStep('result');
         } catch (error) {
             toast({ title: 'Recalculation Failed', description: 'Could not recompute payroll for this period.', variant: 'destructive' });
+            setPendingCalcAction(null);
         } finally {
             setIsRecalculating(false);
         }
@@ -214,24 +219,35 @@ export default function UnifiedWorkforcePage() {
             const month = parseInt(selectedBsMonth);
             const alreadyHasData = await hasBehaviorAnalyticsForMonth(year, month);
             if (alreadyHasData) {
-                toast({ title: 'Analytics Up To Date', description: `${periodName} already has behavioral analytics on record - showing existing data.` });
+                setCalcResultText(`${periodName} already has behavioral analytics on record - showing existing data. The period has been re-locked.`);
             } else {
                 const result = await generateBehaviorAnalyticsForMonth(year, month, employees, attendance, user.username);
-                toast({
-                    title: result.generated > 0 ? 'Analytics Generated' : 'No Attendance Found',
-                    description: result.generated > 0
-                        ? `Computed behavioral analytics for ${result.generated} employee(s) in ${periodName}.`
-                        : `No calculated attendance found for ${periodName} - nothing to analyze yet.`,
-                    variant: result.generated > 0 ? 'default' : 'destructive',
-                });
+                setCalcResultText(
+                    result.generated > 0
+                        ? `Computed behavioral analytics for ${result.generated} employee(s) in ${periodName}. The period has been re-locked.`
+                        : `No calculated attendance found for ${periodName} - nothing to analyze yet. The period has still been re-locked.`
+                );
             }
             await setPeriodLock(year, month, true, user.username);
             setRefreshTrigger(prev => prev + 1);
+            setCalcDialogStep('result');
         } catch (error) {
             toast({ title: 'Sync Failed', description: 'Could not sync metrics for this period.', variant: 'destructive' });
+            setPendingCalcAction(null);
         } finally {
             setIsRefreshing(false);
         }
+    };
+
+    const openCalcDialog = (action: 'recalculate' | 'sync') => {
+        setPendingCalcAction(action);
+        setCalcDialogStep('confirm');
+        setCalcResultText('');
+    };
+
+    const runPendingCalcAction = () => {
+        if (pendingCalcAction === 'recalculate') handleRecalculate();
+        else if (pendingCalcAction === 'sync') handleSyncMetrics();
     };
 
     return (
@@ -277,7 +293,7 @@ export default function UnifiedWorkforcePage() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleRecalculate}
+                                    onClick={() => openCalcDialog('recalculate')}
                                     disabled={isLoadingData || isRecalculating || isLocked}
                                     title={isLocked ? 'Unlock Calculation first to recalculate.' : 'Recompute payroll from attendance for this period.'}
                                     className="h-9 px-4 font-black text-[10px] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5"
@@ -331,7 +347,7 @@ export default function UnifiedWorkforcePage() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleSyncMetrics}
+                                    onClick={() => openCalcDialog('sync')}
                                     disabled={isLoadingData || isRefreshing || isLocked}
                                     title={isLocked
                                         ? 'Unlock Calculation first to sync.'
@@ -399,6 +415,68 @@ export default function UnifiedWorkforcePage() {
                     </TabsContent>
                 </div>
             </Tabs>
+
+            <Dialog open={pendingCalcAction !== null} onOpenChange={(open) => { if (!open) setPendingCalcAction(null); }}>
+                <DialogContent className="sm:max-w-md">
+                    {calcDialogStep === 'confirm' ? (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black text-gray-900">
+                                    {pendingCalcAction === 'recalculate' ? 'Recalculate Payroll' : 'Sync Metrics'}
+                                </DialogTitle>
+                                <DialogDescription>
+                                    You are about to {pendingCalcAction === 'recalculate' ? 'recalculate payroll' : 'sync behavioral metrics'} for <span className="font-bold text-foreground">{periodName}</span> — the month currently shown on this page. No other month is affected.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-2 py-2">
+                                <p className="text-[10px] font-black uppercase text-muted-foreground">This will:</p>
+                                {pendingCalcAction === 'recalculate' ? (
+                                    <ul className="text-[11px] text-gray-700 space-y-1.5 list-disc pl-4">
+                                        <li>Recompute basic pay, overtime pay, and bonus accrual for every employee with attendance this month, from that attendance.</li>
+                                        <li>Apply the wage, TDS, and bonus eligibility rules configured under HR Setting.</li>
+                                        <li>Overwrite any existing Payroll and Bonus Ledger records for this month.</li>
+                                        <li>Re-lock this period automatically once finished.</li>
+                                    </ul>
+                                ) : (
+                                    <ul className="text-[11px] text-gray-700 space-y-1.5 list-disc pl-4">
+                                        <li>Show this month's behavioral analytics if they already exist, or generate them once if they don't.</li>
+                                        <li>Only ever touch this month - no other period's analytics are affected.</li>
+                                        <li>Re-lock this period automatically once finished.</li>
+                                    </ul>
+                                )}
+                            </div>
+                            <DialogFooter>
+                                <Button
+                                    onClick={runPendingCalcAction}
+                                    disabled={isRecalculating || isRefreshing}
+                                    className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20"
+                                >
+                                    {(isRecalculating || isRefreshing) ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : pendingCalcAction === 'recalculate' ? <Calculator className="mr-2 h-4 w-4"/> : <RefreshCcw className="mr-2 h-4 w-4"/>}
+                                    {(isRecalculating || isRefreshing) ? 'Processing...' : 'I Understand, Continue'}
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    ) : (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black text-gray-900">
+                                    {pendingCalcAction === 'recalculate' ? 'Recalculation Complete' : 'Sync Complete'}
+                                </DialogTitle>
+                                <DialogDescription>{periodName}</DialogDescription>
+                            </DialogHeader>
+                            <div className="p-4 rounded-lg bg-emerald-50 border-2 border-emerald-200 flex gap-3">
+                                <UserCheck className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                                <p className="text-sm font-medium text-emerald-900">{calcResultText}</p>
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={() => setPendingCalcAction(null)} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                                    Done
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

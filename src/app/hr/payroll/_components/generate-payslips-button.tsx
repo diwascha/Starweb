@@ -80,6 +80,7 @@ export default function GeneratePayslipsButton({ payrollRecords, employees, bsYe
 
                 const container = document.createElement('div');
                 container.style.width = '800px';
+                container.style.filter = 'grayscale(1)';
                 host.appendChild(container);
                 const root = createRoot(container);
                 root.render(

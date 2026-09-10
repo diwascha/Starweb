@@ -106,6 +106,11 @@ export default function AttendanceRegistryPage() {
   
   const [filterEmployeeName, setFilterEmployeeName] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<string>('All');
+  const [filterShifts, setFilterShifts] = useState<string[]>([]);
+  const [filterWeekdays, setFilterWeekdays] = useState<string[]>([]);
+  const [filterOnDuty, setFilterOnDuty] = useState<string[]>([]);
+  const [filterOffDuty, setFilterOffDuty] = useState<string[]>([]);
+  const [filterAbsent, setFilterAbsent] = useState<string[]>([]);
   
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(
     String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()))
@@ -234,6 +239,15 @@ export default function AttendanceRegistryPage() {
     return finalRemarks.join('; ') || '—';
   }, [holidays, leaveRequests]);
 
+  const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
+  const shiftMap = useMemo(() => new Map(shifts.map(s => [s.id, s])), [shifts]);
+
+  const getRecordShiftName = useCallback((record: AttendanceRecord) => {
+    const emp = employeeMap.get(record.employeeId);
+    const shift = emp?.shiftId ? shiftMap.get(emp.shiftId) : undefined;
+    return shift ? shift.name : 'Standard';
+  }, [employeeMap, shiftMap]);
+
   const filteredAndSortedRecords = useMemo(() => {
     const fyStart = parseInt(selectedFiscalYear);
     let filtered = attendance.filter(r => getFiscalYearStart(r.bsYear, r.bsMonth) === fyStart);
@@ -255,6 +269,26 @@ export default function AttendanceRegistryPage() {
         filtered = filtered.filter(record => record.status === filterStatus);
     }
 
+    if (filterShifts.length > 0) {
+        filtered = filtered.filter(record => filterShifts.includes(getRecordShiftName(record)));
+    }
+
+    if (filterWeekdays.length > 0) {
+        filtered = filtered.filter(record => filterWeekdays.includes(record.weekday || '—'));
+    }
+
+    if (filterOnDuty.length > 0) {
+        filtered = filtered.filter(record => filterOnDuty.includes(formatTimeForDisplay(record.onDuty)));
+    }
+
+    if (filterOffDuty.length > 0) {
+        filtered = filtered.filter(record => filterOffDuty.includes(formatTimeForDisplay(record.offDuty)));
+    }
+
+    if (filterAbsent.length > 0) {
+        filtered = filtered.filter(record => filterAbsent.includes(record.absent ? 'Yes' : 'No'));
+    }
+
     filtered.sort((a, b) => {
         const aVal = a[sortConfig.key];
         const bVal = b[sortConfig.key];
@@ -266,7 +300,7 @@ export default function AttendanceRegistryPage() {
         return a.employeeName.localeCompare(b.employeeName);
     });
     return filtered;
-  }, [attendance, selectedFiscalYear, selectedFyMonthIndex, sortConfig, searchQuery, filterEmployeeName, filterStatus]);
+  }, [attendance, selectedFiscalYear, selectedFyMonthIndex, sortConfig, searchQuery, filterEmployeeName, filterStatus, filterShifts, filterWeekdays, filterOnDuty, filterOffDuty, filterAbsent, getRecordShiftName]);
 
   const paginatedRecords = useMemo(() => {
     if (itemsPerPage === -1) return filteredAndSortedRecords;
@@ -283,9 +317,29 @@ export default function AttendanceRegistryPage() {
     return [...employees].sort((a, b) => a.name.localeCompare(b.name));
   }, [employees]);
 
-  const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
-  const shiftMap = useMemo(() => new Map(shifts.map(s => [s.id, s])), [shifts]);
   const rawLogMap = useMemo(() => new Map(rawLogs.map(l => [l.id, l])), [rawLogs]);
+
+  const shiftFilterOptions = useMemo(() => {
+    const names = Array.from(new Set(attendance.map(r => getRecordShiftName(r)))).sort((a, b) => a.localeCompare(b));
+    return names.map(n => ({ value: n, label: n }));
+  }, [attendance, getRecordShiftName]);
+
+  const weekdayFilterOptions = useMemo(() => {
+    const days = Array.from(new Set(attendance.map(r => r.weekday || '—')));
+    const order = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', '—'];
+    days.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    return days.map(d => ({ value: d, label: d }));
+  }, [attendance]);
+
+  const onDutyFilterOptions = useMemo(() => {
+    const times = Array.from(new Set(attendance.map(r => formatTimeForDisplay(r.onDuty)))).sort();
+    return times.map(t => ({ value: t, label: t }));
+  }, [attendance]);
+
+  const offDutyFilterOptions = useMemo(() => {
+    const times = Array.from(new Set(attendance.map(r => formatTimeForDisplay(r.offDuty)))).sort();
+    return times.map(t => ({ value: t, label: t }));
+  }, [attendance]);
 
   const handleToggleOtOk = async (record: AttendanceRecord, approved: boolean) => {
     if (!record.sourceLogId) {
@@ -415,6 +469,11 @@ export default function AttendanceRegistryPage() {
   const handleResetFilters = () => {
     setFilterEmployeeName('All');
     setFilterStatus('All');
+    setFilterShifts([]);
+    setFilterWeekdays([]);
+    setFilterOnDuty([]);
+    setFilterOffDuty([]);
+    setFilterAbsent([]);
     setSearchQuery('');
   };
 
@@ -595,7 +654,7 @@ export default function AttendanceRegistryPage() {
             </div>
             
             <div className="flex items-center gap-2">
-                {(filterEmployeeName !== 'All' || filterStatus !== 'All' || searchQuery !== '') && (
+                {(filterEmployeeName !== 'All' || filterStatus !== 'All' || filterShifts.length > 0 || filterWeekdays.length > 0 || filterOnDuty.length > 0 || filterOffDuty.length > 0 || filterAbsent.length > 0 || searchQuery !== '') && (
                     <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-9 text-muted-foreground hover:text-foreground font-bold uppercase text-[10px]">
                         <FilterX className="mr-1.5 h-3.5 w-3.5" /> Reset
                     </Button>
@@ -659,13 +718,33 @@ export default function AttendanceRegistryPage() {
                                 <SortableHead label="Name" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} className="text-left">
                                     <MultiSelectFilter label="Employee" options={sortedEmployeesForFilter.map(e => ({ value: e.name, label: e.name }))} selected={filterEmployeeName === 'All' ? [] : [filterEmployeeName]} onChange={(sel) => setFilterEmployeeName(sel.length === 0 ? 'All' : sel[sel.length - 1])} />
                                 </SortableHead>
-                                {isColVisible('shift') && <TableHead className="font-bold">Shift</TableHead>}
-                                {isColVisible('weekday') && <TableHead className="font-bold">Weekday</TableHead>}
-                                {isColVisible('onDuty') && <TableHead className="text-center font-bold">On duty</TableHead>}
-                                {isColVisible('offDuty') && <TableHead className="text-center font-bold">Off duty</TableHead>}
+                                {isColVisible('shift') && (
+                                    <TableHead className="font-bold">
+                                        <span className="inline-flex items-center gap-1">Shift <MultiSelectFilter label="Shift" options={shiftFilterOptions} selected={filterShifts} onChange={setFilterShifts} /></span>
+                                    </TableHead>
+                                )}
+                                {isColVisible('weekday') && (
+                                    <TableHead className="font-bold">
+                                        <span className="inline-flex items-center gap-1">Weekday <MultiSelectFilter label="Weekday" options={weekdayFilterOptions} selected={filterWeekdays} onChange={setFilterWeekdays} /></span>
+                                    </TableHead>
+                                )}
+                                {isColVisible('onDuty') && (
+                                    <TableHead className="text-center font-bold">
+                                        <span className="inline-flex items-center gap-1 justify-center">On duty <MultiSelectFilter label="On Duty" options={onDutyFilterOptions} selected={filterOnDuty} onChange={setFilterOnDuty} /></span>
+                                    </TableHead>
+                                )}
+                                {isColVisible('offDuty') && (
+                                    <TableHead className="text-center font-bold">
+                                        <span className="inline-flex items-center gap-1 justify-center">Off duty <MultiSelectFilter label="Off Duty" options={offDutyFilterOptions} selected={filterOffDuty} onChange={setFilterOffDuty} /></span>
+                                    </TableHead>
+                                )}
                                 {isColVisible('clockIn') && <TableHead className="text-center font-bold">Clock In</TableHead>}
                                 {isColVisible('clockOut') && <TableHead className="text-center font-bold">Clock Out</TableHead>}
-                                {isColVisible('absent') && <TableHead className="text-center font-bold">Absent</TableHead>}
+                                {isColVisible('absent') && (
+                                    <TableHead className="text-center font-bold">
+                                        <span className="inline-flex items-center gap-1 justify-center">Absent <MultiSelectFilter label="Absent" options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]} selected={filterAbsent} onChange={setFilterAbsent} /></span>
+                                    </TableHead>
+                                )}
                                 {isColVisible('gTime') && <TableHead className="text-right font-bold">G. Time</TableHead>}
                                 {isColVisible('breakHours') && <TableHead className="text-right font-bold">Break</TableHead>}
                                 {isColVisible('gHours') && <TableHead className="text-right font-bold">G. Hours</TableHead>}

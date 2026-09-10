@@ -177,7 +177,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             regularHours: p => p.regularHours,
             otHours: p => p.otHours,
             absentDays: p => p.absentDays,
-            base: p => p.rate,
+            base: p => p.base || p.rate,
             basicPay: p => p.regularPay,
             otPay: p => p.otPay,
             allowance: p => p.allowance,
@@ -327,7 +327,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                                         <TableCell data-col="regularHours" className="text-right tabular-nums px-3">{p.regularHours?.toFixed(1) || '0.0'}</TableCell>
                                         <TableCell data-col="otHours" className="text-right tabular-nums px-3 font-bold text-blue-700">+{p.otHours?.toFixed(1) || '0.0'}</TableCell>
                                         <TableCell data-col="absentDays" className="text-right tabular-nums px-3 text-red-600 font-bold">{p.absentDays || 0}</TableCell>
-                                        <TableCell data-col="base" className="text-right tabular-nums px-3 text-muted-foreground font-medium">{(p.rate || 0).toLocaleString()}</TableCell>
+                                        <TableCell data-col="base" className="text-right tabular-nums px-3 text-muted-foreground font-medium">{p.base || (p.rate || 0).toLocaleString()}</TableCell>
                                         <TableCell data-col="basicPay" className="text-right tabular-nums px-3 font-bold text-gray-900">{(p.regularPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="otPay" className="text-right tabular-nums px-3">{(p.otPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="allowance" className="text-right tabular-nums px-3">{(p.allowance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -402,10 +402,18 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fff; }
                   body * { visibility: hidden; }
                   .printable-area, .printable-area * { visibility: visible; }
-                  .printable-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 8px; }
+                  /* Plain office printers are black & white - colored badges/
+                     text read as childish and print as muddy gray anyway, so
+                     force a clean grayscale render instead of leaving it to
+                     chance. */
+                  .printable-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 8px; filter: grayscale(1); }
                   .print\\:hidden { display: none !important; }
                   ${hiddenCols.map(k => `.printable-area [data-col="${k}"] { display: none !important; }`).join('\n                  ')}
                 }
+                /* Same reasoning for the PDF export capture - html2canvas
+                   captures the live colored DOM, so grayscale it only while
+                   .pdf-export-mode is applied (screen view stays in color). */
+                .pdf-export-mode { filter: grayscale(1); }
                 ${hiddenCols.map(k => `.pdf-export-mode [data-col="${k}"] { display: none !important; }`).join('\n                ')}
                 .pdf-export-mode [data-col="actions"] { display: none !important; }
             `}</style>

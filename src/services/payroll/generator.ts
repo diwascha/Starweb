@@ -1,6 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
-import type { Payroll, Employee, AttendanceRecord, AnalyticsReport, HrConfig } from '@/lib/types';
+import type { Payroll, Employee, AttendanceRecord, AnalyticsReport, HrConfig, BonusLedgerEntry } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from '../settings-service';
 import { COLLECTIONS, DEFAULT_HR_CONFIG } from '@/lib/constants';
@@ -58,6 +58,14 @@ export const calculateAndSavePayrollForMonth = async (bsYear: number, bsMonth: n
         const basic = employee.wageBasis === 'Monthly' ? (wageAmount - (absent * (wageAmount / monthDays))) : (regHrs * rate);
         const otPay = otHrs * rate;
 
+        // Matches the VBA workbook's PR_OFF_BASE text exactly: a monthly
+        // employee shows their configured monthly salary, an hourly employee
+        // shows the day-equivalent of their hourly rate (rate * Base_Day_Hours)
+        // rather than the tiny internal per-hour calculation figure.
+        const baseText = employee.wageBasis === 'Monthly'
+            ? `Monthly ${wageAmount.toFixed(2)}`
+            : `${(rate * baseDayHours).toFixed(2)}/day`;
+
         // Monthly bonus accrual only - full at bonusEligReq+ attendance, pro-rata
         // below it. This mirrors the "monthly accrual" tier of the VBA bonus
         // engine; Attend_Req_Pct governs a separate annual payout-eligibility
@@ -77,6 +85,7 @@ export const calculateAndSavePayrollForMonth = async (bsYear: number, bsMonth: n
             bsMonth,
             employeeId: employee.id,
             employeeName: employee.name,
+            base: baseText,
             presentDays,
             absentDays: absent,
             regularHours: regHrs,
@@ -94,6 +103,34 @@ export const calculateAndSavePayrollForMonth = async (bsYear: number, bsMonth: n
             ownership: employee.ownership || 'Both',
             source: 'recalculated',
         }, { merge: true });
+
+        // Recalculate previously only folded the bonus amount into net pay -
+        // the Bonus Evaluation tab reads exclusively from bonus_ledger, which
+        // was only ever populated by importing the legacy Excel ledger, so a
+        // month processed live here never showed up there. Write the same
+        // per-employee accrual record recalculation already computed above.
+        // isEligible marks full-rate accrual (attendancePct >= bonusEligReq);
+        // below that, bonus is still paid pro-rata (see comment above), so
+        // accrual always reflects what was actually folded into net pay -
+        // isEligible is informational, not a gate on whether anything accrued.
+        const isEligible = attendancePct >= bonusEligReq;
+        const bonusEntry: BonusLedgerEntry = {
+            id: `${employee.id}_${bsYear}_${bsMonth}`,
+            runTime: now,
+            periodAD: now,
+            periodBS: `${bsYear}-${bsMonth}`,
+            bsYear,
+            bsMonth,
+            employeeId: employee.id,
+            employeeName: employee.name,
+            basis: baseText,
+            baseAmount: wageAmount,
+            attendancePct,
+            isEligible,
+            accrual: bonus,
+            note: isEligible ? '' : `Pro-rated: below ${bonusEligReq}% attendance requirement`,
+        };
+        batch.set(doc(collection(db, 'bonus_ledger'), bonusEntry.id), bonusEntry, { merge: true });
     }
     await batch.commit();
     return { employeeCount: processedCount };

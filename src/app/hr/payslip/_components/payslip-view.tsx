@@ -192,6 +192,7 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
     if (!printableArea) return;
 
     setIsGeneratingPdf(true);
+    printableArea.classList.add('pdf-export-mode');
     try {
         const jsPDF = (await import('jspdf')).default;
         const html2canvas = (await import('html2canvas')).default;
@@ -206,6 +207,7 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
     } catch (error) {
         console.error("Error generating PDF", error);
     } finally {
+        printableArea.classList.remove('pdf-export-mode');
         setIsGeneratingPdf(false);
     }
   };
@@ -237,9 +239,10 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fff; }
           body * { visibility: hidden; }
           .printable-area, .printable-area * { visibility: visible; }
-          .printable-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 10px; }
+          .printable-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 10px; filter: grayscale(1); }
           .print\\:hidden { display: none; }
         }
+        .pdf-export-mode { filter: grayscale(1); }
       `}</style>
     </>
   );
