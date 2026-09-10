@@ -96,13 +96,15 @@ export default function CompaniesManagementPage() {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     
     const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
-    const [logForm, setLogForm] = useState({ 
-        type: 'Call' as any, 
-        subject: '', 
-        description: '', 
-        contactId: '', 
-        assignee: '', 
-        taskDueDateBS: '' 
+    const [logForm, setLogForm] = useState({
+        type: 'Call' as any,
+        subject: '',
+        description: '',
+        contactId: '',
+        assignee: '',
+        taskDueDateBS: '',
+        severity: '' as any,
+        sentiment: '' as any
     });
 
     const [isAttributesDialogOpen, setIsAttributesDialogOpen] = useState(false);
@@ -280,11 +282,13 @@ export default function CompaniesManagementPage() {
                 taskDueDateBS: logForm.type === 'Task' ? logForm.taskDueDateBS : undefined,
                 taskDueDate: logForm.type === 'Task' ? taskDueDate : undefined,
                 assignee: logForm.type === 'Task' ? logForm.assignee : undefined,
+                severity: logForm.type === 'Incident' ? (logForm.severity || 'Medium') : undefined,
+                sentiment: logForm.type === 'Feedback' ? (logForm.sentiment || 'Neutral') : undefined,
                 createdAt: new Date().toISOString()
             });
             toast({ title: 'Activity Logged' });
             setIsLogDialogOpen(false);
-            setLogForm({ type: 'Call', subject: '', description: '', contactId: '', assignee: '', taskDueDateBS: '' });
+            setLogForm({ type: 'Call', subject: '', description: '', contactId: '', assignee: '', taskDueDateBS: '', severity: '', sentiment: '' });
         } catch {
             toast({ title: 'Error logging activity', variant: 'destructive' });
         }
@@ -909,11 +913,26 @@ export default function CompaniesManagementPage() {
                                                 <div key={log.id} className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm relative group">
                                                     <div className="flex items-center justify-between mb-2">
                                                         <div className="flex items-center gap-2">
-                                                            <Badge variant="outline" className={cn("text-[8px] uppercase font-black px-1.5 h-4", log.type === 'Task' && log.taskStatus === 'Pending' ? "bg-amber-50 text-amber-700 border-amber-200" : "")}>{log.type}</Badge>
+                                                            <Badge variant="outline" className={cn(
+                                                                "text-[8px] uppercase font-black px-1.5 h-4",
+                                                                log.type === 'Task' && log.taskStatus === 'Pending' && "bg-amber-50 text-amber-700 border-amber-200",
+                                                                log.type === 'Incident' && "bg-red-50 text-red-700 border-red-200",
+                                                                log.type === 'Feedback' && "bg-blue-50 text-blue-700 border-blue-200"
+                                                            )}>{log.type}</Badge>
                                                             <span className="text-xs font-black text-gray-900">{log.subject}</span>
                                                             {log.type === 'Task' && (
                                                                 <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.taskStatus === 'Done' ? "bg-gray-100 text-gray-500" : "bg-primary text-white")}>
                                                                     {log.taskStatus || 'Pending'}
+                                                                </Badge>
+                                                            )}
+                                                            {log.type === 'Incident' && log.severity && (
+                                                                <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.severity === 'High' ? "bg-red-600 text-white" : log.severity === 'Medium' ? "bg-amber-500 text-white" : "bg-gray-200 text-gray-700")}>
+                                                                    {log.severity}
+                                                                </Badge>
+                                                            )}
+                                                            {log.type === 'Feedback' && log.sentiment && (
+                                                                <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.sentiment === 'Positive' ? "bg-emerald-600 text-white" : log.sentiment === 'Negative' ? "bg-red-600 text-white" : "bg-gray-200 text-gray-700")}>
+                                                                    {log.sentiment}
                                                                 </Badge>
                                                             )}
                                                         </div>
@@ -1151,6 +1170,8 @@ export default function CompaniesManagementPage() {
                                         <SelectItem value="Meeting">Meeting</SelectItem>
                                         <SelectItem value="Note">Internal Note</SelectItem>
                                         <SelectItem value="Task">Action Item (Task)</SelectItem>
+                                        <SelectItem value="Incident">Incident</SelectItem>
+                                        <SelectItem value="Feedback">Feedback</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1170,6 +1191,34 @@ export default function CompaniesManagementPage() {
                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Subject / Purpose</Label>
                             <Input value={logForm.subject} onChange={e => setLogForm({...logForm, subject: e.target.value})} placeholder="Main topic" className="h-10 font-bold" />
                         </div>
+
+                        {logForm.type === 'Incident' && (
+                            <div className="space-y-1.5 p-3 bg-red-50 rounded-xl border border-red-100 animate-in zoom-in-95">
+                                <Label className="text-[10px] font-black uppercase text-red-700">Severity</Label>
+                                <Select value={logForm.severity || 'Medium'} onValueChange={(v: any) => setLogForm({...logForm, severity: v})}>
+                                    <SelectTrigger className="h-9 bg-white"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Low">Low</SelectItem>
+                                        <SelectItem value="Medium">Medium</SelectItem>
+                                        <SelectItem value="High">High</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {logForm.type === 'Feedback' && (
+                            <div className="space-y-1.5 p-3 bg-blue-50 rounded-xl border border-blue-100 animate-in zoom-in-95">
+                                <Label className="text-[10px] font-black uppercase text-blue-700">Sentiment</Label>
+                                <Select value={logForm.sentiment || 'Neutral'} onValueChange={(v: any) => setLogForm({...logForm, sentiment: v})}>
+                                    <SelectTrigger className="h-9 bg-white"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Positive">Positive</SelectItem>
+                                        <SelectItem value="Neutral">Neutral</SelectItem>
+                                        <SelectItem value="Negative">Negative</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
 
                         {logForm.type === 'Task' && (
                             <div className="grid grid-cols-2 gap-4 p-3 bg-primary/5 rounded-xl border border-primary/10 animate-in zoom-in-95">

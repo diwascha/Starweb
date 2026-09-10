@@ -181,10 +181,10 @@ export default function CrmDashboardPage() {
         </div>
         <div className="flex gap-2">
             <Button variant="outline" size="sm" className="h-9 font-bold text-[10px] uppercase tracking-widest" asChild>
-                <Link href="/crm/deals">Pipeline Board</Link>
+                <Link href="/crm/deals">Pipeline</Link>
             </Button>
             <Button size="sm" className="h-9 font-black text-[10px] uppercase tracking-widest shadow-lg" asChild>
-                <Link href="/crm/followups">Manage Tasks</Link>
+                <Link href="/crm/deals?tab=followups">Manage Tasks</Link>
             </Button>
         </div>
       </header>
@@ -321,7 +321,7 @@ export default function CrmDashboardPage() {
                     </CardContent>
                     <CardFooter className="p-3 border-t bg-muted/5">
                         <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest h-8" asChild>
-                            <Link href="/crm/followups">Go to Calendar <ChevronRight className="ml-1 h-3 w-3"/></Link>
+                            <Link href="/crm/deals?tab=followups">Go to Calendar <ChevronRight className="ml-1 h-3 w-3"/></Link>
                         </Button>
                     </CardFooter>
                 </Card>

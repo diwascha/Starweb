@@ -722,7 +722,7 @@ export interface Transaction {
 
 export interface InteractionLog {
     id: string;
-    type: 'Call' | 'Email' | 'Meeting' | 'Note' | 'Task';
+    type: 'Call' | 'Email' | 'Meeting' | 'Note' | 'Task' | 'Incident' | 'Feedback';
     subject: string;
     description: string;
     date: string; // ISO
@@ -734,6 +734,10 @@ export interface InteractionLog {
     taskDueDateBS?: string;
     taskDueDate?: string;
     assignee?: string;
+    // Set only when type === 'Incident'
+    severity?: 'Low' | 'Medium' | 'High';
+    // Set only when type === 'Feedback'
+    sentiment?: 'Positive' | 'Neutral' | 'Negative';
 }
 
 export interface CRMContact {

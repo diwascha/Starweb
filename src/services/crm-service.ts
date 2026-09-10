@@ -67,7 +67,9 @@ const fromFirestoreInteraction = (snapshot: QueryDocumentSnapshot<DocumentData>)
         taskStatus: data.taskStatus,
         taskDueDateBS: data.taskDueDateBS,
         taskDueDate: data.taskDueDate,
-        assignee: data.assignee
+        assignee: data.assignee,
+        severity: data.severity,
+        sentiment: data.sentiment
     };
 };
 
