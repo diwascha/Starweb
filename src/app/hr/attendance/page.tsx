@@ -54,7 +54,10 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+import { SortableHead } from '@/components/ui/sortable-head';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
+import { Columns3 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import NepaliDate from 'nepali-date-converter';
@@ -66,6 +69,25 @@ import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, forma
 
 type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
 type SortDirection = 'asc' | 'desc';
+
+type ColumnKey = 'bsDate' | 'shift' | 'weekday' | 'onDuty' | 'offDuty' | 'clockIn' | 'clockOut' | 'absent' | 'gTime' | 'breakHours' | 'gHours' | 'overtime' | 'regularHours' | 'remarks';
+
+const COLUMN_LABELS: { key: ColumnKey; label: string }[] = [
+    { key: 'bsDate', label: 'BS Date' },
+    { key: 'shift', label: 'Shift' },
+    { key: 'weekday', label: 'Weekday' },
+    { key: 'onDuty', label: 'On duty' },
+    { key: 'offDuty', label: 'Off duty' },
+    { key: 'clockIn', label: 'Clock In' },
+    { key: 'clockOut', label: 'Clock Out' },
+    { key: 'absent', label: 'Absent' },
+    { key: 'gTime', label: 'G. Time' },
+    { key: 'breakHours', label: 'Break' },
+    { key: 'gHours', label: 'G. Hours' },
+    { key: 'overtime', label: 'Overtime' },
+    { key: 'regularHours', label: 'Regular Hours' },
+    { key: 'remarks', label: 'Remarks' },
+];
 
 export default function AttendanceRegistryPage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -119,6 +141,15 @@ export default function AttendanceRegistryPage() {
   const [bulkClockTime, setBulkClockTime] = useState<string>('08:00');
   const [bulkClockSelectedIds, setBulkClockSelectedIds] = useState<string[]>([]);
   const [isBulkClocking, setIsBulkClocking] = useState(false);
+
+  const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(
+    () => Object.fromEntries(COLUMN_LABELS.map(c => [c.key, true])) as Record<ColumnKey, boolean>
+  );
+  const isColVisible = (key: ColumnKey) => visibleColumns[key];
+  const toggleColumn = (key: ColumnKey) => setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
+  // Date, Name, Gross Hours, and Actions are always shown; everything else in
+  // COLUMN_LABELS can be toggled off.
+  const visibleColCount = 4 + Object.values(visibleColumns).filter(Boolean).length;
 
   useEffect(() => {
     onEmployeesUpdate(setEmployees);
@@ -437,6 +468,28 @@ export default function AttendanceRegistryPage() {
                 >
                     <Users className="mr-2 h-3.5 w-3.5"/> Bulk Clock In/Out
                 </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200">
+                            <Columns3 className="mr-2 h-3.5 w-3.5"/> Columns
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel className="text-[10px] font-black uppercase text-muted-foreground">Toggle Columns</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {COLUMN_LABELS.map(c => (
+                            <DropdownMenuCheckboxItem
+                                key={c.key}
+                                checked={visibleColumns[c.key]}
+                                onSelect={(e) => e.preventDefault()}
+                                onCheckedChange={() => toggleColumn(c.key)}
+                                className="text-xs font-bold"
+                            >
+                                {c.label}
+                            </DropdownMenuCheckboxItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
                 {selectedFyMonthIndex !== 'All' && (
                     <Button
                         variant="outline"
@@ -580,75 +633,83 @@ export default function AttendanceRegistryPage() {
                     <Table>
                         <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
                             <TableRow className="hover:bg-transparent h-12">
-                                <TableHead className="pl-6 font-bold">
-                                    <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs font-bold text-foreground hover:bg-transparent">
-                                        Date <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'date' ? "opacity-100" : "opacity-30")} />
-                                    </Button>
-                                </TableHead>
-                                <TableHead className="font-bold">BS Date</TableHead>
-                                <TableHead className="font-bold">Name</TableHead>
-                                <TableHead className="font-bold">Shift</TableHead>
-                                <TableHead className="font-bold">Weekday</TableHead>
-                                <TableHead className="text-center font-bold">On duty</TableHead>
-                                <TableHead className="text-center font-bold">Off duty</TableHead>
-                                <TableHead className="text-center font-bold">Clock In</TableHead>
-                                <TableHead className="text-center font-bold">Clock Out</TableHead>
-                                <TableHead className="text-center font-bold">Absent</TableHead>
-                                <TableHead className="text-right font-bold">G. Time</TableHead>
-                                <TableHead className="text-right font-bold">Break</TableHead>
-                                <TableHead className="text-right font-bold">G. Hours</TableHead>
+                                <SortableHead label="Date" sortKey="date" sortConfig={sortConfig} onSort={requestSort} className="pl-6 text-left" />
+                                {isColVisible('bsDate') && <TableHead className="font-bold">BS Date</TableHead>}
+                                <SortableHead label="Name" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} className="text-left">
+                                    <MultiSelectFilter label="Employee" options={sortedEmployeesForFilter.map(e => ({ value: e.name, label: e.name }))} selected={filterEmployeeName === 'All' ? [] : [filterEmployeeName]} onChange={(sel) => setFilterEmployeeName(sel.length === 0 ? 'All' : sel[sel.length - 1])} />
+                                </SortableHead>
+                                {isColVisible('shift') && <TableHead className="font-bold">Shift</TableHead>}
+                                {isColVisible('weekday') && <TableHead className="font-bold">Weekday</TableHead>}
+                                {isColVisible('onDuty') && <TableHead className="text-center font-bold">On duty</TableHead>}
+                                {isColVisible('offDuty') && <TableHead className="text-center font-bold">Off duty</TableHead>}
+                                {isColVisible('clockIn') && <TableHead className="text-center font-bold">Clock In</TableHead>}
+                                {isColVisible('clockOut') && <TableHead className="text-center font-bold">Clock Out</TableHead>}
+                                {isColVisible('absent') && <TableHead className="text-center font-bold">Absent</TableHead>}
+                                {isColVisible('gTime') && <TableHead className="text-right font-bold">G. Time</TableHead>}
+                                {isColVisible('breakHours') && <TableHead className="text-right font-bold">Break</TableHead>}
+                                {isColVisible('gHours') && <TableHead className="text-right font-bold">G. Hours</TableHead>}
                                 <TableHead className="text-right font-bold">Gross Hours</TableHead>
-                                <TableHead className="text-right font-bold">Overtime</TableHead>
-                                <TableHead className="text-right font-bold">Regular Hours</TableHead>
-                                <TableHead className="font-bold">Remarks</TableHead>
+                                {isColVisible('overtime') && (
+                                    <SortableHead label="Overtime" sortKey="overtimeHours" sortConfig={sortConfig} onSort={requestSort} align="right" />
+                                )}
+                                {isColVisible('regularHours') && (
+                                    <SortableHead label="Regular Hours" sortKey="regularHours" sortConfig={sortConfig} onSort={requestSort} align="right" />
+                                )}
+                                {isColVisible('remarks') && <TableHead className="font-bold">Remarks</TableHead>}
                                 <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isDataLoading ? (
-                                <TableRow key="loading-row"><TableCell colSpan={18} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
+                                <TableRow key="loading-row"><TableCell colSpan={visibleColCount} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/></TableCell></TableRow>
                             ) : paginatedRecords.map(r => {
                                 const highlight = getAttendanceRowHighlight(r);
                                 return (
                                 <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors" style={highlight ? { backgroundColor: highlight } : undefined}>
                                     <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
-                                    <TableCell className="font-mono font-bold text-blue-900">{r.dateBS}</TableCell>
+                                    {isColVisible('bsDate') && <TableCell className="font-mono font-bold text-blue-900">{r.dateBS}</TableCell>}
                                     <TableCell className="font-black text-gray-900">{r.employeeName}</TableCell>
-                                    <TableCell>
-                                        {(() => {
-                                            const emp = employeeMap.get(r.employeeId);
-                                            const shift = emp?.shiftId ? shiftMap.get(emp.shiftId) : undefined;
-                                            return (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => emp && handleOpenShiftAssign(emp.id)}
-                                                    disabled={!emp}
-                                                    className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                                    title={emp ? 'Reschedule shift' : 'Employee not found'}
-                                                >
-                                                    <CalendarClock className="h-3 w-3" />
-                                                    {shift ? shift.name : 'Standard'}
-                                                </button>
-                                            );
-                                        })()}
-                                    </TableCell>
-                                    <TableCell className="text-[10px] text-muted-foreground uppercase">{r.weekday || '—'}</TableCell>
-                                    <TableCell className="text-center text-[11px] text-muted-foreground">{formatTimeForDisplay(r.onDuty)}</TableCell>
-                                    <TableCell className="text-center text-[11px] text-muted-foreground">{formatTimeForDisplay(r.offDuty)}</TableCell>
-                                    <TableCell className="text-center font-medium text-blue-800">{formatTimeForDisplay(r.clockIn)}</TableCell>
-                                    <TableCell className="text-center font-medium text-blue-800">{formatTimeForDisplay(r.clockOut)}</TableCell>
-                                    <TableCell className="text-center">
-                                        {r.absent ? <Badge variant="destructive" className="text-[9px] font-black uppercase h-5">Yes</Badge> : <span className="text-[10px] text-muted-foreground">No</span>}
-                                    </TableCell>
-                                    <TableCell className="text-right text-[11px] text-muted-foreground">{r.gTime != null ? r.gTime.toFixed(2) : '—'}</TableCell>
-                                    <TableCell className="text-right text-[11px] text-muted-foreground">{r.breakHours != null ? r.breakHours.toFixed(2) : '—'}</TableCell>
-                                    <TableCell className="text-right text-[11px] text-muted-foreground">{r.gHours != null ? r.gHours.toFixed(2) : '—'}</TableCell>
+                                    {isColVisible('shift') && (
+                                        <TableCell>
+                                            {(() => {
+                                                const emp = employeeMap.get(r.employeeId);
+                                                const shift = emp?.shiftId ? shiftMap.get(emp.shiftId) : undefined;
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => emp && handleOpenShiftAssign(emp.id)}
+                                                        disabled={!emp}
+                                                        className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        title={emp ? 'Reschedule shift' : 'Employee not found'}
+                                                    >
+                                                        <CalendarClock className="h-3 w-3" />
+                                                        {shift ? shift.name : 'Standard'}
+                                                    </button>
+                                                );
+                                            })()}
+                                        </TableCell>
+                                    )}
+                                    {isColVisible('weekday') && <TableCell className="text-[10px] text-muted-foreground uppercase">{r.weekday || '—'}</TableCell>}
+                                    {isColVisible('onDuty') && <TableCell className="text-center text-[11px] text-muted-foreground">{formatTimeForDisplay(r.onDuty)}</TableCell>}
+                                    {isColVisible('offDuty') && <TableCell className="text-center text-[11px] text-muted-foreground">{formatTimeForDisplay(r.offDuty)}</TableCell>}
+                                    {isColVisible('clockIn') && <TableCell className="text-center font-medium text-blue-800">{formatTimeForDisplay(r.clockIn)}</TableCell>}
+                                    {isColVisible('clockOut') && <TableCell className="text-center font-medium text-blue-800">{formatTimeForDisplay(r.clockOut)}</TableCell>}
+                                    {isColVisible('absent') && (
+                                        <TableCell className="text-center">
+                                            {r.absent ? <Badge variant="destructive" className="text-[9px] font-black uppercase h-5">Yes</Badge> : <span className="text-[10px] text-muted-foreground">No</span>}
+                                        </TableCell>
+                                    )}
+                                    {isColVisible('gTime') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.gTime != null ? r.gTime.toFixed(2) : '—'}</TableCell>}
+                                    {isColVisible('breakHours') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.breakHours != null ? r.breakHours.toFixed(2) : '—'}</TableCell>}
+                                    {isColVisible('gHours') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.gHours != null ? r.gHours.toFixed(2) : '—'}</TableCell>}
                                     <TableCell className="text-right font-bold text-gray-900">{r.grossHours.toFixed(1)}</TableCell>
-                                    <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>
-                                    <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>
-                                    <TableCell className="max-w-[200px] truncate text-[10px] text-muted-foreground italic" title={getDisplayRemark(r)}>
-                                        {getDisplayRemark(r)}
-                                    </TableCell>
+                                    {isColVisible('overtime') && <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>}
+                                    {isColVisible('regularHours') && <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>}
+                                    {isColVisible('remarks') && (
+                                        <TableCell className="max-w-[200px] truncate text-[10px] text-muted-foreground italic" title={getDisplayRemark(r)}>
+                                            {getDisplayRemark(r)}
+                                        </TableCell>
+                                    )}
                                     <TableCell className="text-right pr-6">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(r)}><Edit className="h-4 w-4 text-primary"/></Button>
                                     </TableCell>
@@ -657,7 +718,7 @@ export default function AttendanceRegistryPage() {
                             })}
                             {!isDataLoading && paginatedRecords.length === 0 && (
                                 <TableRow key="no-records-row">
-                                    <TableCell colSpan={18} className="h-60 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={visibleColCount} className="h-60 text-center text-muted-foreground italic">
                                         <div className="flex flex-col items-center gap-3">
                                             <AlertCircle className="h-10 w-10 opacity-10"/>
                                             <p>No processed records found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Run the Hourly Calculation Logic to generate records.</span></p>

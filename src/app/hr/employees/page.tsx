@@ -129,13 +129,28 @@ export default function EmployeesPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('All');
+  const [filterWageBasis, setFilterWageBasis] = useState<string>('All');
   const [sortConfig, setSortConfig] = useState<{ key: EmployeeSortKey; direction: SortDirection }>({
     key: 'name',
     direction: 'asc',
   });
-  
+
   const { toast } = useToast();
   const { hasPermission, user } = useAuth();
+
+  const [isCustomDepartment, setIsCustomDepartment] = useState(false);
+  const [isCustomPosition, setIsCustomPosition] = useState(false);
+
+  const knownDepartments = useMemo(() => {
+    const fromEmployees = employees.map(e => e.department).filter((d): d is string => Boolean(d));
+    return Array.from(new Set([...departments, ...fromEmployees]));
+  }, [employees]);
+
+  const knownPositions = useMemo(() => {
+    const fromEmployees = employees.map(e => e.position).filter((p): p is string => Boolean(p));
+    return Array.from(new Set([...positions, ...fromEmployees]));
+  }, [employees]);
   
   useEffect(() => {
     setIsLoading(true);
@@ -148,13 +163,19 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, itemsPerPage]);
-  
+  }, [searchQuery, filterStatus, filterWageBasis, itemsPerPage]);
+
   const filteredAndSortedEmployees = useMemo(() => {
     let filtered = employees;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(e => e.name.toLowerCase().includes(q) || (e.mobileNumber || '').includes(q));
+    }
+    if (filterStatus !== 'All') {
+      filtered = filtered.filter(e => (e.status || 'Working') === filterStatus);
+    }
+    if (filterWageBasis !== 'All') {
+      filtered = filtered.filter(e => e.wageBasis === filterWageBasis);
     }
     filtered.sort((a, b) => {
         const aVal = a[sortConfig.key as keyof Employee] ?? '';
@@ -212,6 +233,8 @@ export default function EmployeesPage() {
     setEditingEmployee(null);
     setPhotoFile(null);
     setPhotoPreview(null);
+    setIsCustomDepartment(false);
+    setIsCustomPosition(false);
   };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -251,6 +274,8 @@ export default function EmployeesPage() {
         documents: employee.documents || [],
     });
     if (employee.photoURL) setPhotoPreview(employee.photoURL);
+    setIsCustomDepartment(Boolean(employee.department) && !departments.includes(employee.department as any));
+    setIsCustomPosition(Boolean(employee.position) && !positions.includes(employee.position as any));
     setIsEmployeeDialogOpen(true);
   };
 
@@ -315,6 +340,31 @@ export default function EmployeesPage() {
     }
   };
 
+  const statusSelectClassName = (status?: EmployeeStatus) => {
+    switch (status || 'Working') {
+      case 'Working': return 'bg-green-600 text-white border-green-600 hover:bg-green-700';
+      case 'Long Leave': return 'bg-amber-500 text-black border-amber-500 hover:bg-amber-600';
+      case 'Resigned': return 'bg-white text-gray-700 border-gray-300';
+      case 'Dismissed': return 'bg-destructive text-white border-destructive hover:bg-destructive/90';
+      default: return '';
+    }
+  };
+
+  const handleStatusChange = async (employeeId: string, status: EmployeeStatus) => {
+    try {
+        await updateEmployee(employeeId, { status });
+        toast({ title: 'Status Updated', description: `Employee marked as ${status}.` });
+    } catch {
+        toast({ title: 'Error', description: 'Could not update employee status.', variant: 'destructive' });
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setFilterStatus('All');
+    setFilterWageBasis('All');
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -346,10 +396,30 @@ export default function EmployeesPage() {
                 <Separator orientation="vertical" className="h-6 mx-2" />
             </div>
           )}
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="h-10 w-[150px] bg-white"><SelectValue placeholder="All Status" /></SelectTrigger>
+            <SelectContent>
+                <SelectItem value="All">All Status</SelectItem>
+                {employeeStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterWageBasis} onValueChange={setFilterWageBasis}>
+            <SelectTrigger className="h-10 w-[150px] bg-white"><SelectValue placeholder="All Wage Basis" /></SelectTrigger>
+            <SelectContent>
+                <SelectItem value="All">All Wage Basis</SelectItem>
+                <SelectItem value="Monthly">Monthly Salary</SelectItem>
+                <SelectItem value="Hourly">Hourly Rate</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input type="search" placeholder="Search..." className="pl-8 w-64 bg-white" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
+          {(searchQuery || filterStatus !== 'All' || filterWageBasis !== 'All') && (
+            <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-10 text-muted-foreground hover:text-foreground font-bold uppercase text-[10px]">
+                Reset
+            </Button>
+          )}
           {hasPermission('hr', 'create') && (
             <Button onClick={openAddEmployeeDialog} className="shadow-lg shadow-primary/20 font-black text-xs uppercase tracking-widest px-6">
                 <Plus className="mr-2 h-4 w-4" /> Add Employee
@@ -396,7 +466,16 @@ export default function EmployeesPage() {
                             </div>
                         </div>
                     </TableCell>
-                    <TableCell className="text-center">{renderStatusBadge(employee.status)}</TableCell>
+                    <TableCell className="text-center">
+                        <Select value={employee.status || 'Working'} onValueChange={(v) => handleStatusChange(employee.id, v as EmployeeStatus)}>
+                            <SelectTrigger className={cn("h-7 w-[130px] mx-auto text-[10px] font-black uppercase tracking-wide", statusSelectClassName(employee.status))}>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {employeeStatuses.map(s => <SelectItem key={s} value={s} className="text-xs font-bold uppercase">{s}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </TableCell>
                     <TableCell>
                         <div className="flex flex-col">
                             <span className="text-xs font-bold text-gray-700">{employee.department}</span>
@@ -510,17 +589,61 @@ export default function EmployeesPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground">Department</Label>
-                                <Select value={formState.department} onValueChange={v => setFormState(p => ({...p, department: v as any}))}>
-                                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                                    <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                                </Select>
+                                {isCustomDepartment ? (
+                                    <div className="flex gap-1.5">
+                                        <Input
+                                            autoFocus
+                                            value={formState.department}
+                                            onChange={e => setFormState(p => ({...p, department: e.target.value}))}
+                                            placeholder="Type department name"
+                                            className="h-10"
+                                        />
+                                        <Button type="button" variant="outline" size="sm" className="h-10 px-3 text-[10px] font-black uppercase shrink-0" onClick={() => setIsCustomDepartment(false)}>List</Button>
+                                    </div>
+                                ) : (
+                                    <Select
+                                        value={knownDepartments.includes(formState.department) ? formState.department : undefined}
+                                        onValueChange={v => {
+                                            if (v === '__custom__') { setIsCustomDepartment(true); setFormState(p => ({...p, department: ''})); }
+                                            else setFormState(p => ({...p, department: v}));
+                                        }}
+                                    >
+                                        <SelectTrigger className="h-10"><SelectValue placeholder="Select department" /></SelectTrigger>
+                                        <SelectContent>
+                                            {knownDepartments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                            <SelectItem value="__custom__" className="text-primary font-bold">+ Add New Department</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground">Position</Label>
-                                <Select value={formState.position} onValueChange={v => setFormState(p => ({...p, position: v as any}))}>
-                                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                                    <SelectContent>{positions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-                                </Select>
+                                {isCustomPosition ? (
+                                    <div className="flex gap-1.5">
+                                        <Input
+                                            autoFocus
+                                            value={formState.position}
+                                            onChange={e => setFormState(p => ({...p, position: e.target.value}))}
+                                            placeholder="Type position name"
+                                            className="h-10"
+                                        />
+                                        <Button type="button" variant="outline" size="sm" className="h-10 px-3 text-[10px] font-black uppercase shrink-0" onClick={() => setIsCustomPosition(false)}>List</Button>
+                                    </div>
+                                ) : (
+                                    <Select
+                                        value={knownPositions.includes(formState.position) ? formState.position : undefined}
+                                        onValueChange={v => {
+                                            if (v === '__custom__') { setIsCustomPosition(true); setFormState(p => ({...p, position: ''})); }
+                                            else setFormState(p => ({...p, position: v}));
+                                        }}
+                                    >
+                                        <SelectTrigger className="h-10"><SelectValue placeholder="Select position" /></SelectTrigger>
+                                        <SelectContent>
+                                            {knownPositions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                            <SelectItem value="__custom__" className="text-primary font-bold">+ Add New Position</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                )}
                             </div>
                         </div>
                         <div className="space-y-2">

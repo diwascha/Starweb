@@ -191,8 +191,9 @@ export type WageBasis = 'Monthly' | 'Hourly';
 export type Gender = 'Male' | 'Female' | 'Other';
 export type IdentityType = 'Citizenship' | 'Voters Card' | 'License' | 'Passport';
 export type EmployeeStatus = 'Working' | 'Long Leave' | 'Resigned' | 'Dismissed';
-export type Department = 'Production' | 'Admin';
-export type Position = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers' | 'Staff';
+// Freeform, but 'Production' | 'Admin' / the roles below are offered as quick-pick defaults in the UI.
+export type Department = string;
+export type Position = string;
 export type PositionStatus = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers' | 'Staff';
 export type BloodGroup = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
 

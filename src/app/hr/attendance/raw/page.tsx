@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-    HardDrive, 
-    Upload, 
-    Trash2, 
-    Search, 
-    FilterX, 
-    Loader2, 
+import {
+    HardDrive,
+    Upload,
+    Trash2,
+    Search,
+    FilterX,
+    Loader2,
     FileSpreadsheet,
     AlertTriangle,
     CheckCircle2,
@@ -18,7 +18,10 @@ import {
     ChevronLeft,
     ChevronRight,
     Users,
-    ArrowUpDown
+    ArrowUpDown,
+    CalendarClock,
+    LogIn,
+    LogOut
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,18 +29,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { 
-    onRawLogsUpdate, 
-    deleteAllRawLogs, 
-    deleteRawLog, 
-    deleteRawLogsForMonth 
+import {
+    onRawLogsUpdate,
+    deleteAllRawLogs,
+    deleteRawLog,
+    deleteRawLogsForMonth
 } from '@/services/attendance/data';
-import { addRawMachineLogs, addBulkManualLogs } from '@/services/attendance/import';
+import { addRawMachineLogs, addBulkManualLogs, bulkClockInOut } from '@/services/attendance/import';
 import { importLegacyPayrollSheet } from '@/services/payroll/legacy-import';
 import { resolvePeriodFromSheetName } from '@/lib/attendance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { 
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -48,12 +51,19 @@ import {
     AlertDialogFooter,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn, toNepaliDate, formatTimeForDisplay } from '@/lib/utils';
 import { format } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SortableHead } from '@/components/ui/sortable-head';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
+import type { Employee, HrShift } from '@/lib/types';
+import { onEmployeesUpdate, updateEmployee } from '@/services/employee-service';
+import { onShiftsUpdate } from '@/services/hr-admin-service';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -82,6 +92,27 @@ export default function MachineLogsPage() {
     const [filterMonth, setFilterMonth] = useState<string>('All');
     const [filterYear, setFilterYear] = useState<string>(String(new NepaliDate().getYear()));
 
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [shifts, setShifts] = useState<HrShift[]>([]);
+
+    // Column filters
+    const [filterEmployeeNames, setFilterEmployeeNames] = useState<string[]>([]);
+    const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+
+    // Shift Reschedule dialog
+    const [isShiftAssignOpen, setIsShiftAssignOpen] = useState(false);
+    const [shiftAssignEmployeeId, setShiftAssignEmployeeId] = useState<string>('');
+    const [shiftAssignShiftId, setShiftAssignShiftId] = useState<string>('none');
+    const [isSavingShiftAssign, setIsSavingShiftAssign] = useState(false);
+
+    // Bulk Clock In/Out dialog
+    const [isBulkClockOpen, setIsBulkClockOpen] = useState(false);
+    const [bulkClockDate, setBulkClockDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+    const [bulkClockActionType, setBulkClockActionType] = useState<'IN' | 'OUT'>('IN');
+    const [bulkClockTime, setBulkClockTime] = useState<string>('08:00');
+    const [bulkClockSelectedIds, setBulkClockSelectedIds] = useState<string[]>([]);
+    const [isBulkClocking, setIsBulkClocking] = useState(false);
+
     const [isPurging, setIsPurging] = useState(false);
     const handlePurgeAllLogs = async () => {
         setIsPurging(true);
@@ -101,8 +132,66 @@ export default function MachineLogsPage() {
             setLogs(data);
             setIsLoading(false);
         });
-        return () => unsub();
+        const unsubEmployees = onEmployeesUpdate(setEmployees);
+        const unsubShifts = onShiftsUpdate(setShifts);
+        return () => {
+            unsub();
+            unsubEmployees();
+            unsubShifts();
+        };
     }, []);
+
+    const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
+    const employeeByName = useMemo(() => new Map(employees.map(e => [e.name.toLowerCase().trim(), e])), [employees]);
+    const shiftMap = useMemo(() => new Map(shifts.map(s => [s.id, s])), [shifts]);
+
+    const activeEmployeesForBulkClock = useMemo(() => {
+        return [...employees].filter(e => e.status === 'Working').sort((a, b) => a.name.localeCompare(b.name));
+    }, [employees]);
+
+    const handleOpenShiftAssign = (employeeId: string) => {
+        const emp = employeeMap.get(employeeId);
+        setShiftAssignEmployeeId(employeeId);
+        setShiftAssignShiftId(emp?.shiftId || 'none');
+        setIsShiftAssignOpen(true);
+    };
+
+    const handleSaveShiftAssign = async () => {
+        if (!shiftAssignEmployeeId) return;
+        setIsSavingShiftAssign(true);
+        try {
+            await updateEmployee(shiftAssignEmployeeId, { shiftId: shiftAssignShiftId === 'none' ? '' : shiftAssignShiftId });
+            toast({ title: 'Shift Updated', description: 'The employee has been rescheduled. Existing clock-in/out records were not changed.' });
+            setIsShiftAssignOpen(false);
+        } catch {
+            toast({ title: 'Error', description: 'Could not update the assigned shift.', variant: 'destructive' });
+        } finally {
+            setIsSavingShiftAssign(false);
+        }
+    };
+
+    const toggleBulkClockEmployee = (employeeId: string) => {
+        setBulkClockSelectedIds(prev => prev.includes(employeeId) ? prev.filter(id => id !== employeeId) : [...prev, employeeId]);
+    };
+
+    const handleRunBulkClock = async () => {
+        if (!user || bulkClockSelectedIds.length === 0 || !bulkClockDate || !bulkClockTime) return;
+        setIsBulkClocking(true);
+        try {
+            const names = bulkClockSelectedIds.map(id => employeeMap.get(id)?.name).filter((n): n is string => Boolean(n));
+            const count = await bulkClockInOut(new Date(bulkClockDate), names, bulkClockActionType, bulkClockTime, user.username);
+            toast({
+                title: `Bulk Clock ${bulkClockActionType === 'IN' ? 'In' : 'Out'} Applied`,
+                description: `Updated ${count} employee(s) on ${bulkClockDate}.`,
+            });
+            setIsBulkClockOpen(false);
+            setBulkClockSelectedIds([]);
+        } catch {
+            toast({ title: 'Error', description: 'Could not apply the bulk clock action.', variant: 'destructive' });
+        } finally {
+            setIsBulkClocking(false);
+        }
+    };
 
     const availableYears = useMemo(() => {
         const years = new Set(logs.map(l => l.bsYear));
@@ -130,6 +219,14 @@ export default function MachineLogsPage() {
             filtered = filtered.filter(l => l.bsYear === parseInt(filterYear));
         }
 
+        if (filterEmployeeNames.length > 0) {
+            filtered = filtered.filter(l => filterEmployeeNames.includes(l.employeeName));
+        }
+
+        if (filterStatuses.length > 0) {
+            filtered = filtered.filter(l => filterStatuses.includes(l.statusFromMachine));
+        }
+
         filtered.sort((a, b) => {
             const aVal = a[sortConfig.key] || '';
             const bVal = b[sortConfig.key] || '';
@@ -139,7 +236,17 @@ export default function MachineLogsPage() {
         });
 
         return filtered;
-    }, [logs, searchQuery, filterMonth, filterYear, sortConfig]);
+    }, [logs, searchQuery, filterMonth, filterYear, filterEmployeeNames, filterStatuses, sortConfig]);
+
+    const employeeFilterOptions = useMemo(() => {
+        const names = Array.from(new Set(logs.map(l => l.employeeName))).sort((a, b) => a.localeCompare(b));
+        return names.map(n => ({ value: n, label: n }));
+    }, [logs]);
+
+    const statusFilterOptions = useMemo(() => {
+        const statuses = Array.from(new Set(logs.map(l => l.statusFromMachine).filter(Boolean)));
+        return statuses.map(s => ({ value: s, label: s }));
+    }, [logs]);
 
     const paginatedLogs = useMemo(() => {
         if (itemsPerPage === -1) return filteredAndSortedLogs;
@@ -271,6 +378,13 @@ export default function MachineLogsPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => { setBulkClockSelectedIds([]); setBulkClockActionType('IN'); setBulkClockTime('08:00'); setIsBulkClockOpen(true); }}
+                        className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200"
+                    >
+                        <Users className="mr-2 h-3.5 w-3.5"/> Bulk Clock In/Out
+                    </Button>
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -343,8 +457,8 @@ export default function MachineLogsPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {(searchQuery || filterMonth !== 'All') && (
-                        <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setFilterMonth('All'); }} className="h-9 text-muted-foreground uppercase font-black text-[9px]">
+                    {(searchQuery || filterMonth !== 'All' || filterEmployeeNames.length > 0 || filterStatuses.length > 0) && (
+                        <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setFilterMonth('All'); setFilterEmployeeNames([]); setFilterStatuses([]); }} className="h-9 text-muted-foreground uppercase font-black text-[9px]">
                             <FilterX className="mr-1.5 h-3.5 w-3.5" /> Reset
                         </Button>
                     )}
@@ -374,19 +488,16 @@ export default function MachineLogsPage() {
                         <Table className="text-[13px]">
                             <TableHeader className="bg-muted/50">
                                 <TableRow className="hover:bg-transparent h-11">
-                                    <TableHead className="pl-6 font-bold">
-                                        <Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs font-bold hover:bg-transparent">
-                                            Work Date <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === 'date' ? "text-primary opacity-100" : "opacity-30")} />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>
-                                        <Button variant="ghost" onClick={() => requestSort('employeeName')} className="-ml-4 h-8 px-2 text-xs font-bold hover:bg-transparent">
-                                            Employee <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === 'employeeName' ? "text-primary opacity-100" : "opacity-30")} />
-                                        </Button>
-                                    </TableHead>
+                                    <SortableHead label="Work Date" sortKey="date" sortConfig={sortConfig} onSort={requestSort} className="pl-6 text-left" />
+                                    <SortableHead label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} className="text-left">
+                                        <MultiSelectFilter label="Employee" options={employeeFilterOptions} selected={filterEmployeeNames} onChange={setFilterEmployeeNames} />
+                                    </SortableHead>
+                                    <TableHead className="text-center font-bold">Assigned Shift</TableHead>
                                     <TableHead className="text-center font-bold">Shift Schedule</TableHead>
                                     <TableHead className="text-center font-bold">Machine Punch</TableHead>
-                                    <TableHead className="text-center font-bold">Machine Status</TableHead>
+                                    <SortableHead label="Machine Status" sortKey="statusFromMachine" sortConfig={sortConfig} onSort={requestSort} align="center">
+                                        <MultiSelectFilter label="Status" options={statusFilterOptions} selected={filterStatuses} onChange={setFilterStatuses} />
+                                    </SortableHead>
                                     <TableHead className="text-right font-bold">Import Batch</TableHead>
                                     <TableHead className="text-right pr-6 font-bold" />
                                 </TableRow>
@@ -401,6 +512,24 @@ export default function MachineLogsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="font-black text-blue-900 uppercase tracking-tight">{log.employeeName}</TableCell>
+                                        <TableCell className="text-center">
+                                            {(() => {
+                                                const emp = employeeByName.get(log.employeeName.toLowerCase().trim());
+                                                const shift = emp?.shiftId ? shiftMap.get(emp.shiftId) : undefined;
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => emp && handleOpenShiftAssign(emp.id)}
+                                                        disabled={!emp}
+                                                        className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        title={emp ? 'Reschedule shift' : 'No matching employee record'}
+                                                    >
+                                                        <CalendarClock className="h-3 w-3" />
+                                                        {shift ? shift.name : 'Standard'}
+                                                    </button>
+                                                );
+                                            })()}
+                                        </TableCell>
                                         <TableCell className="text-center font-medium text-gray-500 text-xs">
                                             {log.onDuty ? `${log.onDuty.substring(0, 5)} - ${log.offDuty?.substring(0, 5)}` : '—'}
                                         </TableCell>
@@ -434,7 +563,7 @@ export default function MachineLogsPage() {
                                 ))}
                                 {!isLoading && paginatedLogs.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-60 text-center text-muted-foreground italic">
+                                        <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
                                             <div className="flex flex-col items-center gap-3">
                                                 <HardDrive className="h-10 w-10 opacity-10"/>
                                                 <p>No raw machine data found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Click 'Import Machine Logs' to ingest biometric data.</span></p>
@@ -457,6 +586,102 @@ export default function MachineLogsPage() {
                     </CardFooter>
                 )}
             </Card>
+
+            {/* Shift Reschedule Dialog */}
+            <Dialog open={isShiftAssignOpen} onOpenChange={setIsShiftAssignOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900">Reschedule Shift</DialogTitle>
+                        <DialogDescription>
+                            {employeeMap.get(shiftAssignEmployeeId)?.name || 'Employee'} — assigning a shift only changes how future calculations read this employee's break window and default duty times. Existing clock-in/out records are never touched.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-1.5 py-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Assigned Shift</Label>
+                        <Select value={shiftAssignShiftId} onValueChange={setShiftAssignShiftId}>
+                            <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Standard (HR Operational Rules default)</SelectItem>
+                                {shifts.map(s => (
+                                    <SelectItem key={`shift-opt-${s.id}`} value={s.id}>
+                                        {s.name} ({formatTimeForDisplay(s.onDuty)}–{formatTimeForDisplay(s.offDuty)}, break {formatTimeForDisplay(s.breakStart)}–{formatTimeForDisplay(s.breakEnd)})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {shifts.length === 0 && (
+                            <p className="text-[10px] text-muted-foreground italic pt-1">No shifts defined yet. Define shift patterns from HR Settings → Shift Pattern Registry.</p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleSaveShiftAssign} disabled={isSavingShiftAssign} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                            {isSavingShiftAssign ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CalendarClock className="mr-2 h-4 w-4"/>}
+                            Save Reschedule
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bulk Clock In/Out Dialog */}
+            <Dialog open={isBulkClockOpen} onOpenChange={setIsBulkClockOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900">Bulk Clock In / Clock Out</DialogTitle>
+                        <DialogDescription>Stamp a single clock time for multiple employees on one date. Only the selected side (In or Out) is written — the other punch and any existing record are preserved.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-3 gap-4 py-2">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Date</Label>
+                            <Input type="date" value={bulkClockDate} onChange={e => setBulkClockDate(e.target.value)} className="h-10" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Action</Label>
+                            <Select value={bulkClockActionType} onValueChange={(v) => setBulkClockActionType(v as 'IN' | 'OUT')}>
+                                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="IN"><span className="inline-flex items-center gap-1.5"><LogIn className="h-3.5 w-3.5"/> Clock In</span></SelectItem>
+                                    <SelectItem value="OUT"><span className="inline-flex items-center gap-1.5"><LogOut className="h-3.5 w-3.5"/> Clock Out</span></SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Time</Label>
+                            <Input type="time" value={bulkClockTime} onChange={e => setBulkClockTime(e.target.value)} className="h-10" />
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Select Employees ({bulkClockSelectedIds.length} selected)</Label>
+                            <div className="flex items-center gap-3">
+                                <button type="button" className="text-[10px] font-bold uppercase text-primary hover:underline" onClick={() => setBulkClockSelectedIds(activeEmployeesForBulkClock.map(e => e.id))}>Select All</button>
+                                <button type="button" className="text-[10px] font-bold uppercase text-muted-foreground hover:underline" onClick={() => setBulkClockSelectedIds([])}>Clear</button>
+                            </div>
+                        </div>
+                        <ScrollArea className="h-[240px] rounded-lg border p-2">
+                            {activeEmployeesForBulkClock.length === 0 ? (
+                                <p className="text-[10px] text-muted-foreground italic px-2 py-2">No active employees found.</p>
+                            ) : activeEmployeesForBulkClock.map(e => {
+                                const shift = e.shiftId ? shiftMap.get(e.shiftId) : undefined;
+                                return (
+                                    <label key={`bulk-emp-${e.id}`} className="flex items-center justify-between gap-2 px-2 py-2 rounded hover:bg-muted/50 cursor-pointer text-xs">
+                                        <span className="flex items-center gap-2">
+                                            <Checkbox checked={bulkClockSelectedIds.includes(e.id)} onCheckedChange={() => toggleBulkClockEmployee(e.id)} />
+                                            <span className="font-bold">{e.name}</span>
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground uppercase">{shift ? shift.name : 'Standard'}</span>
+                                    </label>
+                                );
+                            })}
+                        </ScrollArea>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleRunBulkClock} disabled={isBulkClocking || bulkClockSelectedIds.length === 0} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                            {isBulkClocking ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : bulkClockActionType === 'IN' ? <LogIn className="mr-2 h-4 w-4"/> : <LogOut className="mr-2 h-4 w-4"/>}
+                            {isBulkClocking ? 'Applying...' : `Apply Clock ${bulkClockActionType === 'IN' ? 'In' : 'Out'} to ${bulkClockSelectedIds.length} Employee(s)`}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

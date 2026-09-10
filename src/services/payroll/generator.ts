@@ -33,9 +33,16 @@ export const calculateAndSavePayrollForMonth = async (bsYear: number, bsMonth: n
     const monthlyAttendance = allAttendance.filter(r => r.bsYear === bsYear && r.bsMonth === bsMonth);
     const batch = writeBatch(db);
     const now = createTimestamp();
+    let processedCount = 0;
 
     for (const employee of workingEmployees) {
         const empAtt = monthlyAttendance.filter(r => r.employeeId === employee.id);
+        // No attendance rows at all for this month means the employee didn't
+        // work this period (new hire, resigned mid-period before this month,
+        // or simply never had this month's logs imported) - don't manufacture
+        // a zero-hours payroll row for them.
+        if (empAtt.length === 0) continue;
+        processedCount++;
         const regHrs = empAtt.reduce((sum, r) => sum + (r.regularHours || 0), 0);
         const otHrs = empAtt.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
         const presentDays = empAtt.filter(r => r.status !== 'Absent').length;
@@ -89,7 +96,7 @@ export const calculateAndSavePayrollForMonth = async (bsYear: number, bsMonth: n
         }, { merge: true });
     }
     await batch.commit();
-    return { employeeCount: workingEmployees.length };
+    return { employeeCount: processedCount };
 };
 
 /**

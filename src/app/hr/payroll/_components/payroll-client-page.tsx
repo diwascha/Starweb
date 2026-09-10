@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { Payroll, Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -87,7 +87,15 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
         const year = parseInt(selectedBsYear);
         const month = parseInt(selectedBsMonth);
-        return allPayroll.filter(p => p.bsYear === year && p.bsMonth === month);
+        return allPayroll
+            .filter(p => p.bsYear === year && p.bsMonth === month)
+            // A payroll row with no present/absent days and no pay at all is a
+            // ghost record from before recalculation started skipping
+            // employees with zero attendance for the month - it means the
+            // employee didn't actually work this period, so it's hidden here
+            // rather than waiting for every historical period to be
+            // recalculated.
+            .filter(p => (p.presentDays || 0) > 0 || (p.absentDays || 0) > 0 || (p.totalPay || 0) !== 0 || (p.netPayment || 0) !== 0);
     }, [allPayroll, selectedBsYear, selectedBsMonth, isLoading]);
 
     const employeeFilterOptions = useMemo(
@@ -229,11 +237,13 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             <CardContent className="pt-6">
                 <div className="mb-4 flex flex-wrap justify-between items-center gap-2 print:hidden">
                     <div className="flex items-center gap-2">
-                        <MultiSelectFilterButton label="Employee" options={employeeFilterOptions} selected={filterEmployeeIds} onChange={setFilterEmployeeIds} />
                         {hasActiveFilters && (
-                            <Button variant="ghost" size="sm" onClick={() => setFilterEmployeeIds([])} className="h-8 text-[10px] font-bold uppercase text-muted-foreground">
-                                <X className="mr-1.5 h-3.5 w-3.5" /> Reset Filters
-                            </Button>
+                            <>
+                                <span className="text-[10px] font-bold text-primary">{filterEmployeeIds.length} employee(s) filtered</span>
+                                <Button variant="ghost" size="sm" onClick={() => setFilterEmployeeIds([])} className="h-8 text-[10px] font-bold uppercase text-muted-foreground">
+                                    <X className="mr-1.5 h-3.5 w-3.5" /> Reset Filters
+                                </Button>
+                            </>
                         )}
                     </div>
                     <div className="flex gap-2">
@@ -268,7 +278,9 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                         <Table className="text-[11px] border-collapse">
                             <TableHeader>
                                 <TableRow className="bg-muted/50 font-black h-11 border-b-2">
-                                    <SortableTh colKey="employee" label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="sticky left-0 bg-background z-20 border-r min-w-[160px] text-gray-900 uppercase tracking-tighter text-left" />
+                                    <SortableTh colKey="employee" label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="sticky left-0 bg-background z-20 border-r min-w-[160px] text-gray-900 uppercase tracking-tighter text-left">
+                                        <MultiSelectFilter label="Employee" options={employeeFilterOptions} selected={filterEmployeeIds} onChange={setFilterEmployeeIds} />
+                                    </SortableTh>
                                     <SortableTh colKey="regularHours" label="Regular Hrs" sortKey="regularHours" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
                                     <SortableTh colKey="otHours" label="OT Hrs" sortKey="otHours" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
                                     <SortableTh colKey="absentDays" label="Absent Days" sortKey="absentDays" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="text-red-600" />
@@ -383,7 +395,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
     );
 }
 
-function SortableTh({ colKey, label, sortKey, sortConfig, onSort, className, hiddenCols }: {
+function SortableTh({ colKey, label, sortKey, sortConfig, onSort, className, hiddenCols, children }: {
     colKey: ColumnKey;
     label: string;
     sortKey: SortKey;
@@ -391,29 +403,19 @@ function SortableTh({ colKey, label, sortKey, sortConfig, onSort, className, hid
     onSort: (key: SortKey) => void;
     className?: string;
     hiddenCols: ColumnKey[];
+    children?: ReactNode;
 }) {
     const isActive = sortConfig?.key === sortKey;
     return (
         <TableHead data-col={colKey} className={cn("uppercase px-3 text-right", className)}>
-            <button onClick={() => onSort(sortKey)} className={cn("inline-flex items-center gap-1 hover:text-primary transition-colors", isActive && "text-primary")}>
-                {label}
-                {isActive ? (sortConfig!.direction === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
-            </button>
+            <span className="inline-flex items-center gap-1">
+                <button onClick={() => onSort(sortKey)} className={cn("inline-flex items-center gap-1 hover:text-primary transition-colors", isActive && "text-primary")}>
+                    {label}
+                    {isActive ? (sortConfig!.direction === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                </button>
+                {children}
+            </span>
         </TableHead>
     );
 }
 
-function MultiSelectFilterButton({ label, options, selected, onChange }: {
-    label: string;
-    options: { value: string; label: string }[];
-    selected: string[];
-    onChange: (selected: string[]) => void;
-}) {
-    return (
-        <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold uppercase text-muted-foreground">{label}:</span>
-            <MultiSelectFilter label={label} options={options} selected={selected} onChange={onChange} />
-            {selected.length > 0 && <span className="text-[10px] font-bold text-primary">{selected.length} selected</span>}
-        </div>
-    );
-}
