@@ -44,9 +44,11 @@ import {
   X,
   Loader2,
   ChevronDown,
+  ChevronUp,
   Target,
   Copy,
-  AlertTriangle
+  AlertTriangle,
+  Layers
 } from 'lucide-react';
 import { 
   Table, 
@@ -64,6 +66,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
@@ -299,6 +302,195 @@ const CostingTableRow = React.memo(({
 });
 CostingTableRow.displayName = 'CostingTableRow';
 
+/**
+ * Mobile counterpart to CostingTableRow - the same 15+ column Excel-style
+ * row doesn't fit a phone screen, so this stacks the same fields into one
+ * card with the GSM composition tucked behind a "Show" toggle (the part
+ * that only needs touching once per product, not every time). Shares the
+ * exact same onItemChange/onAddAccessory handlers as the desktop table so
+ * there's one calculation path, not two.
+ */
+const CostingItemCard = React.memo(({
+    item,
+    index,
+    maxPly,
+    products,
+    onItemChange,
+    onAddAccessory,
+    onRemoveItem,
+    onDuplicateItem,
+    onOpenQuickAddProduct
+}: any) => {
+    const [isProductPopoverOpen, setIsProductPopoverOpen] = useState(false);
+    const [quickProductSearch, setQuickProductSearch] = useState('');
+    const [isGsmOpen, setIsGsmOpen] = useState(false);
+
+    const calc = item.calculated || { paperCost: 0, transportCost: 0, totalGsm: 0, paperWeight: 0 };
+    const totalRowCost = (calc.paperCost || 0) +
+        (calc.transportCost || 0) +
+        (item.accessories || []).reduce((sum: number, acc: any) => sum + (acc.calculated?.paperCost || 0), 0);
+    const isIncomplete = (parseFloat(item.l) || 0) <= 0 || (parseFloat(item.b) || 0) <= 0;
+
+    const gsmFieldDefs = [
+        { key: 'topGsm', label: 'Top' },
+        { key: 'flute1Gsm', label: 'F1' },
+        ...(maxPly >= 5 ? [{ key: 'middleGsm', label: 'Mid1' }, { key: 'flute2Gsm', label: 'F2' }] : []),
+        ...(maxPly >= 7 ? [{ key: 'liner2Gsm', label: 'Mid2' }, { key: 'flute3Gsm', label: 'F3' }] : []),
+        ...(maxPly >= 9 ? [{ key: 'liner3Gsm', label: 'Mid3' }, { key: 'flute4Gsm', label: 'F4' }] : []),
+        { key: 'bottomGsm', label: 'Bot' },
+    ];
+
+    return (
+        <Card className={cn("border shadow-sm", isIncomplete && "border-amber-300 bg-amber-50/40")}>
+            <CardContent className="p-3 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                    <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" className="h-9 text-xs flex-1 justify-between font-normal bg-white min-w-0">
+                                <span className="truncate">{item.productId ? products.find((p: Product) => p.id === item.productId)?.name : "Select product..."}</span>
+                                <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0 w-[300px]">
+                            <Command>
+                                <CommandInput placeholder="Search catalog..." value={quickProductSearch} onValueChange={setQuickProductSearch} />
+                                <CommandList>
+                                    <CommandEmpty>
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full justify-start text-[11px] text-primary font-bold"
+                                            onClick={() => {
+                                                onOpenQuickAddProduct(index, quickProductSearch);
+                                                setIsProductPopoverOpen(false);
+                                            }}
+                                        >
+                                            <PlusCircle className="mr-2 h-3.5 w-3.5" /> Add "{quickProductSearch}" to catalog
+                                        </Button>
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                        {products.map((p: Product) => (
+                                            <CommandItem
+                                                key={p.id}
+                                                value={p.name}
+                                                onSelect={() => {
+                                                    onItemChange(index, 'productId', p.id);
+                                                    setIsProductPopoverOpen(false);
+                                                }}
+                                                className="text-[11px]"
+                                            >
+                                                <Check className={cn("mr-2 h-3.5 w-3.5", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                                {p.name}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
+                    <div className="flex gap-0.5 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-9 w-9" title="Duplicate" onClick={() => onDuplicateItem(index)}><Copy className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" title="Delete" onClick={() => onRemoveItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                </div>
+
+                {isIncomplete && (
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-700"><AlertTriangle className="h-3 w-3" /> Missing Length/Width - this row costs Rs. 0 until filled in</div>
+                )}
+
+                <div className="grid grid-cols-4 gap-2">
+                    <div><Label className="text-[9px]">L (mm)</Label><Input type="number" value={item.l ?? ''} onChange={e => onItemChange(index, 'l', e.target.value)} className="h-9 text-xs" /></div>
+                    <div><Label className="text-[9px]">B (mm)</Label><Input type="number" value={item.b ?? ''} onChange={e => onItemChange(index, 'b', e.target.value)} className="h-9 text-xs" /></div>
+                    <div><Label className="text-[9px]">H (mm)</Label><Input type="number" value={item.h ?? ''} onChange={e => onItemChange(index, 'h', e.target.value)} className="h-9 text-xs" /></div>
+                    <div><Label className="text-[9px]">Pcs</Label><Input type="number" value={item.noOfPcs ?? ''} onChange={e => onItemChange(index, 'noOfPcs', e.target.value)} className="h-9 text-xs" /></div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                    <div>
+                        <Label className="text-[9px]">Ply</Label>
+                        <Select value={item.ply ?? '3'} onValueChange={v => onItemChange(index, 'ply', v)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
+                            <SelectContent>{PLY_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label className="text-[9px]">Paper Type</Label>
+                        <Select value={item.paperType ?? 'KRAFT'} onValueChange={v => onItemChange(index, 'paperType', v)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="KRAFT">Kraft (K)</SelectItem>
+                                <SelectItem value="VIRGIN">Virgin (V)</SelectItem>
+                                <SelectItem value="VIRGIN & KRAFT">Mixed (M)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                    <div>
+                        <Label className="text-[9px]">Paper BF</Label>
+                        <Select value={normalizeBF(item.paperBf)} onValueChange={v => onItemChange(index, 'paperBf', v)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
+                            <SelectContent>{BF_OPTIONS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
+                    <div><Label className="text-[9px]">Waste %</Label><Input type="number" value={item.wastagePercent ?? ''} onChange={e => onItemChange(index, 'wastagePercent', e.target.value)} className="h-9 text-xs" /></div>
+                </div>
+
+                <Collapsible open={isGsmOpen} onOpenChange={setIsGsmOpen}>
+                    <CollapsibleTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full h-8 text-[10px] font-bold uppercase tracking-wide justify-between">
+                            <span className="flex items-center gap-1.5"><Layers className="h-3 w-3" /> GSM Composition</span>
+                            {isGsmOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-2">
+                        <div className="grid grid-cols-3 gap-2 p-2 bg-orange-50/30 rounded border">
+                            {gsmFieldDefs.map(({ key, label }) => (
+                                <div key={key}><Label className="text-[9px]">{label}</Label><Input type="number" value={(item as any)[key] ?? ''} onChange={e => onItemChange(index, key, e.target.value)} className="h-8 text-xs" /></div>
+                            ))}
+                        </div>
+                    </CollapsibleContent>
+                </Collapsible>
+
+                {(item.accessories || []).length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                        <Label className="text-[9px] text-muted-foreground uppercase">Accessories</Label>
+                        {item.accessories.map((acc: any, aIdx: number) => (
+                            <div key={acc.id} className="flex items-center gap-2 bg-muted/20 rounded px-2 py-1.5">
+                                <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-7 text-[10px] flex-1 bg-white" placeholder="Accessory name..." />
+                                <span className="text-[10px] font-bold shrink-0">Rs. {(acc.calculated?.paperCost || 0).toFixed(0)}</span>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 shrink-0" onClick={() => onItemChange(index, 'acc_remove', aIdx)}><X className="h-3 w-3" /></Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="w-full h-7 text-[10px] font-bold text-muted-foreground"><Plus className="mr-1 h-3 w-3" /> Add Accessory</Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                        <DropdownMenuItem onSelect={() => onAddAccessory(index, 'Honeycomb Partition')}>Honeycomb Partition</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onAddAccessory(index, 'Layer Plate')}>Layer Plate</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onAddAccessory(index, 'Corner Protectors')}>Corner Protectors</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => onAddAccessory(index, 'Manual Entry')}>Manual Entry</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t text-[10px] text-muted-foreground">
+                    <span>T.GSM: <span className="font-bold text-foreground">{(calc.totalGsm || 0).toFixed(0)}</span></span>
+                    <span className="text-right">Weight: <span className="font-bold text-foreground">{(calc.paperWeight || 0).toFixed(1)}g</span></span>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Row Total</span>
+                    <span className="text-base font-black text-primary">Rs. {totalRowCost.toFixed(2)}</span>
+                </div>
+            </CardContent>
+        </Card>
+    );
+});
+CostingItemCard.displayName = 'CostingItemCard';
+
 export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSuccess, products, onPreview }: any) {
   const [parties, setParties] = useState<Party[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -323,6 +515,10 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
   const [selectedForPrint, setSelectedForPrint] = useState(new Set<string>());
   
   const [isSaving, setIsSaving] = useState(false);
+  // Collapsed by default when opening an existing report (its setup is
+  // already filled in) - expanded by default for a brand new one, so the
+  // required fields are visible on mobile without a wall of scrolling.
+  const [isSetupOpen, setIsSetupOpen] = useState(!reportToEdit);
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, address: '', panNumber: '', ownership: 'Shivam' as AccountOwnership });
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
@@ -747,173 +943,216 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
 
   return (
     <div className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <Card className="shadow-sm">
-                <CardHeader className="py-3 px-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase tracking-wider">Report Identity</CardTitle></CardHeader>
-                <CardContent className="pt-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1"><Label className="text-[10px] font-bold">Report No</Label><Input value={reportNumber} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
-                        <div className="space-y-1"><Label className="text-[10px] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><CalendarIcon className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
+        <Collapsible open={isSetupOpen} onOpenChange={setIsSetupOpen}>
+          <Card className="shadow-sm overflow-hidden">
+            <CollapsibleTrigger asChild>
+                <button type="button" className="w-full flex items-center justify-between gap-3 px-4 py-3 border-b bg-muted/5 text-left hover:bg-muted/10 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs font-bold uppercase tracking-wider shrink-0">Quotation Setup</span>
+                        {!isSetupOpen && (
+                            <span className="text-[11px] text-muted-foreground truncate">
+                                &bull; {selectedPartyId ? (parties.find(p => p.id === selectedPartyId)?.name || 'Client selected') : 'No client selected'}
+                                {' '}&bull; {reportNumber}
+                                {validUntilBS && ` · Valid until ${validUntilBS}`}
+                            </span>
+                        )}
                     </div>
-                    <div className="space-y-1">
-                        <Label className="text-[10px] font-bold">Party Name</Label>
-                        <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" className="w-full justify-between h-8 text-xs">
-                                    <span className="truncate">{selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select customer..."}</span>
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="p-0">
-                                <Command>
-                                    <CommandInput placeholder="Search customer..." value={partySearch} onValueChange={setPartySearch} />
-                                    <CommandList>
-                                        <CommandEmpty>
-                                            <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setPartyForm({ name: partySearch, type: 'Customer', address: '', panNumber: '', ownership: 'Shivam' }); setIsPartyDialogOpen(true); setIsPartyPopoverOpen(false); }}>
-                                                <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
-                                            </Button>
-                                        </CommandEmpty>
-                                        <CommandGroup>
-                                            {filteredParties.map(p => (
-                                                <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setSelectedDealId(''); setIsPartyPopoverOpen(false); }}>
-                                                    <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
-                                                    {p.name}
-                                                </CommandItem>
+                    {isSetupOpen ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+                <CardContent className="pt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-6">
+                        <div className="space-y-4">
+                            <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5">Report Identity</h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1"><Label className="text-[10px] font-bold">Report No</Label><Input value={reportNumber} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
+                                <div className="space-y-1"><Label className="text-[10px] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><CalendarIcon className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-[10px] font-bold">Party Name</Label>
+                                <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" role="combobox" className="w-full justify-between h-8 text-xs">
+                                            <span className="truncate">{selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select customer..."}</span>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0">
+                                        <Command>
+                                            <CommandInput placeholder="Search customer..." value={partySearch} onValueChange={setPartySearch} />
+                                            <CommandList>
+                                                <CommandEmpty>
+                                                    <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setPartyForm({ name: partySearch, type: 'Customer', address: '', panNumber: '', ownership: 'Shivam' }); setIsPartyDialogOpen(true); setIsPartyPopoverOpen(false); }}>
+                                                        <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                                    </Button>
+                                                </CommandEmpty>
+                                                <CommandGroup>
+                                                    {filteredParties.map(p => (
+                                                        <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setSelectedDealId(''); setIsPartyPopoverOpen(false); }}>
+                                                            <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
+                                                            {p.name}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            {selectedPartyId && (
+                                <div className="space-y-1 animate-in fade-in slide-in-from-top-1">
+                                    <Label className="text-[10px] font-bold flex items-center gap-1.5 text-primary"><Target className="h-3 w-3"/> Link to Opportunity</Label>
+                                    <Select value={selectedDealId} onValueChange={setSelectedDealId}>
+                                        <SelectTrigger className="h-8 text-[10px] bg-white border-primary/20"><SelectValue placeholder="Associate with deal..." /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">Standalone (No Deal)</SelectItem>
+                                            {filteredDeals.map(d => (
+                                                <SelectItem key={d.id} value={d.id}>{d.title} (Rs.{d.value.toLocaleString()})</SelectItem>
                                             ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                    {selectedPartyId && (
-                        <div className="space-y-1 animate-in fade-in slide-in-from-top-1">
-                            <Label className="text-[10px] font-bold flex items-center gap-1.5 text-primary"><Target className="h-3 w-3"/> Link to Opportunity</Label>
-                            <Select value={selectedDealId} onValueChange={setSelectedDealId}>
-                                <SelectTrigger className="h-8 text-[10px] bg-white border-primary/20"><SelectValue placeholder="Associate with deal..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">Standalone (No Deal)</SelectItem>
-                                    {filteredDeals.map(d => (
-                                        <SelectItem key={d.id} value={d.id}>{d.title} (Rs.{d.value.toLocaleString()})</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-                <CardHeader className="py-3 px-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase tracking-wider">Global Rates (NPR)</CardTitle></CardHeader>
-                <CardContent className="pt-4 grid grid-cols-2 gap-4">
-                    <div className="space-y-2 col-span-2">
-                        <Label className="text-[10px] font-bold text-muted-foreground">KRAFT BF RATES</Label>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                            {BF_OPTIONS.map(bf => (
-                                <div key={bf} className="flex items-center gap-2">
-                                    <span className="text-[10px] w-12 font-medium">{bf}</span>
-                                    <Input type="number" className="h-8 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => setKraftPaperCosts({...kraftPaperCosts, [normalizeBF(bf)]: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="space-y-1"><Label className="text-[10px] font-bold">Virgin Rate</Label><Input type="number" value={virginPaperCost ?? ''} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
-                    <div className="space-y-1"><Label className="text-[10px] font-bold">Conversion</Label><Input type="number" value={conversionCost ?? ''} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
-                </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-                <CardHeader className="py-3 px-4 border-b bg-muted/5 flex flex-row items-center justify-between">
-                    <CardTitle className="text-xs uppercase tracking-wider">T&C and Logistics</CardTitle>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsManageTermsDialogOpen(true)} title="Manage Master Terms"><Settings2 className="h-3 w-3" /></Button>
-                </CardHeader>
-                <CardContent className="pt-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1"><Label className="text-[10px] font-bold">Transport</Label><Input type="number" value={transportCost ?? ''} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
-                        <div className="space-y-1"><Label className="text-[10px] font-bold">Basis</Label>
-                            <Select value={transportCostType} onValueChange={(v: any) => setTransportCostType(v)}>
-                                <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
-                                <SelectContent><SelectItem value="Per Piece">Per Piece</SelectItem><SelectItem value="Per Consignment">Lump Sum</SelectItem></SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-muted-foreground uppercase">Selected Terms</Label>
-                        <ScrollArea className="h-20 border rounded bg-muted/5 p-2">
-                            {termsAndConditions.length > 0 ? (
-                                <div className="space-y-1.5">
-                                    {termsAndConditions.map((term, idx) => (
-                                        <div key={idx} className="flex items-center space-x-2">
-                                            <Checkbox 
-                                                id={`term-${idx}`} 
-                                                checked={term.isSelected} 
-                                                onCheckedChange={(v) => {
-                                                    const next = [...termsAndConditions];
-                                                    next[idx].isSelected = !!v;
-                                                    setTermsAndConditions(next);
-                                                }}
-                                            />
-                                            <Label htmlFor={`term-${idx}`} className="text-[10px] leading-tight cursor-pointer line-clamp-1">{term.text}</Label>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-[9px] text-center text-muted-foreground py-4 italic">No terms in master list.</p>
                             )}
-                            <ScrollBar orientation="vertical" />
-                        </ScrollArea>
-                    </div>
-                </CardContent>
-            </Card>
+                        </div>
 
-            <Card className="shadow-sm">
-                <CardHeader className="py-3 px-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase tracking-wider">Quotation Meta</CardTitle></CardHeader>
-                <CardContent className="pt-4 space-y-4">
-                    <div className="space-y-1">
-                        <Label className="text-[10px] font-bold">Valid Until (BS)</Label>
-                        <Input value={validUntilBS} onChange={e => setValidUntilBS(e.target.value)} placeholder="YYYY/MM/DD" className="h-8 text-xs font-mono" />
-                    </div>
-                    <div className="space-y-1">
-                        <Label className="text-[10px] font-bold">Internal Remarks</Label>
-                        <Textarea value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Pricing logic, discounts..." className="min-h-[60px] text-xs resize-none" />
-                    </div>
-                    <div className="space-y-1">
-                        <Label className="text-[10px] font-bold">Lifecycle Status</Label>
-                        <Select value={status} onValueChange={(v: QuotationStatus) => setStatus(v)}>
-                            <SelectTrigger className="h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Draft">Draft</SelectItem>
-                                <SelectItem value="Sent">Sent to Client</SelectItem>
-                                <SelectItem value="Accepted">Accepted</SelectItem>
-                                <SelectItem value="Rejected">Rejected</SelectItem>
-                                <SelectItem value="Expired">Expired</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="space-y-4">
+                            <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5">Global Rates (NPR)</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2 col-span-2">
+                                    <Label className="text-[10px] font-bold text-muted-foreground">KRAFT BF RATES</Label>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                        {BF_OPTIONS.map(bf => (
+                                            <div key={bf} className="flex items-center gap-2">
+                                                <span className="text-[10px] w-12 font-medium">{bf}</span>
+                                                <Input type="number" className="h-8 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => setKraftPaperCosts({...kraftPaperCosts, [normalizeBF(bf)]: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="space-y-1"><Label className="text-[10px] font-bold">Virgin Rate</Label><Input type="number" value={virginPaperCost ?? ''} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
+                                <div className="space-y-1"><Label className="text-[10px] font-bold">Conversion</Label><Input type="number" value={conversionCost ?? ''} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between border-b pb-1.5">
+                                <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">T&amp;C and Logistics</h3>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1" onClick={() => setIsManageTermsDialogOpen(true)} title="Manage Master Terms"><Settings2 className="h-3 w-3" /></Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1"><Label className="text-[10px] font-bold">Transport</Label><Input type="number" value={transportCost ?? ''} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
+                                <div className="space-y-1"><Label className="text-[10px] font-bold">Basis</Label>
+                                    <Select value={transportCostType} onValueChange={(v: any) => setTransportCostType(v)}>
+                                        <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
+                                        <SelectContent><SelectItem value="Per Piece">Per Piece</SelectItem><SelectItem value="Per Consignment">Lump Sum</SelectItem></SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Selected Terms</Label>
+                                <ScrollArea className="h-20 border rounded bg-muted/5 p-2">
+                                    {termsAndConditions.length > 0 ? (
+                                        <div className="space-y-1.5">
+                                            {termsAndConditions.map((term, idx) => (
+                                                <div key={idx} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`term-${idx}`}
+                                                        checked={term.isSelected}
+                                                        onCheckedChange={(v) => {
+                                                            const next = [...termsAndConditions];
+                                                            next[idx].isSelected = !!v;
+                                                            setTermsAndConditions(next);
+                                                        }}
+                                                    />
+                                                    <Label htmlFor={`term-${idx}`} className="text-[10px] leading-tight cursor-pointer line-clamp-1">{term.text}</Label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-[9px] text-center text-muted-foreground py-4 italic">No terms in master list.</p>
+                                    )}
+                                    <ScrollBar orientation="vertical" />
+                                </ScrollArea>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5">Quotation Meta</h3>
+                            <div className="space-y-1">
+                                <Label className="text-[10px] font-bold">Valid Until (BS)</Label>
+                                <Input value={validUntilBS} onChange={e => setValidUntilBS(e.target.value)} placeholder="YYYY/MM/DD" className="h-8 text-xs font-mono" />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-[10px] font-bold">Internal Remarks</Label>
+                                <Textarea value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Pricing logic, discounts..." className="min-h-[60px] text-xs resize-none" />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-[10px] font-bold">Lifecycle Status</Label>
+                                <Select value={status} onValueChange={(v: QuotationStatus) => setStatus(v)}>
+                                    <SelectTrigger className="h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Draft">Draft</SelectItem>
+                                        <SelectItem value="Sent">Sent to Client</SelectItem>
+                                        <SelectItem value="Accepted">Accepted</SelectItem>
+                                        <SelectItem value="Rejected">Rejected</SelectItem>
+                                        <SelectItem value="Expired">Expired</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
-            </Card>
-        </div>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
         <Card className="shadow-lg overflow-hidden border-t-4 border-t-primary">
-            <CardHeader className="flex flex-row items-center gap-4 bg-muted/20 py-4 px-6">
-                <div className="flex gap-2">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center gap-3 bg-muted/20 py-4 px-4 sm:px-6">
+                <div>
+                    <CardTitle className="text-base font-bold">Costing Dashboard</CardTitle>
+                    <CardDescription className="text-[11px]">Technical analysis and weight calculation</CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:ml-auto">
                     <Button size="sm" variant="outline" onClick={handleAddItem} className="h-9"><Plus className="mr-2 h-4 w-4" /> Add Item</Button>
                     <Button size="sm" variant="outline" onClick={() => setIsBatchAddDialogOpen(true)} disabled={!selectedPartyId} className="h-9">
                         <FileSpreadsheet className="mr-2 h-4 w-4" /> Load from List
                     </Button>
+                    <Button size="sm" variant="outline" onClick={handleManualPreview} className="h-9"><ImageIcon className="mr-2 h-4 w-4" /> Preview</Button>
                     <Button size="sm" onClick={handleSaveReport} disabled={isSaving} className="h-9">
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                         {reportToEdit ? 'Update Record' : 'Commit Quotation'}
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleManualPreview} className="h-9"><ImageIcon className="mr-2 h-4 w-4" /> Preview Quotation</Button>
-                </div>
-                <div className="ml-auto text-right">
-                    <CardTitle className="text-base font-bold">Costing Dashboard</CardTitle>
-                    <CardDescription className="text-[11px]">Technical analysis and weight calculation</CardDescription>
                 </div>
             </CardHeader>
             <CardContent className="p-0">
-                <ScrollArea className="w-full">
+                {/* Mobile: one stacked card per item, all fields reachable without horizontal scrolling */}
+                <div className="md:hidden p-4 space-y-3">
+                    {items.map((item: CostReportItem, idx: number) => (
+                        <CostingItemCard
+                            key={item.id}
+                            item={item}
+                            index={idx}
+                            maxPly={maxPly}
+                            products={companyProducts}
+                            onItemChange={handleItemChange}
+                            onAddAccessory={handleAddAccessory}
+                            onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))}
+                            onDuplicateItem={handleDuplicateItem}
+                            onOpenQuickAddProduct={(idx: number, search: string) => {
+                                setActiveRowIndexForProduct(idx);
+                                setQuickProductSearch(search);
+                                setIsProductDialogOpen(true);
+                            }}
+                        />
+                    ))}
+                    {items.length === 0 && (
+                        <div className="py-12 text-center text-muted-foreground text-xs italic">No items yet - tap "Add Item" above.</div>
+                    )}
+                </div>
+
+                {/* Desktop: Excel-style row-per-item table */}
+                <ScrollArea className="w-full hidden md:block">
                     <div className="p-4">
                         <Table className="text-[11px] border border-collapse min-w-[2200px]">
                             <TableHeader className="bg-muted/80">
