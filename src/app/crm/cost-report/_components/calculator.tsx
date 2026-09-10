@@ -56,6 +56,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn, toNepaliDate, normalizeBF, generateId } from '@/lib/utils';
+import { calculateItemCost as sharedCalculateItemCost } from '@/lib/cost-calculator';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -208,7 +209,9 @@ const CostingTableRow = React.memo(({
                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm ?? ''} onChange={e => onItemChange(index, 'bottomGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                 <TableCell className="text-center font-medium bg-muted/20 border-r">{(calc.totalGsm || 0).toFixed(0)}</TableCell>
                 <TableCell className="text-center font-medium bg-muted/20 border-r">{(calc.paperWeight || 0).toFixed(1)}</TableCell>
-                <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {(calc.paperCost || 0).toFixed(2)}</TableCell>
+                <TableCell className={cn("text-center font-bold border-r", calc.rateMissing ? "bg-destructive/10 text-destructive" : "bg-primary/5")} title={calc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
+                    Rs. {(calc.paperCost || 0).toFixed(2)}{calc.rateMissing && ' ⚠'}
+                </TableCell>
                 <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {(calc.transportCost || 0).toFixed(2)}</TableCell>
                 <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {totalRowCost.toFixed(2)}</TableCell>
                 <TableCell className="px-2">
@@ -269,7 +272,9 @@ const CostingTableRow = React.memo(({
                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => onItemChange(index, 'acc_bottomGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                         <TableCell className="text-center bg-muted/20 border-r">{(accCalc.totalGsm || 0).toFixed(0)}</TableCell>
                         <TableCell className="text-center bg-muted/20 border-r">{(accCalc.paperWeight || 0).toFixed(1)}</TableCell>
-                        <TableCell className="text-center border-r">Rs. {(accCalc.paperCost || 0).toFixed(2)}</TableCell>
+                        <TableCell className={cn("text-center border-r", accCalc.rateMissing && "bg-destructive/10 text-destructive")} title={accCalc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
+                            Rs. {(accCalc.paperCost || 0).toFixed(2)}{accCalc.rateMissing && ' ⚠'}
+                        </TableCell>
                         <TableCell className="text-center border-r"></TableCell>
                         <TableCell className="text-right pr-6"></TableCell>
                         <TableCell className="px-2">
@@ -283,7 +288,7 @@ const CostingTableRow = React.memo(({
 });
 CostingTableRow.displayName = 'CostingTableRow';
 
-export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview }: any) {
+export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSuccess, products, onPreview }: any) {
   const [parties, setParties] = useState<Party[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [costReports, setCostReports] = useState<CostReport[]>([]);
@@ -324,63 +329,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
   const { user } = useAuth();
 
   const calculateItemCost = useCallback((item: any, globalK: any, globalV: number, globalC: number, globalT: number, tType: string, isAcc = false): CalculatedValues => {
-    const l = parseFloat(item.l) || 0;
-    const b = parseFloat(item.b) || 0;
-    const h = parseFloat(item.h) || 0;
-    const pcs = parseInt(item.noOfPcs, 10) || 1;
-    
-    if (l <= 0 || b <= 0) {
-        return { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0, transportCost: 0 };
-    }
-    
-    const isBox = h > 0;
-    let sL = 0, sB = 0;
-    if (isBox) {
-        const c1 = b + h + 20, d1 = (2 * l) + (2 * b) + 62, c2 = l + h + 20, d2 = (2 * b) + (2 * l) + 62;
-        if (c1 * d1 <= c2 * d2) { sL = c1; sB = d1; } else { sL = c2; sB = d2; }
-    } else { const d = [l, b].sort((x, y) => y - x); sL = d[0]; sB = d[1]; }
-    
-    const ply = parseInt(item.ply, 10) || 0;
-    const gsm = {
-        l1: parseFloat(item.topGsm) || 0,
-        f1: parseFloat(item.flute1Gsm) || 0,
-        l2: parseFloat(item.middleGsm) || 0,
-        f2: parseFloat(item.flute2Gsm) || 0,
-        l3: parseFloat(item.liner2Gsm) || 0,
-        f3: parseFloat(item.flute3Gsm) || 0,
-        l4: parseFloat(item.liner3Gsm) || 0,
-        f4: parseFloat(item.flute4Gsm) || 0,
-        l5: parseFloat(item.bottomGsm) || 0,
-    };
-
-    let tGsm = 0;
-    const factor = 1.35;
-
-    if (ply === 3) tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l5;
-    else if (ply === 5) tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l2 + (gsm.f2 * factor) + gsm.l5;
-    else if (ply === 7) tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l2 + (gsm.f2 * factor) + gsm.l3 + (gsm.f3 * factor) + gsm.l5;
-    else if (ply === 9) tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l2 + (gsm.f2 * factor) + gsm.l3 + (gsm.f3 * factor) + gsm.l4 + (gsm.f4 * factor) + gsm.l5;
-    else tGsm = gsm.l1 + gsm.l5;
-    
-    const sArea = (sL * sB) / 1000000;
-    const pWt = sArea * tGsm * pcs;
-    const tBWt = pWt * (1 + (parseFloat(item.wastagePercent) / 100 || 0));
-    const kC = globalK[normalizeBF(item.paperBf)] || 0;
-    let pRate = item.paperType === 'VIRGIN' ? globalV : kC;
-    const finalRate = pRate + (isAcc ? Number(accessoryConversionCost) || 0 : globalC);
-    
-    let paperCost = (tBWt / 1000) * finalRate;
-    let tCost = 0;
-    if (tType === 'Per Piece' && !isAcc) {
-        tCost = globalT * pcs;
-    }
-    
-    return { 
-        sheetSizeL: sL, sheetSizeB: sB, sheetArea: sArea, totalGsm: tGsm, 
-        paperWeight: pWt, totalBoxWeight: tBWt, paperRate: finalRate, 
-        paperCost: paperCost,
-        transportCost: tCost
-    };
+    return sharedCalculateItemCost(item, globalK, globalV, globalC, globalT, tType, isAcc, Number(accessoryConversionCost) || 0);
   }, [accessoryConversionCost]);
 
   useEffect(() => {
@@ -438,6 +387,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
   useEffect(() => {
       if (!reportToEdit) {
           generateNextCostReportNumber(costReports).then(setReportNumber);
+          if (initialPartyId) setSelectedPartyId(initialPartyId);
       } else {
           setReportNumber(reportToEdit.reportNumber);
           setReportDate(new Date(reportToEdit.reportDate));
@@ -462,7 +412,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
               }))
           })));
       }
-  }, [reportToEdit, costReports, calculateItemCost]);
+  }, [reportToEdit, costReports, calculateItemCost, initialPartyId]);
 
   const mapProductToItem = useCallback((product: Product): CostReportItem => {
     const spec = product.specification || {};
@@ -622,7 +572,7 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
             createdBy: reportToEdit?.createdBy || user.username,
             ownership: party?.ownership || 'Shivam',
             status,
-            dealId: (selectedDealId || undefined) as string | undefined,
+            dealId: (selectedDealId && selectedDealId !== 'none' ? selectedDealId : undefined) as string | undefined,
             validUntilBS,
             remarks
         };
@@ -642,11 +592,12 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
         }, user.username);
 
         const updatePromises: any[] = [];
+        let skippedRateSync = 0;
         items.forEach(item => {
             if (!item.productId) return;
             const product = products.find((p: Product) => p.id === item.productId);
             if (!product) return;
-            
+
             const updatedSpec: Partial<ProductSpecification> = {
                 ...product.specification,
                 dimension: `${item.l}x${item.b}x${item.h}`,
@@ -665,20 +616,44 @@ export function CostReportCalculator({ reportToEdit, onSaveSuccess, products, on
                 wastagePercent: item.wastagePercent,
             };
 
-            const itemRate = (item.calculated?.paperCost || 0) + 
-                             (item.calculated?.transportCost || 0) + 
-                             (item.accessories?.reduce((sum, a) => sum + (a.calculated?.paperCost || 0), 0) || 0);
-            
-            updatePromises.push(updateProduct(item.productId, { 
+            // Row's paperCost/transportCost are for the whole noOfPcs run, not
+            // a single unit - divide back down before writing to the
+            // catalog's per-unit `rate`. Never sync when a rate is missing
+            // (would poison the catalog with a bogus Rs. 0-based figure) or
+            // when there are no pieces to derive a unit rate from.
+            const pcsParsed = parseInt(item.noOfPcs, 10);
+            const pcs = isNaN(pcsParsed) ? 1 : pcsParsed;
+            const hasMissingRate = item.calculated?.rateMissing || item.accessories?.some(a => a.calculated?.rateMissing);
+
+            if (pcs <= 0 || hasMissingRate) {
+                skippedRateSync++;
+                updatePromises.push(updateProduct(item.productId, {
+                    specification: updatedSpec,
+                    accessories: item.accessories?.map(({ calculated, ...rest }: any) => rest),
+                    lastModifiedBy: user.username
+                }));
+                return;
+            }
+
+            const itemRate = ((item.calculated?.paperCost || 0) +
+                             (item.calculated?.transportCost || 0) +
+                             (item.accessories?.reduce((sum, a) => sum + (a.calculated?.paperCost || 0), 0) || 0)) / pcs;
+
+            updatePromises.push(updateProduct(item.productId, {
                 rate: parseFloat(itemRate.toFixed(2)),
-                specification: updatedSpec, 
+                specification: updatedSpec,
                 accessories: item.accessories?.map(({ calculated, ...rest }: any) => rest),
-                lastModifiedBy: user.username 
+                lastModifiedBy: user.username
             }));
         });
-        
+
         await Promise.all(updatePromises);
-        toast({ title: 'Success', description: 'Report saved and product rates synchronized.' });
+        toast({
+            title: 'Success',
+            description: skippedRateSync > 0
+                ? `Report saved. ${skippedRateSync} item(s) had a missing rate or zero pieces, so their catalog rate was left unchanged.`
+                : 'Report saved and product rates synchronized.'
+        });
         onSaveSuccess();
     } catch (error) {
         console.error("Save error:", error);

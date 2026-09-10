@@ -17,6 +17,7 @@ const QuotationPreviewDialog = React.lazy(() => import('../_components/quotation
 function CalculatorPageContent() {
     const searchParams = useSearchParams();
     const poId = searchParams.get('id');
+    const initialPartyId = searchParams.get('partyId');
     const router = useRouter();
 
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
@@ -70,11 +71,12 @@ function CalculatorPageContent() {
                 </Button>
             </header>
 
-            <CostReportCalculator 
-                reportToEdit={reportToEdit} 
-                products={products} 
+            <CostReportCalculator
+                reportToEdit={reportToEdit}
+                initialPartyId={initialPartyId || undefined}
+                products={products}
                 companyProfile={companyProfile}
-                onSaveSuccess={() => router.push('/crm/cost-report')} 
+                onSaveSuccess={() => router.push('/crm/cost-report')}
                 onPreview={(data: any) => { setPreviewData(data); setIsPreviewOpen(true); }}
             />
 

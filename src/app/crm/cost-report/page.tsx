@@ -15,7 +15,8 @@ import {
   PlusCircle, 
   Loader2
 } from 'lucide-react';
-import { cn, normalizeBF } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { calculateItemCost } from '@/lib/cost-calculator';
 import { useToast } from '@/hooks/use-toast';
 import { onSettingUpdate } from '@/services/settings-service';
 import React from 'react';
@@ -53,40 +54,11 @@ export default function CostReportHistoryPage() {
         const tCost = report.transportCost || 0;
         const tType = report.transportCostType || 'Per Consignment';
         
-        const calc = (item: any, isAcc = false) => {
-            const l = parseFloat(item.l) || 0, b = parseFloat(item.b) || 0, h = parseFloat(item.h) || 0, pcs = parseInt(item.noOfPcs, 10) || 1;
-            const isBox = h > 0;
-            let sL = 0, sB = 0;
-            if (isBox) {
-                const c1 = b + h + 20, d1 = (2 * l) + (2 * b) + 62, c2 = l + h + 20, d2 = (2 * b) + (2 * l) + 62;
-                if (c1 * d1 <= c2 * d2) { sL = c1; sB = d1; } else { sL = c2; sB = d2; }
-            } else { const d = [l, b].sort((x: number, y: number) => y - x); sL = d[0]; sB = d[1]; }
-            const ply = parseInt(item.ply, 10) || 0;
-            const g = { l1: parseFloat(item.topGsm) || 0, f1: parseFloat(item.flute1Gsm) || 0, l2: parseFloat(item.middleGsm) || 0, f2: parseFloat(item.flute2Gsm) || 0, l3: parseFloat(item.liner2Gsm) || 0, f3: parseFloat(item.flute3Gsm) || 0, l4: parseFloat(item.liner3Gsm) || 0, f4: parseFloat(item.flute4Gsm) || 0, l5: parseFloat(item.bottomGsm) || 0 };
-            let tGsm = 0; const factor = 1.35;
-            if (ply === 3) tGsm = g.l1 + (g.f1 * factor) + g.l5;
-            else if (ply === 5) tGsm = g.l1 + (g.f1 * factor) + g.l2 + (g.f2 * factor) + g.l5;
-            else if (ply === 7) tGsm = g.l1 + (g.f1 * factor) + g.l2 + (g.f2 * factor) + g.l3 + (g.f3 * factor) + g.l5;
-            else if (ply === 9) tGsm = g.l1 + (g.f1 * factor) + g.l2 + (g.f2 * factor) + g.l3 + (g.f3 * factor) + g.l4 + (g.f4 * factor) + g.l5;
-            else tGsm = g.l1 + g.l5;
-            const sArea = (sL * sB) / 1000000;
-            const pWt = sArea * tGsm * pcs;
-            const tBWt = pWt * (1 + (parseFloat(item.wastagePercent) / 100 || 0));
-            let pRate = item.paperType === 'VIRGIN' ? vCost : (kCosts[normalizeBF(item.paperBf)] || 0);
-            const finalRate = pRate + (isAcc ? aCCost : cCost);
-            let paperCost = (tBWt / 1000) * finalRate;
-            let tAmount = 0;
-            if (tType === 'Per Piece' && !isAcc) {
-                tAmount = tCost * pcs;
-            }
-            return { paperCost: paperCost, transportCost: tAmount };
-        };
-
         const itemsWithCost = report.items.map((item: any) => {
-            const calculated = calc(item);
+            const calculated = calculateItemCost(item, kCosts, vCost, cCost, tCost, tType, false, aCCost);
             const accessories = (item.accessories || []).map((acc: any) => ({
                 ...acc,
-                calculated: calc(acc, true)
+                calculated: calculateItemCost(acc, kCosts, vCost, cCost, tCost, tType, true, aCCost)
             }));
             return {
                 ...item,

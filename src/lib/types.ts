@@ -637,26 +637,10 @@ export interface Deal {
   lastModifiedAt?: string;
 }
 
+// Real quotation records live on CostReport (cost-report-service.ts /
+// costReports collection) - the calculator IS the quotation generator.
+// This status type is kept for CostReport.status.
 export type QuotationStatus = 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired';
-export interface QuotationItem { id: string; productName: string; quantity: number; rate: number; amount: number; }
-export interface Quotation {
-  id: string;
-  quotationNumber: string;
-  date: string; // AD ISO
-  dateBS: string; // "YYYY/MM/DD"
-  partyId: string;
-  partyName?: string;
-  dealId?: string; // optional link
-  items: QuotationItem[];
-  total: number;
-  status: QuotationStatus;
-  validUntilBS?: string;
-  remarks?: string;
-  createdBy: string;
-  createdAt: string;
-  lastModifiedBy?: string;
-  lastModifiedAt?: string;
-}
 
 export interface Party {
     id: string;
@@ -1106,6 +1090,12 @@ export interface CalculatedValues {
     paperRate: number;
     paperCost: number;
     transportCost: number;
+    // True when the row's paper rate resolved to 0 because no matching
+    // global rate (kraft BF rate, or virgin rate) was configured - as
+    // opposed to a legitimate 0 the user entered. Surfaced as a warning in
+    // the UI, and used to skip syncing a bogus rate back into the product
+    // catalog on save.
+    rateMissing?: boolean;
 }
 
 export interface CostReportItem {

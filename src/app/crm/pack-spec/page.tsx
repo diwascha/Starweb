@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import type { Product, ProductSpecification } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct, deleteProduct } from '@/services/product-service';
+import { getCostReports } from '@/services/cost-report-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,26 @@ export default function PackSpecPage() {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Delete-guard state: how many saved quotations reference the product
+  // currently up for deletion. Deleting a product that's used in a past
+  // quotation doesn't break that quotation's numbers (they're stored
+  // inline), but its printed/reprinted preview falls back to "Custom Item"
+  // since the name is looked up live - worth warning about before deleting.
+  const [deleteCheckProductId, setDeleteCheckProductId] = useState<string | null>(null);
+  const [quotationRefCount, setQuotationRefCount] = useState<number | null>(null);
+
+  const checkProductUsage = async (productId: string) => {
+    setDeleteCheckProductId(productId);
+    setQuotationRefCount(null);
+    try {
+      const reports = await getCostReports();
+      const count = reports.filter(r => r.items.some(i => i.productId === productId)).length;
+      setQuotationRefCount(count);
+    } catch {
+      setQuotationRefCount(null);
+    }
+  };
 
   useEffect(() => {
     const unsub = onProductsUpdate((data) => {
@@ -201,14 +222,21 @@ export default function PackSpecPage() {
                                         <DropdownMenuItem onSelect={() => handleViewSpec(product)}><Eye className="mr-2 h-4 w-4"/> View Full Spec</DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => handleProductEdit(product)}><Edit className="mr-2 h-4 w-4"/> Edit Configuration</DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <AlertDialog>
+                                        <AlertDialog onOpenChange={(open) => { if (open) checkProductUsage(product.id); }}>
                                             <AlertDialogTrigger asChild>
                                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete Product</DropdownMenuItem>
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle className="font-black uppercase tracking-tight">Purge Product?</AlertDialogTitle>
-                                                    <AlertDialogDescription>This will permanently remove the product and its specification from the global catalog.</AlertDialogDescription>
+                                                    <AlertDialogDescription>
+                                                        This will permanently remove the product and its specification from the global catalog.
+                                                        {deleteCheckProductId === product.id && quotationRefCount !== null && quotationRefCount > 0 && (
+                                                            <span className="block mt-2 font-bold text-destructive">
+                                                                Used in {quotationRefCount} saved quotation{quotationRefCount > 1 ? 's' : ''} - those will show "Custom Item" instead of this product's name if reprinted.
+                                                            </span>
+                                                        )}
+                                                    </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel className="font-bold text-xs uppercase h-10">Cancel</AlertDialogCancel>

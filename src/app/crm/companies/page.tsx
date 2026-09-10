@@ -27,10 +27,12 @@ import {
     CheckCircle2,
     Trash2,
     GitMerge,
-    ChevronDown
+    ChevronDown,
+    FileSpreadsheet
 } from 'lucide-react';
-import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp, Transaction } from '@/lib/types';
+import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp, Transaction, CostReport } from '@/lib/types';
 import { onPartiesUpdate, updateParty, deleteParty, mergeParties } from '@/services/party-service';
+import { getCostReports } from '@/services/cost-report-service';
 import { onContactsUpdate, onInteractionsUpdate, addInteraction, updateInteraction, onFollowUpsUpdate, addFollowUp } from '@/services/crm-service';
 import { getTransactionsByParty } from '@/services/transaction-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -104,6 +106,11 @@ export default function CompaniesManagementPage() {
     const [followUpForm, setFollowUpForm] = useState({ action: '', dueDateBS: '' });
 
     const [deletingCompany, setDeletingCompany] = useState<Party | null>(null);
+    // Deleting a party only removes the party doc (party-service.ts
+    // deleteParty), leaving any contacts/quotations that reference this
+    // partyId orphaned - unlike Merge, which reassigns them. Surface what
+    // would be left behind before letting the delete go through.
+    const [deleteQuotationCount, setDeleteQuotationCount] = useState<number | null>(null);
     
     const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
     const [mergeSourceId, setMergeSourceId] = useState('');
@@ -113,6 +120,10 @@ export default function CompaniesManagementPage() {
     // Financial cache per partyId
     const [partyTransactions, setPartyTransactions] = useState<Record<string, Transaction[]>>({});
     const [isLoadingFinancials, setIsLoadingFinancials] = useState(false);
+
+    // Quotation history cache per partyId
+    const [partyQuotations, setPartyQuotations] = useState<Record<string, CostReport[]>>({});
+    const [isLoadingQuotations, setIsLoadingQuotations] = useState(false);
 
     useEffect(() => {
         setIsLoading(true);
@@ -166,11 +177,30 @@ export default function CompaniesManagementPage() {
                 setIsLoadingFinancials(false);
             }
         }
+
+        // Fetch quotation history if not in cache
+        if (!partyQuotations[company.id]) {
+            setIsLoadingQuotations(true);
+            try {
+                const reports = await getCostReports();
+                setPartyQuotations(prev => ({ ...prev, [company.id]: reports.filter(r => r.partyId === company.id) }));
+            } catch (err) {
+                console.error("Quotation fetch failed", err);
+            } finally {
+                setIsLoadingQuotations(false);
+            }
+        }
     };
+
+    const companyQuotations = useMemo(() => {
+        if (!selectedCompany) return [];
+        return (partyQuotations[selectedCompany.id] || [])
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }, [selectedCompany, partyQuotations]);
 
     const financialData = useMemo(() => {
         if (!selectedCompany || !partyTransactions[selectedCompany.id]) return null;
-        
+
         const txns = partyTransactions[selectedCompany.id];
         const today = new Date();
         const todayBS = new NepaliDate(today);
@@ -482,7 +512,13 @@ export default function CompaniesManagementPage() {
                                                             <Clock className="mr-2 h-4 w-4"/> Log Activity
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem className="text-destructive" onSelect={() => setDeletingCompany(c)}>
+                                                        <DropdownMenuItem className="text-destructive" onSelect={() => {
+                                                            setDeletingCompany(c);
+                                                            setDeleteQuotationCount(null);
+                                                            getCostReports().then(reports => {
+                                                                setDeleteQuotationCount(reports.filter(r => r.partyId === c.id).length);
+                                                            }).catch(() => setDeleteQuotationCount(null));
+                                                        }}>
                                                             <Trash2 className="mr-2 h-4 w-4"/> Delete Account
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
@@ -512,6 +548,18 @@ export default function CompaniesManagementPage() {
                         <AlertDialogTitle className="uppercase tracking-tight">Delete Account?</AlertDialogTitle>
                         <AlertDialogDescription>
                             This will permanently remove <span className="font-bold text-gray-900">{deletingCompany?.name}</span> from the registry. This action cannot be undone.
+                            {(() => {
+                                const contactCount = deletingCompany ? contacts.filter(c => c.partyId === deletingCompany.id).length : 0;
+                                if (contactCount === 0 && !deleteQuotationCount) return null;
+                                return (
+                                    <span className="block mt-2 font-bold text-destructive">
+                                        {contactCount > 0 && `${contactCount} contact${contactCount > 1 ? 's' : ''}`}
+                                        {contactCount > 0 && !!deleteQuotationCount && ' and '}
+                                        {!!deleteQuotationCount && `${deleteQuotationCount} saved quotation${deleteQuotationCount > 1 ? 's' : ''}`}
+                                        {' '}will be left pointing at a deleted account instead of being removed or reassigned. Use Merge instead if you want them moved to another account first.
+                                    </span>
+                                );
+                            })()}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -753,6 +801,48 @@ export default function CompaniesManagementPage() {
                                     ) : (
                                         <div className="p-6 rounded-xl border border-dashed text-center">
                                             <p className="text-[10px] text-muted-foreground italic font-medium">No financial records.</p>
+                                        </div>
+                                    )}
+                                </section>
+
+                                <Separator />
+
+                                {/* Quotation History Section */}
+                                <section className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                            <FileSpreadsheet className="h-3.5 w-3.5 text-primary" /> Quotation History
+                                        </h4>
+                                        <Button size="sm" variant="ghost" asChild className="h-6 text-[9px] font-black uppercase tracking-widest">
+                                            <Link href={`/crm/cost-report/calculator?partyId=${selectedCompany.id}`}>
+                                                <Plus className="mr-1 h-3 w-3" /> New
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                    {isLoadingQuotations ? (
+                                        <div className="py-10 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto opacity-20"/></div>
+                                    ) : companyQuotations.length > 0 ? (
+                                        <div className="divide-y border rounded-xl bg-gray-50/50">
+                                            {companyQuotations.map(q => (
+                                                <Link
+                                                    key={q.id}
+                                                    href={`/crm/cost-report/calculator?id=${q.id}`}
+                                                    className="p-2.5 flex items-center justify-between hover:bg-gray-100/70 transition-colors"
+                                                >
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-black text-gray-900">{q.reportNumber}</span>
+                                                        <span className="text-[9px] text-muted-foreground font-medium">{format(new Date(q.createdAt), "MMM d, yyyy")}</span>
+                                                    </div>
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-[10px] font-black tabular-nums text-gray-900">Rs. {q.totalCost.toLocaleString('en-IN')}</span>
+                                                        <Badge variant="outline" className="text-[7px] h-3 px-1 w-fit uppercase font-black bg-white">{q.status || 'Draft'}</Badge>
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="p-6 rounded-xl border border-dashed text-center">
+                                            <p className="text-[10px] text-muted-foreground italic font-medium">No quotations on file for this account.</p>
                                         </div>
                                     )}
                                 </section>
