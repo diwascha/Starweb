@@ -98,7 +98,7 @@ const initialFormState = {
     gender: 'Male' as Gender,
     mobileNumber: '',
     email: '',
-    dateOfBirth: new Date().toISOString(),
+    dateOfBirth: '',
     joiningDate: new Date().toISOString(),
     identityType: 'Citizenship' as IdentityType,
     documentNumber: '',
@@ -261,7 +261,7 @@ export default function EmployeesPage() {
         gender: employee.gender || 'Male',
         mobileNumber: employee.mobileNumber || '',
         email: employee.email || '',
-        dateOfBirth: employee.dateOfBirth || new Date().toISOString(),
+        dateOfBirth: employee.dateOfBirth || '',
         joiningDate: employee.joiningDate || new Date().toISOString(),
         identityType: employee.identityType || 'Citizenship',
         documentNumber: employee.documentNumber || '',
@@ -646,9 +646,25 @@ export default function EmployeesPage() {
                                 )}
                             </div>
                         </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Joining Date (AD)</Label>
+                                <Input type="date" name="joiningDate" value={formState.joiningDate.split('T')[0]} onChange={handleFormChange} className="h-10 font-mono" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Date of Birth (Optional)</Label>
+                                <Input
+                                    type="date"
+                                    name="dateOfBirth"
+                                    value={formState.dateOfBirth ? formState.dateOfBirth.split('T')[0] : ''}
+                                    onChange={e => setFormState(p => ({...p, dateOfBirth: e.target.value ? new Date(e.target.value).toISOString() : ''}))}
+                                    className="h-10 font-mono"
+                                />
+                            </div>
+                        </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Joining Date (AD)</Label>
-                            <Input type="date" name="joiningDate" value={formState.joiningDate.split('T')[0]} onChange={handleFormChange} className="h-10 font-mono" />
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Address (Optional)</Label>
+                            <Input name="address" value={formState.address} onChange={handleFormChange} placeholder="Permanent / temporary address" className="h-10" />
                         </div>
                     </div>
 
@@ -670,7 +686,7 @@ export default function EmployeesPage() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Contact Number</Label>
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Contact Number (Optional)</Label>
                             <Input name="mobileNumber" value={formState.mobileNumber} onChange={handleFormChange} className="h-10" />
                         </div>
                     </div>

@@ -211,12 +211,30 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             const jsPDF = (await import('jspdf')).default;
             const html2canvas = (await import('html2canvas')).default;
             await new Promise(resolve => setTimeout(resolve, 50));
-            const canvas = await html2canvas(node, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('l', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            // scale 1.5 (not 2) plus JPEG instead of PNG keeps this legible at
+            // print size while cutting the embedded image from tens of MB
+            // (a lossless PNG of a full data table) down to a few MB.
+            const canvas = await html2canvas(node, { scale: 1.5 });
+            const imgData = canvas.toDataURL('image/jpeg', 0.85);
+            const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4', compress: true });
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = pageWidth;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            // A long table renders taller than one page - slice it across as
+            // many pages as needed instead of silently cropping everything
+            // past the first page (which the previous single addImage did).
+            let heightLeft = imgHeight;
+            let position = 0;
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+            heightLeft -= pageHeight;
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+                heightLeft -= pageHeight;
+            }
             pdf.save(`Payroll-${selectedBsYear}-${NEPALI_MONTHS[parseInt(selectedBsMonth)].name}.pdf`);
         } catch (error) {
             console.error('PDF export failed', error);

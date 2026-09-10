@@ -196,12 +196,12 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
         const jsPDF = (await import('jspdf')).default;
         const html2canvas = (await import('html2canvas')).default;
 
-        const canvas = await html2canvas(printableArea, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
+        const canvas = await html2canvas(printableArea, { scale: 1.5 });
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
         pdf.save(`Payslip-${employee.name}-${bsMonthName}-${bsYear}.pdf`);
     } catch (error) {
         console.error("Error generating PDF", error);

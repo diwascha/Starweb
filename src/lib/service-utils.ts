@@ -43,6 +43,23 @@ export const coerceNumber = (val: any, fallback: number = 0): number => {
   return fallback;
 };
 
+/**
+ * Firestore's setDoc/updateDoc throw synchronously on any field whose value
+ * is `undefined` (this project does not set ignoreUndefinedProperties). Form
+ * state routinely carries `undefined` for an optional field the user never
+ * touched (e.g. blood group), so writes built directly from form state must
+ * be run through this first - it drops those keys entirely rather than
+ * sending `null`, which is the correct semantic anyway: "not provided",
+ * not "clear this field".
+ */
+export const stripUndefined = <T extends Record<string, any>>(obj: T): T => {
+  const result = {} as T;
+  for (const key in obj) {
+    if (obj[key] !== undefined) result[key] = obj[key];
+  }
+  return result;
+};
+
 // Throttled logging to prevent performance degradation during errors
 const errorLog = new Map<string, number>();
 
