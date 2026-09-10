@@ -7,6 +7,7 @@ import {
     ArrowLeft, 
     Calculator, 
     History as HistoryIcon, 
+    Layers,
     Printer, 
     X, 
     Loader2,
@@ -16,6 +17,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { GsmGeneratorForm } from './_components/gsm-form';
 import { GsmReportsList } from './_components/gsm-list';
+import { BoardStrengthTester } from './_components/strength-tester';
 import { onGsmReportsUpdate } from '@/services/gsm-service';
 import type { GsmReport } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -155,6 +157,10 @@ export default function GsmCalculatorPage() {
                         <HistoryIcon className="h-3.5 w-3.5"/>
                         Archived Logs
                     </TabsTrigger>
+                    <TabsTrigger value="strength" className="gap-2 px-8 py-2 font-bold text-[10px] uppercase tracking-widest">
+                        <Layers className="h-3.5 w-3.5"/>
+                        Board Strength
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="calculator" className="animate-in fade-in slide-in-from-left-2 duration-300">
@@ -170,6 +176,10 @@ export default function GsmCalculatorPage() {
                         onPrint={handlePrint} 
                         onEdit={handleEdit}
                     />
+                </TabsContent>
+
+                <TabsContent value="strength" className="animate-in fade-in slide-in-from-right-2 duration-300">
+                    <BoardStrengthTester />
                 </TabsContent>
             </Tabs>
 

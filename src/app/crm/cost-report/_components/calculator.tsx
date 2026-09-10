@@ -49,7 +49,9 @@ import {
   Copy,
   AlertTriangle,
   Layers,
-  Boxes
+  Boxes,
+  ChevronRight,
+  ChevronsLeftRight
 } from 'lucide-react';
 import { 
   Table, 
@@ -80,6 +82,41 @@ import { BoxDesigner } from './box-designer';
 
 const ManageTermsDialog = React.lazy(() => import('./terms-dialog').then(m => ({ default: m.ManageTermsDialog })));
 
+/**
+ * Clickable header for a collapsible column group.
+ *
+ * The costing table is ~2200px wide with every group open, which is fine on
+ * a monitor and unusable anywhere else. Collapsing a group doesn't hide the
+ * data - it swaps that group's columns for a single read-only summary cell,
+ * so a row still reads end to end at a glance and only becomes editable
+ * again when the group is reopened.
+ */
+const GroupToggle = ({ label, collapsed, onToggle }: { label: string; collapsed: boolean; onToggle: () => void }) => (
+    <button
+        type="button"
+        onClick={onToggle}
+        title={collapsed ? `Expand ${label} columns` : `Collapse ${label} columns to save width`}
+        className="w-full h-full px-2 py-1.5 flex items-center justify-center gap-1 hover:bg-black/5 transition-colors"
+    >
+        <span className="truncate">{label}</span>
+        {collapsed
+            ? <ChevronRight className="h-3 w-3 shrink-0 opacity-60" />
+            : <ChevronsLeftRight className="h-3 w-3 shrink-0 opacity-60" />}
+    </button>
+);
+
+/** The GSM stack of a row as "120/100/120", outer to inner, skipping the
+ *  slots a lower ply count doesn't use. */
+const gsmSummary = (o: any): string => {
+    const ply = parseInt(o?.ply, 10) || 0;
+    const order = ply >= 9 ? ['topGsm','flute1Gsm','middleGsm','flute2Gsm','liner2Gsm','flute3Gsm','liner3Gsm','flute4Gsm','bottomGsm']
+        : ply >= 7 ? ['topGsm','flute1Gsm','middleGsm','flute2Gsm','liner2Gsm','flute3Gsm','bottomGsm']
+        : ply >= 5 ? ['topGsm','flute1Gsm','middleGsm','flute2Gsm','bottomGsm']
+        : ply >= 3 ? ['topGsm','flute1Gsm','bottomGsm']
+        : ['topGsm','bottomGsm'];
+    return order.map(f => o?.[f] || 0).join('/');
+};
+
 const CostingTableRow = React.memo(({
     item,
     index,
@@ -90,6 +127,7 @@ const CostingTableRow = React.memo(({
     onRemoveItem,
     onDuplicateItem,
     onOpenDesigner,
+    collapsedGroups,
     onTogglePrint,
     selectedForPrint,
     onOpenQuickAddProduct
@@ -175,6 +213,13 @@ const CostingTableRow = React.memo(({
                         </Popover>
                     </div>
                 </TableCell>
+                {collapsedGroups.spec ? (
+                    <TableCell className="border-x px-2 text-[10px] leading-tight text-center bg-blue-50/20">
+                        <div className="font-bold tabular-nums">{item.l || 0}&times;{item.b || 0}&times;{item.h || 0}</div>
+                        <div className="text-muted-foreground tabular-nums">{item.noOfPcs || 0} pcs &middot; {item.ply || 0} ply</div>
+                        <div className="text-muted-foreground truncate">{(item.paperType || '').charAt(0) || '-'} {normalizeBF(item.paperBf) || '-'} &middot; {item.wastagePercent || 0}%</div>
+                    </TableCell>
+                ) : (<>
                 <TableCell className="border-r p-0"><Input type="number" value={item.l ?? ''} onChange={e => onItemChange(index, 'l', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                 <TableCell className="border-r p-0"><Input type="number" value={item.b ?? ''} onChange={e => onItemChange(index, 'b', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                 <TableCell className="border-r p-0"><Input type="number" value={item.h ?? ''} onChange={e => onItemChange(index, 'h', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
@@ -202,6 +247,12 @@ const CostingTableRow = React.memo(({
                     </Select>
                 </TableCell>
                 <TableCell className="border-r p-0"><Input type="number" value={item.wastagePercent ?? ''} onChange={e => onItemChange(index, 'wastagePercent', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                </>)}
+                {collapsedGroups.gsm ? (
+                    <TableCell className="border-x px-2 text-[10px] text-center bg-orange-50/20 tabular-nums font-medium">
+                        {gsmSummary(item)}
+                    </TableCell>
+                ) : (<>
                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.topGsm ?? ''} onChange={e => onItemChange(index, 'topGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute1Gsm ?? ''} onChange={e => onItemChange(index, 'flute1Gsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                 {maxPly >= 5 && (
@@ -223,12 +274,21 @@ const CostingTableRow = React.memo(({
                     </>
                 )}
                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm ?? ''} onChange={e => onItemChange(index, 'bottomGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                </>)}
+                {collapsedGroups.calc ? (
+                    <TableCell className={cn("border-x px-2 text-[10px] leading-tight text-center", calc.rateMissing ? "bg-destructive/10 text-destructive" : "bg-primary/5")} title={calc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
+                        <div className="text-muted-foreground tabular-nums">{(calc.totalGsm || 0).toFixed(0)} gsm &middot; {(calc.paperWeight || 0).toFixed(0)} g</div>
+                        <div className="font-bold tabular-nums">Rs. {(calc.paperCost || 0).toFixed(2)}{calc.rateMissing && ' ⚠'}</div>
+                        {(calc.transportCost || 0) > 0 && <div className="text-muted-foreground tabular-nums">+ Rs. {(calc.transportCost || 0).toFixed(2)} tpt</div>}
+                    </TableCell>
+                ) : (<>
                 <TableCell className="text-center font-medium bg-muted/20 border-r">{(calc.totalGsm || 0).toFixed(0)}</TableCell>
                 <TableCell className="text-center font-medium bg-muted/20 border-r">{(calc.paperWeight || 0).toFixed(1)}</TableCell>
                 <TableCell className={cn("text-center font-bold border-r", calc.rateMissing ? "bg-destructive/10 text-destructive" : "bg-primary/5")} title={calc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
                     Rs. {(calc.paperCost || 0).toFixed(2)}{calc.rateMissing && ' ⚠'}
                 </TableCell>
                 <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {(calc.transportCost || 0).toFixed(2)}</TableCell>
+                </>)}
                 <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {totalRowCost.toFixed(2)}</TableCell>
                 <TableCell className="px-2">
                     <div className="flex items-center gap-0.5">
@@ -246,6 +306,12 @@ const CostingTableRow = React.memo(({
                         <TableCell className="border-r pr-2 pl-6">
                             <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-8 text-[10px] w-full bg-white font-semibold" placeholder="Accessory name..." />
                         </TableCell>
+                        {collapsedGroups.spec ? (
+                            <TableCell className="border-x px-2 text-[10px] leading-tight text-center text-muted-foreground">
+                                <div className="tabular-nums">{acc.l || 0}&times;{acc.b || 0}</div>
+                                <div className="tabular-nums">{acc.noOfPcs || 0} pcs &middot; {acc.ply || 0} ply</div>
+                            </TableCell>
+                        ) : (<>
                         <TableCell className="border-r p-0"><Input type="number" value={acc.l ?? ''} onChange={e => onItemChange(index, 'acc_l', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                         <TableCell className="border-r p-0"><Input type="number" value={acc.b ?? ''} onChange={e => onItemChange(index, 'acc_b', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                         <TableCell className="border-r p-0 bg-muted/20"><Input readOnly value="0" className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
@@ -269,6 +335,12 @@ const CostingTableRow = React.memo(({
                             </Select>
                         </TableCell>
                         <TableCell className="border-r p-0"><Input type="number" value={acc.wastagePercent ?? ''} onChange={e => onItemChange(index, 'acc_wastagePercent', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                        </>)}
+                        {collapsedGroups.gsm ? (
+                            <TableCell className="border-x px-2 text-[10px] text-center text-muted-foreground tabular-nums">
+                                {gsmSummary(acc)}
+                            </TableCell>
+                        ) : (<>
                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.topGsm ?? ''} onChange={e => onItemChange(index, 'acc_topGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute1Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute1Gsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                         {maxPly >= 5 && (
@@ -279,23 +351,31 @@ const CostingTableRow = React.memo(({
                         )}
                         {maxPly >= 7 && (
                             <>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner2Gsm ?? ''} onChange={e => onItemChange(index, 'liner2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => onItemChange(index, 'flute3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner2Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
                             </>
                         )}
                         {maxPly >= 9 && (
                             <>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
                             </>
                         )}
                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => onItemChange(index, 'acc_bottomGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                        </>)}
+                        {collapsedGroups.calc ? (
+                            <TableCell className={cn("border-x px-2 text-[10px] leading-tight text-center", accCalc.rateMissing && "bg-destructive/10 text-destructive")} title={accCalc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
+                                <div className="text-muted-foreground tabular-nums">{(accCalc.totalGsm || 0).toFixed(0)} gsm &middot; {(accCalc.paperWeight || 0).toFixed(0)} g</div>
+                                <div className="tabular-nums">Rs. {(accCalc.paperCost || 0).toFixed(2)}{accCalc.rateMissing && ' ⚠'}</div>
+                            </TableCell>
+                        ) : (<>
                         <TableCell className="text-center bg-muted/20 border-r">{(accCalc.totalGsm || 0).toFixed(0)}</TableCell>
                         <TableCell className="text-center bg-muted/20 border-r">{(accCalc.paperWeight || 0).toFixed(1)}</TableCell>
                         <TableCell className={cn("text-center border-r", accCalc.rateMissing && "bg-destructive/10 text-destructive")} title={accCalc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
                             Rs. {(accCalc.paperCost || 0).toFixed(2)}{accCalc.rateMissing && ' ⚠'}
                         </TableCell>
                         <TableCell className="text-center border-r"></TableCell>
+                        </>)}
                         <TableCell className="text-right pr-6"></TableCell>
                         <TableCell className="px-2">
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/70" onClick={() => onItemChange(index, 'acc_remove', aIdx)}><X className="h-3.5 w-3.5" /></Button>
@@ -326,6 +406,7 @@ const CostingItemCard = React.memo(({
     onRemoveItem,
     onDuplicateItem,
     onOpenDesigner,
+    collapsedGroups,
     onOpenQuickAddProduct
 }: any) => {
     const [isProductPopoverOpen, setIsProductPopoverOpen] = useState(false);
@@ -529,6 +610,28 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
   const [isSetupOpen, setIsSetupOpen] = useState(!reportToEdit);
   // Which row the Box Designer is open on, or null when it's closed.
   const [designerIndex, setDesignerIndex] = useState<number | null>(null);
+  // Collapsed column groups. All three start open on a fresh session; the
+  // choice is remembered per browser because it's a working preference, not
+  // quotation data - someone on a laptop keeps Costing collapsed all day.
+  // Read in an effect rather than a useState initialiser: this component is
+  // server-rendered first, and seeding state from localStorage during render
+  // makes the server and client markup disagree on hydration.
+  const [collapsedGroups, setCollapsedGroups] = useState({ spec: false, gsm: false, calc: false });
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('costing-collapsed-groups');
+      if (saved) setCollapsedGroups(prev => ({ ...prev, ...JSON.parse(saved) }));
+    } catch { /* private mode, or a corrupt value - the defaults are fine */ }
+  }, []);
+
+  const toggleGroup = useCallback((key: 'spec' | 'gsm' | 'calc') => {
+    setCollapsedGroups(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem('costing-collapsed-groups', JSON.stringify(next)); } catch { /* not worth failing an edit over */ }
+      return next;
+    });
+  }, []);
   // NPR/kg for papers outside the kraft/virgin pair (Duplex, White Top, ...).
   // Kraft is rated by BF and virgin has a single rate; anything else had no
   // home until layers could each carry their own material.
@@ -975,6 +1078,16 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
       return max;
   }, [items]);
 
+  // The table's min-width has to shrink with the groups, or collapsing one
+  // just leaves white space instead of removing the horizontal scroll.
+  const tableMinWidth = useMemo(() => {
+    const ALWAYS = 10 + 280 + 140 + 80;             // checkbox, product, total, actions
+    const spec = collapsedGroups.spec ? 170 : 870;  // L/B/H + pcs/ply/type/bf/waste
+    const gsm = collapsedGroups.gsm ? 150 : maxPly * 100;
+    const calc = collapsedGroups.calc ? 150 : 430;  // T.GSM, weight, gross, transport
+    return ALWAYS + spec + gsm + calc;
+  }, [collapsedGroups, maxPly]);
+
   const handleTogglePrint = useCallback((id: string, checked: boolean) => {
     setSelectedForPrint(prev => {
         const next = new Set(prev);
@@ -1213,6 +1326,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                             onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))}
                             onDuplicateItem={handleDuplicateItem}
                             onOpenDesigner={setDesignerIndex}
+                            collapsedGroups={collapsedGroups}
                             onOpenQuickAddProduct={(idx: number, search: string) => {
                                 setActiveRowIndexForProduct(idx);
                                 setQuickProductSearch(search);
@@ -1228,38 +1342,71 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                 {/* Desktop: Excel-style row-per-item table */}
                 <ScrollArea className="w-full hidden md:block">
                     <div className="p-4">
-                        <Table className="text-[11px] border border-collapse min-w-[2200px]">
+                        <Table className="text-[11px] border border-collapse" style={{ minWidth: `${tableMinWidth}px` }}>
                             <TableHeader className="bg-muted/80">
                                 <TableRow>
                                     <th rowSpan={2} className="w-10 px-2"></th>
                                     <th rowSpan={2} className="min-w-[280px] font-bold text-black border-r">Item Name / Product</th>
-                                    <th colSpan={3} className="text-center border-x font-bold text-black bg-blue-50/50">Size (mm)</th>
-                                    <th rowSpan={2} className="text-center min-w-[80px] border-r" title="Number of pieces">Pcs</th>
-                                    <th rowSpan={2} className="text-center min-w-[80px] border-r" title="Number of paper layers in the board (3/5/7/9-ply corrugated)">Ply</th>
-                                    <th rowSpan={2} className="text-center min-w-[150px] border-r" title="Paper type: Kraft, Virgin, or Mixed">Type (K/V/M)</th>
-                                    <th rowSpan={2} className="text-center min-w-[130px] border-r" title="Burst Factor rating of the kraft paper - looked up against the Global Rates on the left">Paper BF</th>
-                                    <th rowSpan={2} className="text-center min-w-[100px] border-r" title="Extra paper weight added on top to account for production wastage">Waste %</th>
-                                    <th colSpan={maxPly} className="text-center border-x font-bold text-black bg-orange-50/50" title="GSM (grams per square metre) of each paper layer, from outermost to innermost">GSM Composition</th>
-                                    <th rowSpan={2} className="text-center min-w-[90px] border-r bg-muted/20" title="Total GSM: outer/inner liners plus flutes (weighted 1.35x for corrugation) - drives the paper weight below">T.GSM</th>
-                                    <th rowSpan={2} className="text-center min-w-[100px] border-r bg-muted/20" title="Total paper weight for all pieces in this row, including wastage">Weight (g)</th>
-                                    <th rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Gross</th>
-                                    <th rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Transport</th>
+
+                                    {/* Specification: size through waste %. Collapsing it swaps
+                                        eight input columns for one read-only summary cell. */}
+                                    <th
+                                        rowSpan={collapsedGroups.spec ? 2 : 1}
+                                        colSpan={collapsedGroups.spec ? 1 : 8}
+                                        className={cn('text-center border-x font-bold text-black bg-blue-50/50 p-0', collapsedGroups.spec && 'min-w-[170px]')}
+                                    >
+                                        <GroupToggle label="Specification" collapsed={collapsedGroups.spec} onToggle={() => toggleGroup('spec')} />
+                                    </th>
+
+                                    {/* GSM composition: one column per layer. */}
+                                    <th
+                                        rowSpan={collapsedGroups.gsm ? 2 : 1}
+                                        colSpan={collapsedGroups.gsm ? 1 : maxPly}
+                                        className={cn('text-center border-x font-bold text-black bg-orange-50/50 p-0', collapsedGroups.gsm && 'min-w-[150px]')}
+                                    >
+                                        <GroupToggle label="GSM Composition" collapsed={collapsedGroups.gsm} onToggle={() => toggleGroup('gsm')} />
+                                    </th>
+
+                                    {/* Costing: T.GSM through transport. */}
+                                    <th
+                                        rowSpan={collapsedGroups.calc ? 2 : 1}
+                                        colSpan={collapsedGroups.calc ? 1 : 4}
+                                        className={cn('text-center border-x font-bold text-black bg-primary/5 p-0', collapsedGroups.calc && 'min-w-[150px]')}
+                                    >
+                                        <GroupToggle label="Costing" collapsed={collapsedGroups.calc} onToggle={() => toggleGroup('calc')} />
+                                    </th>
+
                                     <th rowSpan={2} className="text-right min-w-[140px] pr-6 bg-primary/10 font-bold">Total NPR</th>
                                     <th rowSpan={2} className="w-20"></th>
                                 </TableRow>
                                 <TableRow>
-                                    <th className="text-center border-l min-w-[110px] bg-blue-50/30">L</th>
-                                    <th className="text-center min-w-[110px] bg-blue-50/30">B</th>
-                                    <th className="text-center border-r min-w-[110px] bg-blue-50/30">H</th>
-                                    <th className="text-center border-l min-w-[100px] bg-orange-50/30" title="Outer liner GSM">Top</th>
-                                    <th className="text-center min-w-[100px] bg-orange-50/30" title="1st flute (corrugated medium) GSM">F1</th>
-                                    {maxPly >= 5 && <th className="text-center min-w-[100px] bg-orange-50/30" title="1st middle liner GSM (5-ply and up)">Mid1</th>}
-                                    {maxPly >= 5 && <th className="text-center min-w-[100px] bg-orange-50/30" title="2nd flute GSM (5-ply and up)">F2</th>}
-                                    {maxPly >= 7 && <th className="text-center min-w-[100px] bg-orange-50/30" title="2nd middle liner GSM (7-ply and up)">Mid2</th>}
-                                    {maxPly >= 7 && <th className="text-center min-w-[100px] bg-orange-50/30" title="3rd flute GSM (7-ply and up)">F3</th>}
-                                    {maxPly >= 9 && <th className="text-center min-w-[100px] bg-orange-50/30" title="3rd middle liner GSM (9-ply)">Mid3</th>}
-                                    {maxPly >= 9 && <th className="text-center min-w-[100px] bg-orange-50/30" title="4th flute GSM (9-ply)">F4</th>}
-                                    <th className="text-center border-r min-w-[100px] bg-orange-50/30" title="Inner liner GSM">Bot</th>
+                                    {!collapsedGroups.spec && <>
+                                        <th className="text-center border-l min-w-[110px] bg-blue-50/30">L</th>
+                                        <th className="text-center min-w-[110px] bg-blue-50/30">B</th>
+                                        <th className="text-center min-w-[110px] bg-blue-50/30">H</th>
+                                        <th className="text-center min-w-[80px] bg-blue-50/30" title="Number of pieces">Pcs</th>
+                                        <th className="text-center min-w-[80px] bg-blue-50/30" title="Number of paper layers in the board (3/5/7/9-ply corrugated)">Ply</th>
+                                        <th className="text-center min-w-[150px] bg-blue-50/30" title="Paper type: Kraft, Virgin, or Mixed">Type (K/V/M)</th>
+                                        <th className="text-center min-w-[130px] bg-blue-50/30" title="Burst Factor rating of the kraft paper - looked up against the Global Rates on the left">Paper BF</th>
+                                        <th className="text-center border-r min-w-[100px] bg-blue-50/30" title="Extra paper weight added on top to account for production wastage">Waste %</th>
+                                    </>}
+                                    {!collapsedGroups.gsm && <>
+                                        <th className="text-center border-l min-w-[100px] bg-orange-50/30" title="Outer liner GSM">Top</th>
+                                        <th className="text-center min-w-[100px] bg-orange-50/30" title="1st flute (corrugated medium) GSM">F1</th>
+                                        {maxPly >= 5 && <th className="text-center min-w-[100px] bg-orange-50/30" title="1st middle liner GSM (5-ply and up)">Mid1</th>}
+                                        {maxPly >= 5 && <th className="text-center min-w-[100px] bg-orange-50/30" title="2nd flute GSM (5-ply and up)">F2</th>}
+                                        {maxPly >= 7 && <th className="text-center min-w-[100px] bg-orange-50/30" title="2nd middle liner GSM (7-ply and up)">Mid2</th>}
+                                        {maxPly >= 7 && <th className="text-center min-w-[100px] bg-orange-50/30" title="3rd flute GSM (7-ply and up)">F3</th>}
+                                        {maxPly >= 9 && <th className="text-center min-w-[100px] bg-orange-50/30" title="3rd middle liner GSM (9-ply)">Mid3</th>}
+                                        {maxPly >= 9 && <th className="text-center min-w-[100px] bg-orange-50/30" title="4th flute GSM (9-ply)">F4</th>}
+                                        <th className="text-center border-r min-w-[100px] bg-orange-50/30" title="Inner liner GSM">Bot</th>
+                                    </>}
+                                    {!collapsedGroups.calc && <>
+                                        <th className="text-center border-l min-w-[90px] bg-muted/20" title="Total GSM: outer/inner liners plus flutes (weighted 1.35x for corrugation) - drives the paper weight below">T.GSM</th>
+                                        <th className="text-center min-w-[100px] bg-muted/20" title="Total paper weight for all pieces in this row, including wastage">Weight (g)</th>
+                                        <th className="text-center min-w-[120px] bg-primary/5 font-bold">Gross</th>
+                                        <th className="text-center border-r min-w-[120px] bg-primary/5 font-bold">Transport</th>
+                                    </>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1275,6 +1422,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                         onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))}
                                         onDuplicateItem={handleDuplicateItem}
                                         onOpenDesigner={setDesignerIndex}
+                                        collapsedGroups={collapsedGroups}
                                         onTogglePrint={handleTogglePrint}
                                         selectedForPrint={selectedForPrint}
                                         onOpenQuickAddProduct={(idx: number, search: string) => {
