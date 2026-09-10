@@ -55,9 +55,13 @@ export function SlipCopy({ label, employee, payroll, bsYear, bsMonthName, compan
   const tds = payroll?.tds ?? 0;
   const advance = payroll?.advance ?? 0;
 
-  const grossSalary = payroll?.salaryTotal ?? (basic + allowance + ot + bonus - tds);
+  // salaryTotal/netPayment/roundedNet are 0 on historical rows that were
+  // never fully computed (0 is never a legitimate real value for a worked
+  // month), so `||` deliberately falls through to the derived formula
+  // instead of trusting a stored zero the way `??` would.
+  const grossSalary = payroll?.salaryTotal || (basic + allowance + ot + bonus - tds);
   const totalDeductions = tds + advance;
-  const netSalary = payroll?.roundedNet ?? roundNetToFive(payroll?.netPayment ?? (grossSalary - advance));
+  const netSalary = payroll?.roundedNet || roundNetToFive(payroll?.netPayment || (grossSalary - advance));
 
   const monthDays = (payroll?.presentDays ?? 0) + (payroll?.extraDays ?? 0) + (payroll?.leaveDays ?? 0);
 
@@ -97,51 +101,47 @@ export function SlipCopy({ label, employee, payroll, bsYear, bsMonthName, compan
         </div>
       </div>
 
-      <div className="grid grid-cols-2 border-2 border-black">
-        <div className="border-r border-black">
+      <div className="grid grid-cols-2 border-2 border-black items-stretch">
+        <div className="border-r border-black flex flex-col">
           <div className="text-center font-bold border-b border-black py-0.5">Earning</div>
           <div className="grid grid-cols-2 font-bold text-center border-b border-black">
             <div className="border-r border-black py-0.5">Head</div>
             <div className="py-0.5">Rs.</div>
           </div>
-          {[
-            ['Basic', basic],
-            ['Allowance', allowance],
-            ['OT', ot],
-            ['Bonus', bonus],
-          ].map(([lbl, amt]) => (
-            <div key={lbl as string} className="grid grid-cols-2 border-b border-dotted border-gray-400">
-              <div className="border-r border-black px-1">{lbl}</div>
-              <div className="text-right px-1">{fmt(amt as number)}</div>
-            </div>
-          ))}
-          <div className="grid grid-cols-2 h-[17px]">
-            <div className="border-r border-black"></div>
-            <div></div>
+          <div className="flex-1">
+            {[
+              ['Basic', basic],
+              ['Allowance', allowance],
+              ['OT', ot],
+              ['Bonus', bonus],
+            ].map(([lbl, amt]) => (
+              <div key={lbl as string} className="grid grid-cols-2 border-b border-dotted border-gray-400">
+                <div className="border-r border-black px-1">{lbl}</div>
+                <div className="text-right px-1">{fmt(amt as number)}</div>
+              </div>
+            ))}
           </div>
           <div className="grid grid-cols-2 font-bold border-t border-b border-black bg-gray-100">
             <div className="border-r border-black px-1">Gross Salary</div>
             <div className="text-right px-1">{fmt(grossSalary)}</div>
           </div>
         </div>
-        <div>
+        <div className="flex flex-col">
           <div className="text-center font-bold border-b border-black py-0.5">Deduction</div>
           <div className="grid grid-cols-2 font-bold text-center border-b border-black">
             <div className="border-r border-black py-0.5">Head</div>
             <div className="py-0.5">Rs.</div>
           </div>
-          {[
-            ['Professional Tax / TDS', tds],
-            ['Advance', advance],
-          ].map(([lbl, amt]) => (
-            <div key={lbl as string} className="grid grid-cols-2 border-b border-dotted border-gray-400">
-              <div className="border-r border-black px-1">{lbl}</div>
-              <div className="text-right px-1">{fmt(amt as number)}</div>
-            </div>
-          ))}
-          <div className="grid grid-cols-2 h-[34px]">
-            <div className="border-r border-black"></div>
-            <div></div>
+          <div className="flex-1">
+            {[
+              ['Professional Tax / TDS', tds],
+              ['Advance', advance],
+            ].map(([lbl, amt]) => (
+              <div key={lbl as string} className="grid grid-cols-2 border-b border-dotted border-gray-400">
+                <div className="border-r border-black px-1">{lbl}</div>
+                <div className="text-right px-1">{fmt(amt as number)}</div>
+              </div>
+            ))}
           </div>
           <div className="grid grid-cols-2 font-bold border-t border-b border-black bg-gray-100">
             <div className="border-r border-black px-1">Deductions</div>

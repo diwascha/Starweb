@@ -284,6 +284,7 @@ export interface RawMachineLog {
     rawPayload: Record<string, any>;
     rowIndex?: number; // Preserves Excel row order
     isManual?: boolean;
+    otApproved?: boolean; // Manual "OT Ok" override - pays for time worked outside the assigned shift window, same effect as an imported "EXTRAOK" status
 }
 
 export interface AttendanceRecord {

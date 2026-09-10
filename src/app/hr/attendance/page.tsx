@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { AttendanceRecord, Employee, AttendanceStatus, PublicHoliday, LeaveRequest, HrShift } from '@/lib/types';
+import type { AttendanceRecord, Employee, AttendanceStatus, PublicHoliday, LeaveRequest, HrShift, RawMachineLog } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -39,13 +39,14 @@ import {
     deleteAttendanceForMonth,
     deleteAttendanceAndPayrollForFiscalYear,
     getAttendanceForMonth,
-    getAttendanceYears,
     onAttendanceUpdate,
     deleteAllAttendance,
     runHourlyCalculation,
     onAttendancePeriodLocksUpdate,
     setAttendancePeriodLock,
     bulkClockInOut,
+    onRawLogsUpdate,
+    updateRawLog,
     type AttendancePeriodLock
 } from '@/services/attendance-service';
 import { onHolidaysUpdate, onLeaveRequestsUpdate, onShiftsUpdate } from '@/services/hr-admin-service';
@@ -106,7 +107,6 @@ export default function AttendanceRegistryPage() {
   const [filterEmployeeName, setFilterEmployeeName] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<string>('All');
   
-  const [bsYears, setBsYears] = useState<number[]>([]);
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(
     String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()))
   );
@@ -120,13 +120,14 @@ export default function AttendanceRegistryPage() {
 
   const [isCalcDialogOpen, setIsCalcDialogOpen] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
-  const [calcYear, setCalcYear] = useState<string>(String(new NepaliDate().getYear()));
-  const [calcMonth, setCalcMonth] = useState<string>(String(new NepaliDate().getMonth()));
+  const [calcStep, setCalcStep] = useState<'confirm' | 'result'>('confirm');
+  const [calcResult, setCalcResult] = useState<{ processed: number } | null>(null);
 
   const [periodLocks, setPeriodLocks] = useState<AttendancePeriodLock[]>([]);
   const [isTogglingLock, setIsTogglingLock] = useState(false);
 
   const [shifts, setShifts] = useState<HrShift[]>([]);
+  const [rawLogs, setRawLogs] = useState<RawMachineLog[]>([]);
 
   // Shift Reschedule dialog
   const [isShiftAssignOpen, setIsShiftAssignOpen] = useState(false);
@@ -157,6 +158,7 @@ export default function AttendanceRegistryPage() {
     const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
     const unsubLocks = onAttendancePeriodLocksUpdate(setPeriodLocks);
     const unsubShifts = onShiftsUpdate(setShifts);
+    const unsubRawLogs = onRawLogsUpdate(setRawLogs);
     const unsubAttendance = onAttendanceUpdate((data) => {
         setAttendance(data);
         setIsDataLoading(false);
@@ -166,13 +168,10 @@ export default function AttendanceRegistryPage() {
         unsubHolidays();
         unsubLeaves();
         unsubShifts();
+        unsubRawLogs();
         unsubAttendance();
     };
   }, []);
-
-  useEffect(() => {
-    getAttendanceYears().then(setBsYears);
-  }, [attendance]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -286,6 +285,23 @@ export default function AttendanceRegistryPage() {
 
   const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
   const shiftMap = useMemo(() => new Map(shifts.map(s => [s.id, s])), [shifts]);
+  const rawLogMap = useMemo(() => new Map(rawLogs.map(l => [l.id, l])), [rawLogs]);
+
+  const handleToggleOtOk = async (record: AttendanceRecord, approved: boolean) => {
+    if (!record.sourceLogId) {
+        toast({ title: 'Cannot Update', description: 'This record has no linked raw log (it predates this feature).', variant: 'destructive' });
+        return;
+    }
+    try {
+        await updateRawLog(record.sourceLogId, { otApproved: approved });
+        toast({
+            title: approved ? 'OT Approved' : 'OT Ok Removed',
+            description: 'Run Calculation for this month to apply the pay change.',
+        });
+    } catch {
+        toast({ title: 'Error', description: 'Could not update the OT approval.', variant: 'destructive' });
+    }
+  };
 
   const activeEmployeesForBulkClock = useMemo(() => {
     return [...employees].filter(e => e.status === 'Working').sort((a, b) => a.name.localeCompare(b.name));
@@ -402,24 +418,32 @@ export default function AttendanceRegistryPage() {
     setSearchQuery('');
   };
 
-  const isCalcTargetLocked = useMemo(() => {
-    return periodLocks.some(l => l.locked && l.bsYear === parseInt(calcYear) && l.bsMonth === parseInt(calcMonth));
-  }, [periodLocks, calcYear, calcMonth]);
+  // The calculation always targets the month currently selected in the page
+  // filters - never a month picked independently inside the dialog - so
+  // recalculating can't silently hit a different period than the one being
+  // viewed (and its lock).
+  const calcTargetMonth = useMemo(() => {
+    if (selectedFyMonthIndex === 'All') return null;
+    return getFiscalYearMonths(fyStart)[parseInt(selectedFyMonthIndex)];
+  }, [selectedFyMonthIndex, fyStart]);
 
   const currentViewLock = useMemo(() => {
-    if (selectedFyMonthIndex === 'All') return undefined;
-    const target = getFiscalYearMonths(fyStart)[parseInt(selectedFyMonthIndex)];
-    return periodLocks.find(l => l.bsYear === target.bsYear && l.bsMonth === target.bsMonth);
-  }, [periodLocks, selectedFyMonthIndex, fyStart]);
+    if (!calcTargetMonth) return undefined;
+    return periodLocks.find(l => l.bsYear === calcTargetMonth.bsYear && l.bsMonth === calcTargetMonth.bsMonth);
+  }, [periodLocks, calcTargetMonth]);
   const isCurrentViewLocked = Boolean(currentViewLock?.locked);
+  const isCalcTargetLocked = isCurrentViewLocked;
 
   const handleRunCalculation = async () => {
-    if (!user || isCalcTargetLocked) return;
+    if (!user || isCalcTargetLocked || !calcTargetMonth) return;
     setIsCalculating(true);
     try {
-        const { processed } = await runHourlyCalculation(parseInt(calcYear), parseInt(calcMonth), user.username);
-        toast({ title: 'Calculation Successful', description: `Processed ${processed} attendance records for the selected period.` });
-        setIsCalcDialogOpen(false);
+        const { processed } = await runHourlyCalculation(calcTargetMonth.bsYear, calcTargetMonth.bsMonth, user.username);
+        // Re-lock immediately so the just-calculated period can't be
+        // recalculated again without another deliberate unlock.
+        await setAttendancePeriodLock(calcTargetMonth.bsYear, calcTargetMonth.bsMonth, true, user.username);
+        setCalcResult({ processed });
+        setCalcStep('result');
     } catch (error: any) {
         toast({ title: 'Calculation Failed', description: error.message, variant: 'destructive' });
     } finally {
@@ -490,27 +514,24 @@ export default function AttendanceRegistryPage() {
                         ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
-                {selectedFyMonthIndex !== 'All' && (
-                    <Button
-                        variant="outline"
-                        onClick={handleToggleLock}
-                        disabled={isTogglingLock}
-                        className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
-                    >
-                        {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : isCurrentViewLocked ? <Lock className="mr-2 h-3.5 w-3.5 text-amber-600" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
-                        {isCurrentViewLocked ? 'Unlock Period' : 'Lock Period'}
-                    </Button>
-                )}
+                <Button
+                    variant="outline"
+                    onClick={handleToggleLock}
+                    disabled={isTogglingLock || selectedFyMonthIndex === 'All'}
+                    title={selectedFyMonthIndex === 'All' ? 'Select a specific month to lock/unlock it.' : undefined}
+                    className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
+                >
+                    {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : isCurrentViewLocked ? <Lock className="mr-2 h-3.5 w-3.5 text-amber-600" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
+                    {isCurrentViewLocked ? 'Unlock Period' : 'Lock Period'}
+                </Button>
                 <Button
                     onClick={() => {
-                        if (selectedFyMonthIndex !== 'All') {
-                            const target = getFiscalYearMonths(parseInt(selectedFiscalYear))[parseInt(selectedFyMonthIndex)];
-                            setCalcYear(String(target.bsYear));
-                            setCalcMonth(String(target.bsMonth));
-                        } else {
-                            setCalcYear(String(new NepaliDate().getYear()));
-                            setCalcMonth(String(new NepaliDate().getMonth()));
+                        if (selectedFyMonthIndex === 'All') {
+                            toast({ title: 'Select a Month', description: 'Pick a specific fiscal month above before running the calculation.', variant: 'destructive' });
+                            return;
                         }
+                        setCalcStep('confirm');
+                        setCalcResult(null);
                         setIsCalcDialogOpen(true);
                     }}
                     className="h-10 uppercase text-[10px] font-black tracking-widest shadow-lg shadow-primary/20"
@@ -696,7 +717,31 @@ export default function AttendanceRegistryPage() {
                                     {isColVisible('clockOut') && <TableCell className="text-center font-medium text-blue-800">{formatTimeForDisplay(r.clockOut)}</TableCell>}
                                     {isColVisible('absent') && (
                                         <TableCell className="text-center">
-                                            {r.absent ? <Badge variant="destructive" className="text-[9px] font-black uppercase h-5">Yes</Badge> : <span className="text-[10px] text-muted-foreground">No</span>}
+                                            <div className="flex flex-col items-center gap-1">
+                                                {r.absent ? <Badge variant="destructive" className="text-[9px] font-black uppercase h-5">Yes</Badge> : <span className="text-[10px] text-muted-foreground">No</span>}
+                                                {(() => {
+                                                    const rawLog = r.sourceLogId ? rawLogMap.get(r.sourceLogId) : undefined;
+                                                    const otOk = Boolean(rawLog?.otApproved);
+                                                    return (
+                                                        <Select
+                                                            value={otOk ? 'yes' : 'no'}
+                                                            onValueChange={(v) => handleToggleOtOk(r, v === 'yes')}
+                                                            disabled={!r.sourceLogId}
+                                                        >
+                                                            <SelectTrigger
+                                                                className={cn("h-5 w-[74px] text-[8px] font-black uppercase tracking-wide px-1.5", otOk ? "border-emerald-300 text-emerald-700 bg-emerald-50" : "text-muted-foreground")}
+                                                                title="OT Ok: pays for time worked outside the assigned shift window"
+                                                            >
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="no" className="text-[10px] font-bold uppercase">OT Ok: No</SelectItem>
+                                                                <SelectItem value="yes" className="text-[10px] font-bold uppercase">OT Ok: Yes</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    );
+                                                })()}
+                                            </div>
                                         </TableCell>
                                     )}
                                     {isColVisible('gTime') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.gTime != null ? r.gTime.toFixed(2) : '—'}</TableCell>}
@@ -809,43 +854,58 @@ export default function AttendanceRegistryPage() {
         {/* Run Calculation Dialog */}
         <Dialog open={isCalcDialogOpen} onOpenChange={setIsCalcDialogOpen}>
             <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-black text-gray-900">Run Attendance Processor</DialogTitle>
-                    <DialogDescription>Apply HR Operational Rules to raw machine logs to generate work-hour records.</DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-2 gap-4 py-2">
-                    <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Year (BS)</Label>
-                        <Select value={calcYear} onValueChange={setCalcYear}>
-                            <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                            <SelectContent>{bsYears.map(y => <SelectItem key={`calc-yr-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Month (BS)</Label>
-                        <Select value={calcMonth} onValueChange={setCalcMonth}>
-                            <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                            <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`calc-mo-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                {isCalcTargetLocked ? (
-                    <div className="p-3 rounded-lg bg-amber-50 border-2 border-amber-200 flex gap-3">
-                        <Lock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                        <p className="text-[10px] text-amber-800 leading-relaxed font-medium italic">This period is locked. Unlock it from the Attendance Logs header before re-running the calculation.</p>
-                    </div>
+                {calcStep === 'confirm' ? (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle className="text-xl font-black text-gray-900">Run Attendance Processor</DialogTitle>
+                            <DialogDescription>
+                                You are about to recalculate <span className="font-bold text-foreground">{calcTargetMonth ? `${fiscalMonthName(parseInt(selectedFyMonthIndex))}, ${calcTargetMonth.bsYear}` : 'the selected month'}</span> — the month currently shown on this page. No other month is affected.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-2 py-2">
+                            <p className="text-[10px] font-black uppercase text-muted-foreground">This will:</p>
+                            <ul className="text-[11px] text-gray-700 space-y-1.5 list-disc pl-4">
+                                <li>Delete and regenerate every processed attendance record for this month from the raw machine logs.</li>
+                                <li>Apply each employee's assigned shift, break window, and the HR Operational Rules configured under HR Setting.</li>
+                                <li>Overwrite any manual tweaks made to this month's attendance records.</li>
+                                <li>Re-lock this period automatically once finished, so it can't be run again by accident.</li>
+                            </ul>
+                        </div>
+                        {isCalcTargetLocked && (
+                            <div className="p-3 rounded-lg bg-amber-50 border-2 border-amber-200 flex gap-3">
+                                <Lock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                                <p className="text-[10px] text-amber-800 leading-relaxed font-medium italic">This period is locked. Unlock it from the Attendance Logs header before re-running the calculation.</p>
+                            </div>
+                        )}
+                        <DialogFooter>
+                            <Button onClick={handleRunCalculation} disabled={isCalculating || isCalcTargetLocked} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                                {isCalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Calculator className="mr-2 h-4 w-4"/>}
+                                {isCalculating ? 'Processing...' : isCalcTargetLocked ? 'Period Locked' : 'I Understand, Recalculate This Month'}
+                            </Button>
+                        </DialogFooter>
+                    </>
                 ) : (
-                    <div className="p-3 rounded-lg bg-blue-50 border-2 border-blue-100 flex gap-3">
-                        <AlertCircle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
-                        <p className="text-[10px] text-blue-800 leading-relaxed font-medium italic">Running this will overwrite any existing processed records for the selected period. Configure shift/break/rounding rules under HR Setting first.</p>
-                    </div>
+                    <>
+                        <DialogHeader>
+                            <DialogTitle className="text-xl font-black text-gray-900">Calculation Complete</DialogTitle>
+                            <DialogDescription>
+                                {calcTargetMonth ? `${fiscalMonthName(parseInt(selectedFyMonthIndex))}, ${calcTargetMonth.bsYear}` : 'This period'} has been recalculated.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="p-4 rounded-lg bg-emerald-50 border-2 border-emerald-200 flex gap-3">
+                            <UserCheck className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <p className="text-sm font-black text-emerald-900">{calcResult?.processed ?? 0} attendance record(s) processed.</p>
+                                <p className="text-[10px] text-emerald-800 font-medium italic">The period has been re-locked to protect this result. Unlock it from the header if you need to run it again.</p>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={() => setIsCalcDialogOpen(false)} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                                Done
+                            </Button>
+                        </DialogFooter>
+                    </>
                 )}
-                <DialogFooter>
-                    <Button onClick={handleRunCalculation} disabled={isCalculating || isCalcTargetLocked} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
-                        {isCalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Calculator className="mr-2 h-4 w-4"/>}
-                        {isCalculating ? 'Processing...' : isCalcTargetLocked ? 'Period Locked' : 'Run Attendance Processor'}
-                    </Button>
-                </DialogFooter>
             </DialogContent>
         </Dialog>
 

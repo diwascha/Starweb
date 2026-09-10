@@ -183,7 +183,7 @@ export default function EmployeesPage() {
         return sortConfig.direction === 'asc' ? (aVal < bVal ? -1 : 1) : (aVal > bVal ? -1 : 1);
     });
     return filtered;
-  }, [employees, sortConfig, searchQuery]);
+  }, [employees, sortConfig, searchQuery, filterStatus, filterWageBasis]);
 
   const paginatedEmployees = useMemo(() => {
     if (itemsPerPage === -1) return filteredAndSortedEmployees;

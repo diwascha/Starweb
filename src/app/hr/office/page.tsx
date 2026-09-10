@@ -105,12 +105,13 @@ export default function HrOfficePage() {
     const [holidayForm, setHolidayForm] = useState({ name: '', date: new Date().toISOString(), isRecurring: true });
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
-    const [leaveForm, setLeaveForm] = useState({ 
-        employeeId: '', 
-        leaveType: 'Paid' as any, 
-        startDate: new Date().toISOString(), 
-        endDate: new Date().toISOString(), 
-        reason: '' 
+    const [editingLeave, setEditingLeave] = useState<LeaveRequest | null>(null);
+    const [leaveForm, setLeaveForm] = useState({
+        employeeId: '',
+        leaveType: 'Paid' as any,
+        startDate: new Date().toISOString(),
+        endDate: new Date().toISOString(),
+        reason: ''
     });
 
     useEffect(() => {
@@ -188,12 +189,36 @@ export default function HrOfficePage() {
         if (!employee) return;
         const totalDays = differenceInDays(new Date(leaveForm.endDate), new Date(leaveForm.startDate)) + 1;
         try {
-            await saveLeaveRequest({ ...leaveForm, employeeName: employee.name, totalDays, status: 'Pending', createdBy: user.username, createdAt: createTimestamp() } as any);
-            toast({ title: 'Leave Request Logged' });
+            if (editingLeave) {
+                // Editing keeps the original approval status and audit trail -
+                // fixing a typo in the reason or adjusting dates shouldn't
+                // silently reset an already-approved/rejected request back to Pending.
+                await saveLeaveRequest({
+                    ...leaveForm, employeeName: employee.name, totalDays,
+                    status: editingLeave.status, createdBy: editingLeave.createdBy, createdAt: editingLeave.createdAt,
+                } as any, editingLeave.id);
+                toast({ title: 'Leave Request Updated' });
+            } else {
+                await saveLeaveRequest({ ...leaveForm, employeeName: employee.name, totalDays, status: 'Pending', createdBy: user.username, createdAt: createTimestamp() } as any);
+                toast({ title: 'Leave Request Logged' });
+            }
             setIsLeaveDialogOpen(false);
+            setEditingLeave(null);
         } catch {
             toast({ title: 'Error', variant: 'destructive' });
         }
+    };
+
+    const openEditLeaveDialog = (request: LeaveRequest) => {
+        setEditingLeave(request);
+        setLeaveForm({
+            employeeId: request.employeeId,
+            leaveType: request.leaveType,
+            startDate: request.startDate,
+            endDate: request.endDate,
+            reason: request.reason,
+        });
+        setIsLeaveDialogOpen(true);
     };
 
     const handleUpdateLeaveStatus = async (request: LeaveRequest, status: 'Approved' | 'Rejected') => {
@@ -251,19 +276,20 @@ export default function HrOfficePage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             <Table className="text-xs">
-                                <TableHeader className="bg-muted/30"><TableRow className="hover:bg-transparent"><TableHead className="pl-6 font-bold">Pattern Name</TableHead><TableHead className="font-bold text-center">Schedule (Duty Hours)</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
+                                <TableHeader className="bg-muted/30"><TableRow className="hover:bg-transparent"><TableHead className="pl-6 font-bold">Pattern Name</TableHead><TableHead className="font-bold text-center">Schedule (Duty Hours)</TableHead><TableHead className="font-bold text-center">Break Window</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {shifts.map(s => (
                                         <TableRow key={s.id} className="h-12 hover:bg-muted/10">
                                             <TableCell className="pl-6 font-black text-gray-900 uppercase tracking-tighter">{s.name} {s.isDefault && <Badge variant="secondary" className="ml-2 text-[8px] uppercase">Master Default</Badge>}</TableCell>
                                             <TableCell className="font-mono text-gray-600 text-center">{s.onDuty} — {s.offDuty}</TableCell>
+                                            <TableCell className="font-mono text-gray-600 text-center">{s.breakStart || '—'} — {s.breakEnd || '—'}</TableCell>
                                             <TableCell className="text-right pr-6 space-x-1">
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => { setEditingShift(s); setShiftForm({ name: s.name, onDuty: s.onDuty, offDuty: s.offDuty, breakStart: s.breakStart || '12:00', breakEnd: s.breakEnd || '13:00', isDefault: s.isDefault }); setIsShiftDialogOpen(true); }}><Edit className="h-3.5 w-3.5"/></Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteShift(s.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {shifts.length === 0 && <TableRow><TableCell colSpan={3} className="h-32 text-center text-muted-foreground italic">No shift patterns registered.</TableCell></TableRow>}
+                                    {shifts.length === 0 && <TableRow><TableCell colSpan={4} className="h-32 text-center text-muted-foreground italic">No shift patterns registered.</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
                         </CardContent>
@@ -403,7 +429,7 @@ export default function HrOfficePage() {
                                 <CardTitle className="text-sm font-black uppercase text-gray-900">Leave Administration</CardTitle>
                                 <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Review, approve, or reject employee leave requests.</CardDescription>
                             </div>
-                            <Button size="sm" onClick={() => { setLeaveForm({ employeeId: '', leaveType: 'Paid', startDate: new Date().toISOString(), endDate: new Date().toISOString(), reason: '' }); setIsLeaveDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-blue-600 hover:bg-blue-700 text-white border-none shadow-sm">
+                            <Button size="sm" onClick={() => { setEditingLeave(null); setLeaveForm({ employeeId: '', leaveType: 'Paid', startDate: new Date().toISOString(), endDate: new Date().toISOString(), reason: '' }); setIsLeaveDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-blue-600 hover:bg-blue-700 text-white border-none shadow-sm">
                                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Submit Request
                             </Button>
                         </CardHeader>
@@ -442,6 +468,7 @@ export default function HrOfficePage() {
                                                         <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-100 hover:bg-red-50" onClick={() => handleUpdateLeaveStatus(r, 'Rejected')}><X className="h-4 w-4"/></Button>
                                                     </div>
                                                 )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => openEditLeaveDialog(r)}><Edit className="h-3.5 w-3.5"/></Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteLeaveRequest(r.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
                                             </TableCell>
                                         </TableRow>
@@ -462,6 +489,10 @@ export default function HrOfficePage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">On Duty (In)</Label><Input type="time" value={shiftForm.onDuty} onChange={e => setShiftForm({...shiftForm, onDuty: e.target.value})} className="h-10" /></div>
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Off Duty (Out)</Label><Input type="time" value={shiftForm.offDuty} onChange={e => setShiftForm({...shiftForm, offDuty: e.target.value})} className="h-10" /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-muted/30 border border-dashed">
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Break Start</Label><Input type="time" value={shiftForm.breakStart} onChange={e => setShiftForm({...shiftForm, breakStart: e.target.value})} className="h-10 bg-white" /></div>
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Break End</Label><Input type="time" value={shiftForm.breakEnd} onChange={e => setShiftForm({...shiftForm, breakEnd: e.target.value})} className="h-10 bg-white" /></div>
                         </div>
                         <div className="flex items-center space-x-2 pt-2"><Checkbox id="sh-def" checked={shiftForm.isDefault} onCheckedChange={(v) => setShiftForm({...shiftForm, isDefault: !!v})} /><Label htmlFor="sh-def" className="text-xs font-bold uppercase cursor-pointer">Make system default</Label></div>
                     </div>
@@ -484,9 +515,9 @@ export default function HrOfficePage() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
+            <Dialog open={isLeaveDialogOpen} onOpenChange={(open) => { setIsLeaveDialogOpen(open); if (!open) setEditingLeave(null); }}>
                 <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">Record Authorized Leave</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">{editingLeave ? 'Edit Leave Request' : 'Record Authorized Leave'}</DialogTitle></DialogHeader>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-4">
                         <div className="space-y-1.5 md:col-span-2">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">Target Employee</Label>
@@ -517,7 +548,7 @@ export default function HrOfficePage() {
                             <PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={new Date(leaveForm.endDate)} onSelect={d => setLeaveForm({...leaveForm, endDate: d?.toISOString() || ''})} /></PopoverContent></Popover>
                         </div>
                     </div>
-                    <DialogFooter><Button onClick={handleSaveLeaveRequest} className="w-full h-11 font-black text-xs uppercase shadow-lg shadow-blue-500/20">Commit Request</Button></DialogFooter>
+                    <DialogFooter><Button onClick={handleSaveLeaveRequest} className="w-full h-11 font-black text-xs uppercase shadow-lg shadow-blue-500/20">{editingLeave ? 'Save Changes' : 'Commit Request'}</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

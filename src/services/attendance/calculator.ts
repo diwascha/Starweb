@@ -148,7 +148,11 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
 
                 const effIn = sOn + latePen; const effOut = sOff - earlyPen;
                 let paid = effOut > effIn ? applyFixedBreak(effIn, effOut, breakStartMins, breakEndMins) : 0;
-                let extra = log.statusFromMachine.toUpperCase().includes('EXTRAOK') ? (Math.floor((Math.max(0, sOn-aIn)+5)/30)*0.5 + Math.floor((Math.max(0, aOut-sOff)+5)/30)*0.5) : 0;
+                // "OT Ok" - a manual otApproved flag (set from the Attendance
+                // Logs UI) has the same effect as an imported EXTRAOK status:
+                // pay for time worked outside the assigned shift window.
+                const otOk = log.otApproved || log.statusFromMachine.toUpperCase().includes('EXTRAOK');
+                let extra = otOk ? (Math.floor((Math.max(0, sOn-aIn)+5)/30)*0.5 + Math.floor((Math.max(0, aOut-sOff)+5)/30)*0.5) : 0;
                 const gross = roundToNearest(paid + extra, config.hours.roundStep);
                 reg = Math.min(gross, config.hours.baseDayHours); ot = Math.max(0, gross - config.hours.baseDayHours);
                 finalStatus = 'Present';

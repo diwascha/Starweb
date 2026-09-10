@@ -15,6 +15,7 @@ import {
     orderBy
 } from 'firebase/firestore';
 import type { AttendanceRecord, RawMachineLog } from '@/lib/types';
+import { format } from 'date-fns';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -54,14 +55,26 @@ export const fromFirestoreLog = (snapshot: QueryDocumentSnapshot<DocumentData>):
         rawPayload: (data.rawPayload || {}) as Record<string, any>,
         rowIndex: data.rowIndex !== undefined ? Number(data.rowIndex) : undefined,
         isManual: !!data.isManual,
+        otApproved: data.otApproved !== undefined ? Boolean(data.otApproved) : undefined,
     };
 };
 
 export const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData>): AttendanceRecord => {
     const data = snapshot.data();
+    const date = String(data.date || '');
+    // weekday/absent/gTime/breakHours/gHours are written by runHourlyCalculation
+    // but were never read back here, so they always looked blank in the UI
+    // regardless of what got calculated. Weekday additionally falls back to
+    // deriving it from the AD date for older records saved before this field
+    // existed at all (e.g. legacy ledger imports).
+    let weekday = data.weekday ? String(data.weekday) : '';
+    if (!weekday && date) {
+        const parsed = new Date(date);
+        if (!isNaN(parsed.getTime())) weekday = format(parsed, 'EEEE');
+    }
     return {
         id: snapshot.id,
-        date: String(data.date || ''),
+        date,
         dateBS: String(data.dateBS || data.bsDate || ''),
         bsYear: Number(data.bsYear) || 0,
         bsMonth: Number(data.bsMonth) || 0,
@@ -80,6 +93,11 @@ export const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData
         calculatedBy: String(data.calculatedBy || ''),
         sourceLogId: data.sourceLogId ? String(data.sourceLogId) : undefined,
         rowIndex: data.rowIndex !== undefined ? Number(data.rowIndex) : undefined,
+        weekday: weekday || undefined,
+        absent: data.absent !== undefined ? Boolean(data.absent) : undefined,
+        gTime: data.gTime !== undefined && data.gTime !== null ? Number(data.gTime) : null,
+        breakHours: data.breakHours !== undefined && data.breakHours !== null ? Number(data.breakHours) : null,
+        gHours: data.gHours !== undefined && data.gHours !== null ? Number(data.gHours) : null,
     };
 };
 
