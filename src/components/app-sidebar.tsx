@@ -51,7 +51,6 @@ import {
   ShieldAlert,
   Server,
   Scale,
-  Bell,
   Target
 } from 'lucide-react';
 import Link from 'next/link';
@@ -333,16 +332,10 @@ export function AppSidebar() {
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm', true)}><Link href="/crm" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/companies')}><Link href="/crm/companies" className="flex items-center gap-2"><Building2 className="h-4 w-4" /><span>Companies</span></Link></SidebarMenuSubButton>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/companies')}><Link href="/crm/companies" className="flex items-center gap-2"><Building2 className="h-4 w-4" /><span>Companies &amp; Contacts</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/contacts')}><Link href="/crm/contacts" className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Contacts</span></Link></SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                                <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/deals')}><Link href="/crm/deals" className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /><span>Deals Pipeline</span></Link></SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                                <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/followups')}><Link href="/crm/followups" className="flex items-center gap-2"><Bell className="h-4 w-4" /><span>Follow-ups</span></Link></SidebarMenuSubButton>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/deals')}><Link href="/crm/deals" className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /><span>Client Activity</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report" className="flex items-center gap-2"><Receipt className="h-4 w-4" /><span>Quotation Engine</span></Link></SidebarMenuSubButton>

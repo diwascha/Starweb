@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { 
@@ -28,12 +28,17 @@ import {
     Trash2,
     GitMerge,
     ChevronDown,
-    FileSpreadsheet
+    FileSpreadsheet,
+    Mail,
+    Phone,
+    UserPlus,
+    Download,
+    Upload
 } from 'lucide-react';
 import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp, Transaction, CostReport } from '@/lib/types';
-import { onPartiesUpdate, updateParty, deleteParty, mergeParties } from '@/services/party-service';
+import { onPartiesUpdate, updateParty, deleteParty, mergeParties, addParty } from '@/services/party-service';
 import { getCostReports } from '@/services/cost-report-service';
-import { onContactsUpdate, onInteractionsUpdate, addInteraction, updateInteraction, onFollowUpsUpdate, addFollowUp } from '@/services/crm-service';
+import { onContactsUpdate, onInteractionsUpdate, addInteraction, updateInteraction, onFollowUpsUpdate, addFollowUp, addContact, updateContact, deleteContact } from '@/services/crm-service';
 import { getTransactionsByParty } from '@/services/transaction-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,6 +58,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { 
     DropdownMenu, 
@@ -111,7 +117,16 @@ export default function CompaniesManagementPage() {
     // partyId orphaned - unlike Merge, which reassigns them. Surface what
     // would be left behind before letting the delete go through.
     const [deleteQuotationCount, setDeleteQuotationCount] = useState<number | null>(null);
-    
+
+    // Contact CRUD (folded in from the old standalone /crm/contacts page -
+    // a company's contacts are now managed directly on its own record).
+    const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+    const [editingContact, setEditingContact] = useState<CRMContact | null>(null);
+    const [deletingContact, setDeletingContact] = useState<CRMContact | null>(null);
+    const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', designation: '', isPrimary: false });
+    const contactsFileInputRef = useRef<HTMLInputElement>(null);
+    const [isImportingContacts, setIsImportingContacts] = useState(false);
+
     const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
     const [mergeSourceId, setMergeSourceId] = useState('');
     const [mergeDestId, setMergeDestId] = useState('');
@@ -318,6 +333,158 @@ export default function CompaniesManagementPage() {
         }
     };
 
+    const openAddContact = () => {
+        setEditingContact(null);
+        setContactForm({ name: '', email: '', phone: '', designation: '', isPrimary: false });
+        setIsContactDialogOpen(true);
+    };
+
+    const openEditContact = (c: CRMContact) => {
+        setEditingContact(c);
+        setContactForm({
+            name: c.name || '',
+            email: c.email || '',
+            phone: c.phone || '',
+            designation: c.designation || '',
+            isPrimary: !!c.isPrimary
+        });
+        setIsContactDialogOpen(true);
+    };
+
+    const handleSaveContact = async () => {
+        if (!user || !selectedCompany || !contactForm.name) return;
+        try {
+            if (editingContact) {
+                await updateContact(editingContact.id, { ...contactForm, lastModifiedBy: user.username });
+                toast({ title: 'Contact Updated' });
+            } else {
+                await addContact({
+                    ...contactForm,
+                    partyId: selectedCompany.id,
+                    createdBy: user.username,
+                    createdAt: new Date().toISOString()
+                });
+                toast({ title: 'Contact Added' });
+            }
+            setIsContactDialogOpen(false);
+        } catch {
+            toast({ title: 'Error saving contact', variant: 'destructive' });
+        }
+    };
+
+    const handleConfirmDeleteContact = async () => {
+        if (!deletingContact) return;
+        try {
+            await deleteContact(deletingContact.id);
+            toast({ title: 'Contact Removed' });
+        } catch {
+            toast({ title: 'Error', variant: 'destructive' });
+        } finally {
+            setDeletingContact(null);
+        }
+    };
+
+    const handleExportContactsExcel = async () => {
+        try {
+            const XLSX = await import('xlsx');
+            const data = contacts.map(c => ({
+                'Contact Name': c.name,
+                'Company': companies.find(p => p.id === c.partyId)?.name || 'Unlinked',
+                'Designation': c.designation || '',
+                'Email': c.email || '',
+                'Phone': c.phone || '',
+                'Is Primary': c.isPrimary ? 'Yes' : 'No'
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Contacts");
+            XLSX.writeFile(workbook, `CRM_Contacts_${new Date().toISOString().split('T')[0]}.xlsx`);
+            toast({ title: 'Export Successful' });
+        } catch {
+            toast({ title: 'Export Failed', variant: 'destructive' });
+        }
+    };
+
+    const handleImportContactsExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !user) return;
+        setIsImportingContacts(true);
+        try {
+            const XLSX = await import('xlsx');
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json<any>(sheet);
+                    const localCompanies = [...companies];
+
+                    let count = 0, duplicates = 0, companiesCreated = 0, skippedNoCompany = 0;
+
+                    for (const row of json) {
+                        const name = String(row['Contact Name'] || row['Name'] || '').trim();
+                        const companyName = String(row['Company'] || row['Organization'] || '').trim();
+                        if (!name) continue;
+
+                        let targetPartyId = '';
+                        if (companyName) {
+                            const matchedCompany = localCompanies.find(c => c.name.toLowerCase().trim() === companyName.toLowerCase().trim());
+                            if (matchedCompany) {
+                                targetPartyId = matchedCompany.id;
+                            } else {
+                                targetPartyId = await addParty({
+                                    name: companyName,
+                                    type: "Customer",
+                                    ownership: "Both",
+                                    address: "Auto-created via Contact Import",
+                                    createdBy: user.username
+                                } as any);
+                                localCompanies.push({ id: targetPartyId, name: companyName } as Party);
+                                companiesCreated++;
+                            }
+                        } else {
+                            skippedNoCompany++;
+                            continue;
+                        }
+
+                        const isDuplicate = contacts.some(c =>
+                            c.name.toLowerCase().trim() === name.toLowerCase() &&
+                            c.partyId === targetPartyId
+                        );
+                        if (isDuplicate) { duplicates++; continue; }
+
+                        await addContact({
+                            name,
+                            partyId: targetPartyId,
+                            email: String(row['Email'] || ''),
+                            phone: String(row['Phone'] || row['Mobile'] || ''),
+                            designation: String(row['Designation'] || 'Staff'),
+                            isPrimary: String(row['Is Primary'] || '').toLowerCase() === 'yes',
+                            createdBy: user.username,
+                            createdAt: new Date().toISOString()
+                        });
+                        count++;
+                    }
+
+                    toast({
+                        title: 'Import Successful',
+                        description: `Processed ${count} new contacts. Found ${duplicates} duplicates. Created ${companiesCreated} new companies. Skipped ${skippedNoCompany} rows with missing company names.`
+                    });
+                } catch {
+                    toast({ title: 'Import Failed', description: 'Failed to parse Excel data.', variant: 'destructive' });
+                } finally {
+                    setIsImportingContacts(false);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } catch {
+            setIsImportingContacts(false);
+            toast({ title: 'Error', description: 'Failed to process file.', variant: 'destructive' });
+        }
+        if (contactsFileInputRef.current) contactsFileInputRef.current.value = '';
+    };
+
     const handleSaveAttributes = async () => {
         if (!selectedCompany || !user) return;
         try {
@@ -402,19 +569,41 @@ export default function CompaniesManagementPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Account Intelligence</h1>
-                    <p className="text-muted-foreground text-sm font-medium">Complete profiles and hierarchical relationship management.</p>
+                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Companies &amp; Contacts</h1>
+                    <p className="text-muted-foreground text-sm font-medium">Account profiles with their people, activity, and quotation history in one place.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="relative">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Filter accounts..." 
-                            className="pl-8 w-64 bg-white h-10 border-gray-300 shadow-sm" 
+                        <Input
+                            placeholder="Filter accounts..."
+                            className="pl-8 w-64 bg-white h-10 border-gray-300 shadow-sm"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                         />
                     </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="h-10 font-bold text-xs uppercase tracking-widest gap-2">
+                                <FileSpreadsheet className="h-4 w-4" /> Contacts <ChevronDown className="h-3 w-3 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExportContactsExcel}>
+                                <Download className="mr-2 h-4 w-4" /> Export Contacts to Excel
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => contactsFileInputRef.current?.click()}>
+                                <Upload className="mr-2 h-4 w-4" /> Import Contacts from Excel
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <input
+                        type="file"
+                        ref={contactsFileInputRef}
+                        onChange={handleImportContactsExcel}
+                        accept=".xlsx,.xls"
+                        className="hidden"
+                    />
                     <Button variant="outline" onClick={() => setIsMergeDialogOpen(true)} className="h-10 font-bold text-xs uppercase tracking-widest gap-2">
                         <GitMerge className="h-4 w-4" /> Merge
                     </Button>
@@ -423,6 +612,13 @@ export default function CompaniesManagementPage() {
                     </Button>
                 </div>
             </header>
+
+            {isImportingContacts && (
+                <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg flex items-center gap-3 animate-pulse">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-sm font-bold uppercase tracking-widest text-primary">Synchronizing Contacts...</span>
+                </div>
+            )}
 
             <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                 <CardContent className="p-0">
@@ -651,23 +847,44 @@ export default function CompaniesManagementPage() {
                             {/* Left Side: Information */}
                             <div className="lg:col-span-2 overflow-y-auto bg-gray-50/30 p-8 space-y-8 border-r">
                                 <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                        <Users className="h-3.5 w-3.5" /> Personnel Hierarchy
-                                    </h4>
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                            <Users className="h-3.5 w-3.5" /> Personnel
+                                        </h4>
+                                        <Button size="sm" variant="ghost" onClick={openAddContact} className="h-6 text-[9px] font-black uppercase tracking-widest">
+                                            <UserPlus className="mr-1 h-3 w-3" /> Add
+                                        </Button>
+                                    </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {contacts.filter(c => c.partyId === selectedCompany.id).map(contact => (
-                                            <Card key={contact.id} className="shadow-sm ring-1 ring-black/5 border-none">
+                                            <Card key={contact.id} className="shadow-sm ring-1 ring-black/5 border-none group relative">
                                                 <CardContent className="p-4 flex items-center gap-4">
-                                                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center font-black text-sm transition-all shadow-inner", contact.isPrimary ? "bg-blue-600 text-white" : "bg-muted/50 text-muted-foreground")}>
+                                                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center font-black text-sm transition-all shadow-inner shrink-0", contact.isPrimary ? "bg-blue-600 text-white" : "bg-muted/50 text-muted-foreground")}>
                                                         {contact.name.charAt(0)}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between">
+                                                        <div className="flex items-center justify-between gap-1">
                                                             <p className="font-bold text-gray-900 truncate">{contact.name}</p>
-                                                            {contact.isPrimary && <Badge className="text-[7px] uppercase h-3.5 px-1 bg-blue-600">Primary</Badge>}
+                                                            {contact.isPrimary && <Badge className="text-[7px] uppercase h-3.5 px-1 bg-blue-600 shrink-0">Primary</Badge>}
                                                         </div>
                                                         <p className="text-[10px] font-bold text-muted-foreground uppercase">{contact.designation || 'Staff'}</p>
+                                                        {(contact.email || contact.phone) && (
+                                                            <div className="flex flex-col gap-0.5 mt-1.5">
+                                                                {contact.email && <span className="text-[10px] flex items-center gap-1 text-muted-foreground truncate"><Mail className="h-2.5 w-2.5 opacity-50 shrink-0"/> {contact.email}</span>}
+                                                                {contact.phone && <span className="text-[10px] flex items-center gap-1 text-muted-foreground"><Phone className="h-2.5 w-2.5 opacity-50 shrink-0"/> {contact.phone}</span>}
+                                                            </div>
+                                                        )}
                                                     </div>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-3.5 w-3.5"/></Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onSelect={() => openEditContact(contact)}><Edit className="mr-2 h-3.5 w-3.5"/> Edit</DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem className="text-destructive" onSelect={() => setDeletingContact(contact)}><Trash2 className="mr-2 h-3.5 w-3.5"/> Delete</DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </CardContent>
                                             </Card>
                                         ))}
@@ -675,7 +892,7 @@ export default function CompaniesManagementPage() {
                                             <div className="col-span-2 py-10 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground">
                                                 <Users className="h-6 w-6 opacity-20"/>
                                                 <p className="text-xs font-bold uppercase tracking-widest">No Contacts Linked</p>
-                                                <Button variant="ghost" size="sm" asChild className="text-[10px] font-black underline"><Link href="/crm/contacts">Go to Directory</Link></Button>
+                                                <Button variant="ghost" size="sm" onClick={openAddContact} className="text-[10px] font-black underline"><UserPlus className="mr-1 h-3 w-3"/> Add the first contact</Button>
                                             </div>
                                         )}
                                     </div>
@@ -1038,6 +1255,65 @@ export default function CompaniesManagementPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Add/Edit Contact Dialog */}
+            <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">{editingContact ? 'Edit Contact' : 'Add Contact'}</DialogTitle>
+                        <DialogDescription>{editingContact ? 'Update this person\'s details.' : `Add a person at ${selectedCompany?.name || 'this account'}.`}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Full Name</Label>
+                            <Input value={contactForm.name} onChange={e => setContactForm({...contactForm, name: e.target.value})} className="h-10 font-bold" placeholder="e.g. John Doe" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Designation</Label>
+                                <Input value={contactForm.designation} onChange={e => setContactForm({...contactForm, designation: e.target.value})} placeholder="e.g. Purchase Head" className="h-9" />
+                            </div>
+                            <div className="space-y-1.5 flex flex-col justify-end">
+                                <div className="flex items-center space-x-2 h-9">
+                                    <Checkbox id="contact-primary" checked={contactForm.isPrimary} onCheckedChange={v => setContactForm({...contactForm, isPrimary: !!v})} />
+                                    <Label htmlFor="contact-primary" className="text-xs font-bold uppercase cursor-pointer">Primary Contact</Label>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 pt-2">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Email Address</Label>
+                                <Input value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} placeholder="office@client.com" className="h-9" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Direct Line</Label>
+                                <Input value={contactForm.phone} onChange={e => setContactForm({...contactForm, phone: e.target.value})} placeholder="+977-..." className="h-9" />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsContactDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
+                        <Button onClick={handleSaveContact} disabled={!contactForm.name} className="font-black text-xs uppercase h-11 px-8 shadow-lg shadow-primary/20">{editingContact ? 'Save Changes' : 'Add Contact'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={!!deletingContact} onOpenChange={(open) => !open && setDeletingContact(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="uppercase tracking-tight">Delete Contact?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently remove <span className="font-bold text-gray-900">{deletingContact?.name}</span> from the directory. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="font-bold text-xs uppercase">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDeleteContact} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black text-xs uppercase">
+                            Delete Permanently
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

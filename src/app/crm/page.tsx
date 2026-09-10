@@ -2,17 +2,15 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-    Calculator, 
-    Users, 
-    Building2, 
-    History, 
-    TrendingUp, 
+import {
+    Calculator,
+    Building2,
+    History,
+    TrendingUp,
     Zap,
     ArrowRight,
     Loader2,
     ChevronRight,
-    Bell,
     AlertCircle,
     CheckCircle2,
     XCircle,
@@ -381,10 +379,8 @@ export default function CrmDashboardPage() {
             <div className="space-y-6">
                 <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Engagement Core</h2>
                 <div className="grid gap-3">
-                    <ModuleCard href="/crm/companies" title="Companies" desc="Hierarchical profiles & lifecycle." icon={Building2} />
-                    <ModuleCard href="/crm/contacts" title="Contacts" desc="Centralized personnel registry." icon={Users} />
-                    <ModuleCard href="/crm/deals" title="Deals" desc="Opportunity funnel & forecasting." icon={TrendingUp} />
-                    <ModuleCard href="/crm/followups" title="Tasks" desc="Strategic relationship maintenance." icon={Bell} />
+                    <ModuleCard href="/crm/companies" title="Companies & Contacts" desc="Account profiles with their people, in one place." icon={Building2} />
+                    <ModuleCard href="/crm/deals" title="Client Activity" desc="Pipeline, follow-ups, incidents & feedback per client." icon={TrendingUp} />
                 </div>
             </div>
        </div>
