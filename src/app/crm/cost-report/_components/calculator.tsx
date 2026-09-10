@@ -51,8 +51,8 @@ import {
 import { 
   Table, 
   TableBody, 
-  TableCell, 
-  TableHead, TableHeader, 
+  TableCell,
+  TableHeader,
   TableRow,
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

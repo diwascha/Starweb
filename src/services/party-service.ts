@@ -10,9 +10,8 @@ import {
     deleteDoc, 
     getDoc, 
     getDocs, 
-    query, 
-    where, 
-    limit, 
+    query,
+    where,
     setDoc,
     writeBatch
 } from 'firebase/firestore';
@@ -63,21 +62,6 @@ export const getParties = async (useCache = false): Promise<Party[]> => {
         throw error;
     }
 };
-
-export const getParty = async (id: string): Promise<Party | null> => {
-    if (!id || typeof id !== 'string' || id.includes('/')) return null;
-    const docRef = doc(getPartiesCollection(), id);
-    try {
-        const snap = await getDoc(docRef);
-        return snap.exists() ? fromFirestore(snap) : null;
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'get',
-        } satisfies SecurityRuleContext));
-        return null;
-    }
-}
 
 export const addParty = async (party: Omit<Party, 'id' | 'createdAt'>): Promise<string> => {
     const docRef = doc(getPartiesCollection());

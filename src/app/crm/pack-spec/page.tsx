@@ -9,8 +9,6 @@ import {
   Layers,
   Box,
   PrinterIcon,
-  ArrowRight,
-  Info,
   ChevronRight,
   ChevronLeft,
   Loader2,
@@ -19,7 +17,6 @@ import {
   Trash2,
   MoreHorizontal,
   Eye,
-  Check,
   X,
   Download,
   Upload,
@@ -31,19 +28,17 @@ import type { Product, ProductSpecification } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct, deleteProduct } from '@/services/product-service';
 import { getCostReports } from '@/services/cost-report-service';
 import { onPartiesUpdate } from '@/services/party-service';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter
+  DialogDescription
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

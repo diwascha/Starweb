@@ -15,43 +15,37 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
-import { 
-  FileText, 
-  LayoutDashboard, 
-  Package, 
-  FileSpreadsheet, 
-  ShoppingCart, 
-  Wrench, 
-  LogOut, 
-  Settings, 
-  Users, 
-  Calendar, 
-  Award, 
-  Wallet, 
-  Building2, 
-  PlusCircle, 
-  Truck, 
-  ShieldCheck, 
-  CreditCard, 
-  ArrowRightLeft, 
-  TrendingUp, 
-  BarChart2, 
+import {
+  FileText,
+  LayoutDashboard,
+  Package,
+  FileSpreadsheet,
+  ShoppingCart,
+  Wrench,
+  LogOut,
+  Settings,
+  Users,
+  Calendar,
+  Wallet,
+  Building2,
+  PlusCircle,
+  Truck,
+  ShieldCheck,
+  CreditCard,
+  ArrowRightLeft,
+  TrendingUp,
   Notebook,
-  Download,
   Upload,
-  Calculator, 
-  PanelLeft, 
-  PanelRight, 
-  Receipt, 
+  Calculator,
+  PanelLeft,
+  PanelRight,
+  Receipt,
   Briefcase,
   ChevronRight,
   Home,
   Settings2,
-  Terminal,
   ShieldAlert,
-  Server,
-  Scale,
-  Target
+  Scale
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -59,7 +53,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { exportData } from '@/services/backup-service';
-import { Loader2 } from 'lucide-react';
 import { useConnectionStatus } from '@/firebase';
 import { useState, useEffect } from 'react';
 import { getNormalizedPath } from '@/lib/utils';

@@ -20,10 +20,8 @@ import {
     Target,
     Edit,
     Bell,
-    Check,
     TrendingUp,
     Receipt,
-    Wallet,
     CheckCircle2,
     Trash2,
     GitMerge,
@@ -40,11 +38,10 @@ import { onPartiesUpdate, updateParty, deleteParty, mergeParties, addParty } fro
 import { getCostReports } from '@/services/cost-report-service';
 import { onContactsUpdate, onInteractionsUpdate, addInteraction, updateInteraction, onFollowUpsUpdate, addFollowUp, addContact, updateContact, deleteContact } from '@/services/crm-service';
 import { getTransactionsByParty } from '@/services/transaction-service';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
     AlertDialog,

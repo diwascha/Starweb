@@ -3,9 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
-    Calculator,
     Building2,
-    History,
     TrendingUp,
     Zap,
     ArrowRight,
@@ -13,42 +11,38 @@ import {
     ChevronRight,
     AlertCircle,
     CheckCircle2,
-    XCircle,
     Calendar,
     Clock
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableHead, 
-    TableHeader, 
-    TableRow 
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow
 } from '@/components/ui/table';
-import { 
-    BarChart, 
-    Bar, 
-    XAxis, 
-    YAxis, 
-    CartesianGrid, 
-    Tooltip, 
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
     ResponsiveContainer,
-    Cell,
-    Legend
+    Cell
 } from 'recharts';
-import { format, subDays, isPast, isToday, startOfDay } from 'date-fns';
+import { format, subDays, isPast, isToday } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
-import type { Party, CRMContact, InteractionLog, Deal, FollowUp } from '@/lib/types';
+import type { Party, InteractionLog, Deal, FollowUp } from '@/lib/types';
 import { onPartiesUpdate } from '@/services/party-service';
-import { onContactsUpdate, onInteractionsUpdate, onFollowUpsUpdate } from '@/services/crm-service';
+import { onInteractionsUpdate, onFollowUpsUpdate } from '@/services/crm-service';
 import { onDealsUpdate } from '@/services/deal-service';
 import { cn } from '@/lib/utils';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 export default function CrmDashboardPage() {
   const { user } = useAuth();
