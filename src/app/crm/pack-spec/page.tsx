@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { 
-  Package, 
-  Search, 
-  FileText, 
-  Printer, 
-  Layers, 
-  Box, 
-  PrinterIcon, 
+import { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Package,
+  Search,
+  FileText,
+  Printer,
+  Layers,
+  Box,
+  PrinterIcon,
   ArrowRight,
   Info,
   ChevronRight,
@@ -20,22 +20,28 @@ import {
   MoreHorizontal,
   Eye,
   Check,
-  X
+  X,
+  Download,
+  Upload,
+  FileSpreadsheet,
+  ChevronDown,
+  FileDown
 } from 'lucide-react';
 import type { Product, ProductSpecification } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct, deleteProduct } from '@/services/product-service';
 import { getCostReports } from '@/services/cost-report-service';
+import { onPartiesUpdate } from '@/services/party-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog';
@@ -46,6 +52,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { ProductForm } from '../cost-report/_components/product-form';
+import { SortableHead } from '@/components/ui/sortable-head';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 
 const formatLabel = (key: string) => {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
@@ -59,6 +67,7 @@ export default function PackSpecPage() {
   const { user, hasPermission } = useAuth();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
+  const [parties, setParties] = useState<{ id: string; name: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -71,6 +80,21 @@ export default function PackSpecPage() {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Sort/Filter state - same SortableHead/MultiSelectFilter pattern used by
+  // the other Excel-style tables in the app (Payroll, Attendance, Benchmark).
+  type SortKey = 'materialCode' | 'name' | 'partyName' | 'ply';
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
+  const [clientFilter, setClientFilter] = useState<string[]>([]);
+  const [plyFilter, setPlyFilter] = useState<string[]>([]);
+  const handleSort = (key: SortKey) => {
+    setSortConfig(prev => prev?.key === key ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' });
+  };
+
+  const importFileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportingProducts, setIsImportingProducts] = useState(false);
+  const printableRef = useRef<HTMLDivElement>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // Delete-guard state: how many saved quotations reference the product
   // currently up for deletion. Deleting a product that's used in a past
@@ -97,16 +121,46 @@ export default function PackSpecPage() {
       setProducts(data);
       setIsLoading(false);
     });
-    return () => unsub();
+    const unsubParties = onPartiesUpdate((data) => setParties(data.map(p => ({ id: p.id, name: p.name }))));
+    return () => { unsub(); unsubParties(); };
   }, []);
 
+  const clientOptions = useMemo(() => {
+    const names = Array.from(new Set(products.map(p => p.partyName || 'Unassigned Client'))).sort();
+    return names.map(n => ({ value: n, label: n }));
+  }, [products]);
+
+  const plyOptions = useMemo(() => {
+    const plies = Array.from(new Set(products.map(p => p.specification?.ply).filter(Boolean))) as string[];
+    return plies.sort((a, b) => parseInt(a, 10) - parseInt(b, 10)).map(p => ({ value: p, label: `${p} Ply` }));
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
-    return products.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    let result = products.filter(p =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.materialCode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.partyName || '').toLowerCase().includes(searchQuery.toLowerCase())
-    ).sort((a, b) => a.name.localeCompare(b.name));
-  }, [products, searchQuery]);
+    );
+    if (clientFilter.length > 0) {
+      result = result.filter(p => clientFilter.includes(p.partyName || 'Unassigned Client'));
+    }
+    if (plyFilter.length > 0) {
+      result = result.filter(p => p.specification?.ply && plyFilter.includes(p.specification.ply));
+    }
+    if (sortConfig) {
+      const { key, direction } = sortConfig;
+      result = [...result].sort((a, b) => {
+        const av = key === 'ply' ? (a.specification?.ply || '') : (a[key] || '');
+        const bv = key === 'ply' ? (b.specification?.ply || '') : (b[key] || '');
+        if (av < bv) return direction === 'asc' ? -1 : 1;
+        if (av > bv) return direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    } else {
+      result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return result;
+  }, [products, searchQuery, clientFilter, plyFilter, sortConfig]);
 
   const paginatedProducts = useMemo(() => {
     if (itemsPerPage === -1) return filteredProducts;
@@ -142,6 +196,151 @@ export default function PackSpecPage() {
     window.print();
   };
 
+  const handleDownloadPdf = async () => {
+    if (!printableRef.current || !selectedProduct) return;
+    setIsExportingPdf(true);
+    try {
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('html2canvas')]);
+      const canvas = await html2canvas(printableRef.current, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = (canvas.height * pageWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+      pdf.save(`PackSpec-${selectedProduct.materialCode || selectedProduct.name}.pdf`);
+    } catch {
+      toast({ title: 'PDF Export Failed', variant: 'destructive' });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  // Every ProductSpecification field, flattened into one row per product -
+  // a full round-trip of the catalog through Excel for bulk editing/backup.
+  const handleExportExcel = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const data = filteredProducts.map(p => {
+        const s = p.specification || {};
+        return {
+          'Material Code': p.materialCode || '',
+          'Product Name': p.name,
+          'Client': p.partyName || '',
+          'Dimension (LxBxH mm)': s.dimension || '',
+          'Ply': s.ply || '',
+          'Box Type': s.boxType || '',
+          'Paper Type': s.paperType || '',
+          'Paper BF': s.paperBf || '',
+          'Wastage %': s.wastagePercent || '',
+          'Top GSM': s.topGsm || '',
+          'Flute1 GSM': s.flute1Gsm || '',
+          'Middle GSM': s.middleGsm || '',
+          'Flute2 GSM': s.flute2Gsm || '',
+          'Liner2 GSM': s.liner2Gsm || '',
+          'Flute3 GSM': s.flute3Gsm || '',
+          'Liner3 GSM': s.liner3Gsm || '',
+          'Flute4 GSM': s.flute4Gsm || '',
+          'Bottom GSM': s.bottomGsm || '',
+          'Weight of Box (g)': s.weightOfBox || '',
+          'Load (KGF)': s.load || '',
+          'Max Moisture %': s.moisture || '',
+          'Finishing/Printing': s.printing || '',
+          'Rate': p.rate ?? ''
+        };
+      });
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Product Catalog");
+      XLSX.writeFile(workbook, `PackSpec_Catalog_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast({ title: 'Export Successful' });
+    } catch {
+      toast({ title: 'Export Failed', variant: 'destructive' });
+    }
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setIsImportingProducts(true);
+    try {
+      const XLSX = await import('xlsx');
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json<any>(sheet);
+
+          let created = 0, updated = 0, skippedNoClient = 0;
+
+          for (const row of json) {
+            const name = String(row['Product Name'] || row['Name'] || '').trim();
+            const materialCode = String(row['Material Code'] || row['Code'] || '').trim();
+            const clientName = String(row['Client'] || row['Company'] || '').trim();
+            if (!name) continue;
+
+            const party = parties.find(p => p.name.toLowerCase().trim() === clientName.toLowerCase().trim());
+            if (!party) { skippedNoClient++; continue; }
+
+            const specification: Partial<ProductSpecification> = {
+              dimension: String(row['Dimension (LxBxH mm)'] || row['Dimension'] || ''),
+              ply: String(row['Ply'] || '3'),
+              boxType: String(row['Box Type'] || 'RSC'),
+              paperType: String(row['Paper Type'] || 'KRAFT'),
+              paperBf: String(row['Paper BF'] || '18 BF'),
+              wastagePercent: String(row['Wastage %'] || '3.5'),
+              topGsm: String(row['Top GSM'] || ''),
+              flute1Gsm: String(row['Flute1 GSM'] || ''),
+              middleGsm: String(row['Middle GSM'] || ''),
+              flute2Gsm: String(row['Flute2 GSM'] || ''),
+              liner2Gsm: String(row['Liner2 GSM'] || ''),
+              flute3Gsm: String(row['Flute3 GSM'] || ''),
+              liner3Gsm: String(row['Liner3 GSM'] || ''),
+              flute4Gsm: String(row['Flute4 GSM'] || ''),
+              bottomGsm: String(row['Bottom GSM'] || ''),
+              weightOfBox: String(row['Weight of Box (g)'] || ''),
+              load: String(row['Load (KGF)'] || ''),
+              moisture: String(row['Max Moisture %'] || ''),
+              printing: String(row['Finishing/Printing'] || ''),
+            };
+            const rate = row['Rate'] !== undefined && row['Rate'] !== '' ? Number(row['Rate']) : undefined;
+
+            // Match an existing catalog entry by material code (if given) or
+            // by name+client, so re-importing an edited export updates in
+            // place instead of creating duplicates.
+            const existing = products.find(p =>
+              (materialCode && p.materialCode === materialCode) ||
+              (!materialCode && p.name.toLowerCase().trim() === name.toLowerCase().trim() && p.partyId === party.id)
+            );
+
+            if (existing) {
+              await updateProduct(existing.id, { name, materialCode: materialCode || existing.materialCode, partyId: party.id, partyName: party.name, specification, rate, lastModifiedBy: user.username });
+              updated++;
+            } else {
+              await addProductService({ name, materialCode, partyId: party.id, partyName: party.name, specification, rate, createdBy: user.username, createdAt: new Date().toISOString(), ownership: 'Both' } as any);
+              created++;
+            }
+          }
+
+          toast({
+            title: 'Import Complete',
+            description: `${created} product(s) added, ${updated} updated. ${skippedNoClient} row(s) skipped - client not found in registry.`
+          });
+        } catch {
+          toast({ title: 'Import Failed', description: 'Failed to parse Excel data.', variant: 'destructive' });
+        } finally {
+          setIsImportingProducts(false);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch {
+      setIsImportingProducts(false);
+      toast({ title: 'Error', description: 'Failed to process file.', variant: 'destructive' });
+    }
+    if (importFileInputRef.current) importFileInputRef.current.value = '';
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -159,6 +358,33 @@ export default function PackSpecPage() {
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             />
           </div>
+          {(clientFilter.length > 0 || plyFilter.length > 0 || sortConfig) && (
+            <Button variant="ghost" size="sm" onClick={() => { setClientFilter([]); setPlyFilter([]); setSortConfig(null); }} className="h-10 text-muted-foreground font-black text-[9px] uppercase">
+              Clear Filters
+            </Button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 font-bold text-xs uppercase tracking-widest gap-2">
+                <FileSpreadsheet className="h-4 w-4" /> Catalog <ChevronDown className="h-3 w-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={handleExportExcel}>
+                <Download className="mr-2 h-4 w-4" /> Export to Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => importFileInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" /> Import from Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <input
+            type="file"
+            ref={importFileInputRef}
+            onChange={handleImportExcel}
+            accept=".xlsx,.xls"
+            className="hidden"
+          />
           {hasPermission('crm', 'add') && (
             <Button onClick={() => { setProductToEdit(null); setIsProductEditorOpen(true); }} className="h-10 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 px-6">
               <Plus className="mr-2 h-4 w-4" /> Add Product
@@ -167,16 +393,27 @@ export default function PackSpecPage() {
         </div>
       </header>
 
+      {isImportingProducts && (
+        <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg flex items-center gap-3 animate-pulse">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <span className="text-sm font-bold uppercase tracking-widest text-primary">Synchronizing Catalog...</span>
+        </div>
+      )}
+
       <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/50">
                 <TableRow className="hover:bg-transparent h-11 border-b">
-                    <TableHead className="pl-6 font-black uppercase text-[10px] tracking-widest">Code</TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Product Name</TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Client / Company</TableHead>
+                    <SortableHead label="Code" sortKey="materialCode" sortConfig={sortConfig} onSort={handleSort} className="pl-6" />
+                    <SortableHead label="Product Name" sortKey="name" sortConfig={sortConfig} onSort={handleSort} />
+                    <SortableHead label="Client / Company" sortKey="partyName" sortConfig={sortConfig} onSort={handleSort}>
+                        <MultiSelectFilter label="Client" options={clientOptions} selected={clientFilter} onChange={setClientFilter} />
+                    </SortableHead>
                     <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Dimension (mm)</TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Ply</TableHead>
+                    <SortableHead label="Ply" sortKey="ply" sortConfig={sortConfig} onSort={handleSort} align="center">
+                        <MultiSelectFilter label="Ply" options={plyOptions} selected={plyFilter} onChange={setPlyFilter} />
+                    </SortableHead>
                     <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -359,6 +596,9 @@ export default function PackSpecPage() {
                         Specification Data Sheet
                     </DialogTitle>
                     <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={handleDownloadPdf} disabled={isExportingPdf} className="h-9 font-bold text-xs">
+                            {isExportingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />} Download PDF
+                        </Button>
                         <Button variant="outline" size="sm" onClick={handlePrint} className="h-9 font-bold text-xs">
                             <Printer className="mr-2 h-4 w-4" /> Print Spec
                         </Button>
@@ -367,7 +607,7 @@ export default function PackSpecPage() {
                 </div>
               </DialogHeader>
               <ScrollArea className="flex-1 bg-gray-100/50 p-4 sm:p-12">
-                <div className="printable-area mx-auto p-12 bg-white text-black font-sans shadow-2xl ring-1 ring-black/5" style={{ width: '210mm', minHeight: '297mm' }}>
+                <div ref={printableRef} className="printable-area mx-auto p-12 bg-white text-black font-sans shadow-2xl ring-1 ring-black/5" style={{ width: '210mm', minHeight: '297mm' }}>
                 <header className="text-center space-y-1 mb-10 border-b-2 border-neutral-900 pb-6">
                     <h1 className="text-2xl font-black uppercase tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
                     <p className="text-sm font-bold uppercase tracking-widest text-neutral-500">HETAUDA 08, NEPAL</p>

@@ -44,7 +44,9 @@ import {
   X,
   Loader2,
   ChevronDown,
-  Target
+  Target,
+  Copy,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   Table, 
@@ -71,15 +73,16 @@ import { ProductForm } from './product-form';
 
 const ManageTermsDialog = React.lazy(() => import('./terms-dialog').then(m => ({ default: m.ManageTermsDialog })));
 
-const CostingTableRow = React.memo(({ 
-    item, 
-    index, 
-    maxPly, 
-    products, 
-    onItemChange, 
-    onAddAccessory, 
-    onRemoveItem, 
-    onTogglePrint, 
+const CostingTableRow = React.memo(({
+    item,
+    index,
+    maxPly,
+    products,
+    onItemChange,
+    onAddAccessory,
+    onRemoveItem,
+    onDuplicateItem,
+    onTogglePrint,
     selectedForPrint,
     onOpenQuickAddProduct
 }: any) => {
@@ -87,21 +90,26 @@ const CostingTableRow = React.memo(({
     const [quickProductSearch, setQuickProductSearch] = useState('');
 
     const calc = item.calculated || { paperCost: 0, transportCost: 0, totalGsm: 0, paperWeight: 0 };
-    const totalRowCost = (calc.paperCost || 0) + 
+    const totalRowCost = (calc.paperCost || 0) +
         (calc.transportCost || 0) +
         (item.accessories || []).reduce((sum: number, acc: any) => sum + (acc.calculated?.paperCost || 0), 0);
+    // Flags a row that has no dimensions yet (still costs Rs. 0 and would
+    // silently save that way) so it's visually distinct from a row that's
+    // genuinely priced at zero.
+    const isIncomplete = (parseFloat(item.l) || 0) <= 0 || (parseFloat(item.b) || 0) <= 0;
 
     return (
         <React.Fragment>
-            <TableRow className="h-14 hover:bg-muted/30 border-b">
+            <TableRow className={cn("h-14 hover:bg-muted/30 border-b", isIncomplete && "bg-amber-50/40")} title={isIncomplete ? "Missing Length/Width - this row will cost Rs. 0 until filled in" : undefined}>
                 <TableCell className="px-2 border-r">
-                    <Checkbox 
-                        checked={selectedForPrint.has(item.id)} 
-                        onCheckedChange={v => onTogglePrint(item.id, !!v)} 
+                    <Checkbox
+                        checked={selectedForPrint.has(item.id)}
+                        onCheckedChange={v => onTogglePrint(item.id, !!v)}
                     />
                 </TableCell>
                 <TableCell className="border-r pr-2">
                     <div className="flex gap-1.5 items-center">
+                        {isIncomplete && <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" title="Add Accessory"><Plus className="h-3.5 w-3.5" /></Button>
@@ -215,7 +223,10 @@ const CostingTableRow = React.memo(({
                 <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {(calc.transportCost || 0).toFixed(2)}</TableCell>
                 <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {totalRowCost.toFixed(2)}</TableCell>
                 <TableCell className="px-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onRemoveItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                    <div className="flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Duplicate row" onClick={() => onDuplicateItem(index)}><Copy className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Delete row" onClick={() => onRemoveItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
                 </TableCell>
             </TableRow>
             {(item.accessories || []).map((acc: any, aIdx: number) => {
@@ -456,6 +467,24 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
     setSelectedForPrint(new Set(selectedForPrint).add(newItem.id));
   };
 
+  // Clones a row (dimensions, paper spec, accessories) with a fresh id -
+  // the fast path for a quotation with several similar box sizes instead
+  // of re-entering every GSM/ply field from scratch.
+  const handleDuplicateItem = useCallback((idx: number) => {
+    setItems(prev => {
+        const source = prev[idx];
+        if (!source) return prev;
+        const clone = {
+            ...source,
+            id: generateId(),
+            accessories: (source.accessories || []).map((acc: any) => ({ ...acc, id: generateId() }))
+        };
+        const next = [...prev];
+        next.splice(idx + 1, 0, clone);
+        return next;
+    });
+  }, []);
+
   const handleAddAccessory = useCallback((idx: number, typeName: string = 'Internal Pad') => {
     const parent = items[idx];
     const newAcc: Accessory = {
@@ -551,6 +580,13 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
     if (!user || !selectedPartyId || items.length === 0) {
         toast({ title: 'Error', description: 'Party and at least one item are required.', variant: 'destructive' });
         return;
+    }
+    const incompleteCount = items.filter(i => (parseFloat(i.l) || 0) <= 0 || (parseFloat(i.b) || 0) <= 0).length;
+    if (incompleteCount > 0) {
+        toast({
+            title: 'Heads up',
+            description: `${incompleteCount} row(s) are missing Length/Width and will save at Rs. 0 - they're highlighted in the table.`,
+        });
     }
     setIsSaving(true);
     try {
@@ -885,14 +921,14 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                     <th rowSpan={2} className="w-10 px-2"></th>
                                     <th rowSpan={2} className="min-w-[280px] font-bold text-black border-r">Item Name / Product</th>
                                     <th colSpan={3} className="text-center border-x font-bold text-black bg-blue-50/50">Size (mm)</th>
-                                    <th rowSpan={2} className="text-center min-w-[80px] border-r">Pcs</th>
-                                    <th rowSpan={2} className="text-center min-w-[80px] border-r">Ply</th>
-                                    <th rowSpan={2} className="text-center min-w-[150px] border-r">Type (K/V/M)</th>
-                                    <th rowSpan={2} className="text-center min-w-[130px] border-r">Paper BF</th>
-                                    <th rowSpan={2} className="text-center min-w-[100px] border-r">Waste %</th>
-                                    <th colSpan={maxPly} className="text-center border-x font-bold text-black bg-orange-50/50">GSM Composition</th>
-                                    <th rowSpan={2} className="text-center min-w-[90px] border-r bg-muted/20">T.GSM</th>
-                                    <th rowSpan={2} className="text-center min-w-[100px] border-r bg-muted/20">Weight (g)</th>
+                                    <th rowSpan={2} className="text-center min-w-[80px] border-r" title="Number of pieces">Pcs</th>
+                                    <th rowSpan={2} className="text-center min-w-[80px] border-r" title="Number of paper layers in the board (3/5/7/9-ply corrugated)">Ply</th>
+                                    <th rowSpan={2} className="text-center min-w-[150px] border-r" title="Paper type: Kraft, Virgin, or Mixed">Type (K/V/M)</th>
+                                    <th rowSpan={2} className="text-center min-w-[130px] border-r" title="Burst Factor rating of the kraft paper - looked up against the Global Rates on the left">Paper BF</th>
+                                    <th rowSpan={2} className="text-center min-w-[100px] border-r" title="Extra paper weight added on top to account for production wastage">Waste %</th>
+                                    <th colSpan={maxPly} className="text-center border-x font-bold text-black bg-orange-50/50" title="GSM (grams per square metre) of each paper layer, from outermost to innermost">GSM Composition</th>
+                                    <th rowSpan={2} className="text-center min-w-[90px] border-r bg-muted/20" title="Total GSM: outer/inner liners plus flutes (weighted 1.35x for corrugation) - drives the paper weight below">T.GSM</th>
+                                    <th rowSpan={2} className="text-center min-w-[100px] border-r bg-muted/20" title="Total paper weight for all pieces in this row, including wastage">Weight (g)</th>
                                     <th rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Gross</th>
                                     <th rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Transport</th>
                                     <th rowSpan={2} className="text-right min-w-[140px] pr-6 bg-primary/10 font-bold">Total NPR</th>
@@ -902,15 +938,15 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                     <th className="text-center border-l min-w-[110px] bg-blue-50/30">L</th>
                                     <th className="text-center min-w-[110px] bg-blue-50/30">B</th>
                                     <th className="text-center border-r min-w-[110px] bg-blue-50/30">H</th>
-                                    <th className="text-center border-l min-w-[100px] bg-orange-50/30">Top</th>
-                                    <th className="text-center min-w-[100px] bg-orange-50/30">F1</th>
-                                    {maxPly >= 5 && <th className="text-center min-w-[100px] bg-orange-50/30">Mid1</th>}
-                                    {maxPly >= 5 && <th className="text-center min-w-[100px] bg-orange-50/30">F2</th>}
-                                    {maxPly >= 7 && <th className="text-center min-w-[100px] bg-orange-50/30">Mid2</th>}
-                                    {maxPly >= 7 && <th className="text-center min-w-[100px] bg-orange-50/30">F3</th>}
-                                    {maxPly >= 9 && <th className="text-center min-w-[100px] bg-orange-50/30">Mid3</th>}
-                                    {maxPly >= 9 && <th className="text-center min-w-[100px] bg-orange-50/30">F4</th>}
-                                    <th className="text-center border-r min-w-[100px] bg-orange-50/30">Bot</th>
+                                    <th className="text-center border-l min-w-[100px] bg-orange-50/30" title="Outer liner GSM">Top</th>
+                                    <th className="text-center min-w-[100px] bg-orange-50/30" title="1st flute (corrugated medium) GSM">F1</th>
+                                    {maxPly >= 5 && <th className="text-center min-w-[100px] bg-orange-50/30" title="1st middle liner GSM (5-ply and up)">Mid1</th>}
+                                    {maxPly >= 5 && <th className="text-center min-w-[100px] bg-orange-50/30" title="2nd flute GSM (5-ply and up)">F2</th>}
+                                    {maxPly >= 7 && <th className="text-center min-w-[100px] bg-orange-50/30" title="2nd middle liner GSM (7-ply and up)">Mid2</th>}
+                                    {maxPly >= 7 && <th className="text-center min-w-[100px] bg-orange-50/30" title="3rd flute GSM (7-ply and up)">F3</th>}
+                                    {maxPly >= 9 && <th className="text-center min-w-[100px] bg-orange-50/30" title="3rd middle liner GSM (9-ply)">Mid3</th>}
+                                    {maxPly >= 9 && <th className="text-center min-w-[100px] bg-orange-50/30" title="4th flute GSM (9-ply)">F4</th>}
+                                    <th className="text-center border-r min-w-[100px] bg-orange-50/30" title="Inner liner GSM">Bot</th>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -923,8 +959,9 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                         products={companyProducts} 
                                         onItemChange={handleItemChange} 
                                         onAddAccessory={handleAddAccessory} 
-                                        onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))} 
-                                        onTogglePrint={handleTogglePrint} 
+                                        onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))}
+                                        onDuplicateItem={handleDuplicateItem}
+                                        onTogglePrint={handleTogglePrint}
                                         selectedForPrint={selectedForPrint}
                                         onOpenQuickAddProduct={(idx: number, search: string) => {
                                             setActiveRowIndexForProduct(idx);

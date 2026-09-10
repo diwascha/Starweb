@@ -23,11 +23,6 @@ export interface ProductSpecification {
   topGsm?: string;
   flute1Gsm?: string;
   middleGsm?: string;
-  view?: string;
-  edit?: string;
-  delete?: string;
-  add?: string;
-  all?: string;
   flute2Gsm?: string;
   bottomGsm?: string;
   liner2Gsm?: string;
