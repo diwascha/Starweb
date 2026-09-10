@@ -191,8 +191,9 @@ export type WageBasis = 'Monthly' | 'Hourly';
 export type Gender = 'Male' | 'Female' | 'Other';
 export type IdentityType = 'Citizenship' | 'Voters Card' | 'License' | 'Passport';
 export type EmployeeStatus = 'Working' | 'Long Leave' | 'Resigned' | 'Dismissed';
-export type Department = 'Production' | 'Admin';
-export type Position = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers' | 'Staff';
+// Freeform, but 'Production' | 'Admin' / the roles below are offered as quick-pick defaults in the UI.
+export type Department = string;
+export type Position = string;
 export type PositionStatus = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers' | 'Staff';
 export type BloodGroup = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
 
@@ -224,7 +225,8 @@ export interface Employee {
   documentNumber?: string;
   referredBy?: string;
   photoURL?: string;
-  
+  shiftId?: string; // Assigned HrShift id; falls back to the default shift, then to HrConfig.hours
+
   // Advanced HR Fields
   bloodGroup?: BloodGroup;
   emergencyContactName?: string;
@@ -282,6 +284,7 @@ export interface RawMachineLog {
     rawPayload: Record<string, any>;
     rowIndex?: number; // Preserves Excel row order
     isManual?: boolean;
+    otApproved?: boolean; // Manual "OT Ok" override - pays for time worked outside the assigned shift window, same effect as an imported "EXTRAOK" status
 }
 
 export interface AttendanceRecord {
@@ -296,7 +299,7 @@ export interface AttendanceRecord {
     offDuty: string | null;
     clockIn: string | null;
     clockOut: string | null;
-    status: string; 
+    status: string;
     grossHours: number;
     overtimeHours: number;
     regularHours: number;
@@ -305,6 +308,11 @@ export interface AttendanceRecord {
     remarks: string | null;
     sourceLogId?: string; // Link to the raw machine log
     rowIndex?: number; // Preserves original import order
+    weekday?: string; // Day-of-week name, matching the Excel "Weekday" column
+    absent?: boolean; // Matches the Excel "Absent" boolean column
+    gTime?: number | null; // "G. Time": raw clock-in-to-clock-out span, before break subtraction
+    breakHours?: number | null; // "Break": time subtracted for the fixed break window
+    gHours?: number | null; // "G. Hours": net worked hours after break, before rounding/rules
 }
 
 export interface HrShift {
@@ -433,6 +441,7 @@ export interface BehaviorLedgerEntry {
     phWorked: number;
     extraOkHours: number;
     otHours: number;
+    source?: 'excel-import' | 'generated'; // Provenance: pulled from the source workbook's own ledger vs computed here from attendance.
 }
 
 export interface Payroll {
@@ -467,6 +476,9 @@ export interface Payroll {
     remark?: string;
     bonus?: number;
     ownership: string;
+    source?: 'legacy-import' | 'consolidated-ledger-import' | 'recalculated'; // Provenance: historical imports are never overwritten by recalculation.
+    sourceSheet?: string;
+    roundedNet?: number; // "Rounded Net" column, when the source sheet has one - the actual rupee-rounded payout amount.
 }
 
 export interface BehaviorAnalyticsEntry {
@@ -486,6 +498,7 @@ export interface BehaviorAnalyticsEntry {
     performanceInsight: string;
     bestDayOfWeek: string;
     worstDayOfWeek: string;
+    source?: 'excel-import' | 'generated'; // Provenance: pulled from the source workbook's own ledger vs computed here from attendance.
 }
 
 export interface AnalyticsData {
@@ -1190,6 +1203,16 @@ export interface CompanyProfile {
   logoURL?: string;
   lastModifiedBy?: string;
   lastModifiedAt?: string;
+  // Payslip-specific fields, matching the VBA "COMPANY DETAILS" section
+  // (Rates sheet H/I columns) that drives the Salary Slip template.
+  addressLine2?: string;
+  headerNote1?: string; // e.g. "PAN: 123456789"
+  headerNote2?: string;
+  footerNote1?: string; // e.g. "This is a computer-generated payslip."
+  footerNote2?: string;
+  preparedBy?: string;
+  checkedBy?: string;
+  authorisedBy?: string;
 }
 
 export interface AppBranding {

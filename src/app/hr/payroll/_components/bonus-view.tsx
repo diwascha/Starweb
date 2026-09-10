@@ -152,7 +152,7 @@ export default function BonusView({ selectedBsYear, selectedBsMonth }: BonusView
                                         }
                                     </TableCell>
                                     <TableCell className="text-right font-black text-gray-900 tabular-nums">
-                                        {item.isEligible ? `Rs. ${item.accrual?.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}
+                                        {item.accrual ? `Rs. ${item.accrual.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}
                                     </TableCell>
                                     <TableCell className="pr-6 text-[10px] text-muted-foreground italic truncate max-w-[220px]">{item.note}</TableCell>
                                 </TableRow>

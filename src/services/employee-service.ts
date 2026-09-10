@@ -20,6 +20,7 @@ import {
 import type { Employee } from '@/lib/types';
 import { deleteFile } from './storage-service';
 import { COLLECTIONS } from '@/lib/constants';
+import { stripUndefined } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { logAudit } from './log-service';
@@ -117,10 +118,10 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
     const id = docRef.id;
     const now = new Date().toISOString();
     
-    const payload = {
+    const payload = stripUndefined({
         ...employee,
         createdAt: now,
-    };
+    });
 
     setDoc(docRef, payload).then(() => {
         logAudit(`New Employee Onboarded: ${employee.name}`, 'HR', { id });
@@ -151,10 +152,10 @@ export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): ()
 
 export const updateEmployee = async (id: string, employee: Partial<Omit<Employee, 'id'>>): Promise<void> => {
     const employeeDoc = doc(getEmployeesCollection(), id);
-    const payload = {
+    const payload = stripUndefined({
         ...employee,
         lastModifiedAt: new Date().toISOString(),
-    };
+    });
 
     updateDoc(employeeDoc, payload).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({

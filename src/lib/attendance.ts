@@ -126,8 +126,8 @@ const parseExcelDate = (dateInput: any): Date | null => {
    ========================= */
 export const processAttendanceImport = (
     jsonData: any[][]
-): { processedData: CalcAttendanceRow[], skippedCount: number } => {
-    if (!jsonData || jsonData.length < 2) return { processedData: [], skippedCount: 0 };
+): { processedData: CalcAttendanceRow[], skippedCount: number, headerRow: any[], headerIndex: number } => {
+    if (!jsonData || jsonData.length < 2) return { processedData: [], skippedCount: 0, headerRow: [], headerIndex: -1 };
 
     let headerIndex = -1;
     for (let i = 0; i < Math.min(jsonData.length, MAX_HEADER_SCAN_LIMIT); i++) {
@@ -266,6 +266,69 @@ export const processAttendanceImport = (
     
     return {
         processedData,
-        skippedCount
+        skippedCount,
+        headerRow,
+        headerIndex
     };
+};
+
+/* =========================
+   Sheet-name period resolution
+   ========================= */
+
+// Handles the spelling variants seen across FY2077/78-2083/84 workbooks
+// (e.g. "Mangshir", "Ashar", "Chaith", "sHRAWAN", "Falgun2080" with no space).
+const NEPALI_MONTH_ALIASES: Record<string, number> = {
+    baishak: 0, baisakh: 0, baishakh: 0, bais: 0,
+    jestha: 1, jesth: 1, jeth: 1,
+    ashar: 2, ashadh: 2, asar: 2,
+    shrawan: 3, shrawn: 3, sawan: 3,
+    bhadra: 4, bhadau: 4,
+    ashoj: 5, ashwin: 5, asoj: 5,
+    kartik: 6,
+    mangsir: 7, mangshir: 7,
+    poush: 8, push: 8, paush: 8,
+    magh: 9,
+    falgun: 10, falgoon: 10,
+    chaitra: 11, chaith: 11, chait: 11,
+};
+
+/**
+ * Picks the most common BS year/month among a sheet's parsed attendance rows.
+ * A handful of rows can spill into the neighbouring month at the edges of a
+ * sheet, so majority vote is more reliable than looking at the first row.
+ */
+export const resolveDominantPeriod = (rows: CalcAttendanceRow[]): ImportPeriod | null => {
+    if (rows.length === 0) return null;
+    const counts = new Map<string, number>();
+    for (const r of rows) {
+        const key = `${r.bsYear}-${r.bsMonth}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    let bestKey = ''; let bestCount = -1;
+    for (const [key, count] of counts) {
+        if (count > bestCount) { bestKey = key; bestCount = count; }
+    }
+    const [year, month] = bestKey.split('-').map(Number);
+    return { year, month };
+};
+
+/**
+ * Best-effort BS year/month resolution from a sheet name like "Mangshir 2077"
+ * or "Falgun2080". Used only as a fallback when a sheet has no parseable
+ * attendance rows to derive the period from directly.
+ */
+export const resolvePeriodFromSheetName = (sheetName: string): ImportPeriod | null => {
+    const cleaned = sheetName.trim().toLowerCase();
+    const yearMatch = cleaned.match(/(20\d{2})/);
+    const monthWord = cleaned.replace(/[^a-z]/g, '');
+    if (!yearMatch || !monthWord) return null;
+
+    const year = parseInt(yearMatch[1], 10);
+    for (const alias in NEPALI_MONTH_ALIASES) {
+        if (monthWord.includes(alias)) {
+            return { year, month: NEPALI_MONTH_ALIASES[alias] };
+        }
+    }
+    return null;
 };

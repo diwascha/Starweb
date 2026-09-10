@@ -8,13 +8,12 @@ import {
     getDocs, 
     query, 
     where, 
-    limit, 
-    deleteDoc, 
-    writeBatch 
+    limit,
+    deleteDoc
 } from 'firebase/firestore';
 import type { Payroll } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
-import { coerceNumber } from '@/lib/service-utils';
+import { coerceNumber, deleteDocsInChunks } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -52,10 +51,13 @@ export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | Do
         salaryTotal: coerceNumber(data.salaryTotal),
         advance: coerceNumber(data.advance),
         netPayment: coerceNumber(data.netPayment),
+        roundedNet: data.roundedNet !== undefined ? coerceNumber(data.roundedNet) : undefined,
         remark: String(data.remark || ''),
         createdBy: String(data.createdBy || 'System'),
         createdAt: String(data.createdAt || ''),
         ownership: data.ownership || 'Both',
+        source: data.source || undefined,
+        sourceSheet: data.sourceSheet || undefined,
     };
 };
 
@@ -110,27 +112,36 @@ export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Pr
     const { db } = getFirebase();
     const year = Number(bsYear); const month = Number(bsMonth);
     const collections = [COLLECTIONS.PAYROLL, 'bonus_ledger', 'behavior_ledger', 'behavior_analytics'];
-    
-    deleteDoc(doc(db, 'analytics_reports', `${year}-${month}`)).catch(async (err) => {
-         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'analytics_reports',
-            operation: 'delete',
-        }));
-    });
+
+    try {
+        await deleteDoc(doc(db, 'analytics_reports', `${year}-${month}`));
+    } catch (err: any) {
+        // A missing analytics_reports doc is expected for most periods - only
+        // surface a genuine permission problem, and don't let it block the
+        // rest of the purge below.
+        if (err?.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'analytics_reports',
+                operation: 'delete',
+            }));
+        }
+    }
 
     for (const collName of collections) {
         const q = query(collection(db, collName), where("bsYear", "==", year), where("bsMonth", "==", month));
-        getDocs(q).then(async (snap) => {
+        try {
+            const snap = await getDocs(q);
             if (!snap.empty) {
-                const batch = writeBatch(db);
-                snap.docs.forEach(d => batch.delete(d.ref));
-                await batch.commit();
+                await deleteDocsInChunks(snap.docs.map(d => d.ref));
             }
-        }).catch(async (err) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: collName,
-                operation: 'write',
-            }));
-        });
+        } catch (err: any) {
+            if (err?.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: collName,
+                    operation: 'write',
+                }));
+            }
+            throw err;
+        }
     }
 };

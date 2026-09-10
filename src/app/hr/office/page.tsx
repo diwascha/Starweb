@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { 
     Timer, 
     Plus, 
@@ -11,12 +11,9 @@ import {
     CalendarIcon,
     X,
     CheckCircle2,
-    Calculator,
     Save,
     Loader2,
-    PlayCircle,
     ArrowRight,
-    ShieldAlert,
     RefreshCcw,
     CalendarCheck,
     Briefcase,
@@ -39,66 +36,57 @@ import {
 } from '@/services/hr-admin-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
-import { runHourlyCalculation } from '@/services/attendance-service';
 import type { HrShift, HrConfig, LeaveRequest, Employee, PublicHoliday } from '@/lib/types';
 import { toNepaliDate, cn } from '@/lib/utils';
+import { DEFAULT_HR_CONFIG } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { NEPALI_MONTHS } from '@/lib/constants';
-import NepaliDate from 'nepali-date-converter';
-import { useRouter } from 'next/navigation';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format, differenceInDays } from 'date-fns';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
-const INITIAL_HR_CONFIG: HrConfig = {
-    hours: {
-        baseDayHours: 8,
-        roundStep: 0.5,
-        graceMin: 5,
-        blockMin: 30,
-        freeLate: 1,
-        freeLatePeriod: 'WEEKLY',
-        freeEarly: 1,
-        freeEarlyPeriod: 'WEEKLY',
-        reviewThresh: 8.5,
-        breakStart: '12:00',
-        breakEnd: '13:00'
-    },
-    payroll: {
-        defaultHourly: 83.5,
-        fallbackHourly: 83.5,
-        tdsRate: 0.01,
-        monthDays: 30,
-        stdWorkdays: 26,
-        attendReqPct: 90,
-        punctHighPct: 95,
-        punctMidPct: 85,
-        lateDaysHigh: 6,
-        lateDaysMid: 3,
-        otHighHours: 15,
-        otMidHours: 5,
-        dowLateHighPct: 15,
-        dowLateMidPct: 5
-    },
-    bonus: {
-        bonusEligReq: 75,
-        bonusAbsFactor: 1
-    }
-};
+const INITIAL_HR_CONFIG: HrConfig = DEFAULT_HR_CONFIG;
+
+interface SettingRowSpec {
+    label: string;
+    description?: string;
+    control: ReactNode;
+}
+
+/**
+ * Compact "Setting | Value" table used across HR Setting's operational
+ * config sections, in place of a grid of individually-labeled inputs - the
+ * same key/value/description shape as the source workbook's Rates sheet,
+ * just without the big card padding around every single field.
+ */
+function SettingsTable({ rows }: { rows: SettingRowSpec[] }) {
+    return (
+        <Table className="text-xs">
+            <TableBody>
+                {rows.map((row, i) => (
+                    <TableRow key={i} className="hover:bg-muted/10">
+                        <TableCell className="pl-4 py-2.5 align-top w-1/2">
+                            <div className="font-bold text-gray-900">{row.label}</div>
+                            {row.description && <div className="text-[9px] text-muted-foreground font-normal leading-snug mt-0.5">{row.description}</div>}
+                        </TableCell>
+                        <TableCell className="py-2 pr-4 align-middle">{row.control}</TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    );
+}
 
 export default function HrOfficePage() {
     const { user } = useAuth();
     const { toast } = useToast();
-    const router = useRouter();
-    
+
     const [activeTab, setActiveTab] = useState("operations");
     const [shifts, setShifts] = useState<HrShift[]>([]);
     const [hrConfig, setHrConfig] = useState<HrConfig>(INITIAL_HR_CONFIG);
@@ -109,10 +97,6 @@ export default function HrOfficePage() {
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
 
-    const [isCalculating, setIsCalculating] = useState(false);
-    const [selectedYear, setSelectedYear] = useState<string>(String(new NepaliDate().getYear()));
-    const [selectedMonth, setSelectedMonth] = useState<string>(String(new NepaliDate().getMonth()));
-
     const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
     const [editingShift, setEditingShift] = useState<HrShift | null>(null);
     const [shiftForm, setShiftForm] = useState({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', isDefault: false });
@@ -121,12 +105,13 @@ export default function HrOfficePage() {
     const [holidayForm, setHolidayForm] = useState({ name: '', date: new Date().toISOString(), isRecurring: true });
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
-    const [leaveForm, setLeaveForm] = useState({ 
-        employeeId: '', 
-        leaveType: 'Paid' as any, 
-        startDate: new Date().toISOString(), 
-        endDate: new Date().toISOString(), 
-        reason: '' 
+    const [editingLeave, setEditingLeave] = useState<LeaveRequest | null>(null);
+    const [leaveForm, setLeaveForm] = useState({
+        employeeId: '',
+        leaveType: 'Paid' as any,
+        startDate: new Date().toISOString(),
+        endDate: new Date().toISOString(),
+        reason: ''
     });
 
     useEffect(() => {
@@ -156,27 +141,6 @@ export default function HrOfficePage() {
             toast({ title: 'Update Failed', variant: 'destructive' });
         } finally {
             setIsSavingConfig(false);
-        }
-    };
-
-    const handleRunCalculation = async () => {
-        if (!user) return;
-        setIsCalculating(true);
-        try {
-            const { processed } = await runHourlyCalculation(
-                parseInt(selectedYear),
-                parseInt(selectedMonth),
-                user.username
-            );
-            toast({ 
-                title: 'Calculation Successful', 
-                description: `Successfully processed ${processed} attendance records.` 
-            });
-            router.push('/hr/attendance');
-        } catch (error: any) {
-            toast({ title: 'Calculation Failed', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsCalculating(false);
         }
     };
 
@@ -225,12 +189,36 @@ export default function HrOfficePage() {
         if (!employee) return;
         const totalDays = differenceInDays(new Date(leaveForm.endDate), new Date(leaveForm.startDate)) + 1;
         try {
-            await saveLeaveRequest({ ...leaveForm, employeeName: employee.name, totalDays, status: 'Pending', createdBy: user.username, createdAt: createTimestamp() } as any);
-            toast({ title: 'Leave Request Logged' });
+            if (editingLeave) {
+                // Editing keeps the original approval status and audit trail -
+                // fixing a typo in the reason or adjusting dates shouldn't
+                // silently reset an already-approved/rejected request back to Pending.
+                await saveLeaveRequest({
+                    ...leaveForm, employeeName: employee.name, totalDays,
+                    status: editingLeave.status, createdBy: editingLeave.createdBy, createdAt: editingLeave.createdAt,
+                } as any, editingLeave.id);
+                toast({ title: 'Leave Request Updated' });
+            } else {
+                await saveLeaveRequest({ ...leaveForm, employeeName: employee.name, totalDays, status: 'Pending', createdBy: user.username, createdAt: createTimestamp() } as any);
+                toast({ title: 'Leave Request Logged' });
+            }
             setIsLeaveDialogOpen(false);
+            setEditingLeave(null);
         } catch {
             toast({ title: 'Error', variant: 'destructive' });
         }
+    };
+
+    const openEditLeaveDialog = (request: LeaveRequest) => {
+        setEditingLeave(request);
+        setLeaveForm({
+            employeeId: request.employeeId,
+            leaveType: request.leaveType,
+            startDate: request.startDate,
+            endDate: request.endDate,
+            reason: request.reason,
+        });
+        setIsLeaveDialogOpen(true);
     };
 
     const handleUpdateLeaveStatus = async (request: LeaveRequest, status: 'Approved' | 'Rejected') => {
@@ -264,121 +252,142 @@ export default function HrOfficePage() {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="bg-muted/50 p-1 h-11 mb-6">
                     <TabsTrigger value="operations" className="gap-2 px-6 font-bold text-[10px] uppercase tracking-widest">Operations & Registry</TabsTrigger>
+                    <TabsTrigger value="payroll-rules" className="gap-2 px-6 font-bold text-[10px] uppercase tracking-widest">Analytics Rules</TabsTrigger>
                     <TabsTrigger value="holidays" className="gap-2 px-6 font-bold text-[10px] uppercase tracking-widest">Holiday Registry</TabsTrigger>
                     <TabsTrigger value="leaves" className="gap-2 px-6 font-bold text-[10px] uppercase tracking-widest">Leave Admin</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="operations" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2 space-y-6">
-                            <Card className="shadow-lg border-primary/20 overflow-hidden ring-4 ring-primary/5">
-                                <CardHeader className="bg-primary/5 border-b py-5 px-6">
-                                    <CardTitle className="text-sm font-black uppercase text-gray-900 flex items-center gap-2">
-                                        <Calculator className="h-4 w-4 text-primary"/>
-                                        Calculation Execution
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-6 space-y-6">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Year (BS)</Label>
-                                            <Select value={selectedYear} onValueChange={setSelectedYear}>
-                                                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                                                <SelectContent>{[2080, 2081, 2082, 2083].map(y => <SelectItem key={`yr-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Month (BS)</Label>
-                                            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                                                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                                                <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`mo-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="p-4 rounded-lg bg-blue-50 border-2 border-blue-100 flex gap-4">
-                                        <ShieldAlert className="h-4 w-4 text-blue-600 shrink-0" />
-                                        <p className="text-[10px] text-blue-800 leading-relaxed font-medium italic">Running this will overwrite all existing attendance records for the selected period.</p>
-                                    </div>
-                                    <Button onClick={handleRunCalculation} disabled={isCalculating} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
-                                        {isCalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlayCircle className="mr-2 h-4 w-4"/>}
-                                        {isCalculating ? 'Processing...' : 'Run Attendance Processor'}
-                                    </Button>
-                                </CardContent>
-                            </Card>
+                    <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                        <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle className="text-sm font-black uppercase text-gray-900">Shift Pattern Registry</CardTitle>
+                                <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Pre-defined schedules for the attendance processor.</CardDescription>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={handleRefreshShifts} disabled={isRefreshingShifts} className="h-8 text-[10px] uppercase font-black tracking-widest border-primary/20 text-primary hover:bg-primary/5">
+                                    {isRefreshingShifts ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />}
+                                    Auto-Discovery
+                                </Button>
+                                <Button size="sm" onClick={() => { setEditingShift(null); setShiftForm({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', isDefault: false }); setIsShiftDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest shadow-sm">
+                                    <Plus className="mr-1.5 h-3.5 w-3.5" /> Define Shift
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <Table className="text-xs">
+                                <TableHeader className="bg-muted/30"><TableRow className="hover:bg-transparent"><TableHead className="pl-6 font-bold">Pattern Name</TableHead><TableHead className="font-bold text-center">Schedule (Duty Hours)</TableHead><TableHead className="font-bold text-center">Break Window</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {shifts.map(s => (
+                                        <TableRow key={s.id} className="h-12 hover:bg-muted/10">
+                                            <TableCell className="pl-6 font-black text-gray-900 uppercase tracking-tighter">{s.name} {s.isDefault && <Badge variant="secondary" className="ml-2 text-[8px] uppercase">Master Default</Badge>}</TableCell>
+                                            <TableCell className="font-mono text-gray-600 text-center">{s.onDuty} — {s.offDuty}</TableCell>
+                                            <TableCell className="font-mono text-gray-600 text-center">{s.breakStart || '—'} — {s.breakEnd || '—'}</TableCell>
+                                            <TableCell className="text-right pr-6 space-x-1">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => { setEditingShift(s); setShiftForm({ name: s.name, onDuty: s.onDuty, offDuty: s.offDuty, breakStart: s.breakStart || '12:00', breakEnd: s.breakEnd || '13:00', isDefault: s.isDefault }); setIsShiftDialogOpen(true); }}><Edit className="h-3.5 w-3.5"/></Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteShift(s.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {shifts.length === 0 && <TableRow><TableCell colSpan={4} className="h-32 text-center text-muted-foreground italic">No shift patterns registered.</TableCell></TableRow>}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
 
-                            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
-                                <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
-                                    <div>
-                                        <CardTitle className="text-sm font-black uppercase text-gray-900">Shift Pattern Registry</CardTitle>
-                                        <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Pre-defined schedules for the attendance processor.</CardDescription>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button variant="outline" size="sm" onClick={handleRefreshShifts} disabled={isRefreshingShifts} className="h-8 text-[10px] uppercase font-black tracking-widest border-primary/20 text-primary hover:bg-primary/5">
-                                            {isRefreshingShifts ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />}
-                                            Auto-Discovery
-                                        </Button>
-                                        <Button size="sm" onClick={() => { setEditingShift(null); setShiftForm({ name: '', onDuty: '09:00', offDuty: '17:00', breakStart: '12:00', breakEnd: '13:00', isDefault: false }); setIsShiftDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest shadow-sm">
-                                            <Plus className="mr-1.5 h-3.5 w-3.5" /> Define Shift
-                                        </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <Table className="text-xs">
-                                        <TableHeader className="bg-muted/30"><TableRow className="hover:bg-transparent"><TableHead className="pl-6 font-bold">Pattern Name</TableHead><TableHead className="font-bold text-center">Schedule (Duty Hours)</TableHead><TableHead className="text-right pr-6 font-bold">Actions</TableHead></TableRow></TableHeader>
-                                        <TableBody>
-                                            {shifts.map(s => (
-                                                <TableRow key={s.id} className="h-12 hover:bg-muted/10">
-                                                    <TableCell className="pl-6 font-black text-gray-900 uppercase tracking-tighter">{s.name} {s.isDefault && <Badge variant="secondary" className="ml-2 text-[8px] uppercase">Master Default</Badge>}</TableCell>
-                                                    <TableCell className="font-mono text-gray-600 text-center">{s.onDuty} — {s.offDuty}</TableCell>
-                                                    <TableCell className="text-right pr-6 space-x-1">
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => { setEditingShift(s); setShiftForm({ name: s.name, onDuty: s.onDuty, offDuty: s.offDuty, breakStart: s.breakStart || '12:00', breakEnd: s.breakEnd || '13:00', isDefault: s.isDefault }); setIsShiftDialogOpen(true); }}><Edit className="h-3.5 w-3.5"/></Button>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteShift(s.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                            {shifts.length === 0 && <TableRow><TableCell colSpan={3} className="h-32 text-center text-muted-foreground italic">No shift patterns registered.</TableCell></TableRow>}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
-                        </div>
-                        
-                        <div className="lg:col-span-1 space-y-6">
-                            <Card className="shadow-sm border-gray-100">
-                                <CardHeader className="py-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black text-muted-foreground">Precision Controls</CardTitle></CardHeader>
-                                <CardContent className="p-6 space-y-6">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Base Day (Hrs)</Label><Input type="number" value={hrConfig.hours.baseDayHours} onChange={e => updateNestedConfig('hours', 'baseDayHours', Number(e.target.value))} className="h-9 font-bold" /></div>
-                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Rounding Step</Label><Input type="number" step="0.25" value={hrConfig.hours.roundStep} onChange={e => updateNestedConfig('hours', 'roundStep', Number(e.target.value))} className="h-9 font-bold" /></div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Grace (Min)</Label><Input type="number" value={hrConfig.hours.graceMin} onChange={e => updateNestedConfig('hours', 'graceMin', Number(e.target.value))} className="h-9" /></div>
-                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Block (Min)</Label><Input type="number" value={hrConfig.hours.blockMin} onChange={e => updateNestedConfig('hours', 'blockMin', Number(e.target.value))} className="h-9" /></div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <Card className="shadow-sm border-gray-100 overflow-hidden">
+                            <CardHeader className="py-3 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black text-muted-foreground">Precision Controls</CardTitle></CardHeader>
+                            <CardContent className="p-0">
+                                <SettingsTable rows={[
+                                    { label: 'Base Day Hours', control: <Input type="number" value={hrConfig.hours.baseDayHours} onChange={e => updateNestedConfig('hours', 'baseDayHours', Number(e.target.value))} className="h-8 w-24 font-bold" /> },
+                                    { label: 'Rounding Step', control: <Input type="number" step="0.25" value={hrConfig.hours.roundStep} onChange={e => updateNestedConfig('hours', 'roundStep', Number(e.target.value))} className="h-8 w-24 font-bold" /> },
+                                    { label: 'Grace (Min)', control: <Input type="number" value={hrConfig.hours.graceMin} onChange={e => updateNestedConfig('hours', 'graceMin', Number(e.target.value))} className="h-8 w-24" /> },
+                                    { label: 'Block (Min)', control: <Input type="number" value={hrConfig.hours.blockMin} onChange={e => updateNestedConfig('hours', 'blockMin', Number(e.target.value))} className="h-8 w-24" /> },
+                                ]} />
+                            </CardContent>
+                        </Card>
 
-                            <Card className="shadow-sm border-gray-100 h-fit">
-                                <CardHeader className="py-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black text-muted-foreground">Break & Oversight</CardTitle></CardHeader>
-                                <CardContent className="p-6 space-y-6">
-                                    <div className="space-y-4">
-                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Fixed Break Start</Label><Input type="time" value={hrConfig.hours.breakStart || '12:00'} onChange={e => updateNestedConfig('hours', 'breakStart', e.target.value)} className="h-9 font-mono" /></div>
-                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Fixed Break End</Label><Input type="time" value={hrConfig.hours.breakEnd || '13:00'} onChange={e => updateNestedConfig('hours', 'breakEnd', e.target.value)} className="h-9 font-mono" /></div>
-                                    </div>
-                                    <Separator />
-                                    <div className="space-y-4">
-                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Free Lates (Count)</Label><Input type="number" value={hrConfig.hours.freeLate} onChange={e => updateNestedConfig('hours', 'freeLate', Number(e.target.value))} className="h-9" /></div>
-                                        <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Tolerance Cycle</Label>
-                                            <Select value={hrConfig.hours.freeLatePeriod} onValueChange={(v: 'WEEKLY' | 'MONTHLY') => updateNestedConfig('hours', 'freeLatePeriod', v)}>
-                                                <SelectTrigger className="h-9"><SelectValue/></SelectTrigger>
-                                                <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                        <Card className="shadow-sm border-gray-100 overflow-hidden">
+                            <CardHeader className="py-3 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black text-muted-foreground">Break & Oversight</CardTitle></CardHeader>
+                            <CardContent className="p-0">
+                                <SettingsTable rows={[
+                                    { label: 'Fixed Break Start', control: <Input type="time" value={hrConfig.hours.breakStart || '12:00'} onChange={e => updateNestedConfig('hours', 'breakStart', e.target.value)} className="h-8 w-28 font-mono" /> },
+                                    { label: 'Fixed Break End', control: <Input type="time" value={hrConfig.hours.breakEnd || '13:00'} onChange={e => updateNestedConfig('hours', 'breakEnd', e.target.value)} className="h-8 w-28 font-mono" /> },
+                                    { label: 'Free Lates (Count)', control: <Input type="number" value={hrConfig.hours.freeLate} onChange={e => updateNestedConfig('hours', 'freeLate', Number(e.target.value))} className="h-8 w-24" /> },
+                                    { label: 'Free Late Reset Cycle', control: (
+                                        <Select value={hrConfig.hours.freeLatePeriod} onValueChange={(v: 'WEEKLY' | 'MONTHLY') => updateNestedConfig('hours', 'freeLatePeriod', v)}>
+                                            <SelectTrigger className="h-8 w-32"><SelectValue/></SelectTrigger>
+                                            <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
+                                        </Select>
+                                    ) },
+                                    { label: 'Free Earlies (Count)', control: <Input type="number" value={hrConfig.hours.freeEarly} onChange={e => updateNestedConfig('hours', 'freeEarly', Number(e.target.value))} className="h-8 w-24" /> },
+                                    { label: 'Free Early Reset Cycle', control: (
+                                        <Select value={hrConfig.hours.freeEarlyPeriod} onValueChange={(v: 'WEEKLY' | 'MONTHLY') => updateNestedConfig('hours', 'freeEarlyPeriod', v)}>
+                                            <SelectTrigger className="h-8 w-32"><SelectValue/></SelectTrigger>
+                                            <SelectContent><SelectItem value="WEEKLY">Weekly</SelectItem><SelectItem value="MONTHLY">Monthly</SelectItem></SelectContent>
+                                        </Select>
+                                    ) },
+                                    { label: 'Review Hours Threshold', description: 'Rows above this get flagged "Review Hours".', control: <Input type="number" step="0.25" value={hrConfig.hours.reviewThresh} onChange={e => updateNestedConfig('hours', 'reviewThresh', Number(e.target.value))} className="h-8 w-24" /> },
+                                ]} />
+                            </CardContent>
+                        </Card>
+
+                        <Card className="shadow-sm border-gray-100 overflow-hidden">
+                            <CardHeader className="py-3 border-b bg-muted/5">
+                                <CardTitle className="text-xs uppercase font-black text-muted-foreground">Payroll Calculation</CardTitle>
+                                <CardDescription className="text-[9px] uppercase font-bold text-muted-foreground">Rates, tax, and workday assumptions used by Recalculate.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <SettingsTable rows={[
+                                    { label: 'Default Hourly Rate', control: <Input type="number" value={hrConfig.payroll.defaultHourly} onChange={e => updateNestedConfig('payroll', 'defaultHourly', Number(e.target.value))} className="h-8 w-24" /> },
+                                    { label: 'Fallback Hourly Rate', control: <Input type="number" value={hrConfig.payroll.fallbackHourly} onChange={e => updateNestedConfig('payroll', 'fallbackHourly', Number(e.target.value))} className="h-8 w-24" /> },
+                                    { label: 'TDS Rate (decimal)', control: <Input type="number" step="0.001" value={hrConfig.payroll.tdsRate} onChange={e => updateNestedConfig('payroll', 'tdsRate', Number(e.target.value))} className="h-8 w-24" /> },
+                                    { label: 'Days In A Month', control: <Input type="number" value={hrConfig.payroll.monthDays} onChange={e => updateNestedConfig('payroll', 'monthDays', Number(e.target.value))} className="h-8 w-24" /> },
+                                    { label: 'Standard Workdays / Month', control: <Input type="number" value={hrConfig.payroll.stdWorkdays} onChange={e => updateNestedConfig('payroll', 'stdWorkdays', Number(e.target.value))} className="h-8 w-24" /> },
+                                ]} />
+                            </CardContent>
+                        </Card>
+
+                        <Card className="shadow-sm border-gray-100 overflow-hidden">
+                            <CardHeader className="py-3 border-b bg-muted/5">
+                                <CardTitle className="text-xs uppercase font-black text-muted-foreground">Bonus Rules</CardTitle>
+                                <CardDescription className="text-[9px] uppercase font-bold text-muted-foreground">Monthly bonus accrual eligibility.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <SettingsTable rows={[
+                                    { label: 'Full-Bonus Attendance %', description: 'At or above this %, an employee earns the full monthly bonus (Base/12); below it, the bonus is pro-rated by attendance %.', control: <Input type="number" value={hrConfig.bonus.bonusEligReq} onChange={e => updateNestedConfig('bonus', 'bonusEligReq', Number(e.target.value))} className="h-8 w-24" /> },
+                                ]} />
+                            </CardContent>
+                        </Card>
                     </div>
+
+                    <Card className="shadow-sm border-gray-100 bg-blue-50/20">
+                        <CardContent className="p-4 text-[11px] text-blue-900 leading-relaxed">
+                            Company letterhead details (name, address, PAN) used on payslips are managed under <span className="font-bold">Settings → General → Company Profile</span>, not here.
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="payroll-rules" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                    <Card className="shadow-sm border-gray-100 overflow-hidden max-w-2xl">
+                        <CardHeader className="py-4 border-b bg-muted/5">
+                            <CardTitle className="text-sm font-black uppercase text-gray-900">Behavior Report Alert Bands</CardTitle>
+                            <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Color-coding thresholds for the Analytics tab's behavioral scoreboard.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <SettingsTable rows={[
+                                { label: 'Punctuality High % (green)', control: <Input type="number" value={hrConfig.payroll.punctHighPct} onChange={e => updateNestedConfig('payroll', 'punctHighPct', Number(e.target.value))} className="h-8 w-24" /> },
+                                { label: 'Punctuality Mid % (yellow)', control: <Input type="number" value={hrConfig.payroll.punctMidPct} onChange={e => updateNestedConfig('payroll', 'punctMidPct', Number(e.target.value))} className="h-8 w-24" /> },
+                                { label: 'Late Days High (red)', control: <Input type="number" value={hrConfig.payroll.lateDaysHigh} onChange={e => updateNestedConfig('payroll', 'lateDaysHigh', Number(e.target.value))} className="h-8 w-24" /> },
+                                { label: 'Late Days Mid (yellow)', control: <Input type="number" value={hrConfig.payroll.lateDaysMid} onChange={e => updateNestedConfig('payroll', 'lateDaysMid', Number(e.target.value))} className="h-8 w-24" /> },
+                                { label: 'OT High Hrs (fatigue)', control: <Input type="number" value={hrConfig.payroll.otHighHours} onChange={e => updateNestedConfig('payroll', 'otHighHours', Number(e.target.value))} className="h-8 w-24" /> },
+                                { label: 'OT Mid Hrs (monitor)', control: <Input type="number" value={hrConfig.payroll.otMidHours} onChange={e => updateNestedConfig('payroll', 'otMidHours', Number(e.target.value))} className="h-8 w-24" /> },
+                                { label: 'DOW Late High % (red)', control: <Input type="number" value={hrConfig.payroll.dowLateHighPct} onChange={e => updateNestedConfig('payroll', 'dowLateHighPct', Number(e.target.value))} className="h-8 w-24" /> },
+                                { label: 'DOW Late Mid % (yellow)', control: <Input type="number" value={hrConfig.payroll.dowLateMidPct} onChange={e => updateNestedConfig('payroll', 'dowLateMidPct', Number(e.target.value))} className="h-8 w-24" /> },
+                            ]} />
+                        </CardContent>
+                    </Card>
                 </TabsContent>
 
                 <TabsContent value="holidays" className="animate-in fade-in slide-in-from-bottom-2">
@@ -420,7 +429,7 @@ export default function HrOfficePage() {
                                 <CardTitle className="text-sm font-black uppercase text-gray-900">Leave Administration</CardTitle>
                                 <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Review, approve, or reject employee leave requests.</CardDescription>
                             </div>
-                            <Button size="sm" onClick={() => { setLeaveForm({ employeeId: '', leaveType: 'Paid', startDate: new Date().toISOString(), endDate: new Date().toISOString(), reason: '' }); setIsLeaveDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-blue-600 hover:bg-blue-700 text-white border-none shadow-sm">
+                            <Button size="sm" onClick={() => { setEditingLeave(null); setLeaveForm({ employeeId: '', leaveType: 'Paid', startDate: new Date().toISOString(), endDate: new Date().toISOString(), reason: '' }); setIsLeaveDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-blue-600 hover:bg-blue-700 text-white border-none shadow-sm">
                                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Submit Request
                             </Button>
                         </CardHeader>
@@ -459,6 +468,7 @@ export default function HrOfficePage() {
                                                         <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-100 hover:bg-red-50" onClick={() => handleUpdateLeaveStatus(r, 'Rejected')}><X className="h-4 w-4"/></Button>
                                                     </div>
                                                 )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => openEditLeaveDialog(r)}><Edit className="h-3.5 w-3.5"/></Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteLeaveRequest(r.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
                                             </TableCell>
                                         </TableRow>
@@ -479,6 +489,10 @@ export default function HrOfficePage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">On Duty (In)</Label><Input type="time" value={shiftForm.onDuty} onChange={e => setShiftForm({...shiftForm, onDuty: e.target.value})} className="h-10" /></div>
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Off Duty (Out)</Label><Input type="time" value={shiftForm.offDuty} onChange={e => setShiftForm({...shiftForm, offDuty: e.target.value})} className="h-10" /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-muted/30 border border-dashed">
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Break Start</Label><Input type="time" value={shiftForm.breakStart} onChange={e => setShiftForm({...shiftForm, breakStart: e.target.value})} className="h-10 bg-white" /></div>
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Break End</Label><Input type="time" value={shiftForm.breakEnd} onChange={e => setShiftForm({...shiftForm, breakEnd: e.target.value})} className="h-10 bg-white" /></div>
                         </div>
                         <div className="flex items-center space-x-2 pt-2"><Checkbox id="sh-def" checked={shiftForm.isDefault} onCheckedChange={(v) => setShiftForm({...shiftForm, isDefault: !!v})} /><Label htmlFor="sh-def" className="text-xs font-bold uppercase cursor-pointer">Make system default</Label></div>
                     </div>
@@ -501,9 +515,9 @@ export default function HrOfficePage() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
+            <Dialog open={isLeaveDialogOpen} onOpenChange={(open) => { setIsLeaveDialogOpen(open); if (!open) setEditingLeave(null); }}>
                 <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">Record Authorized Leave</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">{editingLeave ? 'Edit Leave Request' : 'Record Authorized Leave'}</DialogTitle></DialogHeader>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-4">
                         <div className="space-y-1.5 md:col-span-2">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">Target Employee</Label>
@@ -534,7 +548,7 @@ export default function HrOfficePage() {
                             <PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={new Date(leaveForm.endDate)} onSelect={d => setLeaveForm({...leaveForm, endDate: d?.toISOString() || ''})} /></PopoverContent></Popover>
                         </div>
                     </div>
-                    <DialogFooter><Button onClick={handleSaveLeaveRequest} className="w-full h-11 font-black text-xs uppercase shadow-lg shadow-blue-500/20">Commit Request</Button></DialogFooter>
+                    <DialogFooter><Button onClick={handleSaveLeaveRequest} className="w-full h-11 font-black text-xs uppercase shadow-lg shadow-blue-500/20">{editingLeave ? 'Save Changes' : 'Commit Request'}</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

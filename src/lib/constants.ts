@@ -84,3 +84,44 @@ export const DEFAULT_FLEET_PROFILE = {
 
 export const PLY_OPTIONS = ['3', '5', '7', '9'];
 export const BF_OPTIONS = ['16 BF', '18 BF', '20 BF', '22 BF'];
+
+// Single source of truth for HR operational rules, matching the legacy VBA
+// workbook's Rates sheet ("CALCULATE HOUR" / "CALCULATE PAYROLL" / "BONUS
+// RULES" sections). Used both as the HR Setting page's initial form state
+// and as the fallback when no hr_config setting has been saved yet - keep
+// both consumers reading from here so the two can't drift apart.
+export const DEFAULT_HR_CONFIG = {
+  hours: {
+    baseDayHours: 8,
+    roundStep: 0.5,
+    graceMin: 5,
+    blockMin: 30,
+    freeLate: 1,
+    freeLatePeriod: 'WEEKLY' as const,
+    freeEarly: 1,
+    freeEarlyPeriod: 'WEEKLY' as const,
+    reviewThresh: 8.5,
+    breakStart: '12:00',
+    breakEnd: '13:00',
+  },
+  payroll: {
+    defaultHourly: 83.5,
+    fallbackHourly: 100,
+    tdsRate: 0.01,
+    monthDays: 30,
+    stdWorkdays: 26,
+    attendReqPct: 90,
+    punctHighPct: 95,
+    punctMidPct: 85,
+    lateDaysHigh: 6,
+    lateDaysMid: 3,
+    otHighHours: 15,
+    otMidHours: 5,
+    dowLateHighPct: 15,
+    dowLateMidPct: 5,
+  },
+  bonus: {
+    bonusEligReq: 70,
+    bonusAbsFactor: 1,
+  },
+};

@@ -6,18 +6,20 @@ import {
     onSnapshot, 
     DocumentData, 
     QueryDocumentSnapshot, 
-    getDocs, 
-    query, 
-    where, 
-    updateDoc, 
-    deleteDoc, 
-    orderBy,
-    writeBatch
+    getDocs,
+    getDoc,
+    query,
+    where,
+    updateDoc,
+    deleteDoc,
+    orderBy
 } from 'firebase/firestore';
 import type { AttendanceRecord, RawMachineLog } from '@/lib/types';
+import { format } from 'date-fns';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { deleteDocsInChunks } from '@/lib/service-utils';
 
 export const getAttendanceCollection = () => {
     const { db } = getFirebase();
@@ -53,14 +55,26 @@ export const fromFirestoreLog = (snapshot: QueryDocumentSnapshot<DocumentData>):
         rawPayload: (data.rawPayload || {}) as Record<string, any>,
         rowIndex: data.rowIndex !== undefined ? Number(data.rowIndex) : undefined,
         isManual: !!data.isManual,
+        otApproved: data.otApproved !== undefined ? Boolean(data.otApproved) : undefined,
     };
 };
 
 export const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData>): AttendanceRecord => {
     const data = snapshot.data();
+    const date = String(data.date || '');
+    // weekday/absent/gTime/breakHours/gHours are written by runHourlyCalculation
+    // but were never read back here, so they always looked blank in the UI
+    // regardless of what got calculated. Weekday additionally falls back to
+    // deriving it from the AD date for older records saved before this field
+    // existed at all (e.g. legacy ledger imports).
+    let weekday = data.weekday ? String(data.weekday) : '';
+    if (!weekday && date) {
+        const parsed = new Date(date);
+        if (!isNaN(parsed.getTime())) weekday = format(parsed, 'EEEE');
+    }
     return {
         id: snapshot.id,
-        date: String(data.date || ''),
+        date,
         dateBS: String(data.dateBS || data.bsDate || ''),
         bsYear: Number(data.bsYear) || 0,
         bsMonth: Number(data.bsMonth) || 0,
@@ -79,6 +93,11 @@ export const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData
         calculatedBy: String(data.calculatedBy || ''),
         sourceLogId: data.sourceLogId ? String(data.sourceLogId) : undefined,
         rowIndex: data.rowIndex !== undefined ? Number(data.rowIndex) : undefined,
+        weekday: weekday || undefined,
+        absent: data.absent !== undefined ? Boolean(data.absent) : undefined,
+        gTime: data.gTime !== undefined && data.gTime !== null ? Number(data.gTime) : null,
+        breakHours: data.breakHours !== undefined && data.breakHours !== null ? Number(data.breakHours) : null,
+        gHours: data.gHours !== undefined && data.gHours !== null ? Number(data.gHours) : null,
     };
 };
 
@@ -139,20 +158,20 @@ export const deleteRawLog = async (id: string) => {
     });
 };
 
-export const deleteRawLogsForMonth = async (year: number, month: number) => {
-    const { db } = getFirebase();
+export const deleteRawLogsForMonth = async (year: number, month: number): Promise<void> => {
     const q = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
     const snap = await getDocs(q);
-    const batch = writeBatch(db);
-    snap.forEach(d => batch.delete(d.ref));
-    batch.commit().catch(async (err: any) => {
+    try {
+        await deleteDocsInChunks(snap.docs.map(d => d.ref));
+    } catch (err: any) {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'raw_machine_logs_batch_delete',
                 operation: 'write'
             }));
         }
-    });
+        throw err;
+    }
 };
 
 export const deleteAttendanceRecord = async (id: string) => {
@@ -167,36 +186,83 @@ export const deleteAttendanceRecord = async (id: string) => {
     });
 };
 
-export const deleteAttendanceForMonth = async (year: number, month: number) => {
+/**
+ * True if either the attendance or the payroll period lock for this BS
+ * year/month is set. Deletion (single-month or fiscal-year-wide) must never
+ * touch a locked period - that lock exists specifically to protect a
+ * finalized or imported month from being wiped.
+ */
+const isPeriodLocked = async (bsYear: number, bsMonth: number): Promise<boolean> => {
     const { db } = getFirebase();
-    const q = query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
-    const snap = await getDocs(q);
-    const batch = writeBatch(db);
-    snap.forEach(d => batch.delete(d.ref));
-    batch.commit().catch(async (err: any) => {
+    const id = `${bsYear}-${bsMonth}`;
+    const [attLock, payLock] = await Promise.all([
+        getDoc(doc(collection(db, 'attendance_periods'), id)),
+        getDoc(doc(collection(db, 'payroll_periods'), id)),
+    ]);
+    return Boolean(attLock.data()?.locked) || Boolean(payLock.data()?.locked);
+};
+
+/**
+ * Deletes processed Attendance and Payroll records for one BS year/month
+ * together - payroll is derived from attendance, so leaving stale payroll
+ * behind after wiping its source attendance would be worse than deleting
+ * nothing. Refuses (no-op) if the period is locked.
+ */
+export const deleteAttendanceForMonth = async (year: number, month: number): Promise<{ deleted: boolean; locked: boolean }> => {
+    if (await isPeriodLocked(year, month)) {
+        return { deleted: false, locked: true };
+    }
+    const { db } = getFirebase();
+    const [attSnap, paySnap] = await Promise.all([
+        getDocs(query(getAttendanceCollection(), where('bsYear', '==', year), where('bsMonth', '==', month))),
+        getDocs(query(collection(db, COLLECTIONS.PAYROLL), where('bsYear', '==', year), where('bsMonth', '==', month))),
+    ]);
+    try {
+        await deleteDocsInChunks([...attSnap.docs, ...paySnap.docs].map(d => d.ref));
+    } catch (err: any) {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'attendance_batch_delete',
                 operation: 'write'
             }));
         }
-    });
+        throw err;
+    }
+    return { deleted: true, locked: false };
+};
+
+/**
+ * Deletes processed Attendance and Payroll records for every month in a
+ * fiscal year (Shrawan through Ashadh), skipping any month whose period is
+ * locked. Used for bulk test-data cleanup, never on locked/finalized data.
+ */
+export const deleteAttendanceAndPayrollForFiscalYear = async (
+    fyMonths: { bsYear: number; bsMonth: number }[]
+): Promise<{ monthsDeleted: number; monthsSkippedLocked: number }> => {
+    let monthsDeleted = 0;
+    let monthsSkippedLocked = 0;
+    for (const { bsYear, bsMonth } of fyMonths) {
+        const result = await deleteAttendanceForMonth(bsYear, bsMonth);
+        if (result.deleted) monthsDeleted++;
+        else if (result.locked) monthsSkippedLocked++;
+    }
+    return { monthsDeleted, monthsSkippedLocked };
 };
 
 export const deleteAllRawLogs = async (): Promise<void> => {
-    const { db } = getFirebase();
     const snap = await getDocs(getRawLogsCollection());
     if (snap.empty) return;
-    const batch = writeBatch(db);
-    snap.docs.forEach(d => batch.delete(d.ref));
-    batch.commit().catch(async (err: any) => {
+    try {
+        await deleteDocsInChunks(snap.docs.map(d => d.ref));
+    } catch (err: any) {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'raw_machine_logs_purge',
                 operation: 'write'
             }));
         }
-    });
+        throw err;
+    }
 };
 
 export const deleteAllAttendance = async (): Promise<void> => {
@@ -207,30 +273,33 @@ export const deleteAllAttendance = async (): Promise<void> => {
         getDocs(collection(db, COLLECTIONS.PAYROLL)),
         getDocs(collection(db, 'analytics_reports'))
     ]);
-    const batch = writeBatch(db);
-    snaps.forEach(snap => snap.forEach(d => batch.delete(d.ref)));
-    batch.commit().catch(async (err: any) => {
+    try {
+        await deleteDocsInChunks(snaps.flatMap(snap => snap.docs.map(d => d.ref)));
+    } catch (err: any) {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'attendance_system_purge',
                 operation: 'write'
             }));
         }
-    });
+        throw err;
+    }
 };
 
 export const getAttendanceYears = async (): Promise<number[]> => {
     const { db } = getFirebase();
     const years = new Set<number>();
     try {
-        const [attSnap, blSnap, paySnap] = await Promise.all([
+        const [attSnap, blSnap, paySnap, rawSnap] = await Promise.all([
             getDocs(getAttendanceCollection()),
             getDocs(collection(db, 'behavior_ledger')),
-            getDocs(collection(db, COLLECTIONS.PAYROLL))
+            getDocs(collection(db, COLLECTIONS.PAYROLL)),
+            getDocs(getRawLogsCollection())
         ]);
         attSnap.docs.forEach(d => years.add(d.data().bsYear as number));
         blSnap.docs.forEach(d => years.add(d.data().bsYear as number));
         paySnap.docs.forEach(d => years.add(d.data().bsYear as number));
+        rawSnap.docs.forEach(d => years.add(d.data().bsYear as number));
     } catch (e) {}
     return Array.from(years).sort((a, b) => b - a);
 };

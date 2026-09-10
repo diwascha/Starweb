@@ -223,7 +223,8 @@ export const importConsolidatedLedger = async (
                     satWorked: coerceNumber(row[41]),
                     phWorked: coerceNumber(row[42]),
                     extraOkHours: coerceNumber(row[43]),
-                    otHours: coerceNumber(row[44])
+                    otHours: coerceNumber(row[44]),
+                    source: 'excel-import'
                 };
                 batch.set(doc(db, 'behavior_ledger', id), entry, { merge: true });
                 results.behaviorLedger++;
@@ -282,7 +283,8 @@ export const importConsolidatedLedger = async (
                     shiftEndBehavior: String(row[71] || ''), // BT
                     performanceInsight: String(row[72] || ''), // BU
                     bestDayOfWeek: String(row[73] || ''), // BV
-                    worstDayOfWeek: String(row[74] || '') // BW
+                    worstDayOfWeek: String(row[74] || ''), // BW
+                    source: 'excel-import'
                 };
                 batch.set(doc(db, 'behavior_analytics', id), entry, { merge: true });
                 results.behaviorAnalytics++;

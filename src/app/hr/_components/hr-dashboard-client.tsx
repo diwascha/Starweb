@@ -1,218 +1,306 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Users, CheckCircle, XCircle, Clock, Timer } from 'lucide-react';
+import { Users, CheckCircle, Wallet, Clock, Timer, RefreshCcw, TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import type { Employee, AttendanceRecord, AttendanceStatus } from '@/lib/types';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { startOfToday, startOfMonth, endOfMonth, isToday } from 'date-fns';
+import type { Employee, AttendanceRecord, Payroll } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import { getAttendanceBadgeVariant } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate } from '@/services/attendance-service';
+import { onPayrollUpdate } from '@/services/payroll-service';
+import NepaliDate from 'nepali-date-converter';
+import {
+    getFiscalYearStart,
+    getFiscalYearMonths,
+    getAvailableFiscalYears,
+    formatFiscalYear,
+} from '@/lib/fiscal-year';
+import { aggregatePerformanceMetricsWithTrend, type PeriodPerformanceMetrics } from '@/lib/performance-metrics';
 
 interface HrDashboardClientProps {
     initialEmployees: Employee[];
     initialAttendance: AttendanceRecord[];
 }
 
+const ATTENDANCE_FLAG_THRESHOLD = 15;
+
 export default function HrDashboardClient({ initialEmployees, initialAttendance }: HrDashboardClientProps) {
    const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
    const [attendance, setAttendance] = useState<AttendanceRecord[]>(initialAttendance);
-   
-   useEffect(() => { 
+   const [payroll, setPayroll] = useState<Payroll[]>([]);
+   const [isRefreshing, setIsRefreshing] = useState(false);
+   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(
+       String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()))
+   );
+   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('All');
+
+   useEffect(() => {
        const unsubEmployees = onEmployeesUpdate(setEmployees);
        const unsubAttendance = onAttendanceUpdate(setAttendance);
+       const unsubPayroll = onPayrollUpdate(setPayroll);
 
        return () => {
            unsubEmployees();
            unsubAttendance();
+           unsubPayroll();
        }
     }, []);
-   
-   const { 
-       totalEmployees, presentToday, absentToday, monthlyAttendanceData, 
-       wageBasisData, totalRegularHours, totalOvertimeHours 
-    } = useMemo(() => {
-        const today = startOfToday();
-        const start = startOfMonth(today);
-        const end = endOfMonth(today);
 
-        const todaysAttendance = attendance.filter(r => isToday(new Date(r.date)));
-        
-        const present = todaysAttendance.filter(r => r.status === 'Present').length;
-        const absent = todaysAttendance.filter(r => r.status === 'Absent' || r.status === 'C/I Miss' || r.status === 'C/O Miss').length;
+   const availableFiscalYears = useMemo(() => {
+       const years = getAvailableFiscalYears([
+           ...attendance.map(r => ({ bsYear: r.bsYear, bsMonth: r.bsMonth })),
+           ...payroll.map(p => ({ bsYear: p.bsYear, bsMonth: p.bsMonth })),
+       ]);
+       const current = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
+       return years.includes(current) ? years : [current, ...years].sort((a, b) => b - a);
+   }, [attendance, payroll]);
 
-        const monthlyRecords = attendance.filter(r => {
-            const rDate = new Date(r.date);
-            return rDate >= start && rDate <= end;
-        });
-        
-        const totalRegular = monthlyRecords.reduce((sum, r) => sum + (r.regularHours || 0), 0);
-        const totalOvertime = monthlyRecords.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
+   const fyStart = parseInt(selectedFiscalYear);
+   const fyMonths = useMemo(() => getFiscalYearMonths(fyStart), [fyStart]);
 
-        const monthlyStatusCounts = monthlyRecords.reduce((acc, r) => {
-            const status = r.status || 'Unknown';
-            acc[status] = (acc[status] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-        
-        const monthlyData = Object.entries(monthlyStatusCounts).map(([name, value]) => ({ name, value }));
-        
-        const wageCounts = employees.reduce((acc, e) => {
-            acc[e.wageBasis] = (acc[e.wageBasis] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-        
-        const wageData = Object.entries(wageCounts).map(([name, count]) => ({ name, count }));
+   const fyAttendance = useMemo(
+       () => attendance.filter(r => getFiscalYearStart(r.bsYear, r.bsMonth) === fyStart),
+       [attendance, fyStart]
+   );
+   const fyPayroll = useMemo(
+       () => payroll.filter(p => getFiscalYearStart(p.bsYear, p.bsMonth) === fyStart),
+       [payroll, fyStart]
+   );
 
+   const summary = useMemo(() => {
+        const totalRegular = fyAttendance.reduce((sum, r) => sum + (r.regularHours || 0), 0);
+        const totalOvertime = fyAttendance.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
+        const totalNet = fyPayroll.reduce((sum, p) => sum + (p.roundedNet ?? p.netPayment ?? 0), 0);
         return {
             totalEmployees: employees.length,
-            presentToday: present,
-            absentToday: absent,
-            monthlyAttendanceData: monthlyData,
-            wageBasisData: wageData,
+            workingEmployees: employees.filter(e => e.status === 'Working').length,
             totalRegularHours: totalRegular,
-            totalOvertimeHours: totalOvertime
+            totalOvertimeHours: totalOvertime,
+            totalNetPayroll: totalNet,
         };
+   }, [employees, fyAttendance, fyPayroll]);
 
-   }, [employees, attendance]);
-   
-   const recentAttendance = useMemo(() => {
-        return [...attendance]
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .slice(0, 10);
-   }, [attendance]);
+   // Company Overview: same shape as the source Excel's HR & Payroll
+   // Dashboard - one row per employee, aggregated across the whole fiscal
+   // year, built on the same shared metrics module the Analytics tab and
+   // Performance Benchmark page use, so all three stay in sync.
+   const overviewRows = useMemo(() => {
+        const rows = aggregatePerformanceMetricsWithTrend(employees, attendance, fyMonths);
+        const payrollByEmployee = new Map<string, { net: number; bonus: number }>();
+        for (const p of fyPayroll) {
+            const existing = payrollByEmployee.get(p.employeeId) || { net: 0, bonus: 0 };
+            existing.net += p.roundedNet ?? p.netPayment ?? 0;
+            existing.bonus += p.bonus ?? 0;
+            payrollByEmployee.set(p.employeeId, existing);
+        }
+        const groupMean = rows.length > 0 ? rows.reduce((s, r) => s + r.attendanceRate, 0) / rows.length : 0;
 
-   const chartConfig: ChartConfig = {
-        value: { label: 'Count' },
-        count: { label: 'Count' },
-    };
-    
-    const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+        const filtered = selectedEmployeeId === 'All' ? rows : rows.filter(r => r.employeeId === selectedEmployeeId);
+        return filtered.map(r => {
+            const pay = payrollByEmployee.get(r.employeeId) || { net: 0, bonus: 0 };
+            const flags: string[] = [];
+            if (r.workdays + r.absentDays > 0 && groupMean - r.attendanceRate > ATTENDANCE_FLAG_THRESHOLD) {
+                flags.push('Attendance well below peers');
+            }
+            if (r.trend === 'Declining') flags.push('Declining trend');
+            return {
+                ...r,
+                monthsWithData: r.monthlyAttendanceRates.filter(m => m.hasData).length,
+                totalNet: pay.net,
+                bonusAccrued: pay.bonus,
+                flags,
+            };
+        });
+   }, [employees, attendance, fyMonths, fyPayroll, selectedEmployeeId]);
 
+   const overviewTotals = useMemo(() => {
+        if (overviewRows.length === 0) return null;
+        const sum = overviewRows.reduce((acc, r) => ({
+            lateArrivals: acc.lateArrivals + r.lateArrivals,
+            overtimeHours: acc.overtimeHours + r.overtimeHours,
+            totalNet: acc.totalNet + r.totalNet,
+            bonusAccrued: acc.bonusAccrued + r.bonusAccrued,
+        }), { lateArrivals: 0, overtimeHours: 0, totalNet: 0, bonusAccrued: 0 });
+        const sorted = [...overviewRows].map(r => r.attendanceRate).sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        return { ...sum, median, headcount: overviewRows.length };
+   }, [overviewRows]);
+
+   const handleRefresh = () => {
+        setIsRefreshing(true);
+        setTimeout(() => setIsRefreshing(false), 500);
+   };
 
   return (
     <div className="grid gap-6">
-       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+       <div className="rounded-xl overflow-hidden shadow-sm border border-gray-100">
+            <div className="bg-[#1c355e] text-white text-center py-2.5 font-black uppercase tracking-widest text-sm">
+                HR &amp; Payroll Dashboard
+            </div>
+            <div className="bg-white p-4 flex flex-col sm:flex-row flex-wrap items-end gap-4 border-b">
+                <div className="space-y-1.5 w-[120px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
+                    <Select value={selectedFiscalYear} onValueChange={setSelectedFiscalYear}>
+                        <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>{availableFiscalYears.map(y => <SelectItem key={`dash-fy-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}</SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-1.5 w-[200px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employee</Label>
+                    <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                        <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">(All Employees)</SelectItem>
+                            {[...employees].sort((a, b) => a.name.localeCompare(b.name)).map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="h-9 font-bold text-[10px] uppercase tracking-widest">
+                    <RefreshCcw className={cn("mr-2 h-3.5 w-3.5", isRefreshing && "animate-spin")} /> Refresh
+                </Button>
+                <p className="text-[10px] text-muted-foreground italic ml-auto">Fiscal year runs Shrawan to Ashadh. Data updates live as attendance/payroll change.</p>
+            </div>
+       </div>
+
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
                     <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{totalEmployees}</div>
+                    <div className="text-2xl font-bold">{summary.totalEmployees}</div>
+                    <p className="text-xs text-muted-foreground">{summary.workingEmployees} currently working</p>
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Present Today</CardTitle>
+                    <CardTitle className="text-sm font-medium">Attendance Records</CardTitle>
                     <CheckCircle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{presentToday}</div>
+                    <div className="text-2xl font-bold">{fyAttendance.length}</div>
+                    <p className="text-xs text-muted-foreground">for FY {formatFiscalYear(fyStart)}</p>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Regular Hours</CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{summary.totalRegularHours.toFixed(1)}</div>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Overtime Hours</CardTitle>
+                    <Timer className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{summary.totalOvertimeHours.toFixed(1)}</div>
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Absent Today</CardTitle>
-                    <XCircle className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-medium">Total Net Payroll</CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{absentToday}</div>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Regular Hours (This Month)</CardTitle>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{totalRegularHours.toFixed(1)}</div>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Overtime Hours (This Month)</CardTitle>
-                    <Timer className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{totalOvertimeHours.toFixed(1)}</div>
+                    <div className="text-2xl font-bold">{summary.totalNetPayroll.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
                 </CardContent>
             </Card>
        </div>
-       
-       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-            <Card className="lg:col-span-3">
-                <CardHeader>
-                    <CardTitle>Monthly Attendance Overview</CardTitle>
-                    <CardDescription>A summary of attendance statuses for the current month.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center">
-                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                        <ResponsiveContainer width="100%" height={250}>
-                            <PieChart>
-                                <Tooltip content={<ChartTooltipContent />} />
-                                <Pie data={monthlyAttendanceData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                                    {monthlyAttendanceData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-            <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle>Employees by Wage Basis</CardTitle>
-                    <CardDescription>Total headcount by their wage structure.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                        <ResponsiveContainer>
-                            <BarChart data={wageBasisData} layout="vertical" margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
-                                <CartesianGrid horizontal={false} />
-                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80}/>
-                                <XAxis type="number" />
-                                <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
-                                <Bar dataKey="count" fill="hsl(var(--primary))" radius={4} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-       </div>
-       
-       <Card>
-            <CardHeader>
-                <CardTitle>Recent Attendance Records</CardTitle>
-                <CardDescription>The 10 most recently added attendance records.</CardDescription>
+
+       <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            <CardHeader className="bg-[#1c355e]/5 border-b py-4 px-6">
+                <CardTitle className="text-sm font-black uppercase tracking-tight">Company Overview - FY {formatFiscalYear(fyStart)}</CardTitle>
+                <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Every employee, aggregated across the full fiscal year - the same figures Analytics and Performance Benchmark use.</CardDescription>
             </CardHeader>
-            <CardContent>
-                <ScrollArea className="h-[300px]">
-                    {recentAttendance.length > 0 ? (
-                        <div className="space-y-4">
-                            {recentAttendance.map(record => (
-                                <div key={record.id} className="flex items-center justify-between">
-                                    <div>
-                                        <p className="font-medium">{record.employeeName}</p>
-                                        <p className="text-sm text-muted-foreground">{new Date(record.date).toLocaleDateString()}</p>
-                                    </div>
-                                    <Badge variant={getAttendanceBadgeVariant(record.status as AttendanceStatus)}>{record.status}</Badge>
-                                </div>
+            <CardContent className="p-0">
+                <ScrollArea className="w-full">
+                    <Table className="text-[11px] border-collapse">
+                        <TableHeader className="bg-muted/30">
+                            <TableRow className="h-11">
+                                <TableHead className="sticky left-0 bg-background z-20 border-r pl-6 font-black uppercase text-gray-900">Employee</TableHead>
+                                <TableHead className="text-center font-bold uppercase px-3">Months</TableHead>
+                                <TableHead className="text-center font-bold uppercase px-3 text-blue-700">Avg Attend %</TableHead>
+                                <TableHead className="text-center font-bold uppercase px-3">Attend Trend</TableHead>
+                                <TableHead className="text-center font-bold uppercase px-3">Volatility</TableHead>
+                                <TableHead className="text-center font-bold uppercase px-3 text-amber-600">Late Days</TableHead>
+                                <TableHead className="text-right font-bold uppercase px-3">OT Hours</TableHead>
+                                <TableHead className="text-right font-bold uppercase px-3">Total Net</TableHead>
+                                <TableHead className="text-right font-bold uppercase px-3">Bonus Accrued</TableHead>
+                                <TableHead className="font-bold uppercase px-3 pr-6">Flags</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {overviewRows.length === 0 ? (
+                                <TableRow><TableCell colSpan={10} className="text-center py-16 text-muted-foreground italic">No calculated attendance found for FY {formatFiscalYear(fyStart)}.</TableCell></TableRow>
+                            ) : overviewRows.map(r => (
+                                <TableRow key={r.employeeId} className={cn("hover:bg-muted/20 h-12 border-b", r.flags.length > 0 && "bg-amber-50/40")}>
+                                    <TableCell className="sticky left-0 bg-background z-10 border-r pl-6 font-black text-gray-900 uppercase tracking-tighter">{r.employeeName}</TableCell>
+                                    <TableCell className="text-center tabular-nums px-3">{r.monthsWithData}</TableCell>
+                                    <TableCell className={cn("text-center tabular-nums px-3 font-bold", r.flags.includes('Attendance well below peers') ? 'text-red-600' : 'text-blue-700')}>{r.attendanceRate.toFixed(1)}</TableCell>
+                                    <TableCell className="text-center px-3"><TrendBadge trend={r.trend} /></TableCell>
+                                    <TableCell className="text-center tabular-nums px-3 text-muted-foreground">{r.trend !== 'N/A' ? `±${r.volatility.toFixed(1)}%` : '—'}</TableCell>
+                                    <TableCell className="text-center tabular-nums px-3 font-bold text-amber-700">{r.lateArrivals}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3 font-bold text-blue-700">+{r.overtimeHours.toFixed(1)}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3 font-bold">{r.totalNet.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3">{r.bonusAccrued > 0 ? r.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}</TableCell>
+                                    <TableCell className="px-3 pr-6">
+                                        {r.flags.length > 0 ? (
+                                            <div className="flex items-center gap-1 text-red-600">
+                                                <AlertTriangle className="h-3 w-3 shrink-0" />
+                                                <span className="text-[10px] font-bold">{r.flags.join('; ')}</span>
+                                            </div>
+                                        ) : <span className="text-muted-foreground">—</span>}
+                                    </TableCell>
+                                </TableRow>
                             ))}
-                        </div>
-                    ) : (
-                        <div className="flex h-full items-center justify-center text-muted-foreground">
-                            No attendance records found.
-                        </div>
-                    )}
+                        </TableBody>
+                        {overviewTotals && (
+                            <TableFooter className="bg-muted/50 font-black h-12 border-t-2">
+                                <TableRow>
+                                    <TableCell className="sticky left-0 bg-background z-20 border-r pl-6 text-gray-900 uppercase tracking-tighter">Total / Median (Headcount: {overviewTotals.headcount})</TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell className="text-center tabular-nums px-3">{overviewTotals.median.toFixed(1)}</TableCell>
+                                    <TableCell colSpan={2}></TableCell>
+                                    <TableCell className="text-center tabular-nums px-3">{overviewTotals.lateArrivals}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3">+{overviewTotals.overtimeHours.toFixed(1)}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3">{overviewTotals.totalNet.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3">{overviewTotals.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="pr-6"></TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        )}
+                    </Table>
+                    <ScrollBar orientation="horizontal" />
                 </ScrollArea>
             </CardContent>
        </Card>
     </div>
   );
+}
+
+function TrendBadge({ trend }: { trend: PeriodPerformanceMetrics['trend'] }) {
+    if (trend === 'N/A') return <span className="text-muted-foreground text-[10px]">—</span>;
+    const config = {
+        Improving: { icon: TrendingUp, cls: 'border-emerald-200 text-emerald-700' },
+        Declining: { icon: TrendingDown, cls: 'border-red-200 text-red-700' },
+        Stable: { icon: Minus, cls: 'border-gray-200 text-muted-foreground' },
+    }[trend];
+    const Icon = config.icon;
+    return (
+        <Badge variant="outline" className={cn("text-[9px] font-black uppercase h-5 px-1.5 gap-1", config.cls)}>
+            <Icon className="h-2.5 w-2.5" /> {trend}
+        </Badge>
+    );
 }
