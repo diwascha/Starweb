@@ -1,4 +1,6 @@
 
+import type { BoxLayer } from './box-engine/types';
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -69,6 +71,12 @@ export interface Product {
   rate?: number;
   rateHistory?: RateHistoryEntry[];
   specification: Partial<ProductSpecification>;
+  /** Layer-by-layer construction. Deliberately a sibling of `specification`
+   *  rather than a field inside it: several screens render every spec entry
+   *  as a text row, and an array of objects in there would show up as
+   *  "[object Object]". The flat GSM fields inside `specification` are kept
+   *  in sync with these layers, so those screens keep reading correctly. */
+  layers?: BoxLayer[];
   accessories?: ProductAccessory[]; // Added to store default accessories
   createdBy: string;
   createdAt: string; // ISO string
@@ -1123,6 +1131,24 @@ export interface CostReportItem {
   wastagePercent: string;
   accessories?: Accessory[];
   calculated: CalculatedValues;
+
+  // --- Layer-based construction (see src/lib/box-engine) ---
+  // When absent, the flat GSM fields above plus the single paperType/paperBf
+  // are expanded into an equivalent uniform stack, so every record saved
+  // before this existed keeps calculating exactly as it did. When present,
+  // `layers` is authoritative and every layer may carry its own material -
+  // the flat fields are kept written in sync purely so the quotation
+  // preview, PDF export and product catalog need no changes.
+  layers?: BoxLayer[];
+  /** Customer's stated load requirement, kg per box. */
+  requiredLoadKg?: string;
+  /** Service conditions that derate the lab compression figure. */
+  storageDuration?: 'short' | 'medium' | 'long';
+  humidity?: 'low' | 'normal' | 'high';
+  stacking?: 'aligned' | 'interlocked' | 'overhang';
+  /** Measured board ECT in kN/m, when a lab report is available. Turns the
+   *  strength estimate into a real calculation. */
+  measuredEct?: string;
 }
 
 export interface CostReportTerm {
@@ -1140,6 +1166,10 @@ export interface CostReport {
   virginPaperCost: number;
   conversionCost: number;
   accessoryConversionCost: number;
+  /** NPR/kg for papers outside the kraft-by-BF table and the single virgin
+   *  rate (Duplex, White Top, ...), keyed by material. Needed now that each
+   *  layer of a board can be a different material. */
+  otherPaperCosts?: Record<string, number>;
   transportCost: number;
   transportCostType: 'Per Piece' | 'Per Consignment';
   items: Omit<CostReportItem, 'calculated'>[]; // We only store the inputs, not the calculated values
@@ -1167,6 +1197,7 @@ export interface CostSetting {
     virginPaperCost: number;
     conversionCost: number;
     accessoryConversionCost: number; // Added
+    otherPaperCosts?: Record<string, number>;
     termsAndConditions?: CostReportTerm[];
     history: CostSettingHistoryEntry[];
     createdBy?: string;

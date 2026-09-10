@@ -48,7 +48,8 @@ import {
   Target,
   Copy,
   AlertTriangle,
-  Layers
+  Layers,
+  Boxes
 } from 'lucide-react';
 import { 
   Table, 
@@ -61,6 +62,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn, toNepaliDate, normalizeBF, generateId } from '@/lib/utils';
 import { calculateItemCost as sharedCalculateItemCost } from '@/lib/cost-calculator';
+import type { RateContext } from '@/lib/box-engine';
+import { PAPER_MATERIALS } from '@/lib/box-engine';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -73,6 +76,7 @@ import { Textarea } from '@/components/ui/textarea';
 import React from 'react';
 import { PLY_OPTIONS, BF_OPTIONS } from '@/lib/constants';
 import { ProductForm } from './product-form';
+import { BoxDesigner } from './box-designer';
 
 const ManageTermsDialog = React.lazy(() => import('./terms-dialog').then(m => ({ default: m.ManageTermsDialog })));
 
@@ -85,6 +89,7 @@ const CostingTableRow = React.memo(({
     onAddAccessory,
     onRemoveItem,
     onDuplicateItem,
+    onOpenDesigner,
     onTogglePrint,
     selectedForPrint,
     onOpenQuickAddProduct
@@ -227,6 +232,7 @@ const CostingTableRow = React.memo(({
                 <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {totalRowCost.toFixed(2)}</TableCell>
                 <TableCell className="px-2">
                     <div className="flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="Box Designer - layer construction, materials and load capacity" onClick={() => onOpenDesigner(index)}><Boxes className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Duplicate row" onClick={() => onDuplicateItem(index)}><Copy className="h-3.5 w-3.5" /></Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Delete row" onClick={() => onRemoveItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
@@ -319,6 +325,7 @@ const CostingItemCard = React.memo(({
     onAddAccessory,
     onRemoveItem,
     onDuplicateItem,
+    onOpenDesigner,
     onOpenQuickAddProduct
 }: any) => {
     const [isProductPopoverOpen, setIsProductPopoverOpen] = useState(false);
@@ -388,6 +395,7 @@ const CostingItemCard = React.memo(({
                         </PopoverContent>
                     </Popover>
                     <div className="flex gap-0.5 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-primary" title="Box Designer" onClick={() => onOpenDesigner(index)}><Boxes className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="h-9 w-9" title="Duplicate" onClick={() => onDuplicateItem(index)}><Copy className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" title="Delete" onClick={() => onRemoveItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
@@ -519,6 +527,12 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
   // already filled in) - expanded by default for a brand new one, so the
   // required fields are visible on mobile without a wall of scrolling.
   const [isSetupOpen, setIsSetupOpen] = useState(!reportToEdit);
+  // Which row the Box Designer is open on, or null when it's closed.
+  const [designerIndex, setDesignerIndex] = useState<number | null>(null);
+  // NPR/kg for papers outside the kraft/virgin pair (Duplex, White Top, ...).
+  // Kraft is rated by BF and virgin has a single rate; anything else had no
+  // home until layers could each carry their own material.
+  const [otherPaperCosts, setOtherPaperCosts] = useState<Record<string, number>>({});
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, address: '', panNumber: '', ownership: 'Shivam' as AccountOwnership });
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
@@ -536,8 +550,8 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
   const { user } = useAuth();
 
   const calculateItemCost = useCallback((item: any, globalK: any, globalV: number, globalC: number, globalT: number, tType: string, isAcc = false): CalculatedValues => {
-    return sharedCalculateItemCost(item, globalK, globalV, globalC, globalT, tType, isAcc, Number(accessoryConversionCost) || 0);
-  }, [accessoryConversionCost]);
+    return sharedCalculateItemCost(item, globalK, globalV, globalC, globalT, tType, isAcc, Number(accessoryConversionCost) || 0, otherPaperCosts);
+  }, [accessoryConversionCost, otherPaperCosts]);
 
   useEffect(() => {
     if (items.length === 0) return;
@@ -563,6 +577,19 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
     });
   }, [kraftPaperCosts, virginPaperCost, conversionCost, transportCost, transportCostType, calculateItemCost]);
 
+  // Rates in the shape the box engine wants. The Designer reads this to
+  // price each layer independently instead of the whole board at one rate.
+  const rateContext = useMemo<RateContext>(() => ({
+    kraftByBf: kraftPaperCosts,
+    virgin: Number(virginPaperCost) || 0,
+    other: otherPaperCosts,
+    conversion: Number(conversionCost) || 0,
+    accessoryConversion: Number(accessoryConversionCost) || 0,
+    transport: Number(transportCost) || 0,
+    transportType: transportCostType,
+    isAccessory: false,
+  }), [kraftPaperCosts, virginPaperCost, otherPaperCosts, conversionCost, accessoryConversionCost, transportCost, transportCostType]);
+
   useEffect(() => {
     const unsubCostSettings = onSettingUpdate('costing', (s) => {
         if (s?.value) {
@@ -571,6 +598,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             setVirginCost(s.value.virginPaperCost || '');
             setConversionCost(s.value.conversionCost || '');
             setAccessoryConversionCost(s.value.accessoryConversionCost || '');
+            setOtherPaperCosts(s.value.otherPaperCosts || {});
             setTermsAndConditions(prev => prev.length === 0 ? (s.value.termsAndConditions || []) : prev);
         }
     });
@@ -604,6 +632,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
           setRemarks(reportToEdit.remarks || '');
           setStatus(reportToEdit.status || 'Draft');
           setTermsAndConditions(reportToEdit.termsAndConditions || []);
+          setOtherPaperCosts(reportToEdit.otherPaperCosts || {});
           const kCosts = reportToEdit.kraftPaperCosts || {};
           const vCost = Number(reportToEdit.virginPaperCost) || 0;
           const cCost = Number(reportToEdit.conversionCost) || 0;
@@ -648,6 +677,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
         bottomGsm: spec.bottomGsm || '120',
         liner4Gsm: spec.liner4Gsm || '',
         wastagePercent: spec.wastagePercent || '3.5',
+        ...(product.layers?.length ? { layers: product.layers } : {}),
         accessories: (product.accessories || []).map(acc => ({
             ...acc,
             calculated: calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(accessoryConversionCost) || 0, Number(transportCost) || 0, transportCostType, true)
@@ -755,6 +785,24 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
     });
   }, [products, calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost, transportCost, transportCostType, mapProductToItem]);
 
+  /**
+   * Apply several fields to one row at once and recost it. The Box Designer
+   * edits a whole layer stack in a single interaction (a layer change also
+   * rewrites the legacy flat GSM fields and the ply), which the
+   * one-field-at-a-time handleItemChange can't express without a burst of
+   * intermediate renders each recalculating the row.
+   */
+  const handleItemPatch = useCallback((idx: number, patch: Record<string, any>) => {
+    setItems(prev => {
+        const next = [...prev];
+        if (!next[idx]) return prev;
+        const item: any = { ...next[idx], ...patch };
+        item.calculated = calculateItemCost(item, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType);
+        next[idx] = item;
+        return next;
+    });
+  }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost, transportCost, transportCostType]);
+
   const handleSubmitParty = async () => {
     if (!user) return;
     if (!partyForm.name) {
@@ -796,6 +844,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             virginPaperCost: Number(virginPaperCost) || 0,
             conversionCost: Number(conversionCost) || 0,
             accessoryConversionCost: Number(accessoryConversionCost) || 0,
+            otherPaperCosts,
             transportCost: Number(transportCost) || 0,
             transportCostType,
             termsAndConditions,
@@ -821,6 +870,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             virginPaperCost: Number(virginPaperCost) || 0,
             conversionCost: Number(conversionCost) || 0,
             accessoryConversionCost: Number(accessoryConversionCost) || 0,
+            otherPaperCosts,
         }, user.username);
 
         const updatePromises: any[] = [];
@@ -861,6 +911,9 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                 skippedRateSync++;
                 updatePromises.push(updateProduct(item.productId, {
                     specification: updatedSpec,
+                    // Only write layers when the row actually has them - an
+                    // undefined field makes the Firestore write throw.
+                    ...(item.layers?.length ? { layers: item.layers } : {}),
                     accessories: item.accessories?.map(({ calculated, ...rest }: any) => rest),
                     lastModifiedBy: user.username
                 }));
@@ -874,6 +927,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             updatePromises.push(updateProduct(item.productId, {
                 rate: parseFloat(itemRate.toFixed(2)),
                 specification: updatedSpec,
+                ...(item.layers?.length ? { layers: item.layers } : {}),
                 accessories: item.accessories?.map(({ calculated, ...rest }: any) => rest),
                 lastModifiedBy: user.username
             }));
@@ -1033,6 +1087,25 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                 <div className="space-y-1"><Label className="text-[10px] font-bold">Virgin Rate</Label><Input type="number" value={virginPaperCost ?? ''} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
                                 <div className="space-y-1"><Label className="text-[10px] font-bold">Conversion</Label><Input type="number" value={conversionCost ?? ''} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
                             </div>
+                            {/* Kraft is priced by BF and virgin has one rate. Anything
+                                else a layer might be made of needs its own rate, or
+                                that layer silently costs nothing. */}
+                            <div>
+                                <Label className="text-[10px] font-bold text-muted-foreground">Other Papers (NPR/kg)</Label>
+                                <div className="grid grid-cols-2 gap-1.5 mt-1">
+                                    {PAPER_MATERIALS.filter(m => m.rateKey === 'other').map(m => (
+                                        <div key={m.value} className="flex items-center gap-1">
+                                            <span className="text-[10px] w-16 shrink-0 truncate" title={m.label}>{m.label}</span>
+                                            <Input
+                                                type="number"
+                                                className="h-8 text-xs px-2"
+                                                value={otherPaperCosts[m.value] ?? ''}
+                                                onChange={e => setOtherPaperCosts({ ...otherPaperCosts, [m.value]: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="space-y-4">
@@ -1139,6 +1212,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                             onAddAccessory={handleAddAccessory}
                             onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))}
                             onDuplicateItem={handleDuplicateItem}
+                            onOpenDesigner={setDesignerIndex}
                             onOpenQuickAddProduct={(idx: number, search: string) => {
                                 setActiveRowIndexForProduct(idx);
                                 setQuickProductSearch(search);
@@ -1200,6 +1274,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                         onAddAccessory={handleAddAccessory} 
                                         onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))}
                                         onDuplicateItem={handleDuplicateItem}
+                                        onOpenDesigner={setDesignerIndex}
                                         onTogglePrint={handleTogglePrint}
                                         selectedForPrint={selectedForPrint}
                                         onOpenQuickAddProduct={(idx: number, search: string) => {
@@ -1317,6 +1392,20 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                 </div>
             </DialogContent>
         </Dialog>
+
+        {designerIndex !== null && items[designerIndex] && (
+            <BoxDesigner
+                open={designerIndex !== null}
+                onOpenChange={(v: boolean) => { if (!v) setDesignerIndex(null); }}
+                item={items[designerIndex]}
+                rates={rateContext}
+                onChange={(patch: Record<string, any>) => handleItemPatch(designerIndex, patch)}
+                title={
+                    (products.find((p: Product) => p.id === items[designerIndex].productId)?.name || `Row ${designerIndex + 1}`)
+                    + ` · ${items[designerIndex].l || 0}×${items[designerIndex].b || 0}×${items[designerIndex].h || 0} mm · ${items[designerIndex].noOfPcs || 0} pcs`
+                }
+            />
+        )}
 
         <React.Suspense fallback={<Loader2 className="animate-spin" />}>
             <ManageTermsDialog 
