@@ -145,9 +145,13 @@ export const processAttendanceImport = (
         throw new Error("Could not find a valid header row in the Excel sheet. Ensure columns like 'Name' and 'Date' are present.");
     }
 
-    const headerRow = jsonData[headerIndex]; 
+    const headerRow = jsonData[headerIndex];
     const dataRows = jsonData.slice(headerIndex + 1);
-    const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
+    // Array.from (not headerRow.map) so sparse holes from blank Excel cells
+    // (e.g. legacy sheets with a gap before the payroll block's "Employee"
+    // column) are visited and normalized to '', not skipped and left as
+    // holes that later resolve to `undefined` when indexed.
+    const normalizedHeaders = Array.from(headerRow, h => String(h || '').trim().toLowerCase());
     
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string[] } = {
         dateAD: ['date (ad dates)', 'date ad', 'date', 'attendance date', 'day', 'ad date', 'work date', 'att date'],
@@ -206,7 +210,16 @@ export const processAttendanceImport = (
             return null;
         }
         
-        const nepaliDate = new NepaliDate(adFromSheet);
+        let nepaliDate: NepaliDate;
+        try {
+            nepaliDate = new NepaliDate(adFromSheet);
+        } catch {
+            // A malformed/out-of-range date cell (e.g. a stray value outside
+            // NepaliDate's 2000-2090 BS support) shouldn't abort the whole
+            // sheet's import — skip just this row.
+            skippedCount++;
+            return null;
+        }
         const year = nepaliDate.getYear();
         const month = nepaliDate.getMonth();
 

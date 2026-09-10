@@ -209,14 +209,14 @@ export const previewLedgerSheet = (sheetName: string, grid: any[][]): LedgerShee
     let guessedMonth: number | null = null;
 
     try {
-        const { processedData, headerRow, headerIndex } = processAttendanceImport(grid);
+        const { processedData, headerIndex } = processAttendanceImport(grid);
         if (processedData.length > 0) {
             hasAttendance = true;
             const dominant = resolveDominantPeriod(processedData);
             if (dominant) { guessedYear = dominant.year; guessedMonth = dominant.month; }
         }
         if (headerIndex >= 0) {
-            hasPayroll = findPayrollBlockStart(headerRow) !== null;
+            hasPayroll = findPayrollBlockStart(grid, headerIndex) !== null;
         }
     } catch {
         // No parseable "Name"/"Date" header at all - not a normal

@@ -25,17 +25,39 @@ export interface LegacyPayrollImportResult {
     newEmployees: number;
 }
 
+/** How many rows below the attendance header to search for the payroll block's own header row. */
+const PAYROLL_HEADER_SEARCH_WINDOW = 15;
+
 /**
- * Locates the payroll summary block in a legacy sheet's header row.
- * Returns the column where the block's own "Employee" header sits, or null
- * if the sheet has no such block (e.g. it's a pure attendance sheet).
+ * Locates the payroll summary block near a legacy sheet's attendance header.
+ *
+ * In most workbooks the payroll block's "Employee" header sits on the same
+ * row as the attendance header (e.g. "Date | Name | ... | Employee | ...").
+ * But some Consolidated Ledger monthly sheets instead give the payroll block
+ * its own header row a few rows below - one of the day rows is "sacrificed"
+ * to carry it instead of attendance data for that day. So this searches a
+ * window of rows starting at the attendance header, not just that row
+ * itself, and returns which row the payroll header actually lives on along
+ * with the column.
+ *
+ * Returns null if no such block is found anywhere in the window (e.g. it's
+ * a pure attendance sheet with payroll computed elsewhere).
  */
-export const findPayrollBlockStart = (headerRow: any[]): number | null => {
-    let lastIdx = -1;
-    headerRow.forEach((h, i) => {
-        if (String(h || '').trim().toLowerCase() === 'employee') lastIdx = i;
-    });
-    return lastIdx === -1 ? null : lastIdx;
+export const findPayrollBlockStart = (
+    grid: any[][],
+    fromRowIndex: number
+): { rowIndex: number; colIndex: number } | null => {
+    const lastRow = Math.min(grid.length, fromRowIndex + PAYROLL_HEADER_SEARCH_WINDOW);
+    for (let r = fromRowIndex; r < lastRow; r++) {
+        const row = grid[r];
+        if (!row) continue;
+        let lastIdx = -1;
+        row.forEach((h, i) => {
+            if (String(h || '').trim().toLowerCase() === 'employee') lastIdx = i;
+        });
+        if (lastIdx !== -1) return { rowIndex: r, colIndex: lastIdx };
+    }
+    return null;
 };
 
 /**
@@ -43,8 +65,10 @@ export const findPayrollBlockStart = (headerRow: any[]): number | null => {
  * persists it to the Payroll collection, tagged as a historical import.
  *
  * @param grid - Full sheet grid (header: 1 style, from XLSX.utils.sheet_to_json).
- * @param headerRow - The header row already located by processAttendanceImport.
- * @param headerIndex - Row index of headerRow within grid.
+ * @param headerRow - The attendance header row already located by processAttendanceImport (unused for
+ *   locating the payroll block itself now, kept for signature stability with callers).
+ * @param headerIndex - Row index of headerRow within grid; the payroll block's own header is searched
+ *   for starting at this row.
  * @param bsYear - Resolved BS year for this sheet (from its attendance rows).
  * @param bsMonth - Resolved BS month (0-11) for this sheet.
  * @param sourceSheet - Sheet name, kept for audit/debug.
@@ -61,10 +85,11 @@ export const importLegacyPayrollSheet = async (
     source: Payroll['source'] = 'legacy-import'
 ): Promise<LegacyPayrollImportResult> => {
     const result: LegacyPayrollImportResult = { payrollRecords: 0, newEmployees: 0 };
-    const startCol = findPayrollBlockStart(headerRow);
-    if (startCol === null) return result;
+    const block = findPayrollBlockStart(grid, headerIndex);
+    if (block === null) return result;
+    const { rowIndex: payrollHeaderRowIndex, colIndex: startCol } = block;
 
-    const subHeader = headerRow.slice(startCol);
+    const subHeader = grid[payrollHeaderRowIndex].slice(startCol);
     const map = getHeaderMap(subHeader);
     if (map.name === undefined) return result;
 
