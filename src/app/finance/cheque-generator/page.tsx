@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History, Check, X, Clock, FilterX, Users, ShieldCheck, ChevronLeft, ChevronRight, Plus, Minus, RotateCcw, CalendarIcon, CreditCard, Receipt, Building2, FileDown, Loader2 } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History, Check, X, Clock, FilterX, Users, ShieldCheck, ChevronLeft, ChevronRight, Plus, Minus, RotateCcw, CalendarIcon, CreditCard, Receipt, Building2, FileDown, Loader2, Ruler } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque, updateChequeSplit } from '@/services/cheque-service';
@@ -35,6 +35,9 @@ import { format, startOfToday } from 'date-fns';
 import { ChequeView } from './_components/cheque-view';
 import { NepalChequeView } from './_components/nepal-cheque-print';
 import { exportChequeVoucherPdf } from '@/lib/cheque-voucher-pdf';
+import { ChequeCalibrationDialog } from './_components/cheque-calibration-dialog';
+import { CHEQUE_LAYOUT_SETTING_KEY, LEGACY_LAYOUT, resolveChequeLayout, type ChequeLayout } from '@/lib/cheque-layout';
+import { onSettingUpdate } from '@/services/settings-service';
 import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -232,6 +235,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
   const { toast } = useToast();
   const companyProfile = useBusinessProfile();
+  // Cheque geometry is measured per cheque book, not hardcoded - see
+  // lib/cheque-layout for why.
+  const [chequeLayout, setChequeLayout] = useState<ChequeLayout>(LEGACY_LAYOUT);
+  const [isCalibrationOpen, setIsCalibrationOpen] = useState(false);
   const { user, getAllowedOwnerships } = useAuth();
   const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
 
@@ -556,6 +563,21 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
    * no stylesheet and no CDN. Printing is deferred until after load so the
    * layout is settled before the dialog fires.
    */
+  useEffect(() => {
+    const unsub = onSettingUpdate(CHEQUE_LAYOUT_SETTING_KEY, (setting) => {
+      setChequeLayout(resolveChequeLayout(setting?.value));
+    });
+    return () => unsub();
+  }, []);
+
+  // The dialog's nudge controls stay a per-print adjustment; they compose
+  // over whatever offsets the saved layout carries rather than replacing them.
+  const nudgedChequeLayout = useMemo<ChequeLayout>(() => ({
+    ...chequeLayout,
+    offsetXMm: chequeLayout.offsetXMm + offsetX,
+    offsetYMm: chequeLayout.offsetYMm + offsetY,
+  }), [chequeLayout, offsetX, offsetY]);
+
   const printNepalCheque = () => {
     const content = nepalPrintRef.current?.innerHTML;
     if (!content) return;
@@ -569,11 +591,11 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     win.document.write(
       `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Cheque Print</title>` +
         `<style>` +
-        `@page { size: 176mm 88mm; margin: 0; }` +
+        `@page { size: ${nudgedChequeLayout.widthMm}mm ${nudgedChequeLayout.heightMm}mm; margin: 0; }` +
         `html, body { margin: 0; padding: 0; background: #fff; }` +
         `* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }` +
         `</style></head><body>` +
-        `<div style="width:176mm;height:88mm;position:relative;overflow:hidden;">${content}</div>` +
+        `<div style="width:${nudgedChequeLayout.widthMm}mm;height:${nudgedChequeLayout.heightMm}mm;position:relative;overflow:hidden;">${content}</div>` +
         `<scr` +
         `ipt>window.addEventListener('load',function(){setTimeout(function(){window.focus();window.print();window.close();},250);});</scr` +
         `ipt>` +
@@ -1239,9 +1261,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     payeeName={nepalChequeToPrint.parentCheque.payeeName}
                     amount={Number(nepalChequeToPrint.amount) || 0}
                     date={nepalChequeToPrint.chequeDate.toISOString()}
+                    layout={nudgedChequeLayout}
                     isAcPayee={isAcPayee}
-                    offsetX={offsetX}
-                    offsetY={offsetY}
                   />
                 )}
               </div>
@@ -1273,6 +1294,18 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                       Bearer
                     </Button>
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-widest">Leaf layout</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {chequeLayout.label} &middot; {chequeLayout.widthMm} × {chequeLayout.heightMm} mm
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setIsCalibrationOpen(true)} className="shrink-0 h-9 font-bold text-[10px] uppercase tracking-widest">
+                    <Ruler className="mr-2 h-3.5 w-3.5" /> Calibrate
+                  </Button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1359,6 +1392,13 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ChequeCalibrationDialog
+        open={isCalibrationOpen}
+        onOpenChange={setIsCalibrationOpen}
+        layout={chequeLayout}
+        onSaved={setChequeLayout}
+      />
     </div>
   );
 }
