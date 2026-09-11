@@ -1,43 +1,31 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { 
     Building2, 
     Users, 
-    History, 
     MoreHorizontal, 
     MapPin, 
     Plus,
     Search,
-    ShieldCheck,
-    Clock,
     Loader2,
-    Eye,
-    User,
     ChevronRight,
-    Target,
     Edit,
-    Bell,
-    TrendingUp,
-    Receipt,
-    CheckCircle2,
     Trash2,
     GitMerge,
     ChevronDown,
     FileSpreadsheet,
     Mail,
     Phone,
-    UserPlus,
     Download,
     Upload
 } from 'lucide-react';
-import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp, Transaction, CostReport } from '@/lib/types';
+import type { Party, CRMContact, CustomerClassification } from '@/lib/types';
 import { onPartiesUpdate, updateParty, deleteParty, mergeParties, addParty } from '@/services/party-service';
 import { getCostReports } from '@/services/cost-report-service';
-import { onContactsUpdate, onInteractionsUpdate, addInteraction, updateInteraction, onFollowUpsUpdate, addFollowUp, addContact, updateContact, deleteContact } from '@/services/crm-service';
-import { getTransactionsByParty } from '@/services/transaction-service';
+import { onContactsUpdate, addContact, updateContact, deleteContact } from '@/services/crm-service';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,31 +72,17 @@ export default function CompaniesManagementPage() {
     
     const [companies, setCompanies] = useState<Party[]>([]);
     const [contacts, setContacts] = useState<CRMContact[]>([]);
-    const [interactions, setInteractions] = useState<InteractionLog[]>([]);
-    const [followups, setFollowups] = useState<FollowUp[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     
     const [selectedCompany, setSelectedCompany] = useState<Party | null>(null);
-    const [isDetailOpen, setIsDetailOpen] = useState(false);
+    // Which company is expanded to show its people. One at a time keeps the
+    // list scannable - a company usually has several contacts, and the row
+    // itself could only ever show the primary one.
+    const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
     
-    const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
-    const [logForm, setLogForm] = useState({
-        type: 'Call' as any,
-        subject: '',
-        description: '',
-        contactId: '',
-        assignee: '',
-        taskDueDateBS: '',
-        severity: '' as any,
-        sentiment: '' as any
-    });
-
     const [isAttributesDialogOpen, setIsAttributesDialogOpen] = useState(false);
     const [attributesForm, setAttributesForm] = useState({ clientScore: '', successFactor: '', accountMgr: '' });
-
-    const [isFollowUpDialogOpen, setIsFollowUpDialogOpen] = useState(false);
-    const [followUpForm, setFollowUpForm] = useState({ action: '', dueDateBS: '' });
 
     const [deletingCompany, setDeletingCompany] = useState<Party | null>(null);
     // Deleting a party only removes the party doc (party-service.ts
@@ -131,13 +105,6 @@ export default function CompaniesManagementPage() {
     const [mergeDestId, setMergeDestId] = useState('');
     const [isMerging, setIsMerging] = useState(false);
 
-    // Financial cache per partyId
-    const [partyTransactions, setPartyTransactions] = useState<Record<string, Transaction[]>>({});
-    const [isLoadingFinancials, setIsLoadingFinancials] = useState(false);
-
-    // Quotation history cache per partyId
-    const [partyQuotations, setPartyQuotations] = useState<Record<string, CostReport[]>>({});
-    const [isLoadingQuotations, setIsLoadingQuotations] = useState(false);
 
     useEffect(() => {
         setIsLoading(true);
@@ -145,21 +112,13 @@ export default function CompaniesManagementPage() {
             onPartiesUpdate((data) => {
                 setCompanies(data.filter(p => p.type === 'Customer' || p.type === 'Both'));
             }),
-            onContactsUpdate(setContacts),
-            onInteractionsUpdate((data) => {
-                setInteractions(data);
-            }),
-            onFollowUpsUpdate((data) => {
-                setFollowups(data);
+            onContactsUpdate((data) => {
+                setContacts(data);
                 setIsLoading(false);
             })
         ];
         return () => unsubs.forEach(u => u());
     }, []);
-
-    const sortedInteractions = useMemo(() => {
-        return [...interactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [interactions]);
 
     const filteredCompanies = useMemo(() => {
         return companies.filter(c => 
@@ -167,172 +126,6 @@ export default function CompaniesManagementPage() {
             (c.address || '').toLowerCase().includes(searchQuery.toLowerCase())
         ).sort((a, b) => a.name.localeCompare(b.name));
     }, [companies, searchQuery]);
-
-    const nextFollowUp = useMemo(() => {
-        if (!selectedCompany) return null;
-        return followups
-            .filter(f => f.partyId === selectedCompany.id && f.status === 'Pending')
-            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
-    }, [selectedCompany, followups]);
-
-    const handleOpenDetail = async (company: Party) => {
-        setSelectedCompany(company);
-        setIsDetailOpen(true);
-        
-        // Fetch financial data if not in cache
-        if (!partyTransactions[company.id]) {
-            setIsLoadingFinancials(true);
-            try {
-                const txns = await getTransactionsByParty(company.id);
-                setPartyTransactions(prev => ({ ...prev, [company.id]: txns }));
-            } catch (err) {
-                console.error("Financial fetch failed", err);
-            } finally {
-                setIsLoadingFinancials(false);
-            }
-        }
-
-        // Fetch quotation history if not in cache
-        if (!partyQuotations[company.id]) {
-            setIsLoadingQuotations(true);
-            try {
-                const reports = await getCostReports();
-                setPartyQuotations(prev => ({ ...prev, [company.id]: reports.filter(r => r.partyId === company.id) }));
-            } catch (err) {
-                console.error("Quotation fetch failed", err);
-            } finally {
-                setIsLoadingQuotations(false);
-            }
-        }
-    };
-
-    const companyQuotations = useMemo(() => {
-        if (!selectedCompany) return [];
-        return (partyQuotations[selectedCompany.id] || [])
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [selectedCompany, partyQuotations]);
-
-    const financialData = useMemo(() => {
-        if (!selectedCompany || !partyTransactions[selectedCompany.id]) return null;
-
-        const txns = partyTransactions[selectedCompany.id];
-        const today = new Date();
-        const todayBS = new NepaliDate(today);
-        // Fiscal Year starts at Shrawan (Month 3 in 0-indexed)
-        const currentFiscalYear = todayBS.getMonth() >= 3 ? todayBS.getYear() : todayBS.getYear() - 1;
-
-        let fiscalYearSales = 0;
-        let totalSales = 0;
-        let totalReceipts = 0;
-
-        txns.forEach(t => {
-            const tDate = new Date(t.date);
-            const tBS = new NepaliDate(tDate);
-            const tFiscalYear = tBS.getMonth() >= 3 ? tBS.getYear() : tBS.getYear() - 1;
-
-            if (t.type === 'Sales') {
-                totalSales += t.amount;
-                if (tFiscalYear === currentFiscalYear) {
-                    fiscalYearSales += t.amount;
-                }
-            } else if (t.type === 'Receipt') {
-                totalReceipts += t.amount;
-            }
-        });
-
-        const last5 = txns.slice(0, 5);
-
-        return {
-            fiscalYearSales,
-            indicativeBalance: totalSales - totalReceipts,
-            last5,
-            hasData: txns.length > 0
-        };
-    }, [selectedCompany, partyTransactions]);
-
-    const handleSaveLog = async () => {
-        if (!user || !selectedCompany || !logForm.subject) return;
-        
-        let taskDueDate = '';
-        if (logForm.type === 'Task' && logForm.taskDueDateBS) {
-            try {
-                const parts = logForm.taskDueDateBS.split('/');
-                if (parts.length !== 3) throw new Error();
-                const nd = new NepaliDate(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                taskDueDate = nd.toJsDate().toISOString();
-            } catch {
-                toast({ title: 'Invalid Due Date', description: 'Use YYYY/MM/DD format.', variant: 'destructive' });
-                return;
-            }
-        }
-
-        try {
-            await addInteraction({
-                type: logForm.type,
-                subject: logForm.subject,
-                description: logForm.description,
-                contactId: logForm.contactId || undefined,
-                date: new Date().toISOString(),
-                performer: user.username,
-                partyId: selectedCompany.id,
-                taskStatus: logForm.type === 'Task' ? 'Pending' : undefined,
-                taskDueDateBS: logForm.type === 'Task' ? logForm.taskDueDateBS : undefined,
-                taskDueDate: logForm.type === 'Task' ? taskDueDate : undefined,
-                assignee: logForm.type === 'Task' ? logForm.assignee : undefined,
-                severity: logForm.type === 'Incident' ? (logForm.severity || 'Medium') : undefined,
-                sentiment: logForm.type === 'Feedback' ? (logForm.sentiment || 'Neutral') : undefined,
-                createdAt: new Date().toISOString()
-            });
-            toast({ title: 'Activity Logged' });
-            setIsLogDialogOpen(false);
-            setLogForm({ type: 'Call', subject: '', description: '', contactId: '', assignee: '', taskDueDateBS: '', severity: '', sentiment: '' });
-        } catch {
-            toast({ title: 'Error logging activity', variant: 'destructive' });
-        }
-    };
-
-    const handleMarkTaskDone = async (e: React.MouseEvent, id: string) => {
-        e.stopPropagation();
-        if (!user) return;
-        try {
-            await updateInteraction(id, { taskStatus: 'Done' });
-            toast({ title: 'Task Completed' });
-        } catch {
-            toast({ title: 'Error updating task', variant: 'destructive' });
-        }
-    };
-
-    const handleSaveFollowUp = async () => {
-        if (!user || !selectedCompany || !followUpForm.action || !followUpForm.dueDateBS) return;
-        
-        let adDateISO = '';
-        try {
-            const parts = followUpForm.dueDateBS.split('/');
-            if (parts.length !== 3) throw new Error();
-            const nd = new NepaliDate(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-            adDateISO = nd.toJsDate().toISOString();
-        } catch {
-            toast({ title: 'Invalid Date', description: 'Use YYYY/MM/DD format.', variant: 'destructive' });
-            return;
-        }
-
-        try {
-            await addFollowUp({
-                partyId: selectedCompany.id,
-                partyName: selectedCompany.name,
-                action: followUpForm.action,
-                dueDateBS: followUpForm.dueDateBS,
-                dueDate: adDateISO,
-                status: 'Pending',
-                createdBy: user.username,
-            });
-            toast({ title: 'Follow-up Scheduled' });
-            setIsFollowUpDialogOpen(false);
-            setFollowUpForm({ action: '', dueDateBS: '' });
-        } catch {
-            toast({ title: 'Error scheduling reminder', variant: 'destructive' });
-        }
-    };
 
     const openAddContact = () => {
         setEditingContact(null);
@@ -547,6 +340,21 @@ export default function CompaniesManagementPage() {
         }
     };
 
+    const contactsByParty = (partyId: string) =>
+        contacts
+            .filter(c => c.partyId === partyId)
+            // Primary first, then alphabetical - the person you most likely want is on top.
+            .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) || a.name.localeCompare(b.name));
+
+    const openAttributes = (c: Party) => {
+        setAttributesForm({
+            clientScore: c.customFields?.clientScore || '',
+            successFactor: c.customFields?.successFactor || '',
+            accountMgr: c.customFields?.accountMgr || '',
+        });
+        setIsAttributesDialogOpen(true);
+    };
+
     const getPrimaryContact = (partyId: string) => {
         return contacts.find(c => c.partyId === partyId && c.isPrimary) || contacts.find(c => c.partyId === partyId);
     };
@@ -626,32 +434,39 @@ export default function CompaniesManagementPage() {
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow className="hover:bg-transparent">
-                                <TableHead className="pl-6 font-black uppercase text-[10px] tracking-widest h-11">Company Name</TableHead>
+                                <TableHead className="w-10 pl-4"></TableHead>
+                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Company</TableHead>
                                 <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Primary Contact</TableHead>
+                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11 text-center">People</TableHead>
                                 <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Classification</TableHead>
                                 <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Ownership</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Last Activity</TableHead>
                                 <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest h-11">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-20">
+                                    <TableCell colSpan={7} className="text-center py-20">
                                         <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/>
                                     </TableCell>
                                 </TableRow>
                             ) : filteredCompanies.map(c => {
+                                const companyContacts = contactsByParty(c.id);
                                 const primary = getPrimaryContact(c.id);
-                                const lastInteraction = sortedInteractions.find(i => i.partyId === c.id);
+                                const isExpanded = expandedCompanyId === c.id;
 
                                 return (
-                                    <TableRow 
-                                        key={c.id} 
-                                        className="hover:bg-muted/30 cursor-pointer h-16 group transition-colors" 
-                                        onClick={() => handleOpenDetail(c)}
+                                    <React.Fragment key={c.id}>
+                                    <TableRow
+                                        className={cn("hover:bg-muted/30 cursor-pointer h-16 group transition-colors", isExpanded && "bg-muted/20")}
+                                        onClick={() => setExpandedCompanyId(isExpanded ? null : c.id)}
                                     >
-                                        <TableCell className="pl-6">
+                                        <TableCell className="pl-4">
+                                            {isExpanded
+                                                ? <ChevronDown className="h-4 w-4 text-primary" />
+                                                : <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />}
+                                        </TableCell>
+                                        <TableCell>
                                             <div className="flex flex-col">
                                                 <span className="font-black text-gray-900 leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{c.name}</span>
                                                 <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
@@ -665,14 +480,19 @@ export default function CompaniesManagementPage() {
                                                     <div className="h-8 w-8 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center font-black text-xs text-primary shadow-inner">
                                                         {primary.name.charAt(0)}
                                                     </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-black text-gray-800 uppercase tracking-tighter">{primary.name}</span>
-                                                        <span className="text-[9px] uppercase font-bold text-muted-foreground">{primary.designation || 'Staff'}</span>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-xs font-black text-gray-800 uppercase tracking-tighter truncate">{primary.name}</span>
+                                                        <span className="text-[9px] uppercase font-bold text-muted-foreground truncate">{primary.phone || primary.designation || 'Staff'}</span>
                                                     </div>
                                                 </div>
                                             ) : (
                                                 <span className="text-[10px] text-muted-foreground italic font-medium uppercase opacity-50">No contacts defined</span>
                                             )}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Badge variant="outline" className="text-[9px] font-black tabular-nums h-5 px-2">
+                                                {companyContacts.length}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>
                                             {getClassificationBadge(c.classification) || (
@@ -684,29 +504,25 @@ export default function CompaniesManagementPage() {
                                                 {c.ownership}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>
-                                            {lastInteraction ? (
-                                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-tight">
-                                                    <History className="h-3 w-3" /> {format(new Date(lastInteraction.date), "PP")}
-                                                </div>
-                                            ) : (
-                                                <span className="text-[10px] text-muted-foreground opacity-30 uppercase font-black">—</span>
-                                            )}
-                                        </TableCell>
                                         <TableCell className="text-right pr-6" onClick={e => e.stopPropagation()}>
                                             <div className="flex items-center justify-end gap-1">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 text-[9px] font-black uppercase tracking-widest"
+                                                    onClick={() => { setSelectedCompany(c); openAddContact(); }}
+                                                >
+                                                    <Plus className="mr-1 h-3.5 w-3.5" /> Contact
+                                                </Button>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
                                                             <MoreHorizontal className="h-4 w-4"/>
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
-                                                        <DropdownMenuItem onSelect={() => handleOpenDetail(c)}>
-                                                            <Eye className="mr-2 h-4 w-4"/> Full Profile
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onSelect={() => { setSelectedCompany(c); setIsLogDialogOpen(true); }}>
-                                                            <Clock className="mr-2 h-4 w-4"/> Log Activity
+                                                        <DropdownMenuItem onSelect={() => { setSelectedCompany(c); openAttributes(c); }}>
+                                                            <Edit className="mr-2 h-4 w-4"/> Account Details
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem className="text-destructive" onSelect={() => {
@@ -720,15 +536,101 @@ export default function CompaniesManagementPage() {
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
-                                                <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
                                             </div>
                                         </TableCell>
                                     </TableRow>
+
+                                    {/* Expanded: the company's own details, then every person at
+                                        it. One company routinely has several people, and the row
+                                        could only ever show the primary one. */}
+                                    {isExpanded && (
+                                        <TableRow className="hover:bg-transparent bg-muted/10 border-b-2">
+                                            <TableCell colSpan={7} className="p-0">
+                                                <div className="px-6 py-4 space-y-4">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
+                                                        {[
+                                                            { label: 'Address', value: c.address },
+                                                            { label: 'PAN / VAT', value: c.panNumber },
+                                                            { label: 'Account Manager', value: c.customFields?.accountMgr },
+                                                            { label: 'Client Score', value: c.customFields?.clientScore },
+                                                        ].map(f => (
+                                                            <div key={f.label}>
+                                                                <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{f.label}</div>
+                                                                <div className="text-xs font-bold text-gray-800 break-words">{f.value || <span className="opacity-30">—</span>}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <div>
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                                                                <Users className="h-3.5 w-3.5 text-primary" /> Contacts ({companyContacts.length})
+                                                            </h4>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="h-7 text-[9px] font-black uppercase tracking-widest"
+                                                                onClick={() => { setSelectedCompany(c); openAddContact(); }}
+                                                            >
+                                                                <Plus className="mr-1 h-3 w-3" /> Add Person
+                                                            </Button>
+                                                        </div>
+
+                                                        {companyContacts.length === 0 ? (
+                                                            <div className="border border-dashed rounded-lg py-6 text-center">
+                                                                <p className="text-[10px] text-muted-foreground italic font-medium uppercase tracking-widest">No people recorded for this company.</p>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="border rounded-lg divide-y bg-white overflow-hidden">
+                                                                {companyContacts.map((ct: CRMContact) => (
+                                                                    <div key={ct.id} className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 py-2 hover:bg-muted/20 transition-colors">
+                                                                        <div className="flex items-center gap-2 min-w-0 sm:w-56 shrink-0">
+                                                                            <div className="h-7 w-7 rounded-lg bg-primary/5 border border-primary/10 flex items-center justify-center font-black text-[10px] text-primary shrink-0">
+                                                                                {ct.name.charAt(0)}
+                                                                            </div>
+                                                                            <div className="min-w-0">
+                                                                                <div className="text-xs font-black text-gray-900 uppercase tracking-tight truncate flex items-center gap-1.5">
+                                                                                    {ct.name}
+                                                                                    {ct.isPrimary && <Badge variant="outline" className="text-[7px] h-3.5 px-1 font-black uppercase bg-primary/5 border-primary/20 text-primary">Primary</Badge>}
+                                                                                </div>
+                                                                                <div className="text-[9px] uppercase font-bold text-muted-foreground truncate">{ct.designation || 'Staff'}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 min-w-0">
+                                                                            <div className="text-[11px] text-gray-700 truncate flex items-center gap-1.5">
+                                                                                <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                                                {ct.phone ? <a href={`tel:${ct.phone}`} className="hover:underline">{ct.phone}</a> : <span className="opacity-30">—</span>}
+                                                                            </div>
+                                                                            <div className="text-[11px] text-gray-700 truncate flex items-center gap-1.5">
+                                                                                <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                                                {ct.email ? <a href={`mailto:${ct.email}`} className="hover:underline truncate">{ct.email}</a> : <span className="opacity-30">—</span>}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1 shrink-0">
+                                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit contact"
+                                                                                onClick={() => { setSelectedCompany(c); openEditContact(ct); }}>
+                                                                                <Edit className="h-3.5 w-3.5" />
+                                                                            </Button>
+                                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="Remove contact"
+                                                                                onClick={() => setDeletingContact(ct)}>
+                                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                    </React.Fragment>
                                 );
                             })}
                             {!isLoading && filteredCompanies.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-60 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={7} className="h-60 text-center text-muted-foreground italic">
                                         <Building2 className="h-10 w-10 mx-auto opacity-10 mb-3"/>
                                         <p className="text-sm font-medium uppercase tracking-widest">No accounts found in registry.</p>
                                     </TableCell>
@@ -817,450 +719,6 @@ export default function CompaniesManagementPage() {
                             {isMerging ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <GitMerge className="mr-2 h-4 w-4"/>}
                             Execute Merge
                         </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Profile Detail Dialog */}
-            {selectedCompany && (
-                <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                    <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 border-none shadow-2xl overflow-hidden">
-                        <DialogHeader className="p-8 border-b bg-primary/5 shrink-0">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                <div className="space-y-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">Company Record</Badge>
-                                        {getClassificationBadge(selectedCompany.classification)}
-                                    </div>
-                                    <DialogTitle className="text-3xl font-black text-gray-900 tracking-tighter uppercase">{selectedCompany.name}</DialogTitle>
-                                    <DialogDescription className="flex items-center gap-3 font-medium">
-                                        <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-primary"/> {selectedCompany.address}</span>
-                                        <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-primary"/> PAN: {selectedCompany.panNumber || 'N/A'}</span>
-                                    </DialogDescription>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button onClick={() => setIsLogDialogOpen(true)} className="h-11 px-8 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20"><Plus className="mr-2 h-4 w-4"/> Log Interaction</Button>
-                                </div>
-                            </div>
-                        </DialogHeader>
-
-                        <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-3">
-                            {/* Left Side: Information */}
-                            <div className="lg:col-span-2 overflow-y-auto bg-gray-50/30 p-8 space-y-8 border-r">
-                                <section className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                            <Users className="h-3.5 w-3.5" /> Personnel
-                                        </h4>
-                                        <Button size="sm" variant="ghost" onClick={openAddContact} className="h-6 text-[9px] font-black uppercase tracking-widest">
-                                            <UserPlus className="mr-1 h-3 w-3" /> Add
-                                        </Button>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {contacts.filter(c => c.partyId === selectedCompany.id).map(contact => (
-                                            <Card key={contact.id} className="shadow-sm ring-1 ring-black/5 border-none group relative">
-                                                <CardContent className="p-4 flex items-center gap-4">
-                                                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center font-black text-sm transition-all shadow-inner shrink-0", contact.isPrimary ? "bg-blue-600 text-white" : "bg-muted/50 text-muted-foreground")}>
-                                                        {contact.name.charAt(0)}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between gap-1">
-                                                            <p className="font-bold text-gray-900 truncate">{contact.name}</p>
-                                                            {contact.isPrimary && <Badge className="text-[7px] uppercase h-3.5 px-1 bg-blue-600 shrink-0">Primary</Badge>}
-                                                        </div>
-                                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">{contact.designation || 'Staff'}</p>
-                                                        {(contact.email || contact.phone) && (
-                                                            <div className="flex flex-col gap-0.5 mt-1.5">
-                                                                {contact.email && <span className="text-[10px] flex items-center gap-1 text-muted-foreground truncate"><Mail className="h-2.5 w-2.5 opacity-50 shrink-0"/> {contact.email}</span>}
-                                                                {contact.phone && <span className="text-[10px] flex items-center gap-1 text-muted-foreground"><Phone className="h-2.5 w-2.5 opacity-50 shrink-0"/> {contact.phone}</span>}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-3.5 w-3.5"/></Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onSelect={() => openEditContact(contact)}><Edit className="mr-2 h-3.5 w-3.5"/> Edit</DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem className="text-destructive" onSelect={() => setDeletingContact(contact)}><Trash2 className="mr-2 h-3.5 w-3.5"/> Delete</DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
-                                        {contacts.filter(c => c.partyId === selectedCompany.id).length === 0 && (
-                                            <div className="col-span-2 py-10 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                                                <Users className="h-6 w-6 opacity-20"/>
-                                                <p className="text-xs font-bold uppercase tracking-widest">No Contacts Linked</p>
-                                                <Button variant="ghost" size="sm" onClick={openAddContact} className="text-[10px] font-black underline"><UserPlus className="mr-1 h-3 w-3"/> Add the first contact</Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </section>
-
-                                <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                        <History className="h-3.5 w-3.5" /> Interaction History
-                                    </h4>
-                                    <div className="space-y-3">
-                                        {sortedInteractions.filter(i => i.partyId === selectedCompany.id).map(log => {
-                                            const linkedContact = contacts.find(c => c.id === log.contactId);
-                                            return (
-                                                <div key={log.id} className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm relative group">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge variant="outline" className={cn(
-                                                                "text-[8px] uppercase font-black px-1.5 h-4",
-                                                                log.type === 'Task' && log.taskStatus === 'Pending' && "bg-amber-50 text-amber-700 border-amber-200",
-                                                                log.type === 'Incident' && "bg-red-50 text-red-700 border-red-200",
-                                                                log.type === 'Feedback' && "bg-blue-50 text-blue-700 border-blue-200"
-                                                            )}>{log.type}</Badge>
-                                                            <span className="text-xs font-black text-gray-900">{log.subject}</span>
-                                                            {log.type === 'Task' && (
-                                                                <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.taskStatus === 'Done' ? "bg-gray-100 text-gray-500" : "bg-primary text-white")}>
-                                                                    {log.taskStatus || 'Pending'}
-                                                                </Badge>
-                                                            )}
-                                                            {log.type === 'Incident' && log.severity && (
-                                                                <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.severity === 'High' ? "bg-red-600 text-white" : log.severity === 'Medium' ? "bg-amber-500 text-white" : "bg-gray-200 text-gray-700")}>
-                                                                    {log.severity}
-                                                                </Badge>
-                                                            )}
-                                                            {log.type === 'Feedback' && log.sentiment && (
-                                                                <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.sentiment === 'Positive' ? "bg-emerald-600 text-white" : log.sentiment === 'Negative' ? "bg-red-600 text-white" : "bg-gray-200 text-gray-700")}>
-                                                                    {log.sentiment}
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            {log.type === 'Task' && log.taskStatus === 'Pending' && (
-                                                                <Button variant="outline" size="sm" onClick={(e) => handleMarkTaskDone(e, log.id)} className="h-6 text-[8px] font-black uppercase tracking-tighter border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-                                                                    <CheckCircle2 className="mr-1 h-2.5 w-2.5" /> Mark Done
-                                                                </Button>
-                                                            )}
-                                                            <span className="text-[9px] font-bold text-muted-foreground uppercase">{format(new Date(log.date), "PP")}</span>
-                                                        </div>
-                                                    </div>
-                                                    <p className="text-[11px] text-gray-600 leading-relaxed italic border-l-2 border-primary/20 pl-3">{log.description}</p>
-                                                    {log.type === 'Task' && log.taskDueDateBS && (
-                                                        <p className="mt-2 text-[9px] font-bold text-destructive flex items-center gap-1 uppercase">
-                                                            <Clock className="h-2.5 w-2.5" /> Target: {log.taskDueDateBS} {log.assignee ? `(For ${log.assignee})` : ''}
-                                                        </p>
-                                                    )}
-                                                    <div className="mt-3 text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1">
-                                                        <User className="h-2 w-2"/> Processed by {log.performer} {linkedContact ? `with ${linkedContact.name}` : ''}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                        {sortedInteractions.filter(i => i.partyId === selectedCompany.id).length === 0 && (
-                                            <div className="py-20 text-center opacity-40 italic text-xs uppercase font-black">No interaction logs found.</div>
-                                        )}
-                                    </div>
-                                </section>
-                            </div>
-
-                            {/* Right Side: Quick Stats & Metadata */}
-                            <div className="lg:col-span-1 p-8 space-y-8 bg-white overflow-y-auto">
-                                <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                        <Bell className="h-3.5 w-3.5 text-primary" /> Next Follow-up
-                                    </h4>
-                                    {nextFollowUp ? (
-                                        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-3">
-                                            <div className="flex justify-between items-start">
-                                                <span className="text-[10px] font-black uppercase text-amber-700">{nextFollowUp.dueDateBS}</span>
-                                                <Clock className="h-3 w-3 text-amber-600" />
-                                            </div>
-                                            <p className="text-xs font-black text-gray-900 leading-tight">{nextFollowUp.action}</p>
-                                            <Button variant="link" asChild className="h-auto p-0 text-[10px] font-black uppercase underline text-amber-700">
-                                                <Link href="/crm/followups">Manage Reminders</Link>
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <div className="p-4 rounded-xl border border-dashed text-center space-y-3">
-                                            <p className="text-[10px] text-muted-foreground italic font-medium">No scheduled actions.</p>
-                                            <Button size="sm" variant="outline" onClick={() => setIsFollowUpDialogOpen(true)} className="h-8 font-black text-[9px] uppercase tracking-widest">
-                                                <Plus className="mr-1.5 h-3.5 w-3.5" /> Schedule New
-                                            </Button>
-                                        </div>
-                                    )}
-                                </section>
-
-                                <Separator />
-
-                                {/* NEW: Financial Snapshot Section */}
-                                <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                        <TrendingUp className="h-3.5 w-3.5 text-primary" /> Financial Snapshot
-                                    </h4>
-                                    {isLoadingFinancials ? (
-                                        <div className="py-10 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto opacity-20"/></div>
-                                    ) : financialData?.hasData ? (
-                                        <div className="space-y-4">
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100">
-                                                    <p className="text-[8px] font-black uppercase text-blue-600 mb-1">Fiscal Year Sales</p>
-                                                    <p className="text-xs font-black text-gray-900 tabular-nums">Rs. {financialData.fiscalYearSales.toLocaleString('en-IN')}</p>
-                                                </div>
-                                                <div className={cn(
-                                                    "p-3 rounded-xl border",
-                                                    financialData.indicativeBalance > 0 ? "bg-red-50/50 border-red-100" : "bg-emerald-50/50 border-emerald-100"
-                                                )}>
-                                                    <p className={cn("text-[8px] font-black uppercase mb-1", financialData.indicativeBalance > 0 ? "text-red-600" : "text-emerald-600")}>Indicative Balance</p>
-                                                    <p className={cn("text-xs font-black tabular-nums", financialData.indicativeBalance > 0 ? "text-red-700" : "text-emerald-700")}>
-                                                        Rs. {Math.abs(financialData.indicativeBalance).toLocaleString('en-IN')}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <p className="text-[9px] font-black uppercase text-muted-foreground px-1">Recent Transactions</p>
-                                                <div className="divide-y border rounded-xl bg-gray-50/50">
-                                                    {financialData.last5.map(t => (
-                                                        <div key={t.id} className="p-2 flex items-center justify-between">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[9px] font-bold text-gray-500 uppercase">{format(new Date(t.date), "MMM d, yyyy")}</span>
-                                                                <Badge variant="outline" className="text-[7px] h-3 px-1 w-fit uppercase font-black bg-white">{t.type}</Badge>
-                                                            </div>
-                                                            <span className={cn("text-[10px] font-black tabular-nums", t.type === 'Sales' ? "text-blue-700" : "text-emerald-700")}>
-                                                                {t.type === 'Sales' ? '+' : '-'} {t.amount.toLocaleString('en-IN')}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="p-6 rounded-xl border border-dashed text-center">
-                                            <p className="text-[10px] text-muted-foreground italic font-medium">No financial records.</p>
-                                        </div>
-                                    )}
-                                </section>
-
-                                <Separator />
-
-                                {/* Quotation History Section */}
-                                <section className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                            <FileSpreadsheet className="h-3.5 w-3.5 text-primary" /> Quotation History
-                                        </h4>
-                                        <Button size="sm" variant="ghost" asChild className="h-6 text-[9px] font-black uppercase tracking-widest">
-                                            <Link href={`/crm/cost-report/calculator?partyId=${selectedCompany.id}`}>
-                                                <Plus className="mr-1 h-3 w-3" /> New
-                                            </Link>
-                                        </Button>
-                                    </div>
-                                    {isLoadingQuotations ? (
-                                        <div className="py-10 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto opacity-20"/></div>
-                                    ) : companyQuotations.length > 0 ? (
-                                        <div className="divide-y border rounded-xl bg-gray-50/50">
-                                            {companyQuotations.map(q => (
-                                                <Link
-                                                    key={q.id}
-                                                    href={`/crm/cost-report/calculator?id=${q.id}`}
-                                                    className="p-2.5 flex items-center justify-between hover:bg-gray-100/70 transition-colors"
-                                                >
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[10px] font-black text-gray-900">{q.reportNumber}</span>
-                                                        <span className="text-[9px] text-muted-foreground font-medium">{format(new Date(q.createdAt), "MMM d, yyyy")}</span>
-                                                    </div>
-                                                    <div className="flex flex-col items-end">
-                                                        <span className="text-[10px] font-black tabular-nums text-gray-900">Rs. {q.totalCost.toLocaleString('en-IN')}</span>
-                                                        <Badge variant="outline" className="text-[7px] h-3 px-1 w-fit uppercase font-black bg-white">{q.status || 'Draft'}</Badge>
-                                                    </div>
-                                                </Link>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="p-6 rounded-xl border border-dashed text-center">
-                                            <p className="text-[10px] text-muted-foreground italic font-medium">No quotations on file for this account.</p>
-                                        </div>
-                                    )}
-                                </section>
-
-                                <Separator />
-
-                                <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                        <Target className="h-3 w-3"/> Lifecycle Classification
-                                    </h4>
-                                    <div className="flex flex-col gap-2">
-                                        {(['Prospect', 'Negotiation', 'Customer', 'Past Client'] as CustomerClassification[]).map((stage) => (
-                                            <Button
-                                                key={stage}
-                                                variant={selectedCompany.classification === stage ? "default" : "outline"}
-                                                size="sm"
-                                                className="justify-start h-9 text-[10px] font-black uppercase tracking-widest group"
-                                                onClick={() => handleUpdateClassification(stage)}
-                                            >
-                                                <div className={cn(
-                                                    "w-2 h-2 rounded-full mr-3 border shadow-sm transition-transform group-hover:scale-125",
-                                                    selectedCompany.classification === stage ? "bg-white border-white" : 
-                                                    stage === 'Prospect' ? "bg-blue-400 border-blue-200" :
-                                                    stage === 'Negotiation' ? "bg-amber-400 border-amber-200" :
-                                                    stage === 'Customer' ? "bg-emerald-500 border-emerald-200" : "bg-gray-400 border-gray-200"
-                                                )} />
-                                                {stage}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </section>
-
-                                <Separator />
-
-                                <section className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Custom Attributes</h4>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                                            setAttributesForm({
-                                                clientScore: selectedCompany.customFields?.clientScore || '',
-                                                successFactor: selectedCompany.customFields?.successFactor || '',
-                                                accountMgr: selectedCompany.customFields?.accountMgr || ''
-                                            });
-                                            setIsAttributesDialogOpen(true);
-                                        }}>
-                                            <Edit className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <div className="space-y-1">
-                                            <Label className="text-[9px] uppercase font-bold opacity-50">Client Score</Label>
-                                            <p className="text-xs font-black">{selectedCompany.customFields?.clientScore || 'Not Assigned'}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-[9px] uppercase font-bold opacity-50">Key Success Factor</Label>
-                                            <p className="text-xs font-black">{selectedCompany.customFields?.successFactor || 'Not Defined'}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-[9px] uppercase font-bold opacity-50">Assigned Account Mgr</Label>
-                                            <p className="text-xs font-black uppercase text-primary underline">{selectedCompany.customFields?.accountMgr || 'None'}</p>
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                        </div>
-
-                        <DialogFooter className="p-6 border-t bg-white shrink-0">
-                            <Button variant="outline" onClick={() => setIsDetailOpen(false)} className="font-bold text-xs uppercase h-11 px-8">Close Account</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            )}
-
-            <Dialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Log Relationship Event</DialogTitle>
-                        <DialogDescription>Track important communications with this account.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-5 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Log Category</Label>
-                                <Select value={logForm.type} onValueChange={v => setLogForm({...logForm, type: v})}>
-                                    <SelectTrigger className="h-10 bg-white"><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Call">Call</SelectItem>
-                                        <SelectItem value="Email">Email</SelectItem>
-                                        <SelectItem value="Meeting">Meeting</SelectItem>
-                                        <SelectItem value="Note">Internal Note</SelectItem>
-                                        <SelectItem value="Task">Action Item (Task)</SelectItem>
-                                        <SelectItem value="Incident">Incident</SelectItem>
-                                        <SelectItem value="Feedback">Feedback</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Contact Person (Optional)</Label>
-                                <Select value={logForm.contactId} onValueChange={v => setLogForm({...logForm, contactId: v})}>
-                                    <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="Internal Staff" /></SelectTrigger>
-                                    <SelectContent>
-                                        {contacts.filter(c => c.partyId === selectedCompany?.id).map(c => (
-                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Subject / Purpose</Label>
-                            <Input value={logForm.subject} onChange={e => setLogForm({...logForm, subject: e.target.value})} placeholder="Main topic" className="h-10 font-bold" />
-                        </div>
-
-                        {logForm.type === 'Incident' && (
-                            <div className="space-y-1.5 p-3 bg-red-50 rounded-xl border border-red-100 animate-in zoom-in-95">
-                                <Label className="text-[10px] font-black uppercase text-red-700">Severity</Label>
-                                <Select value={logForm.severity || 'Medium'} onValueChange={(v: any) => setLogForm({...logForm, severity: v})}>
-                                    <SelectTrigger className="h-9 bg-white"><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Low">Low</SelectItem>
-                                        <SelectItem value="Medium">Medium</SelectItem>
-                                        <SelectItem value="High">High</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
-
-                        {logForm.type === 'Feedback' && (
-                            <div className="space-y-1.5 p-3 bg-blue-50 rounded-xl border border-blue-100 animate-in zoom-in-95">
-                                <Label className="text-[10px] font-black uppercase text-blue-700">Sentiment</Label>
-                                <Select value={logForm.sentiment || 'Neutral'} onValueChange={(v: any) => setLogForm({...logForm, sentiment: v})}>
-                                    <SelectTrigger className="h-9 bg-white"><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Positive">Positive</SelectItem>
-                                        <SelectItem value="Neutral">Neutral</SelectItem>
-                                        <SelectItem value="Negative">Negative</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
-
-                        {logForm.type === 'Task' && (
-                            <div className="grid grid-cols-2 gap-4 p-3 bg-primary/5 rounded-xl border border-primary/10 animate-in zoom-in-95">
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase text-primary">Task Due Date (BS)</Label>
-                                    <Input value={logForm.taskDueDateBS} onChange={e => setLogForm({...logForm, taskDueDateBS: e.target.value})} placeholder="YYYY/MM/DD" className="h-9 font-mono" />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase text-primary">Assignee</Label>
-                                    <Input value={logForm.assignee} onChange={e => setLogForm({...logForm, assignee: e.target.value})} placeholder="Name" className="h-9" />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Narrative Details</Label>
-                            <Textarea value={logForm.description} onChange={e => setLogForm({...logForm, description: e.target.value})} placeholder="Detailed conversation points..." className="min-h-[120px] text-sm resize-none" />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsLogDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
-                        <Button onClick={handleSaveLog} className="font-black text-xs uppercase h-11 px-10 shadow-lg shadow-primary/20">Commit Log</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isFollowUpDialogOpen} onOpenChange={setIsFollowUpDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Schedule Persistence</DialogTitle>
-                        <DialogDescription>Plan a future action for {selectedCompany?.name}.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-5 py-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Target Date (BS)</Label>
-                            <Input value={followUpForm.dueDateBS} onChange={e => setFollowUpForm({...followUpForm, dueDateBS: e.target.value})} placeholder="YYYY/MM/DD" className="h-10 font-mono" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Action Required</Label>
-                            <Input value={followUpForm.action} onChange={e => setFollowUpForm({...followUpForm, action: e.target.value})} placeholder="e.g. Call regarding bulk contract" className="h-10 font-bold" />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsLogDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
-                        <Button onClick={handleSaveFollowUp} className="font-black text-xs uppercase h-11 px-10 shadow-lg shadow-primary/20">Schedule Action</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

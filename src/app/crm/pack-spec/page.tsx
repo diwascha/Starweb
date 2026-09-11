@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { format } from 'date-fns';
+import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 import {
   Package,
   Search,
@@ -8,7 +10,6 @@ import {
   Printer,
   Layers,
   Box,
-  PrinterIcon,
   ChevronRight,
   ChevronLeft,
   Loader2,
@@ -59,6 +60,55 @@ const formatLabel = (key: string) => {
 const gsmFields: (keyof ProductSpecification)[] = [
   'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'liner2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm'
 ];
+
+/**
+ * The single definition of what a specification data sheet contains.
+ *
+ * The on-screen sheet, the PDF export and the per-product Excel export all
+ * render from this one list, so the three can't drift apart - and because
+ * it is already a flat (section, field, value) list, the Excel export is a
+ * straight dump with no reshaping, which is what makes it editable.
+ */
+const buildSpecRows = (p: Product): { section: string; label: string; value: string }[] => {
+  const s = p.specification || {};
+  const rows: { section: string; label: string; value: string }[] = [];
+  const add = (section: string, label: string, value: any, suffix = '') => {
+    const v = value === undefined || value === null || value === '' ? '' : `${value}${suffix}`;
+    rows.push({ section, label, value: v });
+  };
+
+  add('Identification', 'Client', p.partyName);
+  add('Identification', 'Client Address', p.partyAddress);
+  add('Identification', 'Product', p.name);
+  add('Identification', 'Material Code', p.materialCode);
+
+  add('Construction', 'Box Type', s.boxType);
+  add('Construction', 'Ply', s.ply ? `${s.ply} Ply` : '');
+  add('Construction', 'Dimension (L x B x H)', s.dimension, ' mm');
+  add('Construction', 'Paper Type', s.paperType);
+  add('Construction', 'Paper BF', s.paperBf);
+  add('Construction', 'Paper Shade', s.paperShade);
+
+  // Only the layers this board actually has - a 3 ply sheet shouldn't print
+  // seven empty GSM rows.
+  gsmFields.forEach(f => {
+    const v = s[f];
+    if (v) add('Board Composition', formatLabel(f as string), v, ' GSM');
+  });
+  add('Board Composition', 'Total Board GSM', s.gsm, s.gsm ? ' GSM' : '');
+
+  add('Physical & Test', 'Weight of Box', s.weightOfBox, s.weightOfBox ? ' g' : '');
+  add('Physical & Test', 'Load Bearing', s.load, s.load ? ' kg' : '');
+  add('Physical & Test', 'Max Moisture', s.moisture, s.moisture ? ' %' : '');
+  add('Physical & Test', 'Wastage', s.wastagePercent, s.wastagePercent ? ' %' : '');
+  add('Physical & Test', 'Stapling', s.stapling);
+  add('Physical & Test', 'Staple Width', s.stapleWidth);
+  add('Physical & Test', 'Overlap Width', s.overlapWidth);
+
+  add('Finishing', 'Printing / Finishing', s.printing);
+
+  return rows.filter(r => r.value !== '');
+};
 
 /** A product with no dimensions or no ply can't produce a usable data sheet.
  *  Surfaced as a badge and a filter so the gaps are findable rather than
@@ -172,6 +222,7 @@ export default function PackSpecPage() {
   const [parties, setParties] = useState<{ id: string; name: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const specRows = useMemo(() => (selectedProduct ? buildSpecRows(selectedProduct) : []), [selectedProduct]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -374,22 +425,87 @@ export default function PackSpecPage() {
     window.print();
   };
 
+  /**
+   * Pure vector PDF - real text, no bitmap.
+   *
+   * This used to rasterise the sheet with html2canvas at scale 2 and embed
+   * the result as an uncompressed PNG, which produced ~15 MB files for one
+   * A4 page of text that you could not select, search or zoom into. Drawing
+   * the same rows with jsPDF's text and autoTable APIs instead gives a file
+   * in the tens of kilobytes, with selectable text and no resolution limit.
+   */
   const handleDownloadPdf = async () => {
-    if (!printableRef.current || !selectedProduct) return;
+    if (!selectedProduct) return;
     setIsExportingPdf(true);
     try {
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('html2canvas')]);
-      const canvas = await html2canvas(printableRef.current, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = (canvas.height * pageWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
-      pdf.save(`PackSpec-${selectedProduct.materialCode || selectedProduct.name}.pdf`);
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ]);
+
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const rows = buildSpecRows(selectedProduct);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(DEFAULT_COMPANY_PROFILE.nameEn, pageWidth / 2, 16, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(DEFAULT_COMPANY_PROFILE.address, pageWidth / 2, 21, { align: 'center' });
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('TECHNICAL DATA SHEET', pageWidth / 2, 29, { align: 'center' });
+
+      // Section names become full-width header rows so the flat list still
+      // reads as grouped sections in the PDF.
+      const body: any[] = [];
+      rows.forEach((r, i) => {
+        if (i === 0 || rows[i - 1].section !== r.section) {
+          body.push([{ content: r.section.toUpperCase(), colSpan: 2, styles: { fontStyle: 'bold', fillColor: [240, 240, 240], textColor: 40, fontSize: 7 } }]);
+        }
+        body.push([r.label, r.value]);
+      });
+
+      autoTable(doc, {
+        startY: 35,
+        body,
+        theme: 'grid',
+        styles: { fontSize: 8, cellPadding: 1.6, lineColor: [210, 210, 210], lineWidth: 0.1 },
+        columnStyles: { 0: { cellWidth: 65, fontStyle: 'bold', textColor: 90 }, 1: { textColor: 20 } },
+        margin: { left: 14, right: 14 },
+      });
+
+      const endY = (doc as any).lastAutoTable?.finalY || 35;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(140);
+      doc.text(
+        `End of Technical Data Sheet  -  ${format(new Date(), 'dd MMM yyyy')}`,
+        pageWidth / 2, Math.min(endY + 8, doc.internal.pageSize.getHeight() - 10), { align: 'center' }
+      );
+
+      doc.save(`PackSpec-${selectedProduct.materialCode || selectedProduct.name}.pdf`);
     } catch {
       toast({ title: 'PDF Export Failed', variant: 'destructive' });
     } finally {
       setIsExportingPdf(false);
+    }
+  };
+
+  /** This one sheet as an editable Excel row-per-field list. */
+  const handleExportSheetExcel = async () => {
+    if (!selectedProduct) return;
+    try {
+      const XLSX = await import('xlsx');
+      const data = buildSpecRows(selectedProduct).map(r => ({ Section: r.section, Field: r.label, Value: r.value }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      ws['!cols'] = [{ wch: 20 }, { wch: 28 }, { wch: 40 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Spec');
+      XLSX.writeFile(wb, `PackSpec-${selectedProduct.materialCode || selectedProduct.name}.xlsx`);
+    } catch {
+      toast({ title: 'Excel Export Failed', variant: 'destructive' });
     }
   };
 
@@ -878,107 +994,53 @@ export default function PackSpecPage() {
                         <Button variant="outline" size="sm" onClick={handleDownloadPdf} disabled={isExportingPdf} className="h-9 font-bold text-xs">
                             {isExportingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />} Download PDF
                         </Button>
+                        <Button variant="outline" size="sm" onClick={handleExportSheetExcel} className="h-9 font-bold text-xs">
+                            <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
+                        </Button>
                         <Button variant="outline" size="sm" onClick={handlePrint} className="h-9 font-bold text-xs">
-                            <Printer className="mr-2 h-4 w-4" /> Print Spec
+                            <Printer className="mr-2 h-4 w-4" /> Print
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => setIsPreviewOpen(false)} className="h-9 w-9"><X className="h-4 w-4"/></Button>
                     </div>
                 </div>
               </DialogHeader>
               <ScrollArea className="flex-1 bg-gray-100/50 p-4 sm:p-12">
-                <div ref={printableRef} className="printable-area mx-auto p-12 bg-white text-black font-sans shadow-2xl ring-1 ring-black/5" style={{ width: '210mm', minHeight: '297mm' }}>
-                <header className="text-center space-y-1 mb-10 border-b-2 border-neutral-900 pb-6">
-                    <h1 className="text-2xl font-black uppercase tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-                    <p className="text-sm font-bold uppercase tracking-widest text-neutral-500">HETAUDA 08, NEPAL</p>
-                    <h2 className="text-lg font-black underline mt-6 uppercase tracking-[0.2em]">TECHNICAL DATA SHEET (PACKSPEC)</h2>
+                <div ref={printableRef} className="printable-area mx-auto px-10 py-8 bg-white text-black font-sans shadow-2xl ring-1 ring-black/5" style={{ width: '210mm', minHeight: '297mm' }}>
+                <header className="text-center mb-5 border-b-2 border-neutral-900 pb-3">
+                    <h1 className="text-lg font-black uppercase tracking-tight">{DEFAULT_COMPANY_PROFILE.nameEn}</h1>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">{DEFAULT_COMPANY_PROFILE.address}</p>
+                    <h2 className="text-xs font-black mt-3 uppercase tracking-[0.2em]">Technical Data Sheet</h2>
                 </header>
 
-                <div className="grid grid-cols-2 gap-12 mb-10 text-sm">
-                    <section className="space-y-4">
-                    <h3 className="text-[10px] font-black uppercase border-b border-neutral-200 pb-1 text-neutral-400 tracking-widest">Client Identification</h3>
-                    <div className="space-y-2">
-                        <p><span className="font-bold text-neutral-400 uppercase text-[9px] block">Client Name:</span> <span className="font-black text-base">{selectedProduct.partyName}</span></p>
-                        <p><span className="font-bold text-neutral-400 uppercase text-[9px] block">Material Code:</span> <span className="font-black text-blue-700 font-mono">{selectedProduct.materialCode || 'N/A'}</span></p>
-                        <p><span className="font-bold text-neutral-400 uppercase text-[9px] block">Property Address:</span> <span className="font-medium text-neutral-600">{selectedProduct.partyAddress || 'N/A'}</span></p>
-                    </div>
-                    </section>
-                    <section className="space-y-4">
-                    <h3 className="text-[10px] font-black uppercase border-b border-neutral-200 pb-1 text-neutral-400 tracking-widest">Product Primary Specs</h3>
-                    <div className="space-y-2">
-                        <p><span className="font-bold text-neutral-400 uppercase text-[9px] block">Product Label:</span> <span className="font-black text-base uppercase">{selectedProduct.name}</span></p>
-                        <p><span className="font-bold text-neutral-400 uppercase text-[9px] block">Structural Class:</span> <span className="font-black">{selectedProduct.specification?.boxType || 'RSC'}</span></p>
-                        <p><span className="font-bold text-neutral-400 uppercase text-[9px] block">Ply Construction:</span> <span className="font-black">{selectedProduct.specification?.ply} Ply Board</span></p>
-                    </div>
-                    </section>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    <section className="space-y-4">
-                    <h3 className="text-[10px] font-black uppercase flex items-center gap-2 text-neutral-400 tracking-widest">
-                        <Layers className="h-3 w-3" /> 
-                        Board Composition (GSM)
-                    </h3>
-                    <div className="border-2 border-neutral-900 overflow-hidden rounded-lg">
-                        <Table className="text-xs">
-                        <TableBody>
-                            {gsmFields.map(field => {
-                            const val = selectedProduct.specification?.[field];
-                            if (!val) return null;
+                {/* One flat field/value list rather than a grid of cards - it
+                    fits a fraction of the space, reads top to bottom, and is
+                    the same shape as the Excel export. */}
+                <table className="w-full text-[11px] border-collapse">
+                    <tbody>
+                        {specRows.map((row, i) => {
+                            const isNewSection = i === 0 || specRows[i - 1].section !== row.section;
                             return (
-                                <TableRow key={field} className="h-9 border-b border-neutral-200 hover:bg-transparent">
-                                <TableCell className="font-bold uppercase text-[10px] bg-neutral-50 border-r border-neutral-200">{formatLabel(field)}</TableCell>
-                                <TableCell className="text-right font-black tabular-nums">{val} GSM</TableCell>
-                                </TableRow>
+                                <React.Fragment key={`${row.section}-${row.label}`}>
+                                    {isNewSection && (
+                                        <tr>
+                                            <td colSpan={2} className="pt-3 pb-1 text-[9px] font-black uppercase tracking-widest text-neutral-400 border-b border-neutral-300">
+                                                {row.section}
+                                            </td>
+                                        </tr>
+                                    )}
+                                    <tr className="border-b border-neutral-100">
+                                        <td className="py-1 pr-4 w-[45%] font-bold uppercase text-[10px] text-neutral-500 align-top">{row.label}</td>
+                                        <td className="py-1 font-bold text-neutral-900 break-words">{row.value}</td>
+                                    </tr>
+                                </React.Fragment>
                             );
-                            })}
-                        </TableBody>
-                        </Table>
-                    </div>
-                    </section>
+                        })}
+                    </tbody>
+                </table>
 
-                    <section className="space-y-6">
-                    <h3 className="text-[10px] font-black uppercase flex items-center gap-2 text-neutral-400 tracking-widest">
-                        <Box className="h-3 w-3" /> 
-                        Physical & Test Parameters
-                    </h3>
-                    <div className="border-2 border-neutral-900 overflow-hidden rounded-lg">
-                        <Table className="text-xs">
-                        <TableBody>
-                            <TableRow className="h-9 border-b border-neutral-200 hover:bg-transparent">
-                            <TableCell className="font-bold uppercase text-[10px] bg-neutral-50 border-r border-neutral-200">Dimension (LxBxH)</TableCell>
-                            <TableCell className="text-right font-black tabular-nums">{selectedProduct.specification?.dimension} mm</TableCell>
-                            </TableRow>
-                            <TableRow className="h-9 border-b border-neutral-200 hover:bg-transparent">
-                            <TableCell className="font-bold uppercase text-[10px] bg-neutral-50 border-r border-neutral-200">Weight of Box</TableCell>
-                            <TableCell className="text-right font-black tabular-nums">{selectedProduct.specification?.weightOfBox} Grams</TableCell>
-                            </TableRow>
-                            <TableRow className="h-9 border-b border-neutral-200 hover:bg-transparent">
-                            <TableCell className="font-bold uppercase text-[10px] bg-neutral-50 border-r border-neutral-200">Bursting Factor (BF)</TableCell>
-                            <TableCell className="text-right font-black tabular-nums">{selectedProduct.specification?.paperBf}</TableCell>
-                            </TableRow>
-                            <TableRow className="h-9 border-b border-neutral-200 hover:bg-transparent">
-                            <TableCell className="font-bold uppercase text-[10px] bg-neutral-50 border-r border-neutral-200">Load Bearing</TableCell>
-                            <TableCell className="text-right font-black tabular-nums">{selectedProduct.specification?.load} KGF</TableCell>
-                            </TableRow>
-                            <TableRow className="h-9 border-b border-neutral-200 hover:bg-transparent">
-                            <TableCell className="font-bold uppercase text-[10px] bg-neutral-50 border-r border-neutral-200">Max Moisture</TableCell>
-                            <TableCell className="text-right font-black tabular-nums">{selectedProduct.specification?.moisture}%</TableCell>
-                            </TableRow>
-                        </TableBody>
-                        </Table>
-                    </div>
-                    
-                    <div className="p-4 bg-neutral-50 border-2 border-dashed border-neutral-200 rounded-lg">
-                        <h4 className="text-[9px] font-black uppercase text-neutral-400 mb-2 tracking-widest flex items-center gap-1.5"><PrinterIcon className="h-3 w-3"/> Finishing Instructions</h4>
-                        <p className="text-xs font-bold leading-relaxed">{selectedProduct.specification?.printing || 'Plain / No specific instructions'}</p>
-                    </div>
-                    </section>
-                </div>
-
-                <div className="mt-20 pt-10 border-t border-dashed border-neutral-300">
-                    <p className="text-[10px] text-center text-neutral-400 uppercase tracking-[0.3em] font-black">
-                    End of Technical Data Sheet &bull; Verified via StarSutra Intelligence
-                    </p>
+                <div className="mt-8 pt-4 border-t border-dashed border-neutral-300 flex justify-between text-[9px] text-neutral-400 uppercase tracking-widest font-black">
+                    <span>End of Technical Data Sheet</span>
+                    <span>{format(new Date(), 'dd MMM yyyy')}</span>
                 </div>
                 </div>
                 <ScrollBar orientation="horizontal" />
