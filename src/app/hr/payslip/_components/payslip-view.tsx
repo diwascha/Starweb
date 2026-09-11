@@ -167,7 +167,7 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
     setIsGeneratingPdf(true);
     try {
         const jsPDF = (await import('jspdf')).default;
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
         drawPayslipPage(pdf, { employee, payroll, bsYear, bsMonthName, companyProfile });
         pdf.save(`Payslip-${employee.name}-${bsMonthName}-${bsYear}.pdf`);
     } catch (error) {

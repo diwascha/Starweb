@@ -4,8 +4,7 @@ import { toWords, toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Account, CompanyProfile } from '@/lib/types';
 import { useState, useEffect } from 'react';
-import { onSettingUpdate } from '@/services/settings-service';
-import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 
 interface SplitDetail {
   chequeDate: Date;
@@ -53,24 +52,12 @@ export function ChequeView({
     account, 
     splits 
 }: ChequeViewProps) {
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>({
-    ...DEFAULT_COMPANY_PROFILE,
-    nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-    pan: "301543310" // Assuming default if not set
-  });
-
-  useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => {
-        if (s?.value) {
-            setCompanyProfile({
-                ...s.value,
-                nameNp: s.value.nameNp || "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-                pan: s.value.pan || "301543310"
-            });
-        }
-    });
-    return () => unsub();
-  }, []);
+  // Was a hand-rolled subscription that overrode two fields with hardcoded
+  // fallbacks: a Nepali name abbreviated differently from the registry's
+  // ("...इन्डस्ट्रिज प्रा.लि." against "...इन्डस्ट्री प्राइभेट लिमिटेड") and a PAN that
+  // was not the company's. A cheque is the last document that should
+  // disagree with the rest of the app about either.
+  const companyProfile = useBusinessProfile();
 
   const nepaliDate = toNepaliDate(voucherDate.toISOString());
   const adDate = format(voucherDate, 'dd MMM yyyy');

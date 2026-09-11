@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { drawPdfLetterhead } from '@/lib/pdf-letterhead';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessProfile } from '@/hooks/use-business-profile';
 import type { Payroll, Employee } from '@/lib/types';
@@ -231,17 +232,22 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             const monthName = NEPALI_MONTHS[parseInt(selectedBsMonth)].name;
             const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key]);
 
-            const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
+            const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4', compress: true });
             const pageWidth = pdf.internal.pageSize.getWidth();
 
+            // Landscape registry: the address and PAN belong on the payslip,
+            // not here, but the company's own name should read the same on
+            // both scripts as it does everywhere else.
+            const headEnd = drawPdfLetterhead(pdf, companyProfile, {
+                x: pageWidth / 2, y: 12, align: 'center',
+                nameSize: 13, showAddress: false, showPan: false,
+            });
             pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(13);
-            pdf.text(companyProfile.nameEn.toUpperCase(), pageWidth / 2, 12, { align: 'center' });
             pdf.setFontSize(10);
-            pdf.text('PAYROLL REGISTRY', pageWidth / 2, 17.5, { align: 'center' });
+            pdf.text('PAYROLL REGISTRY', pageWidth / 2, headEnd + 5.5, { align: 'center' });
             pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(9);
-            pdf.text(`${monthName} ${selectedBsYear} (BS)`, pageWidth / 2, 22.5, { align: 'center' });
+            pdf.text(`${monthName} ${selectedBsYear} (BS)`, pageWidth / 2, headEnd + 10.5, { align: 'center' });
 
             const isNumericCol = (key: ColumnKey) => key !== 'employee' && key !== 'remarks';
             const cell = (p: Payroll, key: ColumnKey) => {

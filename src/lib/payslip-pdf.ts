@@ -1,4 +1,5 @@
 import type { CompanyProfile, Employee, Payroll } from './types';
+import { drawPdfLetterhead } from './pdf-letterhead';
 
 /**
  * Payslip figures and vector PDF rendering.
@@ -123,10 +124,15 @@ export const drawPayslip = (
   text(`[ ${label} ]`, left + 2, y);
   doc.setTextColor(0);
 
-  // Company header
+  // Company header. The name goes through the shared letterhead so the
+  // Nepali line appears here exactly as it does on a purchase order or a
+  // quotation; the address lines below are payslip-specific.
   y += 5;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
-  text((companyProfile.nameEn || 'YOUR COMPANY NAME HERE').toUpperCase(), mid, y, 'center');
+  y = drawPdfLetterhead(doc, { ...companyProfile, nameEn: companyProfile.nameEn || 'YOUR COMPANY NAME HERE' }, {
+    x: mid, y, align: 'center',
+    nameSize: 11, nepaliHeightMm: 3.8,
+    showAddress: false, showPan: false,
+  });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
   [companyProfile.address, companyProfile.addressLine2, companyProfile.phone]
     .filter(Boolean)

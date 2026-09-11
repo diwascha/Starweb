@@ -26,7 +26,7 @@ import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
 import { normalizeBF } from '@/lib/utils';
 import { buildPoDocumentModel, describeAmendments } from '@/lib/purchase-order-document';
-import { renderDevanagariLine } from '@/lib/devanagari-pdf';
+import { drawPdfLetterhead } from '@/lib/pdf-letterhead';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -315,29 +315,11 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         setText(13, 'bold');
         doc.text('PURCHASE ORDER', boxX + boxW / 2, y + 3.2, { align: 'center' });
 
-        setText(11.5, 'bold');
-        // The on-screen letterhead letter-spaces the English name; a plain
-        // space per word is the closest jsPDF equivalent without per-glyph
-        // placement.
-        doc.text((companyProfile.nameEn || '').toUpperCase(), M, y);
-
-        let headY = y;
-        // Nepali cannot be drawn with a built-in font - see lib/devanagari-pdf.
-        const npLine = renderDevanagariLine(companyProfile.nameNp || '', 4.6, { weight: '600', color: '#404040' });
-        if (npLine) {
-            headY += 5.4;
-            doc.addImage(npLine.dataUrl, 'PNG', M, headY - 3.6, npLine.widthMm, npLine.heightMm);
-        }
-        if (companyProfile.address) {
-            headY += npLine ? 5.2 : 5;
-            setText(8.5, 'normal', 90);
-            doc.text(companyProfile.address, M, headY);
-        }
-        if (companyProfile.pan) {
-            headY += 4;
-            setText(8, 'normal', 90);
-            doc.text(`PAN:  ${companyProfile.pan}`, M, headY);
-        }
+        // Shared with every other export, so the issuing company reads the
+        // same on a PO, a quotation, a spec sheet and a payslip.
+        const headY = drawPdfLetterhead(doc, companyProfile, {
+            x: M, y, align: 'left', nameSize: 11.5, detailSize: 8.5,
+        });
 
         if (hasAmendments && amendedDate) {
             setText(7.5, 'bold', 0);

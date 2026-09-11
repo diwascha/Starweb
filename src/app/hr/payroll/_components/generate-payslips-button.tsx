@@ -65,7 +65,7 @@ export default function GeneratePayslipsButton({ payrollRecords, employees, bsYe
             const companyProfile: CompanyProfile = companySetting?.value || defaultCompanyProfile;
 
             const employeeMap = new Map(employees.map(e => [e.id, e]));
-            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
             let pageAdded = false;
 
             // Drawn straight into the PDF as text. The previous version had to

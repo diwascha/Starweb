@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { format } from 'date-fns';
-import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
+import { drawPdfLetterhead } from '@/lib/pdf-letterhead';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import {
   Package,
   Search,
@@ -218,6 +219,9 @@ const ProductRowMenu = ({ product, onView, onEdit, onCheckUsage, onDelete, delet
 export default function PackSpecPage() {
   const { user, hasPermission } = useAuth();
   const { toast } = useToast();
+  // Reads the saved company profile, so a Settings edit reaches the spec
+  // sheet and its export - both used to be pinned to the hardcoded default.
+  const companyProfile = useBusinessProfile();
   const [products, setProducts] = useState<Product[]>([]);
   const [parties, setParties] = useState<{ id: string; name: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -443,19 +447,17 @@ export default function PackSpecPage() {
         import('jspdf-autotable'),
       ]);
 
-      const doc = new jsPDF('p', 'mm', 'a4');
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const pageWidth = doc.internal.pageSize.getWidth();
       const rows = buildSpecRows(selectedProduct);
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.text(DEFAULT_COMPANY_PROFILE.nameEn, pageWidth / 2, 16, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text(DEFAULT_COMPANY_PROFILE.address, pageWidth / 2, 21, { align: 'center' });
+      const headEnd = drawPdfLetterhead(doc, companyProfile, {
+        x: pageWidth / 2, y: 16, align: 'center',
+        nameSize: 13, detailSize: 8, showPan: false,
+      });
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text('TECHNICAL DATA SHEET', pageWidth / 2, 29, { align: 'center' });
+      doc.text('TECHNICAL DATA SHEET', pageWidth / 2, headEnd + 8, { align: 'center' });
 
       // Section names become full-width header rows so the flat list still
       // reads as grouped sections in the PDF.
@@ -1007,8 +1009,9 @@ export default function PackSpecPage() {
               <ScrollArea className="flex-1 bg-gray-100/50 p-4 sm:p-12">
                 <div ref={printableRef} className="printable-area mx-auto px-10 py-8 bg-white text-black font-sans shadow-2xl ring-1 ring-black/5" style={{ width: '210mm', minHeight: '297mm' }}>
                 <header className="text-center mb-5 border-b-2 border-neutral-900 pb-3">
-                    <h1 className="text-lg font-black uppercase tracking-tight">{DEFAULT_COMPANY_PROFILE.nameEn}</h1>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">{DEFAULT_COMPANY_PROFILE.address}</p>
+                    <h1 className="text-lg font-black uppercase tracking-tight">{companyProfile.nameEn}</h1>
+                    {companyProfile.nameNp && <h2 className="text-[13px] font-semibold text-neutral-700">{companyProfile.nameNp}</h2>}
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">{companyProfile.address}</p>
                     <h2 className="text-xs font-black mt-3 uppercase tracking-[0.2em]">Technical Data Sheet</h2>
                 </header>
 

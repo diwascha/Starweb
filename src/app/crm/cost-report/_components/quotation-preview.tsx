@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { drawPdfLetterhead } from '@/lib/pdf-letterhead';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
@@ -92,19 +93,21 @@ export function QuotationPreviewDialog({
   const handleExportPdf = async () => {
     setIsExporting(true);
     try {
-        const doc = new jsPDF('p', 'mm', 'a4');
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
         const pageWidth = doc.internal.pageSize.getWidth();
-        
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(18);
-        doc.text(companyProfile.nameEn, pageWidth / 2, 20, { align: 'center' });
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text(companyProfile.address, pageWidth / 2, 26, { align: 'center' });
+
+        // Shared letterhead: the Nepali name appears here now, as it already
+        // did on screen, and matches the purchase order and every other
+        // export. PAN is on the info block further down, so it is skipped.
+        const headEnd = drawPdfLetterhead(doc, companyProfile, {
+            x: pageWidth / 2, y: 20, align: 'center',
+            nameSize: 16, detailSize: 10, showPan: false,
+        });
+
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
-        doc.text('QUOTATION', pageWidth / 2, 38, { align: 'center' });
-        doc.line(14, 40, pageWidth - 14, 40);
+        doc.text('QUOTATION', pageWidth / 2, headEnd + 8, { align: 'center' });
+        doc.line(14, headEnd + 10, pageWidth - 14, headEnd + 10);
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
