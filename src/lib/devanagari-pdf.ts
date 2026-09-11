@@ -18,14 +18,26 @@
  * worse, because it would look plausible.
  *
  * So this draws the Nepali line through the one shaping engine we already
- * have: the browser's. The line is rendered to a canvas at high resolution
- * and placed as a small image. Everything else on the page stays real text,
- * which is the point of the vector export - this is one strip a few
- * kilobytes in size, not a screenshot of the document.
+ * have: the browser's. The line is rendered to a canvas and placed as a
+ * small image; everything else on the page stays real text, which is the
+ * point of the vector export.
+ *
+ * Sizing matters more than it looks. jsPDF does not embed the PNG - it
+ * decodes it and writes the raw samples - so the canvas dimensions, not the
+ * PNG's own compression, decide what lands in the file. A document that also
+ * sets `compress: true` deflates those samples; without it this strip alone
+ * ran to 1.3 MB. Both halves are needed.
  */
 
-/** Rendered at this multiple of the final size so it stays sharp in print. */
-const RASTER_SCALE = 8;
+/**
+ * Rendered at this multiple of the final size so it stays sharp in print.
+ *
+ * 4 puts the strip at ~384 DPI on the page, comfortably past the 300 DPI
+ * print standard. It was 8 (~727 DPI), which bought nothing visible and cost
+ * four times the pixels - and since jsPDF stores image samples rather than
+ * the PNG, those pixels landed in the file at full size.
+ */
+const RASTER_SCALE = 4;
 
 export interface DevanagariLine {
     dataUrl: string;
@@ -35,8 +47,8 @@ export interface DevanagariLine {
 }
 
 /**
- * Render a Devanagari (or any complex-script) string to a transparent PNG
- * sized for placement in a jsPDF document.
+ * Render a Devanagari (or any complex-script) string to a PNG sized for
+ * placement in a jsPDF document.
  *
  * @param text      the string to draw.
  * @param heightMm  the height the line should occupy on the page.
@@ -47,13 +59,17 @@ export interface DevanagariLine {
 export const renderDevanagariLine = (
     text: string,
     heightMm: number,
-    options: { weight?: string; color?: string } = {}
+    options: { weight?: string; color?: string; background?: string } = {}
 ): DevanagariLine | null => {
     const value = (text || '').trim();
     if (!value) return null;
     if (typeof document === 'undefined') return null;
 
-    const { weight = '600', color = '#333333' } = options;
+    // Painted onto an opaque background rather than left transparent: an RGBA
+    // canvas makes jsPDF emit a separate soft-mask object for the alpha
+    // channel, which is pure overhead for a line of text sitting on white
+    // paper.
+    const { weight = '600', color = '#333333', background = '#ffffff' } = options;
 
     // px per mm at the scaled-up resolution we rasterise at.
     const pxPerMm = (96 / 25.4) * RASTER_SCALE;
@@ -85,6 +101,10 @@ export const renderDevanagariLine = (
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
+    if (background) {
+        ctx.fillStyle = background;
+        ctx.fillRect(0, 0, widthPx, heightPx);
+    }
     ctx.font = font;
     ctx.fillStyle = color;
     ctx.textBaseline = 'alphabetic';

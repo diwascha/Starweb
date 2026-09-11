@@ -288,7 +288,11 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         const { amendmentList, hasAmendments, amendedDate } = describeAmendments(po.amendments);
         const nepaliAmendedDateString = amendedDate ? new NepaliDate(amendedDate).format('YYYY/MM/DD') : '';
 
-        const doc = new jsPDF('p', 'mm', 'a4');
+        // compress: true deflates the page content streams and, critically, the
+        // image samples. jsPDF stores decoded samples rather than the source
+        // PNG, so without this the one Devanagari strip in the letterhead went
+        // into the file uncompressed and took the export past 1.5 MB.
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
         const M = 14;
