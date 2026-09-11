@@ -25,6 +25,8 @@ import {
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
 import { normalizeBF } from '@/lib/utils';
+import { buildPoDocumentModel, describeAmendments } from '@/lib/purchase-order-document';
+import { renderDevanagariLine } from '@/lib/devanagari-pdf';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -70,33 +72,12 @@ function PurchaseOrderDocument({
   companyProfile: CompanyProfile
 }) {
   const nepaliPoDateString = new NepaliDate(new Date(purchaseOrder.poDate)).format('YYYY/MM/DD');
-  const amendmentList = purchaseOrder.amendments || [];
-  const hasAmendments = amendmentList.length > 0;
-  const lastAmendment = hasAmendments ? amendmentList[amendmentList.length - 1] : null;
-  const amendedDate = lastAmendment ? new Date(lastAmendment.date) : null;
+  const { amendmentList, hasAmendments, amendedDate } = describeAmendments(purchaseOrder.amendments);
   const nepaliAmendedDateString = amendedDate ? new NepaliDate(amendedDate).format('YYYY/MM/DD') : '';
 
-  const groupedItems = useMemo(() => {
-    return (purchaseOrder.items || []).reduce((acc: any, item: any) => {
-        const key = item.rawMaterialType || 'Other';
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(item);
-        return acc;
-    }, {} as Record<string, any>);
-  }, [purchaseOrder.items]);
-
-  const grandTotals = useMemo(() => {
-    return (purchaseOrder.items || []).reduce((acc: Record<string, number>, item: any) => {
-        const q = parseFloat(item.quantity);
-        if (!isNaN(q) && q > 0) acc[item.unit] = (acc[item.unit] || 0) + q;
-        return acc;
-    }, {});
-  }, [purchaseOrder.items]);
-
-  const displayNameFor = (item: any, isPaper: boolean, type: string) => {
-    if (!isPaper) return item.rawMaterialName || type;
-    return item.grade ? `${type} — ${item.grade}` : type;
-  };
+  // The same model the PDF export draws from, so the two can no longer
+  // disagree about grouping, ordering or what each column says.
+  const model = useMemo(() => buildPoDocumentModel(purchaseOrder), [purchaseOrder]);
 
   return (
     <div
@@ -154,81 +135,57 @@ function PurchaseOrderDocument({
         </div>
 
         <div className="mt-6 space-y-6">
-            {Object.entries(groupedItems).map(([type, items]: [string, any]) => {
-                const isPaper = PAPER_TYPES.includes(type);
-                const sortedItems = isPaper
-                    ? [...items].sort((a, b) => {
-                        const gsmA = parseFloat(a.gsm) || 0;
-                        const gsmB = parseFloat(b.gsm) || 0;
-                        if (gsmA !== gsmB) return gsmA - gsmB;
-                        return (parseFloat(a.size) || 0) - (parseFloat(b.size) || 0);
-                    })
-                    : items;
-
-                const totals = sortedItems.reduce((acc: any, item: any) => {
-                    const quantity = parseFloat(item.quantity);
-                    if (!isNaN(quantity) && quantity > 0) {
-                        acc[item.unit] = (acc[item.unit] || 0) + quantity;
-                    }
-                    return acc;
-                }, {} as Record<string, number>);
-
-                return (
-                    <div key={type}>
-                        <div className="flex items-baseline justify-between mb-1.5">
-                            <h3 className="text-[11px] font-extrabold uppercase">{type}</h3>
-                            <span className="text-[9px] font-bold uppercase text-neutral-400">{sortedItems.length} line item{sortedItems.length > 1 ? 's' : ''}</span>
-                        </div>
-                        <table className="w-full text-[11px] border-collapse">
-                            <thead>
-                                <tr className="border-y border-neutral-900 text-left">
-                                    <th className="py-1.5 w-8 font-bold text-center">#</th>
-                                    <th className="py-1.5 font-bold">Description / Grade</th>
-                                    {isPaper && (
+            {model.groups.map(group => (
+                <div key={group.type}>
+                    <div className="flex items-baseline justify-between mb-1.5">
+                        <h3 className="text-[11px] font-extrabold uppercase">{group.type}</h3>
+                        <span className="text-[9px] font-bold uppercase text-neutral-400">{group.lineItemLabel}</span>
+                    </div>
+                    <table className="w-full text-[11px] border-collapse">
+                        <thead>
+                            <tr className="border-y border-neutral-900 text-left">
+                                <th className="py-1.5 w-8 font-bold text-center">#</th>
+                                <th className="py-1.5 font-bold">Description / Grade</th>
+                                {group.isPaper && (
+                                    <>
+                                        <th className="py-1.5 w-20 font-bold text-center">Size (in)</th>
+                                        <th className="py-1.5 w-16 font-bold text-center">GSM</th>
+                                        <th className="py-1.5 w-16 font-bold text-center">BF</th>
+                                    </>
+                                )}
+                                <th className="py-1.5 w-24 font-bold text-right">Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {group.rows.map(row => (
+                                <tr key={row.index} className="border-b border-neutral-200">
+                                    <td className="py-1.5 text-center text-neutral-400">{row.index}</td>
+                                    <td className="py-1.5 font-semibold">{row.description}</td>
+                                    {group.isPaper && (
                                         <>
-                                            <th className="py-1.5 w-20 font-bold text-center">Size (in)</th>
-                                            <th className="py-1.5 w-16 font-bold text-center">GSM</th>
-                                            <th className="py-1.5 w-16 font-bold text-center">BF</th>
+                                            <td className="py-1.5 text-center font-semibold">{row.size}</td>
+                                            <td className="py-1.5 text-center font-semibold">{row.gsm}</td>
+                                            <td className="py-1.5 text-center text-neutral-600">{row.bf}</td>
                                         </>
                                     )}
-                                    <th className="py-1.5 w-24 font-bold text-right">Quantity</th>
+                                    <td className="py-1.5 text-right font-bold">{row.quantity}</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {sortedItems.map((item: any, index: number) => (
-                                    <tr key={index} className="border-b border-neutral-200">
-                                        <td className="py-1.5 text-center text-neutral-400">{index + 1}</td>
-                                        <td className="py-1.5 font-semibold">{displayNameFor(item, isPaper, type)}</td>
-                                        {isPaper && (
-                                            <>
-                                                <td className="py-1.5 text-center font-semibold">{item.size || '—'}</td>
-                                                <td className="py-1.5 text-center font-semibold">{item.gsm || '—'}</td>
-                                                <td className="py-1.5 text-center text-neutral-600">{normalizeBF(item.bf) || '—'}</td>
-                                            </>
-                                        )}
-                                        <td className="py-1.5 text-right font-bold">{item.quantity} {item.unit}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot>
-                                <tr className="border-b-2 border-neutral-900">
-                                    <td colSpan={isPaper ? 5 : 2} className="py-1.5 text-right text-[9px] font-bold uppercase text-neutral-500 pr-4">Subtotal — {type}</td>
-                                    <td className="py-1.5 text-right font-extrabold">
-                                        {Object.entries(totals).map(([unit, total]: [any, any]) => (
-                                            <div key={unit}>{total.toLocaleString()} {unit}</div>
-                                        ))}
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                );
-            })}
+                            ))}
+                        </tbody>
+                        <tfoot>
+                            <tr className="border-b-2 border-neutral-900">
+                                <td colSpan={group.isPaper ? 5 : 2} className="py-1.5 text-right text-[9px] font-bold uppercase text-neutral-500 pr-4">Subtotal &mdash; {group.type}</td>
+                                <td className="py-1.5 text-right font-extrabold">{group.subtotalText}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            ))}
 
             <div className="flex justify-end">
                 <div className="border-2 border-neutral-900 px-5 py-2 text-right">
                     <p className="text-[9px] font-bold uppercase text-neutral-500">Total Order Volume</p>
-                    {Object.entries(grandTotals).map(([unit, total]: [any, any]) => (
+                    {model.grandTotals.map(([unit, total]) => (
                         <p key={unit} className="text-[15px] font-extrabold">{total.toLocaleString()} {unit}</p>
                     ))}
                 </div>
@@ -302,17 +259,18 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   }, [initialPurchaseOrder, poId]);
 
   /**
-   * Pure vector PDF - a real document, not a screenshot of one.
+   * Pure vector PDF, drawn to match the document on screen.
    *
-   * This used to rasterise the page with html2canvas at scale 2 and embed it
-   * as JPEG, slicing the canvas by hand to paginate. That produced a picture
-   * of a purchase order: text a supplier can't select, search or copy, blurry
-   * when zoomed, and hundreds of kilobytes a page. autoTable paginates the
-   * item table natively and keeps every figure as text.
+   * This is still a real document rather than a screenshot - the supplier can
+   * select, search and copy every figure, and it stays sharp at any zoom. But
+   * it previously re-invented the layout from scratch while the image export
+   * rasterised the styled component, so the same order exported two ways
+   * produced two visibly different documents. The layout below follows
+   * PurchaseOrderDocument section for section, and both now take their
+   * content from the shared model in lib/purchase-order-document.
    *
-   * `ref` is no longer read - the PDF is built from the order data directly -
-   * but the signature is kept so the JPG export and the buttons stay as they
-   * are.
+   * `ref` is not read - the PDF is built from the order data, not the DOM -
+   * but the signature matches the JPG export so the buttons stay uniform.
    */
   const handleExportPdf = async (_ref: React.RefObject<HTMLDivElement | null>, poNo: string) => {
     const key = `pdf-${poNo}`;
@@ -325,160 +283,235 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             import('jspdf-autotable'),
         ]);
 
-        // Derived here rather than reaching into the document component -
-        // this handler builds the PDF from the order data, not the DOM.
+        const model = buildPoDocumentModel(po);
         const nepaliPoDateString = new NepaliDate(new Date(po.poDate)).format('YYYY/MM/DD');
-        const groupedItems = (po.items || []).reduce((acc: Record<string, any[]>, item: any) => {
-            const k = item.rawMaterialType || 'Other';
-            (acc[k] = acc[k] || []).push(item);
-            return acc;
-        }, {});
-        const grandTotals = (po.items || []).reduce((acc: Record<string, number>, item: any) => {
-            const q = parseFloat(item.quantity);
-            if (!isNaN(q) && q > 0) acc[item.unit] = (acc[item.unit] || 0) + q;
-            return acc;
-        }, {});
-        const displayNameFor = (item: any, isPaper: boolean, type: string) => {
-            if (!isPaper) return item.rawMaterialName || type;
-            return [item.rawMaterialName || type, item.gsm ? `${item.gsm} GSM` : '', normalizeBF(item.bf) || '']
-                .filter(Boolean).join(' · ');
-        };
+        const { amendmentList, hasAmendments, amendedDate } = describeAmendments(po.amendments);
+        const nepaliAmendedDateString = amendedDate ? new NepaliDate(amendedDate).format('YYYY/MM/DD') : '';
 
         const doc = new jsPDF('p', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
         const M = 14;
-        let y = 16;
+        const right = pageWidth - M;
+        const INK = 20;
+        const MUTED = 130;
+        let y = 18;
 
-        // Letterhead
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-        doc.text((companyProfile.nameEn || '').toUpperCase(), pageWidth / 2, y, { align: 'center' });
-        if (companyProfile.nameNp) {
-            y += 5; doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-            doc.text(companyProfile.nameNp, pageWidth / 2, y, { align: 'center' });
-        }
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-        if (companyProfile.address) { y += 4.5; doc.text(companyProfile.address, pageWidth / 2, y, { align: 'center' }); }
-        if (companyProfile.pan) { y += 4; doc.text(`PAN: ${companyProfile.pan}`, pageWidth / 2, y, { align: 'center' }); }
-
-        y += 3; doc.setLineWidth(0.5); doc.line(M, y, pageWidth - M, y);
-        y += 6;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
-        doc.text('PURCHASE ORDER', pageWidth / 2, y, { align: 'center' });
-
-        // Order meta and vendor, side by side
-        y += 7;
-        const colR = pageWidth / 2 + 4;
-        doc.setFontSize(8);
-        const line = (label: string, value: string, x: number, yy: number) => {
-            doc.setFont('helvetica', 'bold'); doc.setTextColor(120);
-            doc.text(label.toUpperCase(), x, yy);
-            doc.setFont('helvetica', 'bold'); doc.setTextColor(0);
-            doc.text(value || '-', x, yy + 4);
+        const setText = (size: number, style: 'normal' | 'bold' = 'normal', shade = INK) => {
+            doc.setFont('helvetica', style);
+            doc.setFontSize(size);
+            doc.setTextColor(shade);
         };
-        line('Vendor', po.companyName, M, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-        let vy = y + 8;
-        if (po.companyAddress) { doc.text(po.companyAddress, M, vy); vy += 4; }
-        if (po.panNumber) { doc.text(`PAN: ${po.panNumber}`, M, vy); vy += 4; }
 
-        line('PO Number', `#${po.poNumber}`, colR, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-        let my = y + 8;
-        doc.text(`Status: ${po.status || 'Issued'}`, colR, my); my += 4;
-        doc.text(`Date: ${nepaliPoDateString} BS  (${new Date(po.poDate).toLocaleDateString('en-CA')})`, colR, my); my += 4;
-        if (po.deliveryDate) {
-            doc.text(`Delivery: ${new Date(po.deliveryDate).toLocaleDateString('en-CA')}`, colR, my); my += 4;
+        // ---- Letterhead: name left, boxed PURCHASE ORDER right ----
+        const boxW = 46, boxH = 11;
+        const boxX = right - boxW;
+        doc.setDrawColor(INK); doc.setLineWidth(0.7);
+        doc.rect(boxX, y - 4, boxW, boxH);
+        setText(13, 'bold');
+        doc.text('PURCHASE ORDER', boxX + boxW / 2, y + 3.2, { align: 'center' });
+
+        setText(11.5, 'bold');
+        // The on-screen letterhead letter-spaces the English name; a plain
+        // space per word is the closest jsPDF equivalent without per-glyph
+        // placement.
+        doc.text((companyProfile.nameEn || '').toUpperCase(), M, y);
+
+        let headY = y;
+        // Nepali cannot be drawn with a built-in font - see lib/devanagari-pdf.
+        const npLine = renderDevanagariLine(companyProfile.nameNp || '', 4.6, { weight: '600', color: '#404040' });
+        if (npLine) {
+            headY += 5.4;
+            doc.addImage(npLine.dataUrl, 'PNG', M, headY - 3.6, npLine.widthMm, npLine.heightMm);
         }
-        doc.setTextColor(0);
+        if (companyProfile.address) {
+            headY += npLine ? 5.2 : 5;
+            setText(8.5, 'normal', 90);
+            doc.text(companyProfile.address, M, headY);
+        }
+        if (companyProfile.pan) {
+            headY += 4;
+            setText(8, 'normal', 90);
+            doc.text(`PAN:  ${companyProfile.pan}`, M, headY);
+        }
 
-        // Items, grouped by material type exactly as the on-screen document is
-        let cursor = Math.max(vy, my) + 4;
-        Object.entries(groupedItems).forEach(([type, itemsOfType]: [string, any]) => {
-            const isPaper = String(type).toLowerCase().includes('paper');
-            const head = isPaper
+        if (hasAmendments && amendedDate) {
+            setText(7.5, 'bold', 0);
+            doc.setTextColor(180, 83, 9); // amber-700, matching the document
+            doc.text(
+                `AMENDED — REV. ${nepaliAmendedDateString} BS (${amendedDate.toLocaleDateString('en-CA')})`,
+                right, y + 12, { align: 'right' }
+            );
+            doc.setTextColor(INK);
+        }
+
+        y = Math.max(headY, y + 12) + 5;
+        doc.setDrawColor(INK); doc.setLineWidth(0.7);
+        doc.line(M, y, right, y);
+
+        // ---- Three-column meta block ----
+        y += 7;
+        const colW = (pageWidth - M * 2) / 3;
+        const col2 = M + colW;
+        const col3 = M + colW * 2;
+
+        const label = (text: string, x: number, yy: number, align: 'left' | 'right' = 'left') => {
+            setText(6.8, 'bold', MUTED);
+            doc.text(text.toUpperCase(), align === 'right' ? right : x, yy, { align });
+        };
+
+        label('PO Reference', M, y);
+        setText(12, 'bold');
+        doc.text(`#${po.poNumber}`, M, y + 5.5);
+        label('Status', M, y + 13);
+        setText(9, 'bold');
+        doc.text((po.status || 'Issued').toUpperCase(), M, y + 18);
+
+        label('Supplier', col2, y);
+        setText(10.5, 'bold');
+        const supplierLines = doc.splitTextToSize(po.companyName || '-', colW - 6);
+        doc.text(supplierLines, col2, y + 5);
+        let sy = y + 5 + supplierLines.length * 4.6;
+        if (po.companyAddress) {
+            setText(8.5, 'normal', 90);
+            doc.text(po.companyAddress, col2, sy); sy += 4.2;
+        }
+        if (po.panNumber) {
+            setText(8, 'normal', INK);
+            doc.text(`PAN:  ${po.panNumber}`, col2, sy);
+        }
+
+        label('Issue Date', col3, y, 'right');
+        setText(10.5, 'bold');
+        doc.text(`${nepaliPoDateString} BS`, right, y + 5, { align: 'right' });
+        setText(8, 'normal', MUTED);
+        doc.text(`${new Date(po.poDate).toLocaleDateString('en-CA')} AD`, right, y + 9.5, { align: 'right' });
+        if (po.deliveryDate) {
+            label('Delivery By', col3, y + 16, 'right');
+            setText(9, 'bold', INK);
+            doc.text(new Date(po.deliveryDate).toLocaleDateString('en-CA'), right, y + 21, { align: 'right' });
+        }
+
+        y = Math.max(y + 24, sy + 4);
+        doc.setDrawColor(210); doc.setLineWidth(0.2);
+        doc.line(M, y, right, y);
+        y += 9;
+
+        // ---- Item groups: ruled rows, no grid, matching the document ----
+        model.groups.forEach(group => {
+            setText(9, 'bold', INK);
+            doc.text(group.type.toUpperCase(), M, y);
+            setText(7, 'bold', 165);
+            doc.text(group.lineItemLabel.toUpperCase(), right, y, { align: 'right' });
+
+            const head = group.isPaper
                 ? [['#', 'Description / Grade', 'Size (in)', 'GSM', 'BF', 'Quantity']]
                 : [['#', 'Description / Grade', 'Quantity']];
-            const body = (itemsOfType as any[]).map((item, i) => isPaper
-                ? [i + 1, displayNameFor(item, true, type), item.size || '-', item.gsm || '-', normalizeBF(item.bf) || '-', `${item.quantity} ${item.unit}`]
-                : [i + 1, displayNameFor(item, false, type), `${item.quantity} ${item.unit}`]);
-
-            const totals = (itemsOfType as any[]).reduce((acc: Record<string, number>, it: any) => {
-                const q = parseFloat(it.quantity);
-                if (!isNaN(q) && q > 0) acc[it.unit] = (acc[it.unit] || 0) + q;
-                return acc;
-            }, {});
-            const totalText = Object.entries(totals).map(([u, t]) => `${(t as number).toLocaleString()} ${u}`).join('  /  ');
-
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(90);
-            doc.text(String(type).toUpperCase(), M, cursor);
-            doc.setTextColor(0);
+            const body = group.rows.map(r => group.isPaper
+                ? [r.index, r.description, r.size, r.gsm, r.bf, r.quantity]
+                : [r.index, r.description, r.quantity]);
 
             autoTable(doc, {
-                startY: cursor + 2,
+                startY: y + 2.5,
                 head, body,
-                foot: [isPaper
-                    ? [{ content: `Subtotal - ${type}`, colSpan: 5, styles: { halign: 'right' as const } }, totalText]
-                    : [{ content: `Subtotal - ${type}`, colSpan: 2, styles: { halign: 'right' as const } }, totalText]],
-                theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 1.5, lineColor: [200, 200, 200], lineWidth: 0.1, overflow: 'linebreak' },
-                headStyles: { fillColor: [235, 235, 235], textColor: 20, fontStyle: 'bold' },
-                footStyles: { fillColor: [248, 248, 248], textColor: 20, fontStyle: 'bold' },
-                columnStyles: isPaper
-                    ? { 0: { cellWidth: 8, halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'right' } }
-                    : { 0: { cellWidth: 8, halign: 'center' }, 2: { halign: 'right' } },
+                foot: [group.isPaper
+                    ? [{ content: `SUBTOTAL — ${group.type.toUpperCase()}`, colSpan: 5, styles: { halign: 'right' as const } }, group.subtotalText]
+                    : [{ content: `SUBTOTAL — ${group.type.toUpperCase()}`, colSpan: 2, styles: { halign: 'right' as const } }, group.subtotalText]],
+                theme: 'plain',
+                styles: { fontSize: 8.5, cellPadding: { top: 1.6, bottom: 1.6, left: 1, right: 1 }, textColor: INK, overflow: 'linebreak' },
+                headStyles: {
+                    fontStyle: 'bold', textColor: INK, fillColor: false as any,
+                    lineWidth: { top: 0.4, bottom: 0.4 }, lineColor: [INK, INK, INK],
+                },
+                bodyStyles: { lineWidth: { bottom: 0.1 }, lineColor: [220, 220, 220] },
+                footStyles: {
+                    fontStyle: 'bold', textColor: INK, fillColor: false as any, fontSize: 8.5,
+                    lineWidth: { bottom: 0.7 }, lineColor: [INK, INK, INK],
+                },
+                columnStyles: group.isPaper
+                    ? {
+                        0: { cellWidth: 8, halign: 'center', textColor: 170 },
+                        1: { fontStyle: 'bold' },
+                        2: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+                        3: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
+                        4: { cellWidth: 16, halign: 'center', textColor: 110 },
+                        5: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
+                    }
+                    : {
+                        0: { cellWidth: 8, halign: 'center', textColor: 170 },
+                        1: { fontStyle: 'bold' },
+                        2: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
+                    },
                 margin: { left: M, right: M },
             });
-            cursor = ((doc as any).lastAutoTable?.finalY || cursor) + 7;
+            y = ((doc as any).lastAutoTable?.finalY || y) + 9;
         });
 
-        // Grand total
-        const grandText = Object.entries(grandTotals).map(([u, t]) => `${(t as number).toLocaleString()} ${u}`).join('   ');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.text(`TOTAL ORDER VOLUME:  ${grandText || '-'}`, pageWidth - M, cursor, { align: 'right' });
-        cursor += 8;
+        // ---- Boxed grand total, right aligned ----
+        const totalLines = model.grandTotals.length || 1;
+        const tBoxW = 52;
+        const tBoxH = 8 + totalLines * 6;
+        if (y + tBoxH > pageHeight - 30) { doc.addPage(); y = 20; }
+        doc.setDrawColor(INK); doc.setLineWidth(0.7);
+        doc.rect(right - tBoxW, y, tBoxW, tBoxH);
+        setText(6.8, 'bold', MUTED);
+        doc.text('TOTAL ORDER VOLUME', right - 4, y + 5, { align: 'right' });
+        setText(13, 'bold', INK);
+        let ty = y + 12;
+        (model.grandTotals.length ? model.grandTotals : [['', 0] as [string, number]]).forEach(([unit, total]) => {
+            doc.text(unit ? `${total.toLocaleString()} ${unit}` : '-', right - 4, ty, { align: 'right' });
+            ty += 6;
+        });
+        y += tBoxH + 12;
 
-        const block = (label: string, value: string) => {
+        // ---- Delivery location and remarks ----
+        const block = (heading: string, value: string) => {
             if (!value) return;
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(120);
-            doc.text(label.toUpperCase(), M, cursor);
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(0);
+            if (y > pageHeight - 34) { doc.addPage(); y = 20; }
+            setText(6.8, 'bold', MUTED);
+            doc.text(heading.toUpperCase(), M, y);
+            setText(9, 'bold', INK);
             const wrapped = doc.splitTextToSize(value, pageWidth - M * 2);
-            doc.text(wrapped, M, cursor + 4);
-            cursor += 4 + wrapped.length * 4 + 4;
+            doc.text(wrapped, M, y + 5);
+            y += 5 + wrapped.length * 4.4 + 6;
         };
         block('Delivery Location', companyProfile.address || '');
         block('Remarks', po.remarks || '');
 
-        if (po.amendments?.length) {
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(120);
-            doc.text('AMENDMENT HISTORY', M, cursor);
-            doc.setTextColor(0);
-            autoTable(doc, {
-                startY: cursor + 2,
-                head: [['Date', 'By', 'Remarks']],
-                body: po.amendments.map((am: any) => [
-                    new Date(am.date).toLocaleDateString('en-CA'), am.amendedBy || '-', am.remarks || '',
-                ]),
-                theme: 'grid',
-                styles: { fontSize: 7, cellPadding: 1.2, lineColor: [210, 210, 210], lineWidth: 0.1, overflow: 'linebreak' },
-                headStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: 'bold' },
-                columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 30 } },
-                margin: { left: M, right: M },
-            });
-            cursor = ((doc as any).lastAutoTable?.finalY || cursor) + 10;
+        // ---- Amendment history, in the document's amber panel ----
+        if (includeAmendments && hasAmendments) {
+            const entries = amendmentList.map((am: any, i: number) =>
+                `Rev ${i + 1}   |   ${new Date(am.date).toLocaleString()}   |   ${am.remarks || ''}`);
+            const wrapped = entries.flatMap((line: string) => doc.splitTextToSize(line, pageWidth - M * 2 - 10));
+            const panelH = 10 + wrapped.length * 4.2;
+            if (y + panelH > pageHeight - 24) { doc.addPage(); y = 20; }
+
+            doc.setFillColor(254, 252, 232);
+            doc.setDrawColor(253, 230, 138);
+            doc.setLineWidth(0.3);
+            doc.roundedRect(M, y, pageWidth - M * 2, panelH, 1.5, 1.5, 'FD');
+            doc.setTextColor(146, 64, 14);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8);
+            doc.text('AMENDMENT HISTORY', M + 5, y + 6);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+            doc.setTextColor(90);
+            doc.text(wrapped, M + 5, y + 11.5);
+            y += panelH + 10;
+            doc.setTextColor(INK);
         }
 
-        // Signatures
-        const pageH = doc.internal.pageSize.getHeight();
-        const sigY = Math.min(Math.max(cursor + 12, pageH - 30), pageH - 20);
-        const sigW = (pageWidth - M * 2 - 20) / 3;
-        ['Prepared By', 'Checked By', 'Authorised By'].forEach((role, i) => {
-            const x = M + i * (sigW + 10);
-            doc.setDrawColor(0); doc.setLineWidth(0.2);
-            doc.line(x, sigY, x + sigW, sigY);
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
-            doc.text(role.toUpperCase(), x, sigY + 4);
-        });
+        // ---- Footer on every page, as on screen ----
+        const pageCount = doc.getNumberOfPages();
+        for (let p = 1; p <= pageCount; p++) {
+            doc.setPage(p);
+            doc.setDrawColor(225); doc.setLineWidth(0.2);
+            doc.line(M, pageHeight - 16, right, pageHeight - 16);
+            setText(6.5, 'normal', 165);
+            doc.text(
+                'Computer-generated document. Valid without physical signature or seal. Produced via StarSutra Enterprise Suite.',
+                pageWidth / 2, pageHeight - 11, { align: 'center' }
+            );
+        }
 
         doc.save(`PO-${poNo}.pdf`);
     } catch (error) {
