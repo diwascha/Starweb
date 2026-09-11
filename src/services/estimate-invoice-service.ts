@@ -1,6 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy, getDoc, setDoc } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, query, orderBy, setDoc } from 'firebase/firestore';
 import type { EstimatedInvoice } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -36,20 +37,10 @@ export const addEstimatedInvoice = async (invoice: Omit<EstimatedInvoice, 'id'>)
     const docRef = doc(getInvoicesCollection());
     const payload = { ...invoice, createdAt: new Date().toISOString() };
     
-    await setDoc(docRef, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.ESTIMATED_INVOICES,
-                operation: 'create',
-                requestResourceData: payload,
-            }));
-        }
-        // Rethrown so the caller's error handling can actually run. This
-        // was fire-and-forget: the await resolved before the write, the
-        // rejection was swallowed, and every caller toasted success over a
-        // write that never landed.
-        throw err;
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -57,20 +48,10 @@ export const updateEstimatedInvoice = async (id: string, invoice: Partial<Omit<E
     const invoiceDoc = doc(getInvoicesCollection(), id);
     const payload = { ...invoice, lastModifiedAt: new Date().toISOString() };
     
-    await updateDoc(invoiceDoc, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.ESTIMATED_INVOICES,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-        // Rethrown so the caller's error handling can actually run. This
-        // was fire-and-forget: the await resolved before the write, the
-        // rejection was swallowed, and every caller toasted success over a
-        // write that never landed.
-        throw err;
-    });
+    reportWriteFailure(
+        updateDoc(invoiceDoc, payload),
+        { path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[]) => void): () => void => {
@@ -89,14 +70,8 @@ export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[
 
 export const deleteEstimatedInvoice = async (id: string): Promise<void> => {
     const invoiceDoc = doc(getInvoicesCollection(), id);
-    await deleteDoc(invoiceDoc).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'delete' }));
-        }
-        // Rethrown so the caller's error handling can actually run. This
-        // was fire-and-forget: the await resolved before the write, the
-        // rejection was swallowed, and every caller toasted success over a
-        // write that never landed.
-        throw err;
-    });
+    reportWriteFailure(
+        deleteDoc(invoiceDoc),
+        { path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'delete' }
+    );
 };

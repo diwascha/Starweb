@@ -1,41 +1,15 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import {
-    HardDrive,
-    Upload,
-    Trash2,
-    Search,
-    FilterX,
-    Loader2,
-    FileSpreadsheet,
-    AlertTriangle,
-    CheckCircle2,
-    Plus,
-    X,
-    Clock,
-    History,
-    ChevronLeft,
-    ChevronRight,
-    Users,
-    ArrowUpDown,
-    CalendarClock,
-    LogIn,
-    LogOut
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { HardDrive, Upload, Trash2, Search, FilterX, Loader2, Clock, History, ChevronLeft, ChevronRight, Users, CalendarClock, LogIn, LogOut } from 'lucide-react';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import {
-    onRawLogsUpdate,
-    deleteAllRawLogs,
-    deleteRawLog,
-    deleteRawLogsForMonth
-} from '@/services/attendance/data';
-import { addRawMachineLogs, addBulkManualLogs, bulkClockInOut } from '@/services/attendance/import';
+import { onRawLogsUpdate, deleteAllRawLogs, deleteRawLog } from '@/services/attendance/data';
+import { addRawMachineLogs, bulkClockInOut } from '@/services/attendance/import';
 import { importLegacyPayrollSheet } from '@/services/payroll/legacy-import';
 import { setFiscalYearPeriodLock } from '@/services/period-lock';
 import { resolvePeriodFromSheetName } from '@/lib/attendance';
@@ -55,7 +29,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { cn, toNepaliDate, formatTimeForDisplay } from '@/lib/utils';
+import { cn, formatTimeForDisplay } from '@/lib/utils';
 import { format } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';

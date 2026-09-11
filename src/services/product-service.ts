@@ -1,4 +1,5 @@
 import { getFirebase } from '@/lib/firebase';
+import { reportWriteFailure } from '@/lib/write-reporting';
 import { collection, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, setDoc } from 'firebase/firestore';
 import type { Product, RateHistoryEntry } from '@/lib/types';
 import { logAudit } from './log-service';
@@ -34,15 +35,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
 export const addProduct = async (product: Omit<Product, 'id'>): Promise<string> => {
     const docRef = doc(getProductsCollection());
     const payload = { ...product };
-    setDoc(docRef, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'products',
-                operation: 'create',
-                requestResourceData: product,
-            }));
-        }
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: 'products', operation: 'create', requestResourceData: product }
+    );
     return docRef.id;
 };
 
@@ -85,32 +81,23 @@ export const updateProduct = async (id: string, productUpdate: Partial<Omit<Prod
             lastModifiedAt: new Date().toISOString(),
         };
 
-        updateDoc(productDocRef, payload).then(() => {
+        reportWriteFailure(
+            updateDoc(productDocRef, payload).then(() => {
             logAudit(`Product Record Updated: ${existingProduct.name}`, 'Reports', {
                 id,
                 changes: productUpdate
             });
-        }).catch(async (err: any) => {
-            if (err.code === 'permission-denied') {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: productDocRef.path,
-                    operation: 'update',
-                    requestResourceData: payload,
-                }));
-            }
-        });
+        }),
+            { path: productDocRef.path, operation: 'update', requestResourceData: payload }
+        );
     });
 };
 
 
 export const deleteProduct = async (id: string): Promise<void> => {
     const productDoc = doc(getProductsCollection(), id);
-    deleteDoc(productDoc).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: productDoc.path,
-                operation: 'delete',
-            }));
-        }
-    });
+    reportWriteFailure(
+        deleteDoc(productDoc),
+        { path: productDoc.path, operation: 'delete' }
+    );
 };

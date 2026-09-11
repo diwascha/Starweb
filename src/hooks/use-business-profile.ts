@@ -4,10 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import type { CompanyProfile } from '@/lib/types';
 import { onSettingUpdate } from '@/services/settings-service';
-import {
-  getEntity, resolveEntityForPath, type BusinessEntity, type BusinessEntityId,
-} from '@/lib/business-entities';
-
+import { getEntity, resolveEntityForPath, type BusinessEntity, type BusinessEntityId } from '@/lib/business-entities';
 /**
  * The letterhead for the business that owns the current page.
  *

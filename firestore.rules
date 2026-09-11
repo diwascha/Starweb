@@ -9,10 +9,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Absence of the flag means NOT approved. It previously defaulted to true,
+    // which combined with an open create rule on system_users let anyone mint
+    // themselves an approved account and read/write the whole database.
     function isApproved() {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.get('isApproved', true) == true;
+             get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.get('isApproved', false) == true;
     }
 
     function isAdmin() {
@@ -37,10 +40,18 @@ service cloud.firestore {
 
     match /system_users/{userId} {
       allow read: if isAuthenticated(); 
-      allow create: if true; 
+
+      // Was `allow create: if true` - unauthenticated, any uid, any payload.
+      // A new account may only be created by its own owner, unapproved and
+      // non-admin; an existing admin promotes it afterwards.
+      allow create: if isAuthenticated() && 
+                       request.auth.uid == userId &&
+                       request.resource.data.get('isApproved', false) == false &&
+                       request.resource.data.get('isAdmin', false) == false;
+
       allow update: if (isAdmin() && request.auth.uid != userId) || 
                        (isAuthenticated() && request.auth.uid == userId && 
-                        request.resource.data.get('isApproved', true) == resource.data.get('isApproved', true) &&
+                        request.resource.data.get('isApproved', false) == resource.data.get('isApproved', false) &&
                         request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false));
                         
       allow delete: if isAdmin() && userId != request.auth.uid && 
@@ -54,13 +65,17 @@ service cloud.firestore {
     }
 
     match /usernames/{username} {
-      allow read: if true;
+      // Login resolves username -> email before sign-in, so an unauthenticated
+      // read of a SINGLE known document is required. Listing is not.
+      allow get: if true;
+      allow list: if isAuthenticated();
       allow create: if isAuthenticated();
       allow delete: if isAdmin();
     }
     
     match /logs/{logId} {
-      allow create: if true;
+      // Was `if true`: any anonymous caller could create unlimited documents.
+      allow create: if isAuthenticated();
       allow read, delete: if isAdmin();
     }
 

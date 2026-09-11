@@ -1,12 +1,12 @@
 'use client';
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle, Wallet, Receipt } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Truck, Users, ArrowRight, TrendingUp, TrendingDown, AlertTriangle, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useState, useEffect, useMemo } from 'react';
 import type { Vehicle, Driver, PolicyOrMembership, Transaction, CompanyProfile } from '@/lib/types';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
+import { ChartContainer, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,7 @@ import { onDriversUpdate } from '@/services/driver-service';
 import { onPoliciesUpdate } from '@/services/policy-service';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 import { onSettingUpdate } from '@/services/settings-service';
-import { useToast } from '@/hooks/use-toast';
+
 import { DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 
 export default function FleetDashboardPage() {

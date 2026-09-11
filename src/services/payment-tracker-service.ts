@@ -1,21 +1,7 @@
 
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    onSnapshot, 
-    DocumentData, 
-    QueryDocumentSnapshot, 
-    doc, 
-    setDoc, 
-    updateDoc, 
-    deleteDoc, 
-    getDocs, 
-    query, 
-    where, 
-    orderBy,
-    writeBatch
-} from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, getDocs, query, where, orderBy, writeBatch } from 'firebase/firestore';
 import type { PaymentTrackerEntry } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';

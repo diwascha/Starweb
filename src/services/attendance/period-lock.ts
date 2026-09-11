@@ -6,8 +6,8 @@
  * being silently recomputed under today's rounding/grace/break rules.
  */
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, setDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
-import { createTimestamp } from '@/lib/service-utils';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -49,14 +49,3 @@ export const onAttendancePeriodLocksUpdate = (callback: (locks: AttendancePeriod
     );
 };
 
-export const setAttendancePeriodLock = async (bsYear: number, bsMonth: number, locked: boolean, updatedBy: string): Promise<void> => {
-    const { db } = getFirebase();
-    const id = `${bsYear}-${bsMonth}`;
-    const docRef = doc(getAttendancePeriodLockCollection(), id);
-    try {
-        await setDoc(docRef, { bsYear, bsMonth, locked, updatedBy, updatedAt: createTimestamp() }, { merge: true });
-    } catch (err) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'write' }));
-        throw err;
-    }
-};

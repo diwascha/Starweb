@@ -15,7 +15,7 @@ import {
   PlusCircle, 
   Loader2
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+
 import { calculateItemCost } from '@/lib/cost-calculator';
 import { useToast } from '@/hooks/use-toast';
 import { onSettingUpdate } from '@/services/settings-service';

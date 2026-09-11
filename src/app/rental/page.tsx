@@ -1,19 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { 
-  Home, 
-  Building2, 
-  Users, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
-  DollarSign, 
-  TrendingUp,
-  ArrowRight,
-  Plus,
-  Loader2
-} from 'lucide-react';
+import { Home, Building2, AlertCircle, Clock, DollarSign, TrendingUp, Plus, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +12,7 @@ import { onUnitsUpdate } from '@/services/unit-service';
 import { onRentalBillsUpdate } from '@/services/rental-billing-service';
 import { onAgreementsUpdate } from '@/services/agreement-service';
 import type { RentalProperty, RentalUnit, RentalBill, RentalAgreement } from '@/lib/types';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 export default function RentalDashboardPage() {

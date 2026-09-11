@@ -22,7 +22,6 @@ import {
     formatFiscalYear,
 } from '@/lib/fiscal-year';
 import { aggregatePerformanceMetricsWithTrend, type PeriodPerformanceMetrics } from '@/lib/performance-metrics';
-
 interface HrDashboardClientProps {
     initialEmployees: Employee[];
     initialAttendance: AttendanceRecord[];

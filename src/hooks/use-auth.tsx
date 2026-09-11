@@ -9,7 +9,7 @@ import { toast } from '@/hooks/use-toast';
 import { getFirebase } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { logAudit } from '@/services/log-service';
-import { restoreAdminProfile } from '@/services/user-service';
+import { } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { modules } from '@/lib/types';
 
@@ -44,7 +44,6 @@ const AuthContext = createContext<AuthContextType>({
 
 const USER_SESSION_KEY = 'user_session';
 const SESSION_MAX_AGE = 24 * 60 * 60 * 1000; // 24 Hours
-const MASTER_ADMIN_UID = '0B9q71lXTDRnEjaTuwivIpIkiW42';
 
 const moduleToPath = (module: Module): string => {
     if (module === 'dashboard') return '/dashboard';
@@ -207,10 +206,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         unsubscribeFirestore = onSnapshot(userDocRef, (docSnap) => {
             if (!docSnap.exists()) {
-                if (firebaseUser.uid === MASTER_ADMIN_UID) {
-                    restoreAdminProfile(firebaseUser.uid, firebaseUser.email || 'shivampackaging69@gmail.com', 'administrator');
-                    return;
-                }
+                // No profile means no access. This used to self-heal a
+                // hardcoded uid into a full admin by writing isAdmin: true
+                // from the browser - which, on a statically exported app where
+                // Firestore rules are the only boundary, is an escalation path
+                // rather than a recovery tool. Seed the first admin from the
+                // Firebase console instead.
                 logout();
                 return;
             }

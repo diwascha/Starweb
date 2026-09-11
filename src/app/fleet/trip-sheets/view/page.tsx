@@ -8,13 +8,12 @@ import { onPartiesUpdate } from '@/services/party-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { Trip, Vehicle, Party, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Printer, Loader2, ArrowLeft, Edit, Save } from 'lucide-react';
-import { toNepaliDate, toWords } from '@/lib/utils';
+import { Printer, Loader2, ArrowLeft, Edit } from 'lucide-react';
+import { toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { DEFAULT_FLEET_PROFILE } from '@/lib/constants';
-import { Badge } from '@/components/ui/badge';
 
 function TripSheetViewContent() {
     const router = useRouter();

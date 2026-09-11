@@ -1,6 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, setDoc } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, setDoc } from 'firebase/firestore';
 import type { Driver } from '@/lib/types';
 import { deleteFile } from './storage-service';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -28,36 +29,16 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
     };
 }
 
-export const getDrivers = async (): Promise<Driver[]> => {
-    try {
-        const snapshot = await getDocs(getDriversCollection());
-        return snapshot.docs.map(fromFirestore);
-    } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'drivers',
-                operation: 'list',
-            }));
-        }
-        throw error;
-    }
-};
-
 export const addDriver = async (driver: Omit<Driver, 'id'>): Promise<string> => {
     const payload = {
         ...driver,
         createdAt: new Date().toISOString(),
     };
     const docRef = doc(getDriversCollection());
-    setDoc(docRef, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'drivers',
-                operation: 'create',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: 'drivers', operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -83,15 +64,10 @@ export const updateDriver = async (id: string, driver: Partial<Omit<Driver, 'id'
         ...driver,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(driverDoc, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: driverDoc.path,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        updateDoc(driverDoc, payload),
+        { path: driverDoc.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteDriver = async (id: string, photoURL?: string): Promise<void> => {
@@ -103,12 +79,8 @@ export const deleteDriver = async (id: string, photoURL?: string): Promise<void>
         }
     }
     const driverDoc = doc(getDriversCollection(), id);
-    deleteDoc(driverDoc).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: driverDoc.path,
-                operation: 'delete',
-            }));
-        }
-    });
+    reportWriteFailure(
+        deleteDoc(driverDoc),
+        { path: driverDoc.path, operation: 'delete' }
+    );
 };

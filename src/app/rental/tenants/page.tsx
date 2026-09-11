@@ -1,48 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { 
-  Users, 
-  Search, 
-  Plus, 
-  MoreHorizontal, 
-  Phone, 
-  MapPin, 
-  Eye, 
-  DollarSign, 
-  Clock, 
-  FileText, 
-  ShieldCheck, 
-  Edit, 
-  Printer, 
-  ChevronRight, 
-  Loader2, 
-  Trash2, 
-  PlusCircle, 
-  CalendarIcon,
-  Check,
-  User,
-  ClipboardList,
-  Save,
-  Download,
-  Building2,
-  Home,
-  AlertCircle,
-  Zap,
-  Droplets,
-  Wifi,
-  Trash,
-  Car,
-  Wrench,
-  HelpCircle,
-  ChevronDown,
-  FilterX,
-  Scale,
-  Receipt,
-  Wallet,
-  Info,
-  ChevronLeft
-} from 'lucide-react';
+import { Users, Search, Plus, MoreHorizontal, Phone, MapPin, Eye, DollarSign, Clock, FileText, ShieldCheck, Edit, Printer, ChevronRight, Loader2, Trash2, PlusCircle, CalendarIcon, User, ClipboardList, Save, Download, Home, Zap, Droplets, Wifi, Trash, Car, Wrench, HelpCircle, Scale, Receipt, Wallet, Info, ChevronLeft } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,7 +52,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format, isPast } from 'date-fns';
+import { isPast } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';

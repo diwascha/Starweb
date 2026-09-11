@@ -1,5 +1,6 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
+import { reportWriteFailure } from '@/lib/write-reporting';
 import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, setDoc } from 'firebase/firestore';
 import type { Account, AccountType, AccountOwnership, BankAccountType } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -49,15 +50,10 @@ export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> 
         createdAt: new Date().toISOString(),
     };
     const docRef = doc(getAccountsCollection());
-    setDoc(docRef, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'accounts',
-                operation: 'create',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: 'accounts', operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -67,27 +63,18 @@ export const updateAccount = async (id: string, account: Partial<Omit<Account, '
         ...account,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(accountDoc, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: accountDoc.path,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        updateDoc(accountDoc, payload),
+        { path: accountDoc.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteAccount = async (id: string): Promise<void> => {
     const accountDoc = doc(getAccountsCollection(), id);
-    deleteDoc(accountDoc).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: accountDoc.path,
-                operation: 'delete',
-            }));
-        }
-    });
+    reportWriteFailure(
+        deleteDoc(accountDoc),
+        { path: accountDoc.path, operation: 'delete' }
+    );
 };
 
 export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () => void => {

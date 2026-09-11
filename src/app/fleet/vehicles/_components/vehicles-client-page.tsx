@@ -37,8 +37,6 @@ import { onDriversUpdate } from '@/services/driver-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-
 
 const vehicleStatuses: VehicleStatus[] = ['Active', 'In Maintenance', 'Decommissioned'];
 

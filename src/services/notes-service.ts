@@ -1,5 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, orderBy, query, writeBatch } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, orderBy, query, writeBatch, setDoc } from 'firebase/firestore';
 import type { NoteItem } from '@/lib/types';
 import { subDays } from 'date-fns';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -27,33 +28,18 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): NoteItem 
     };
 }
 
-export const getNoteItems = async (): Promise<NoteItem[]> => {
-    const q = query(getNotesCollection(), orderBy('createdAt', 'desc'));
-    try {
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'notes',
-            operation: 'list',
-        }));
-        throw error;
-    }
-};
-
 export const addNoteItem = async (item: Omit<NoteItem, 'id' | 'createdAt'>): Promise<string> => {
     const payload = {
         ...item,
         createdAt: new Date().toISOString(),
     };
-    const docRef = await addDoc(getNotesCollection(), payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'notes',
-            operation: 'create',
-            requestResourceData: payload,
-        }));
-        throw err;
-    });
+    // doc() mints the id locally; setDoc then writes without
+    // blocking on the server, so this works offline too.
+    const docRef = doc(getNotesCollection());
+    reportWriteFailure(
+        setDoc(docRef, payload),
+    { path: 'notes', operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -78,23 +64,18 @@ export const updateNoteItem = async (id: string, item: Partial<Omit<NoteItem, 'i
         ...item,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(itemDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: itemDoc.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
-    });
+    reportWriteFailure(
+        updateDoc(itemDoc, payload),
+        { path: itemDoc.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteNoteItem = async (id: string): Promise<void> => {
     const itemDoc = doc(getNotesCollection(), id);
-    deleteDoc(itemDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: itemDoc.path,
-            operation: 'delete',
-        }));
-    });
+    reportWriteFailure(
+        deleteDoc(itemDoc),
+        { path: itemDoc.path, operation: 'delete' }
+    );
 };
 
 export const cleanupOldItems = async (): Promise<number> => {

@@ -4,6 +4,7 @@
  */
 
 import { getFirebase } from '@/lib/firebase';
+import { reportWriteFailure } from '@/lib/write-reporting';
 import { 
     collection, 
     doc, 
@@ -21,7 +22,6 @@ import { createTimestamp } from '@/lib/service-utils';
 import { logAudit } from './log-service';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-
 const getPurchaseOrdersCollection = () => {
     const { db } = getFirebase();
     return collection(db, COLLECTIONS.PURCHASE_ORDERS);
@@ -67,17 +67,11 @@ export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<s
         updatedAt: now,
     };
 
-    setDoc(docRef, payload).then(() => {
-        logAudit(`New Purchase Order Created: ${po.poNumber}`, 'Procurement', { status: po.status });
-    }).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'create',
-                requestResourceData: payload,
-            } satisfies SecurityRuleContext));
-        }
-    });
+    logAudit(`New Purchase Order Created: ${po.poNumber}`, 'Procurement', { status: po.status });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: docRef.path, operation: 'create', requestResourceData: payload }
+    );
 
     return id;
 };
@@ -193,33 +187,23 @@ export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<Pur
 
     const payload = { ...poUpdate, versions: updatedVersions, updatedAt: now };
 
-    try {
-        await updateDoc(poDocRef, payload);
-        logAudit(`Purchase Order Modified: ${currentData.poNumber}`, 'Procurement', { id, isAmendment: !currentData.isDraft });
-    } catch (err: any) {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: poDocRef.path,
-                operation: 'update',
-                requestResourceData: payload,
-            } satisfies SecurityRuleContext));
-        }
-        // Rethrow so the caller can tell the user it failed instead of
-        // toasting success over a write that didn't land.
-        throw err;
-    }
+    // Non-blocking: this used to `await` the write, which reads as careful but
+    // never resolves while offline (Firestore acknowledges writes at the
+    // server), so the save button span forever on a dropped line even though
+    // the order was safely queued. Failures are reported instead.
+    logAudit(`Purchase Order Modified: ${currentData.poNumber}`, 'Procurement', { id, isAmendment: !currentData.isDraft });
+    reportWriteFailure(
+        updateDoc(poDocRef, payload),
+        { path: poDocRef.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deletePurchaseOrder = async (id: string): Promise<void> => {
     if (!id) return;
     const poDoc = doc(getPurchaseOrdersCollection(), id);
     
-    deleteDoc(poDoc).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ 
-                path: poDoc.path, 
-                operation: 'delete' 
-            } satisfies SecurityRuleContext));
-        }
-    });
+    reportWriteFailure(
+        deleteDoc(poDoc),
+        { path: poDoc.path, operation: 'delete' }
+    );
 };

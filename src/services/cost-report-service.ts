@@ -1,5 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, orderBy, deleteDoc, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import type { CostReport, QuotationStatus } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -96,16 +97,13 @@ export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>
         ...report,
         createdAt: new Date().toISOString(),
     };
-    const docRef = await addDoc(getCostReportsCollection(), payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'costReports',
-                operation: 'create',
-                requestResourceData: payload,
-            }));
-        }
-        throw err;
-    });
+    // doc() mints the id locally; setDoc writes without blocking on the
+    // server, so saving a quotation works offline like everything else.
+    const docRef = doc(getCostReportsCollection());
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: 'costReports', operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -116,15 +114,10 @@ export const updateCostReport = async (id: string, report: Partial<Omit<CostRepo
         ...report,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(reportDoc, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: reportDoc.path,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        updateDoc(reportDoc, payload),
+        { path: reportDoc.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const updateQuotationStatus = async (id: string, status: QuotationStatus, modifiedBy: string) => {
@@ -133,11 +126,15 @@ export const updateQuotationStatus = async (id: string, status: QuotationStatus,
     if (!docSnap.exists()) return;
     
     const data = docSnap.data() as CostReport;
-    await updateDoc(docRef, { 
-        status, 
+    const statusPayload = {
+        status,
         lastModifiedBy: modifiedBy,
-        lastModifiedAt: new Date().toISOString() 
-    });
+        lastModifiedAt: new Date().toISOString(),
+    };
+    reportWriteFailure(
+        updateDoc(docRef, statusPayload),
+        { path: docRef.path, operation: 'update', requestResourceData: statusPayload }
+    );
 
     // Deal Sync Logic
     if (status === 'Sent' && data.dealId) {
@@ -152,14 +149,7 @@ export const updateQuotationStatus = async (id: string, status: QuotationStatus,
 export const deleteCostReport = async (id: string): Promise<void> => {
     if (!id) return;
     const reportDoc = doc(getCostReportsCollection(), id);
-    deleteDoc(reportDoc).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: reportDoc.path,
-                operation: 'delete',
-            }));
-        }
-    });
+    reportWriteFailure(deleteDoc(reportDoc), { path: reportDoc.path, operation: 'delete' });
 };
 
 /**

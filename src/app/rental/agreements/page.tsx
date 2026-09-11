@@ -1,23 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { 
-    Plus, 
-    Search, 
-    MoreHorizontal, 
-    Trash2, 
-    User, 
-    Home, 
-    Loader2, 
-    FilterX,
-    ChevronRight,
-    ArrowRight,
-    Ban,
-    Briefcase
-} from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Trash2, User, Home, Loader2, FilterX, Ban, Briefcase } from 'lucide-react';
 import type { RentalAgreement } from '@/lib/types';
 import { onAgreementsUpdate, terminateAgreement, deleteAgreement } from '@/services/agreement-service';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +37,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { toNepaliDate } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { differenceInDays, isPast, isFuture, startOfToday } from 'date-fns';
 import Link from 'next/link';

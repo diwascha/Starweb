@@ -1,37 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-    Plus, 
-    Edit, 
-    Trash2, 
-    MoreHorizontal, 
-    ArrowUpDown, 
-    Search, 
-    User, 
-    CalendarIcon, 
-    Image as ImageIcon, 
-    X, 
-    Phone, 
-    ShieldCheck, 
-    FileText, 
-    Upload, 
-    Download, 
-    Loader2, 
-    Building2, 
-    DollarSign,
-    CheckSquare,
-    Square,
-    AlertTriangle,
-    RefreshCw,
-    UserCheck,
-    UserX,
-    ChevronLeft,
-    ChevronRight
-} from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus, Department, Position, BloodGroup, EmployeeDocument } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,15 +12,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,12 +31,9 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { onEmployeesUpdate, addEmployee, updateEmployee, deleteEmployee } from '@/services/employee-service';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { format } from 'date-fns';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DualCalendar } from '@/components/ui/dual-calendar';
-import { cn, toNepaliDate, generateId } from '@/lib/utils';
-import { uploadFile, deleteFile } from '@/services/storage-service';
+
+import { cn, toNepaliDate } from '@/lib/utils';
+import { uploadFile } from '@/services/storage-service';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';

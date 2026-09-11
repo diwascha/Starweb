@@ -2,26 +2,14 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-    Printer, 
-    ArrowLeft, 
-    Loader2, 
-    FileText, 
-    ShieldCheck, 
-    Save, 
-    History,
-    CheckCircle2,
-    X,
-    ImageIcon
-} from 'lucide-react';
+import { Printer, ArrowLeft, Loader2, ShieldCheck, Save, CheckCircle2 } from 'lucide-react';
 import type { Report, CompanyProfile, ProductSpecification } from '@/lib/types';
 import { getReport } from '@/services/report-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toNepaliDate, cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
+import { toNepaliDate } from '@/lib/utils';
+
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 

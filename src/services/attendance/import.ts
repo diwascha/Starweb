@@ -1,14 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    doc, 
-    writeBatch, 
-    getDocs, 
-    query, 
-    where, 
-    setDoc
-} from 'firebase/firestore';
-import type { RawMachineLog, Employee, HrShift } from '@/lib/types';
+import { collection, doc, writeBatch, getDocs, query, where } from 'firebase/firestore';
+import { RawMachineLog, HrShift } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
 import { processAttendanceImport, resolveDominantPeriod } from '@/lib/attendance';

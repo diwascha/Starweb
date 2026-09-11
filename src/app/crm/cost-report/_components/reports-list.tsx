@@ -5,25 +5,14 @@ import type { CostReport, Party, QuotationStatus } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { 
-    MoreHorizontal, 
-    Eye, 
-    Edit, 
-    Trash2, 
-    ChevronLeft, 
-    ChevronRight, 
-    Search, 
-    FilterX, 
-    Users, 
-    CalendarIcon 
-} from 'lucide-react';
+import { MoreHorizontal, Eye, Edit, Trash2, ChevronLeft, ChevronRight, Search, FilterX, CalendarIcon } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { onCostReportsUpdate, updateQuotationStatus, deleteCostReport } from '@/services/cost-report-service';
+import { onCostReportsUpdate, updateQuotationStatus } from '@/services/cost-report-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';

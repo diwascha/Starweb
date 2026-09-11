@@ -23,13 +23,7 @@ import {
     getAvailableFiscalYears,
     formatFiscalYear,
 } from '@/lib/fiscal-year';
-import {
-    aggregatePerformanceMetricsWithTrend,
-    getBenchmarkPeriodGroups,
-    type BenchmarkPeriodType,
-    type PeriodPerformanceMetrics,
-} from '@/lib/performance-metrics';
-
+import { aggregatePerformanceMetricsWithTrend, getBenchmarkPeriodGroups, type BenchmarkPeriodType, type PeriodPerformanceMetrics } from '@/lib/performance-metrics';
 type SortKey = 'employeeName' | 'attendanceRate' | 'absentDays' | 'lateArrivals' | 'overtimeHours' | 'totalNet' | 'bonusAccrued';
 
 const PERIOD_TYPES: { value: BenchmarkPeriodType; label: string }[] = [

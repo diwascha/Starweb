@@ -4,7 +4,6 @@ import React from 'react';
 import { toWords } from '@/lib/utils';
 import NepaliDate from 'nepali-date-converter';
 import { LEGACY_LAYOUT, type ChequeLayout } from '@/lib/cheque-layout';
-
 export interface NepalChequeViewProps {
   payeeName: string;
   amount: number;

@@ -1,5 +1,6 @@
 
 import { getFirebase } from '@/lib/firebase';
+import { reportWriteFailure } from '@/lib/write-reporting';
 import { 
     collection, 
     doc, 
@@ -100,34 +101,6 @@ export const deleteUsernameRecord = async (username: string) => {
     return deleteDoc(usernameRef);
 };
 
-export const restoreAdminProfile = async (uid: string, email: string, username: string) => {
-    const { db } = getFirebase();
-    const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, uid);
-    const login = (username || 'staradmin').toLowerCase().trim();
-    const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
-    const now = new Date().toISOString();
-
-    const payload = {
-        username: login,
-        email: email.toLowerCase().trim(),
-        isApproved: true,
-        isAdmin: true,
-        permissions: {},
-        updatedAt: serverTimestamp(),
-        createdAt: now
-    };
-
-    try {
-        await setDoc(userRef, payload, { merge: true });
-        await setDoc(usernameRef, { 
-            email: email.toLowerCase().trim(), 
-            username: login 
-        }, { merge: true });
-        logAudit(`Administrative Profile Restored: ${login}`, 'Security', { uid });
-    } catch (e) {
-        console.error("Critical: Failed to restore admin profile", e);
-    }
-};
 
 export const saveUser = async (user: User) => {
     const { db } = getFirebase();
@@ -136,26 +109,20 @@ export const saveUser = async (user: User) => {
     const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, user.id);
     const payload = { ...user, updatedAt: serverTimestamp() };
     
-    setDoc(userRef, payload, { merge: true }).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: userRef.path,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        setDoc(userRef, payload, { merge: true }),
+        { path: userRef.path, operation: 'update', requestResourceData: payload }
+    );
 
     if (user.username && user.email) {
         const usernameRef = doc(db, COLLECTIONS.USERNAMES, user.username.toLowerCase().trim());
-        setDoc(usernameRef, { 
+        reportWriteFailure(
+            setDoc(usernameRef, { 
             email: user.email.toLowerCase().trim(), 
             username: user.username.toLowerCase().trim() 
-        }, { merge: true }).catch(async (err: any) => {
-             if (err.code === 'permission-denied') {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'write' }));
-             }
-        });
+        }, { merge: true }),
+            { path: usernameRef.path, operation: 'write' }
+        );
     }
 };
 
@@ -269,15 +236,3 @@ export const deleteUser = async (userId: string, username?: string) => {
     }
 };
 
-export const getUsers = async (): Promise<User[]> => {
-    const { db } = getFirebase();
-    try {
-        const snap = await getDocs(collection(db, COLLECTIONS.SYSTEM_USERS));
-        return snap.docs.map(fromFirestore);
-    } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.SYSTEM_USERS, operation: 'list' }));
-        }
-        throw error;
-    }
-};

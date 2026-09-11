@@ -2,24 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-    Package, 
-    Plus, 
-    Search, 
-    MoreHorizontal, 
-    Edit, 
-    Trash2, 
-    Layers, 
-    ShieldCheck, 
-    Loader2, 
-    FilterX,
-    ChevronLeft,
-    ChevronRight,
-    ArrowLeft
-} from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Loader2, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import type { Product } from '@/lib/types';
 import { onProductsUpdate, deleteProduct } from '@/services/product-service';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -44,7 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { cn } from '@/lib/utils';
+
 import { useRouter } from 'next/navigation';
 
 export default function ProductsPage() {

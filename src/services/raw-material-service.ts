@@ -1,20 +1,7 @@
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    addDoc, 
-    getDocs, 
-    doc, 
-    updateDoc, 
-    deleteDoc, 
-    onSnapshot, 
-    DocumentData, 
-    QueryDocumentSnapshot,
-    query,
-    where,
-    writeBatch,
-    setDoc
-} from 'firebase/firestore';
-import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, query, where, writeBatch, setDoc } from 'firebase/firestore';
+import { RawMaterial } from '@/lib/types';
 import { getUoms, addUom } from './uom-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
@@ -44,19 +31,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
     };
 }
 
-export const getRawMaterials = async (): Promise<RawMaterial[]> => {
-    try {
-        const snapshot = await getDocs(getRawMaterialsCollection());
-        return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.RAW_MATERIALS,
-            operation: 'list',
-        }));
-        throw error;
-    }
-};
-
 export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise<string> => {
     const docRef = doc(getRawMaterialsCollection());
     const payload = {
@@ -64,13 +38,10 @@ export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise
         createdAt: createTimestamp(),
     };
 
-    setDoc(docRef, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.RAW_MATERIALS,
-            operation: 'create',
-            requestResourceData: payload,
-        }));
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: COLLECTIONS.RAW_MATERIALS, operation: 'create', requestResourceData: payload }
+    );
 
     if (Array.isArray(material.units) && material.units.length > 0) {
         getUoms().then(async (existingUoms) => {
@@ -113,13 +84,10 @@ export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMa
         lastModifiedAt: createTimestamp()
     };
 
-    updateDoc(materialDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: materialDoc.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
-    });
+    reportWriteFailure(
+        updateDoc(materialDoc, payload),
+        { path: materialDoc.path, operation: 'update', requestResourceData: payload }
+    );
 
     if (Array.isArray(material.units) && material.units.length > 0 && material.lastModifiedBy) {
         getUoms().then(async (existingUoms) => {
@@ -141,12 +109,10 @@ export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMa
 
 export const deleteRawMaterial = async (id: string): Promise<void> => {
     const materialDoc = doc(getRawMaterialsCollection(), id);
-    deleteDoc(materialDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: materialDoc.path,
-            operation: 'delete',
-        }));
-    });
+    reportWriteFailure(
+        deleteDoc(materialDoc),
+        { path: materialDoc.path, operation: 'delete' }
+    );
 };
 
 export const renameCategory = async (oldName: string, newName: string, modifiedBy: string): Promise<void> => {

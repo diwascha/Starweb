@@ -1,29 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, type ReactNode } from 'react';
-import { 
-    Timer, 
-    Plus, 
-    Trash2, 
-    Edit, 
-    Settings2,
-    Clock,
-    CalendarIcon,
-    X,
-    CheckCircle2,
-    Save,
-    Loader2,
-    ArrowRight,
-    RefreshCcw,
-    CalendarCheck,
-    Briefcase,
-    Check,
-    ChevronDown,
-    Search,
-    Layers,
-    ListTree
-} from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { useState, useEffect, type ReactNode } from 'react';
+import { Plus, Trash2, Edit, Settings2, CalendarIcon, X, Save, Loader2, RefreshCcw, Check, Search } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -42,14 +21,13 @@ import { DEFAULT_HR_CONFIG } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format, differenceInDays } from 'date-fns';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { differenceInDays } from 'date-fns';
 
 const INITIAL_HR_CONFIG: HrConfig = DEFAULT_HR_CONFIG;
 

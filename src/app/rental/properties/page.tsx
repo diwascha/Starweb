@@ -2,28 +2,9 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { 
-    Building2, 
-    Plus, 
-    Search, 
-    MoreHorizontal, 
-    Edit, 
-    Trash2, 
-    Home, 
-    MapPin, 
-    Eye, 
-    UserPlus, 
-    Receipt, 
-    Filter,
-    LayoutGrid,
-    List,
-    Loader2,
-    X,
-    ChevronLeft,
-    ChevronRight
-} from 'lucide-react';
+import { Building2, Plus, Search, MoreHorizontal, Edit, Trash2, Home, MapPin, UserPlus, Receipt, Filter, Loader2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RentalProperty, RentalUnit } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

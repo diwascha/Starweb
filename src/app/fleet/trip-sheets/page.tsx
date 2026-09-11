@@ -3,32 +3,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-  PlusCircle, 
-  MoreHorizontal, 
-  Edit, 
-  Trash2, 
-  View, 
-  ArrowUpDown, 
-  Search, 
-  User, 
-  X, 
-  FileSpreadsheet, 
-  FileText,
-  Printer,
-  Loader2,
-  Check,
-  ChevronDown,
-  FilterX,
-  Truck,
-  Users,
-  CalendarIcon,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, User, FileSpreadsheet, FileText, Printer, Loader2, Check, ChevronDown, FilterX, CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Trip, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,7 +47,7 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';

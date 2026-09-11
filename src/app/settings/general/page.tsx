@@ -33,29 +33,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  Loader2,
-  Settings2,
-  CalendarIcon,
-  Hash,
-  RefreshCcw,
-  History,
-  X,
-  Info,
-  ChevronRight,
-  FileText,
-  ShoppingCart,
-  Truck,
-  Calculator,
-  Home,
-  AlertTriangle,
-  SearchCheck,
-  ClipboardList
-} from 'lucide-react';
+import { Plus, Edit, Trash2, Save, Loader2, CalendarIcon, Hash, RefreshCcw, History, X, Info, FileText, ShoppingCart, Truck, Calculator, Home, AlertTriangle, SearchCheck } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -64,11 +42,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
 import { onSettingUpdate, setSetting, updateExistingRecordsNumbering } from '@/services/settings-service';
-import { 
-    documentTypes, 
-    getDocumentName,
-    modules 
-} from '@/lib/types';
+import { getDocumentName, modules } from '@/lib/types';
 import { BUSINESS_ENTITIES, type BusinessEntity } from '@/lib/business-entities';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';

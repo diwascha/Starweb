@@ -1,19 +1,7 @@
 'use client';
 
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    addDoc, 
-    onSnapshot, 
-    DocumentData, 
-    QueryDocumentSnapshot, 
-    getDocs, 
-    query, 
-    orderBy, 
-    deleteDoc, 
-    doc, 
-    updateDoc 
-} from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import type { Deal } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -97,12 +97,23 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
         }
     }, [reportToEdit, parties, vendor]);
 
-    // 3. Voucher number generation for NEW reports
+    // 3. Voucher number preview for NEW reports.
+    //    Held in a ref and suggested once per date: this used to depend on the
+    //    live report list, so every time anyone else saved a GSM report the
+    //    effect re-ran and overwrote the number in your open form - including
+    //    one you had typed by hand. (`allReports.length >= 0` was also always
+    //    true, so the guard did nothing.)
+    const allReportsRef = useRef(allReports);
+    allReportsRef.current = allReports;
+    const suggestedForDate = useRef<string | null>(null);
+
     useEffect(() => {
-        if (!reportToEdit && allReports.length >= 0) {
-            generateNextGsmNumber(allReports, date.toISOString()).then(setVoucherNo);
-        }
-    }, [reportToEdit, allReports, date]);
+        if (reportToEdit) return;
+        const key = date.toISOString().slice(0, 10);
+        if (suggestedForDate.current === key) return;
+        suggestedForDate.current = key;
+        generateNextGsmNumber(allReportsRef.current, date.toISOString()).then(setVoucherNo);
+    }, [reportToEdit, date]);
 
     const calculateGsm = useCallback((weight: any, length: any, width: any, unitType: 'cm' | 'in' | 'mm') => {
         const w = parseFloat(weight);

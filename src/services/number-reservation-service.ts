@@ -40,7 +40,9 @@ const sequenceOf = (value: string | undefined | null, prefix: string): number =>
     return isNaN(n) ? 0 : n;
 };
 
-export const formatSequence = (prefix: string, sequence: number, pad: number = 3): string =>
+/** Zero-pad a sequence onto its prefix. Module-private: nothing outside this
+ *  file ever needed it. */
+const formatSequence = (prefix: string, sequence: number, pad: number = 3): string =>
     `${prefix}${sequence.toString().padStart(pad, '0')}`;
 
 /**

@@ -1,21 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  Loader2,
-  Check,
-  ChevronDown,
-  MoreHorizontal,
-  PlusCircle,
-  FilterX,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+
+import { Plus, Search, Edit, Trash2, Loader2, MoreHorizontal, FilterX, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { 
   onRawMaterialsUpdate, 
@@ -24,7 +11,7 @@ import {
   deleteRawMaterial 
 } from '@/services/raw-material-service';
 import { onUomsUpdate } from '@/services/uom-service';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -60,7 +47,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn, normalizeBF } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];

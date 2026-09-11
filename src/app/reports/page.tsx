@@ -2,27 +2,15 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-    FileText, 
-    FileSpreadsheet, 
-    PlusCircle, 
-    Package, 
-    TrendingUp, 
-    CheckCircle2, 
-    Clock, 
-    AlertCircle,
-    ChevronRight,
-    Loader2
-} from 'lucide-react';
+import { FileText, FileSpreadsheet, PlusCircle, Package, TrendingUp, CheckCircle2, AlertCircle, ChevronRight, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { onReportsUpdate } from '@/services/report-service';
 import { onProductsUpdate } from '@/services/product-service';
 import type { Report, Product } from '@/lib/types';
 import { cn, toNepaliDate } from '@/lib/utils';
-import { format, subDays, startOfMonth } from 'date-fns';
-
+import { startOfMonth } from 'date-fns';
 export default function ReportsDashboardPage() {
     const [reports, setReports] = useState<Report[]>([]);
     const [products, setProducts] = useState<Product[]>([]);

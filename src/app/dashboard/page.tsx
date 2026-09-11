@@ -3,25 +3,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import NepaliDate from 'nepali-date-converter';
-import {
-  ShoppingCart,
-  Truck,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Clock,
-  Calendar as CalendarIcon,
-  ChevronRight,
-  ChevronDown,
-  FileText,
-  Briefcase,
-  Scale,
-  Package,
-  MousePointer2,
-  AlertCircle
-} from 'lucide-react';
-
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { ShoppingCart, Truck, TrendingUp, TrendingDown, Minus, Clock, Calendar as CalendarIcon, ChevronRight, FileText, Package, MousePointer2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -54,17 +37,7 @@ import type {
   Vehicle,
   Driver
 } from '@/lib/types';
-import {
-  differenceInDays,
-  startOfToday,
-  format,
-  subDays,
-  isValid,
-  startOfMonth,
-  endOfMonth,
-  subMonths,
-  endOfDay
-} from 'date-fns';
+import { differenceInDays, startOfToday, format, isValid, endOfDay } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 

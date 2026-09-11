@@ -1,23 +1,7 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { 
-  Report, 
-  PurchaseOrder, 
-  PurchaseOrderStatus, 
-  AttendanceStatus, 
-  User, 
-  Transaction, 
-  DocumentPrefixes, 
-  Trip, 
-  TdsCalculation, 
-  EstimatedInvoice, 
-  DocumentType, 
-  NumberingRule,
-  Cheque,
-  GsmReport,
-  PaymentTrackerEntry
-} from './types';
+import { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, Transaction, DocumentPrefixes, Trip, TdsCalculation, EstimatedInvoice, DocumentType, NumberingRule, Cheque, GsmReport, PaymentTrackerEntry } from './types';
 import type { Expense } from './expense-types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";

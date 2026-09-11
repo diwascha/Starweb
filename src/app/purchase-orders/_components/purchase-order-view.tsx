@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useBusinessProfile } from '@/hooks/use-business-profile';
-import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
+
 import type { PurchaseOrder, PurchaseOrderVersion, CompanyProfile, Amendment } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
-import { normalizeBF } from '@/lib/utils';
+
 import { buildPoDocumentModel, describeAmendments } from '@/lib/purchase-order-document';
 import { drawPdfLetterhead } from '@/lib/pdf-letterhead';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
@@ -46,7 +46,7 @@ import {
     TooltipTrigger
 } from "@/components/ui/tooltip";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { onSettingUpdate } from '@/services/settings-service';
+
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { format } from 'date-fns';
+
 import { 
     Building2, 
     Users, 
@@ -44,7 +44,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
+
 import { 
     DropdownMenu, 
     DropdownMenuContent, 
@@ -63,7 +63,7 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
+
 import NepaliDate from 'nepali-date-converter';
 
 export default function CompaniesManagementPage() {

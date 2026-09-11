@@ -2,25 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-    FileText, 
-    Save, 
-    Loader2, 
-    ArrowLeft, 
-    Search, 
-    Check, 
-    PlusCircle, 
-    CalendarIcon,
-    Package,
-    ShieldCheck,
-    Edit
-} from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Search, Check, CalendarIcon, Package, ShieldCheck, Edit } from 'lucide-react';
 import type { Product, Report, ProductSpecification } from '@/lib/types';
 import { onProductsUpdate } from '@/services/product-service';
 import { addReport, onReportsUpdate } from '@/services/report-service';
 import { generateNextSerialNumber, toNepaliDate } from '@/lib/utils';
 import { reserveNumberFor } from '@/services/number-reservation-service';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

@@ -1,5 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, orderBy, setDoc } from 'firebase/firestore';
 import type { RentalUnit } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
@@ -69,16 +70,13 @@ export const addUnit = async (unit: Omit<RentalUnit, 'id' | 'createdAt'>): Promi
         ...unit,
         createdAt: now,
     };
-    const docRef = await addDoc(getCollection(), payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.RENTAL_UNITS,
-                operation: 'create',
-                requestResourceData: payload,
-            }));
-        }
-        throw err;
-    });
+    // doc() mints the id locally; setDoc then writes without
+    // blocking on the server, so this works offline too.
+    const docRef = doc(getCollection());
+    reportWriteFailure(
+        setDoc(docRef, payload),
+    { path: COLLECTIONS.RENTAL_UNITS, operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -88,25 +86,16 @@ export const updateUnit = async (id: string, updates: Partial<RentalUnit>): Prom
         ...updates,
         lastModifiedAt: createTimestamp(),
     };
-    updateDoc(docRef, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        updateDoc(docRef, payload),
+        { path: docRef.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteUnit = async (id: string): Promise<void> => {
     const docRef = doc(getCollection(), id);
-    deleteDoc(docRef).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'delete',
-            }));
-        }
-    });
+    reportWriteFailure(
+        deleteDoc(docRef),
+        { path: docRef.path, operation: 'delete' }
+    );
 };

@@ -1,5 +1,6 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
+import { reportWriteFailure } from '@/lib/write-reporting';
 import { 
     collection, 
     doc, 
@@ -59,7 +60,7 @@ export const fromFirestoreLog = (snapshot: QueryDocumentSnapshot<DocumentData>):
     };
 };
 
-export const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData>): AttendanceRecord => {
+const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData>): AttendanceRecord => {
     const data = snapshot.data();
     const date = String(data.date || '');
     // weekday/absent/gTime/breakHours/gHours are written by runHourlyCalculation
@@ -148,14 +149,10 @@ export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Pr
 
 export const deleteRawLog = async (id: string) => {
     const docRef = doc(getRawLogsCollection(), id);
-    deleteDoc(docRef).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'delete'
-            }));
-        }
-    });
+    reportWriteFailure(
+        deleteDoc(docRef),
+        { path: docRef.path, operation: 'delete' }
+    );
 };
 
 export const deleteRawLogsForMonth = async (year: number, month: number): Promise<void> => {
@@ -176,14 +173,10 @@ export const deleteRawLogsForMonth = async (year: number, month: number): Promis
 
 export const deleteAttendanceRecord = async (id: string) => {
     const docRef = doc(getAttendanceCollection(), id);
-    deleteDoc(docRef).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'delete'
-            }));
-        }
-    });
+    reportWriteFailure(
+        deleteDoc(docRef),
+        { path: docRef.path, operation: 'delete' }
+    );
 };
 
 /**
@@ -330,26 +323,16 @@ export const getAttendanceYears = async (): Promise<number[]> => {
 
 export const updateRawLog = async (id: string, updates: Partial<RawMachineLog>) => {
     const docRef = doc(getRawLogsCollection(), id);
-    updateDoc(docRef, updates).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'update',
-                requestResourceData: updates
-            }));
-        }
-    });
+    reportWriteFailure(
+        updateDoc(docRef, updates),
+        { path: docRef.path, operation: 'update' }
+    );
 };
 
 export const updateAttendanceRecord = async (id: string, updates: Partial<AttendanceRecord>) => {
     const docRef = doc(getAttendanceCollection(), id);
-    updateDoc(docRef, updates).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'update',
-                requestResourceData: updates
-            }));
-        }
-    });
+    reportWriteFailure(
+        updateDoc(docRef, updates),
+        { path: docRef.path, operation: 'update' }
+    );
 };

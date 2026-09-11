@@ -1,7 +1,7 @@
 
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, addDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, doc, addDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { COLLECTIONS } from '@/lib/constants';
 
 export interface FileRecord {

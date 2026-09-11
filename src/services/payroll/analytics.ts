@@ -1,9 +1,9 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch, getDocs, query, where } from 'firebase/firestore';
-import type { Employee, AttendanceRecord, AnalyticsData, AnalyticsReport, BehaviorLedgerEntry, BehaviorAnalyticsEntry } from '@/lib/types';
+import { Employee, AttendanceRecord, BehaviorLedgerEntry, BehaviorAnalyticsEntry } from '@/lib/types';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
-import { format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { isPeriodLocked } from '../attendance/data';
 
 export const isAnalyticsRow = (name: string): boolean => {
@@ -31,52 +31,6 @@ export const extractPatternInsights = (jsonData: any[][]): string[] => {
     const idx = jsonData.findIndex(row => row.join(' ').toLowerCase().includes('pattern insights'));
     if (idx === -1) return [];
     return jsonData.slice(idx + 1).map(r => String(r[0] || '').trim()).filter(t => t && !isAnalyticsRow(t));
-};
-
-export const generateAnalyticsForMonth = (bsYear: number, bsMonth: number, allEmployees: Employee[], allAttendance: AttendanceRecord[], importedReport?: AnalyticsReport | null): AnalyticsData => {
-    const monthly = allAttendance.filter(r => r.bsYear === bsYear && r.bsMonth === bsMonth);
-    const dayStats: Record<string, { count: number; late: number; onTime: number; absent: number }> = {};
-    let saturdayWorked = 0; let saturdayTotal = 0;
-
-    monthly.forEach(r => {
-        const day = format(new Date(r.date), 'EEEE');
-        if (!dayStats[day]) dayStats[day] = { count: 0, late: 0, onTime: 0, absent: 0 };
-        dayStats[day].count++;
-        if (r.status === 'Absent') dayStats[day].absent++;
-
-        const isLate = Boolean(r.onDuty && r.clockIn && r.clockIn > r.onDuty);
-        if (r.status === 'Present') {
-            if (isLate) dayStats[day].late++; else dayStats[day].onTime++;
-        }
-
-        if (day === 'Saturday') {
-            saturdayTotal++;
-            if (r.status === 'Saturday' && ((r.regularHours || 0) + (r.overtimeHours || 0)) > 0) saturdayWorked++;
-        }
-    });
-
-    let highestAbsenteeism = { day: 'N/A', count: 0 };
-    let highestLateArrivals = { day: 'N/A', count: 0 };
-    let mostPunctualWeekday = { day: 'N/A', rate: 0 };
-
-    for (const day in dayStats) {
-        const s = dayStats[day];
-        if (s.absent > highestAbsenteeism.count) highestAbsenteeism = { day, count: s.absent };
-        if (s.late > highestLateArrivals.count) highestLateArrivals = { day, count: s.late };
-        const punctual = s.onTime + s.late;
-        const rate = punctual > 0 ? (s.onTime / punctual) * 100 : 0;
-        if (punctual > 0 && rate > mostPunctualWeekday.rate) mostPunctualWeekday = { day, rate };
-    }
-
-    const saturdayUtilization = saturdayTotal > 0 ? (saturdayWorked / saturdayTotal) * 100 : 0;
-
-    return {
-        punctuality: [], behavior: [], workforce: [], patterns: [],
-        highestAbsenteeism,
-        highestLateArrivals,
-        lateHotspots: [], saturdayUtilization, mostPunctualWeekday,
-        worstShiftStart: { time: 'N/A', rate: 0 }, importedReport
-    };
 };
 
 /**

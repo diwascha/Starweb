@@ -20,7 +20,6 @@ import { logAudit } from '@/services/log-service';
 import { exportData } from '@/services/backup-service';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
-import { cn } from '@/lib/utils';
 
 const loginSchema = z.object({
   loginString: z.string().min(1, { message: 'Username or Email is required' }),

@@ -2,15 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { 
-  Party, 
-  Account, 
-  PartyType, 
-  AccountType, 
-  BankAccountType, 
-  AccountOwnership,
-  OwnershipCategory
-} from '@/lib/types';
+import { Party, Account, PartyType, AccountType, BankAccountType, AccountOwnership } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -40,7 +32,7 @@ import {
   Loader2,
   ShieldAlert,
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -53,7 +45,6 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
-import { modules } from '@/lib/types';
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');

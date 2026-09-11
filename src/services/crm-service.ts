@@ -1,21 +1,7 @@
 'use client';
 
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    addDoc, 
-    onSnapshot, 
-    DocumentData, 
-    QueryDocumentSnapshot, 
-    getDocs, 
-    query, 
-    where, 
-    orderBy, 
-    deleteDoc, 
-    doc, 
-    getDoc, 
-    updateDoc 
-} from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import type { CRMContact, InteractionLog, FollowUp } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -136,11 +122,6 @@ export const addInteraction = async (log: Omit<InteractionLog, 'id'>) => {
         ...log,
         createdAt: new Date().toISOString()
     });
-};
-
-export const updateInteraction = async (id: string, updates: Partial<InteractionLog>) => {
-    const docRef = doc(getInteractionsCollection(), id);
-    return updateDoc(docRef, updates);
 };
 
 export const onFollowUpsUpdate = (callback: (followups: FollowUp[]) => void): () => void => {

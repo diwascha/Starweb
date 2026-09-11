@@ -5,20 +5,8 @@
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    onSnapshot, 
-    DocumentData, 
-    QueryDocumentSnapshot, 
-    doc, 
-    updateDoc, 
-    deleteDoc, 
-    getDocs, 
-    query, 
-    orderBy, 
-    setDoc,
-    runTransaction
-} from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, query, orderBy, setDoc, runTransaction } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -59,20 +47,10 @@ export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promi
     const docRef = doc(getChequesCollection());
     const payload = { ...cheque, createdAt: new Date().toISOString() };
     
-    await setDoc(docRef, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.CHEQUES,
-                operation: 'create',
-                requestResourceData: payload,
-            }));
-        }
-        // Rethrown so the caller's error handling can actually run. This
-        // was fire-and-forget: the await resolved before the write, the
-        // rejection was swallowed, and every caller toasted success over a
-        // write that never landed.
-        throw err;
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: COLLECTIONS.CHEQUES, operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -80,37 +58,18 @@ export const updateCheque = async (id: string, cheque: Partial<Omit<Cheque, 'id'
     const chequeDoc = doc(getChequesCollection(), id);
     const payload = { ...cheque, lastModifiedAt: new Date().toISOString() };
     
-    await updateDoc(chequeDoc, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.CHEQUES,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-        // Rethrown so the caller's error handling can actually run. This
-        // was fire-and-forget: the await resolved before the write, the
-        // rejection was swallowed, and every caller toasted success over a
-        // write that never landed.
-        throw err;
-    });
+    reportWriteFailure(
+        updateDoc(chequeDoc, payload),
+        { path: COLLECTIONS.CHEQUES, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteCheque = async (id: string): Promise<void> => {
     const chequeDoc = doc(getChequesCollection(), id);
-    await deleteDoc(chequeDoc).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ 
-                path: COLLECTIONS.CHEQUES, 
-                operation: 'delete' 
-            }));
-        }
-        // Rethrown so the caller's error handling can actually run. This
-        // was fire-and-forget: the await resolved before the write, the
-        // rejection was swallowed, and every caller toasted success over a
-        // write that never landed.
-        throw err;
-    });
+    reportWriteFailure(
+        deleteDoc(chequeDoc),
+        { path: COLLECTIONS.CHEQUES, operation: 'delete' }
+    );
 };
 
 export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => void => {

@@ -1,7 +1,8 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
+import { reportWriteFailure } from '@/lib/write-reporting';
 import { collection, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, setDoc } from 'firebase/firestore';
-import type { Vehicle, VehicleStatus } from '@/lib/types';
+import { Vehicle } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -63,13 +64,10 @@ export const addVehicle = async (vehicle: Omit<Vehicle, 'id'>): Promise<string> 
         createdAt: new Date().toISOString(),
     };
     const docRef = doc(getVehiclesCollection());
-    setDoc(docRef, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'vehicles',
-            operation: 'create',
-            requestResourceData: payload,
-        }));
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: 'vehicles', operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -98,22 +96,17 @@ export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, '
         ...vehicle,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(vehicleDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: vehicleDoc.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
-    });
+    reportWriteFailure(
+        updateDoc(vehicleDoc, payload),
+        { path: vehicleDoc.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteVehicle = async (id: string): Promise<void> => {
     if (!id) return;
     const vehicleDoc = doc(getVehiclesCollection(), id);
-    deleteDoc(vehicleDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: vehicleDoc.path,
-            operation: 'delete',
-        }));
-    });
+    reportWriteFailure(
+        deleteDoc(vehicleDoc),
+        { path: vehicleDoc.path, operation: 'delete' }
+    );
 };

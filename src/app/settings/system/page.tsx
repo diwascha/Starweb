@@ -33,37 +33,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  MoreHorizontal, 
-  Search, 
-  KeyRound, 
-  Loader2,
-  ShieldCheck,
-  History,
-  Terminal,
-  Download,
-  RefreshCcw,
-  BarChart3,
-  MousePointer2,
-  Clock,
-  ArrowUpDown,
-  X,
-  Fingerprint,
-  Mail,
-  User as UserIcon,
-  ShieldAlert,
-  AlertTriangle,
-  ListTree,
-  Monitor,
-  LogOut,
-  Settings2,
-  Save,
-  Sparkles,
-  Timer
-} from 'lucide-react';
+import { Plus, Edit, Trash2, KeyRound, Loader2, ShieldCheck, Download, RefreshCcw, BarChart3, MousePointer2, Clock, ArrowUpDown, Fingerprint, Mail, User as UserIcon, ShieldAlert, AlertTriangle, ListTree, Monitor, LogOut, Settings2, Save, Sparkles, Timer } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -74,13 +44,7 @@ import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onLogsUpdate, type SystemLog } from '@/services/log-service';
 import { onAllSessionsUpdate, revokeSession, cleanupStaleSessions, renameDevice } from '@/services/session-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuTrigger, 
-    DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu';
+
 import { 
     onUsersUpdate,
     saveUser,

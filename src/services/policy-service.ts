@@ -1,6 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, setDoc, query, orderBy } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, setDoc, query, orderBy } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -33,31 +34,14 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
     };
 }
 
-export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
-    try {
-        const snapshot = await getDocs(getPoliciesCollection());
-        return snapshot.docs.map(fromFirestore);
-    } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.POLICIES, operation: 'list' }));
-        }
-        throw error;
-    }
-}
-
 export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise<string> => {
     const docRef = doc(getPoliciesCollection());
     const payload = { ...policy, createdAt: new Date().toISOString() };
     
-    setDoc(docRef, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.POLICIES,
-                operation: 'create',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: COLLECTIONS.POLICIES, operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -79,22 +63,16 @@ export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMemb
     const policyDoc = doc(getPoliciesCollection(), id);
     const payload = { ...policy, lastModifiedAt: new Date().toISOString() };
     
-    updateDoc(policyDoc, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.POLICIES,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        updateDoc(policyDoc, payload),
+        { path: COLLECTIONS.POLICIES, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deletePolicy = async (id: string): Promise<void> => {
     const policyDoc = doc(getPoliciesCollection(), id);
-    deleteDoc(policyDoc).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.POLICIES, operation: 'delete' }));
-        }
-    });
+    reportWriteFailure(
+        deleteDoc(policyDoc),
+        { path: COLLECTIONS.POLICIES, operation: 'delete' }
+    );
 };

@@ -1,11 +1,11 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, setDoc } from 'firebase/firestore';
 import type { UnitOfMeasurement } from '@/lib/types';
-import { logServiceError } from '@/lib/service-utils';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 const getUomCollection = () => {
     const { db } = getFirebase();
     return collection(db, 'uom');
@@ -42,14 +42,13 @@ export const addUom = async (uom: Omit<UnitOfMeasurement, 'id'>): Promise<string
         ...uom,
         createdAt: new Date().toISOString(),
     };
-    const docRef = await addDoc(getUomCollection(), payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'uom',
-            operation: 'create',
-            requestResourceData: payload,
-        }));
-        throw err;
-    });
+    // doc() mints the id locally; setDoc then writes without
+    // blocking on the server, so this works offline too.
+    const docRef = doc(getUomCollection());
+    reportWriteFailure(
+        setDoc(docRef, payload),
+    { path: 'uom', operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -74,22 +73,17 @@ export const updateUom = async (id: string, uom: Partial<Omit<UnitOfMeasurement,
         ...uom,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(uomDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: uomDoc.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
-    });
+    reportWriteFailure(
+        updateDoc(uomDoc, payload),
+        { path: uomDoc.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteUom = async (id: string): Promise<void> => {
     if (!id) return;
     const uomDoc = doc(getUomCollection(), id);
-    deleteDoc(uomDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: uomDoc.path,
-            operation: 'delete',
-        }));
-    });
+    reportWriteFailure(
+        deleteDoc(uomDoc),
+        { path: uomDoc.path, operation: 'delete' }
+    );
 };

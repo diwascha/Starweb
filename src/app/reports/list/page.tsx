@@ -2,29 +2,14 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-    FileText, 
-    Search, 
-    MoreHorizontal, 
-    Printer, 
-    Edit, 
-    Trash2, 
-    ArrowUpDown, 
-    Eye, 
-    Loader2, 
-    FilterX,
-    ChevronLeft,
-    ChevronRight,
-    ArrowLeft,
-    PlusCircle
-} from 'lucide-react';
+import { FileText, Search, MoreHorizontal, Printer, Trash2, ArrowUpDown, Eye, Loader2, ChevronLeft, ChevronRight, ArrowLeft, PlusCircle } from 'lucide-react';
 import type { Report } from '@/lib/types';
 import { onReportsUpdate, deleteReport } from '@/services/report-service';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { 
     DropdownMenu, 
     DropdownMenuContent, 

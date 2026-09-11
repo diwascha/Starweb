@@ -1,8 +1,9 @@
 
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, getDoc, setDoc, onSnapshot, query, where, getDocs, writeBatch, orderBy } from 'firebase/firestore';
-import type { AppSetting, CostSetting, DocumentType, NumberingRule, DocumentPrefixes } from '@/lib/types';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, doc, getDoc, setDoc, onSnapshot, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { AppSetting, CostSetting, DocumentType, NumberingRule } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { COLLECTIONS } from '@/lib/constants';
@@ -56,15 +57,10 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
 export const setSetting = async (id: string, value: any): Promise<void> => {
     if (!id) return;
     const docRef = doc(getSettingsCollection(), id);
-    setDoc(docRef, { value }).catch(async (error: any) => {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'write',
-                requestResourceData: { value },
-            }));
-        }
-    });
+    reportWriteFailure(
+        setDoc(docRef, { value }),
+        { path: docRef.path, operation: 'write', requestResourceData: { value } }
+    );
 };
 
 export const updateCostSettings = async (newCosts: Partial<CostSetting>, updatedBy: string): Promise<void> => {
@@ -72,15 +68,10 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
     const now = new Date().toISOString();
     const payload = { value: { ...newCosts, lastModifiedBy: updatedBy, lastModifiedAt: now } };
 
-    setDoc(docRef, payload, { merge: true }).catch(async (error: any) => {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload, { merge: true }),
+        { path: docRef.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 /**

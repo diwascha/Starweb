@@ -2,19 +2,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import {
-    Users,
-    Calendar,
-    FileText,
-    Award,
-    Wallet,
-    BarChart2,
-    CalendarCheck,
-    Settings2,
-    Upload,
-    Calculator,
-    TrendingUp
-} from 'lucide-react';
+import { Users, Calendar, FileText, Settings2, Upload, TrendingUp } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import HrDashboardClient from './_components/hr-dashboard-client';

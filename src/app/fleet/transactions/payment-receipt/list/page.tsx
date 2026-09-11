@@ -1,33 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  PlusCircle, 
-  Search, 
-  ArrowUpDown, 
-  MoreHorizontal, 
-  Trash2, 
-  Edit, 
-  FilterX, 
-  CalendarIcon, 
-  Loader2,
-  Receipt,
-  Eye,
-  ChevronDown,
-  Printer,
-  Check,
-  User,
-  History,
-  Truck,
-  Users,
-  Wallet,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Trash2, Edit, FilterX, CalendarIcon, Loader2, Receipt, Eye, ChevronDown, Printer, Check, Truck, Users, Wallet, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +18,7 @@ import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

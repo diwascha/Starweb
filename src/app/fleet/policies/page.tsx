@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { PolicyOrMembership, Vehicle, Driver, PolicyStatus } from '@/lib/types';
+import { PolicyOrMembership, Vehicle, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { 
   Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, 
@@ -9,7 +9,7 @@ import {
   RefreshCcw, Archive, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

@@ -10,14 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Printer, RotateCcw, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { NepalChequeView } from './nepal-cheque-print';
-import {
-    CHEQUE_FIELD_LABELS,
-    CHEQUE_LAYOUT_PRESETS,
-    CHEQUE_LAYOUT_SETTING_KEY,
-    LEGACY_LAYOUT,
-    type ChequeFieldKey,
-    type ChequeLayout,
-} from '@/lib/cheque-layout';
+import { CHEQUE_FIELD_LABELS, CHEQUE_LAYOUT_PRESETS, CHEQUE_LAYOUT_SETTING_KEY, LEGACY_LAYOUT, type ChequeFieldKey, type ChequeLayout } from '@/lib/cheque-layout';
 import { setSetting } from '@/services/settings-service';
 
 /**

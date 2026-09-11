@@ -1,61 +1,25 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { AttendanceRecord, Employee, AttendanceStatus, PublicHoliday, LeaveRequest, HrShift, RawMachineLog } from '@/lib/types';
+import { AttendanceRecord, Employee, PublicHoliday, LeaveRequest, HrShift, RawMachineLog } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { 
-    Search, 
-    ArrowUpDown, 
-    Edit, 
-    MoreHorizontal, 
-    Trash2, 
-    Loader2, 
-    Calculator,
-    HardDrive,
-    FilterX,
-    ClipboardList,
-    Plus,
-    UserCheck,
-    AlertCircle,
-    ChevronLeft,
-    ChevronRight,
-    Lock,
-    LockOpen,
-    CalendarClock,
-    LogIn,
-    LogOut,
-    Users
-} from 'lucide-react';
+import { Search, Edit, Trash2, Loader2, Calculator, HardDrive, FilterX, UserCheck, AlertCircle, ChevronLeft, ChevronRight, Lock, LockOpen, CalendarClock, LogIn, LogOut, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { onEmployeesUpdate, updateEmployee } from '@/services/employee-service';
-import {
-    updateAttendanceRecord,
-    deleteAttendanceRecord,
-    deleteAttendanceForMonth,
-    deleteAttendanceAndPayrollForFiscalYear,
-    getAttendanceForMonth,
-    onAttendanceUpdate,
-    deleteAllAttendance,
-    runHourlyCalculation,
-    onAttendancePeriodLocksUpdate,
-    bulkClockInOut,
-    onRawLogsUpdate,
-    updateRawLog,
-    type AttendancePeriodLock
-} from '@/services/attendance-service';
+import { updateAttendanceRecord, deleteAttendanceForMonth, deleteAttendanceAndPayrollForFiscalYear, onAttendanceUpdate, runHourlyCalculation, onAttendancePeriodLocksUpdate, bulkClockInOut, onRawLogsUpdate, updateRawLog, type AttendancePeriodLock } from '@/services/attendance-service';
 import { setFiscalYearPeriodLock, setCombinedPeriodLock } from '@/services/period-lock';
 import { onHolidaysUpdate, onLeaveRequestsUpdate, onShiftsUpdate } from '@/services/hr-admin-service';
-import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate, getAttendanceRowHighlight } from '@/lib/utils';
+import { cn, formatTimeForDisplay, getAttendanceRowHighlight } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { SortableHead } from '@/components/ui/sortable-head';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { Columns3 } from 'lucide-react';
@@ -63,7 +27,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import NepaliDate from 'nepali-date-converter';
 import { format as formatDate, startOfDay, isEqual, isWithinInterval } from 'date-fns';
-import { NEPALI_MONTHS } from '@/lib/constants';
+
 import Link from 'next/link';
 import LedgerImportButton from './_components/ledger-import-button';
 import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';

@@ -7,19 +7,19 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Account, Party, Vehicle, Transaction, AccountOwnership, PartyType } from '@/lib/types';
+
+import { Card } from '@/components/ui/card';
+import { Account, Party, Vehicle, Transaction } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, PlusCircle, Loader2 } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, Loader2 } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format } from 'date-fns';
-import { cn, toNepaliDate, generateNextVoucherNumber } from '@/lib/utils';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+
+import { toNepaliDate, generateNextVoucherNumber } from '@/lib/utils';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
-import { Textarea } from '@/components/ui/textarea';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 
@@ -86,15 +86,19 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Sijan' || a.ownership === 'Both')).sort((a, b) => (a.bankName || '').localeCompare(b.bankName || '')), 
   [accounts]);
 
+  // Suggested once, on the first snapshot. The subscription callback fires on
+  // every change to the transaction ledger, so this used to rewrite the
+  // voucher number in your open form each time anyone else posted anything.
+  const voucherSuggested = React.useRef(false);
   React.useEffect(() => {
-    if (!initialValues?.voucherNo) {
-        const unsub = onTransactionsUpdate(async (txns) => {
-            const pmtRcdTxns = txns.filter(t => t.type === 'Payment' || t.type === 'Receipt');
-            const nextNum = await generateNextVoucherNumber(pmtRcdTxns, 'PRV-');
-            form.setValue('voucherNo', nextNum);
-        });
-        return () => unsub();
-    }
+    if (initialValues?.voucherNo) return;
+    const unsub = onTransactionsUpdate(async (txns) => {
+        if (voucherSuggested.current) return;
+        voucherSuggested.current = true;
+        const pmtRcdTxns = txns.filter(t => t.type === 'Payment' || t.type === 'Receipt');
+        form.setValue('voucherNo', await generateNextVoucherNumber(pmtRcdTxns, 'PRV-'));
+    });
+    return () => unsub();
   }, [initialValues, form]);
 
   const totals = React.useMemo(() => {
