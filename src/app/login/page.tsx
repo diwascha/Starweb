@@ -17,7 +17,7 @@ import { useAuthService } from '@/firebase';
 import { getUserById, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { logAudit } from '@/services/log-service';
-import { exportData } from '@/services/backup-service';
+import { runDailyAutoBackup } from '@/lib/auto-backup';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
 
@@ -103,7 +103,7 @@ export default function LoginPage() {
         return;
       }
 
-      if (cloudUser.isApproved === false) {
+      if (cloudUser.isApproved !== true) {
         await auth.signOut();
         logAudit(`Blocked Login: ${cloudUser.username}`, 'Security');
         toast({ title: 'Account Pending', description: 'Account pending approval.', variant: 'destructive' });
@@ -112,21 +112,14 @@ export default function LoginPage() {
 
       await login(cloudUser, false);
 
-      // Trigger automatic backup download on login
-      try {
-        const backupData = await exportData();
-        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `starsutra-autobackup-${cloudUser.username}-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      } catch (backupError) {
-        console.error("Auto-backup download failed:", backupError);
-      }
+      // Automatic backup, once per day per user rather than on every login.
+      // This used to run unconditionally AND be awaited, so each sign-in read
+      // every document in ~30 collections, waited for the whole database to
+      // serialise, and dropped another near-identical file in Downloads.
+      // Not awaited: the user is already signed in and should not wait on it.
+      void runDailyAutoBackup(cloudUser.username, cloudUser.id).catch(err => {
+        console.error('Auto-backup download failed:', err);
+      });
 
       logAudit(`Successful Login: ${cloudUser.username}`, 'Security');
       toast({ title: 'Welcome', description: `Signed in as ${cloudUser.username}` });
