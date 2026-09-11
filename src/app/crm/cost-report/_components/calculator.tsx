@@ -978,17 +978,34 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
 
         const updatePromises: any[] = [];
         let skippedRateSync = 0;
-        items.forEach(item => {
-            if (!item.productId) return;
-            const product = products.find((p: Product) => p.id === item.productId);
-            if (!product) return;
+        let createdProducts = 0;
+        // Rows that had no catalog entry get one created here; their new ids
+        // are written back into state afterwards so a second save updates
+        // that product instead of creating a duplicate of it.
+        const newProductIds: Record<string, string> = {};
 
-            const updatedSpec: Partial<ProductSpecification> = {
-                ...product.specification,
+        /**
+         * Everything about a costed row that belongs in the catalog's
+         * specification. Deliberately wider than the GSM fields alone: the
+         * PackSpec data sheet prints box type, shade, board grammage, unit
+         * weight and rated load, and those were previously never written, so
+         * a quotation could refine a spec and the catalog would keep showing
+         * the stale one.
+         */
+        const specFromItem = (item: any, base: Partial<ProductSpecification> = {}): Partial<ProductSpecification> => {
+            const pcsParsed = parseInt(item.noOfPcs, 10);
+            const pcs = isNaN(pcsParsed) || pcsParsed <= 0 ? 1 : pcsParsed;
+            // calculated.totalBoxWeight is the gross weight for the whole run,
+            // so it has to come back down to one box for the catalog.
+            const perBoxWeight = (item.calculated?.totalBoxWeight || 0) / pcs;
+            return {
+                ...base,
                 dimension: `${item.l}x${item.b}x${item.h}`,
                 ply: item.ply,
                 paperType: item.paperType,
                 paperBf: item.paperBf,
+                paperShade: item.paperShade || base.paperShade || '',
+                boxType: item.boxType || base.boxType || '',
                 topGsm: item.topGsm,
                 flute1Gsm: item.flute1Gsm,
                 middleGsm: item.middleGsm,
@@ -999,7 +1016,48 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                 flute4Gsm: item.flute4Gsm,
                 bottomGsm: item.bottomGsm,
                 wastagePercent: item.wastagePercent,
+                gsm: item.calculated?.totalGsm ? String(Math.round(item.calculated.totalGsm)) : (base.gsm || ''),
+                weightOfBox: perBoxWeight > 0 ? perBoxWeight.toFixed(1) : (base.weightOfBox || ''),
+                load: item.requiredLoadKg || base.load || '',
             };
+        };
+
+        items.forEach(item => {
+            // A row that was never linked to a catalog product used to be
+            // dropped here entirely, so a quotation built from scratch left
+            // PackSpec empty. Create the product instead - but only once the
+            // row has real dimensions, so blank rows don't litter the catalog.
+            if (!item.productId) {
+                const hasDimensions = (parseFloat(item.l) || 0) > 0 && (parseFloat(item.b) || 0) > 0;
+                if (!hasDimensions) return;
+
+                const derivedName = [
+                    item.boxType || 'BOX',
+                    `${item.l}x${item.b}${(parseFloat(item.h) || 0) > 0 ? `x${item.h}` : ''}`,
+                    `${item.ply || 3} Ply`,
+                ].join(' ');
+
+                createdProducts++;
+                updatePromises.push(
+                    addProductService({
+                        name: derivedName,
+                        partyId: selectedPartyId,
+                        partyName: party?.name || '',
+                        specification: specFromItem(item),
+                        ...(item.layers?.length ? { layers: item.layers } : {}),
+                        accessories: item.accessories?.map(({ calculated, ...rest }: any) => rest),
+                        createdBy: user.username,
+                        createdAt: new Date().toISOString(),
+                        ownership: party?.ownership || 'Shivam',
+                    } as any).then((newId: string) => { newProductIds[item.id] = newId; })
+                );
+                return;
+            }
+
+            const product = products.find((p: Product) => p.id === item.productId);
+            if (!product) return;
+
+            const updatedSpec: Partial<ProductSpecification> = specFromItem(item, product.specification);
 
             // Row's paperCost/transportCost are for the whole noOfPcs run, not
             // a single unit - divide back down before writing to the
@@ -1037,11 +1095,21 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
         });
 
         await Promise.all(updatePromises);
+
+        // Link the rows that just created a catalog entry to it, so saving
+        // again updates that product rather than creating another one.
+        if (Object.keys(newProductIds).length > 0) {
+            setItems(prev => prev.map(i => (newProductIds[i.id] ? { ...i, productId: newProductIds[i.id] } : i)));
+        }
+
+        const notes: string[] = [];
+        if (createdProducts > 0) notes.push(`${createdProducts} new product(s) added to PackSpec.`);
+        if (skippedRateSync > 0) notes.push(`${skippedRateSync} item(s) had a missing rate or zero pieces, so their catalog rate was left unchanged.`);
         toast({
             title: 'Success',
-            description: skippedRateSync > 0
-                ? `Report saved. ${skippedRateSync} item(s) had a missing rate or zero pieces, so their catalog rate was left unchanged.`
-                : 'Report saved and product rates synchronized.'
+            description: notes.length > 0
+                ? `Report saved. ${notes.join(' ')}`
+                : 'Report saved, specifications and rates synchronized to PackSpec.'
         });
         onSaveSuccess();
     } catch (error) {
