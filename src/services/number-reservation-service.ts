@@ -30,6 +30,8 @@ import { getFirebase } from '@/lib/firebase';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { resolveNumberingRule } from '@/lib/utils';
+import type { DocumentType } from '@/lib/types';
 
 /** Pull the numeric tail off a formatted number, e.g. "SPI-042" -> 42. */
 const sequenceOf = (value: string | undefined | null, prefix: string): number => {
@@ -38,8 +40,8 @@ const sequenceOf = (value: string | undefined | null, prefix: string): number =>
     return isNaN(n) ? 0 : n;
 };
 
-export const formatSequence = (prefix: string, sequence: number): string =>
-    `${prefix}${sequence.toString().padStart(3, '0')}`;
+export const formatSequence = (prefix: string, sequence: number, pad: number = 3): string =>
+    `${prefix}${sequence.toString().padStart(pad, '0')}`;
 
 /**
  * Reserve the next number for `prefix`, atomically.
@@ -51,12 +53,16 @@ export const formatSequence = (prefix: string, sequence: number): string =>
  * @param existing     numbers already in use, used to seed and floor the
  *                     counter so it can never reissue one.
  * @param startingAt   the numbering rule's configured starting number.
+ * @param pad          zero-padding width. Every module but cost reports uses
+ *                     three digits; cost reports have always been CR-0001, and
+ *                     changing that would renumber existing quotations.
  */
 export const reserveNextNumber = async (
     counterKey: string,
     prefix: string,
     existing: (string | undefined | null)[],
-    startingAt: number = 1
+    startingAt: number = 1,
+    pad: number = 3
 ): Promise<string> => {
     const { db } = getFirebase();
     // The prefix is part of the id, so changing prefix mid-year starts a
@@ -86,7 +92,7 @@ export const reserveNextNumber = async (
                 updatedAt: new Date().toISOString(),
             }, { merge: true });
 
-            return formatSequence(prefix, next);
+            return formatSequence(prefix, next, pad);
         });
     } catch (error: any) {
         if (error?.code === 'permission-denied') {
@@ -97,4 +103,22 @@ export const reserveNextNumber = async (
         }
         throw error;
     }
+};
+
+/**
+ * Resolve the numbering rule for a document type and reserve the next number
+ * in one call - the shape every save path wants.
+ *
+ * Pass the numbers already in use (the forms all hold the collection anyway,
+ * to render their preview) so the counter is floored correctly and can never
+ * reissue one.
+ */
+export const reserveNumberFor = async (
+    documentType: DocumentType,
+    defaultPrefix: string,
+    existingNumbers: (string | undefined | null)[],
+    documentDate?: string
+): Promise<string> => {
+    const { prefix, startNum } = await resolveNumberingRule(documentType, defaultPrefix, documentDate);
+    return reserveNextNumber(documentType, prefix, existingNumbers, startNum);
 };

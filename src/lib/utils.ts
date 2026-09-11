@@ -150,6 +150,33 @@ export const resolveNumberingRule = async (
 };
 
 /**
+ * Pull the document numbers out of a list of records.
+ *
+ * Voucher-style documents don't all keep their number in the same place -
+ * fleet transactions in particular carry it as a referenceId, or only inside
+ * the first line's narration. Both the preview (generateNextNumber) and the
+ * atomic reservation must read them the same way, or the reservation would be
+ * floored against an empty list and reissue a number that is already in use.
+ */
+export const extractNumbers = (
+  items: any[],
+  fieldName: string,
+  settingKey: DocumentType
+): (string | undefined | null)[] => {
+  const isVoucherStyle = settingKey === 'paymentReceipt' || settingKey === 'tdsVoucher'
+    || settingKey === 'chequeVoucher' || settingKey === 'gsmVoucher' || settingKey === 'paymentTracker';
+
+  return items.map(item => {
+    if (isVoucherStyle) {
+      if ('voucherNo' in item) return item.voucherNo;
+      if ('referenceId' in item) return item.referenceId;
+      return (item as Transaction).items?.[0]?.particular?.replace(/ .*/, '');
+    }
+    return item[fieldName];
+  });
+};
+
+/**
  * The number a form SHOWS while it is being filled in.
  *
  * This is a preview, not a reservation - it is computed from the caller's
@@ -166,18 +193,7 @@ export const generateNextNumber = async (
 ): Promise<string> => {
   const { prefix, startNum } = await resolveNumberingRule(settingKey, defaultPrefix, documentDate);
 
-  const numberStrings = items.map(item => {
-      // Handle complex items like Transactions which store the ID in specific fields or narratives
-      if (settingKey === 'paymentReceipt' || settingKey === 'tdsVoucher' || settingKey === 'chequeVoucher' || settingKey === 'gsmVoucher' || settingKey === 'paymentTracker') {
-          if ('voucherNo' in item) return item.voucherNo;
-          if ('referenceId' in item) return item.referenceId;
-          // For generic transactions, extract from particular narrative
-          return (item as Transaction).items?.[0]?.particular?.replace(/ .*/, '');
-      }
-      return item[fieldName];
-  });
-  
-  return calculateNextSequence(numberStrings, prefix, startNum);
+  return calculateNextSequence(extractNumbers(items, fieldName, settingKey), prefix, startNum);
 };
 
 export const generateNextSerialNumber = (reports: Pick<Report, 'serialNumber'>[], date?: string) =>

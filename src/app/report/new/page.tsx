@@ -19,6 +19,7 @@ import type { Product, Report, ProductSpecification } from '@/lib/types';
 import { onProductsUpdate } from '@/services/product-service';
 import { addReport, onReportsUpdate } from '@/services/report-service';
 import { generateNextSerialNumber, toNepaliDate } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,8 +105,11 @@ export default function NewReportPage() {
         if (!user || !selectedProduct) return;
         setIsSaving(true);
         try {
+            const serialNumber = await reserveNumberFor(
+                'report', '2082-083-', allReports.map(r => r.serialNumber), formData.date.toISOString(),
+            );
             const reportId = await addReport({
-                serialNumber: formData.serialNumber,
+                serialNumber,
                 taxInvoiceNumber: formData.taxInvoiceNumber || 'N/A',
                 challanNumber: formData.challanNumber || 'N/A',
                 quantity: formData.quantity || 'N/A',

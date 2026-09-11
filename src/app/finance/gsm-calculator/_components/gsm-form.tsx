@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onGsmReportsUpdate, addGsmReport, updateGsmReport } from '@/services/gsm-service';
 import { generateNextGsmNumber, toNepaliDate, cn, generateId } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import type { Party, GsmReport, GsmEntry } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -197,8 +198,11 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                 await updateGsmReport(reportToEdit.id, { ...reportData, lastModifiedBy: user.username });
                 toast({ title: 'Report Updated', description: `Voucher ${voucherNo} modified.` });
             } else {
-                await addGsmReport(reportData);
-                toast({ title: 'Report Saved', description: `Voucher ${voucherNo} archived.` });
+                const reserved = await reserveNumberFor(
+                    'gsmVoucher', 'GSM-', allReports.map(r => r.voucherNo), date.toISOString(),
+                );
+                await addGsmReport({ ...reportData, voucherNo: reserved });
+                toast({ title: 'Report Saved', description: `Voucher ${reserved} archived.` });
             }
             
             setEntries([{ id: generateId(), reelNumber: '', weight: '', length: '', width: '', gsm: 0 }]);

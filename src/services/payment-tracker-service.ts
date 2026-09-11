@@ -20,7 +20,7 @@ import type { PaymentTrackerEntry } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { generateNextPaymentTrackerNumber } from '@/lib/utils';
+import { reserveNumberFor } from './number-reservation-service';
 
 const getCollection = () => {
     const { db } = getFirebase();
@@ -142,7 +142,7 @@ export const addPaymentEntry = async (entry: Omit<PaymentTrackerEntry, 'id' | 'c
     
     const snap = await getDocs(getCollection());
     const existing = snap.docs.map(fromFirestore);
-    const voucherNo = await generateNextPaymentTrackerNumber(existing, entry.date);
+    const voucherNo = await reserveNumberFor('paymentTracker', 'PT-', existing.map(e => e.voucherNo), entry.date);
 
     const payload = {
         ...entry,

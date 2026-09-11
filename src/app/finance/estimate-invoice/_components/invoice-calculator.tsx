@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Trash2, Printer, Save, Loader2, Plus, Image as ImageIcon, ChevronDown, X } from 'lucide-react';
 import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber, generateId } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
@@ -233,8 +234,13 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                  toast({ title: 'Estimate invoice updated.' });
                  onSaveSuccess();
             } else {
-                await addEstimatedInvoice(dataToSave);
-                toast({ title: 'Estimate invoice saved.' });
+                // Reserved atomically at save - the number on screen while
+                // filling the form is only a preview from this client's list.
+                const reserved = await reserveNumberFor(
+                    'estimateInvoice', 'EST-', allInvoices.map(i => i.invoiceNumber), date.toISOString(),
+                );
+                await addEstimatedInvoice({ ...dataToSave, invoiceNumber: reserved });
+                toast({ title: `Estimate invoice ${reserved} saved.` });
                 setDate(new Date());
                 setParty(null);
                 setItems([{ id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }]);

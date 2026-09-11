@@ -23,6 +23,7 @@ import {
   addCostReport, 
   updateCostReport,
   generateNextCostReportNumber, 
+  reserveCostReportNumber, 
 } from '@/services/cost-report-service';
 import { onDealsUpdate } from '@/services/deal-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -1108,8 +1109,15 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
     setIsSaving(true);
     try {
         const party = parties.find(p => p.id === selectedPartyId);
+        // An edit keeps its number; a new quotation claims one atomically here.
+        // The number on screen is only a preview computed from the local list,
+        // so two people saving at once would otherwise both get it.
+        const finalReportNumber = reportToEdit
+            ? reportNumber
+            : await reserveCostReportNumber(costReports);
+
         const reportData: Omit<CostReport, 'id' | 'createdAt'> = {
-            reportNumber,
+            reportNumber: finalReportNumber,
             reportDate: reportDate.toISOString(),
             partyId: selectedPartyId,
             partyName: party?.name || 'N/A',

@@ -11,6 +11,7 @@ import { onAccountsUpdate } from '@/services/account-service';
 import { onUomsUpdate } from '@/services/uom-service';
 import { onTransactionsUpdate, addTransaction } from '@/services/transaction-service';
 import { generateNextPurchaseNumber } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import type { Vehicle, Party, Account, Transaction, UnitOfMeasurement } from '@/lib/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -53,8 +54,20 @@ export default function NewPurchaseEntryPage() {
         const vat = values.invoiceType === 'Taxable' ? subtotal * 0.13 : 0;
         const total = subtotal + vat;
 
+        // The purchase number on the form is a preview computed from the local
+        // list; claim the real one atomically so two simultaneous entries can't
+        // both be filed under it.
+        const purchases = transactions.filter(t => t.type === 'Purchase' || t.referenceType === 'Purchase Entry');
+        const reservedPurchaseNo = await reserveNumberFor(
+            'purchase',
+            'PUR-',
+            purchases.map(t => t.purchaseNumber),
+            values.date.toISOString()
+        );
+
         const txnPayload: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
             ...values,
+            purchaseNumber: reservedPurchaseNo,
             date: values.date.toISOString(),
             invoiceDate: values.invoiceDate?.toISOString() || null,
             chequeDate: values.chequeDate?.toISOString() || null,
@@ -62,14 +75,14 @@ export default function NewPurchaseEntryPage() {
             type: values.billingType === 'Credit' ? 'Purchase' : 'Payment',
             amount: total,
             referenceType: 'Purchase Entry',
-            referenceId: values.purchaseNumber,
+            referenceId: reservedPurchaseNo,
             ownership: 'Sijan',
             createdBy: user.username
         };
 
         try {
             await addTransaction(txnPayload);
-            toast({ title: 'Success', description: 'Purchase recorded.' });
+            toast({ title: 'Success', description: `Purchase ${reservedPurchaseNo} recorded.` });
             router.push('/fleet/transactions/purchase');
         } catch {
             toast({ title: 'Error', variant: 'destructive' });

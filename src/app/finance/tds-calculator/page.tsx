@@ -28,6 +28,7 @@ import {
     PlusCircle
 } from 'lucide-react';
 import { toNepaliDate, toWords, generateNextVoucherNumber, cn } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
 import {
@@ -287,6 +288,22 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
     return () => unsubParties();
   }, []);
 
+  // Held in a ref so the voucher list can seed the number reservation at save
+  // time without the subscription being torn down and rebuilt on every edit.
+  const allCalcsRef = useRef<TdsCalculation[]>([]);
+  const calculationToEditRef = useRef(calculationToEdit);
+  calculationToEditRef.current = calculationToEdit;
+
+  useEffect(() => {
+    const unsub = onTdsCalculationsUpdate(async (calcs) => {
+        allCalcsRef.current = calcs;
+        if (calculationToEditRef.current) return;
+        const prefix = await getTdsPrefix();
+        setVoucherNo(await generateNextVoucherNumber(calcs, prefix));
+    });
+    return () => unsub();
+  }, []);
+
   useEffect(() => {
     if (calculationToEdit) {
         setVoucherNo(calculationToEdit.voucherNo);
@@ -297,11 +314,9 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         setSelectedRateValue(String(calculationToEdit.tdsRate));
         setIncludeVat(calculationToEdit.vatAmount > 0);
     } else {
-        onTdsCalculationsUpdate(async (calcs) => {
-            const prefix = await getTdsPrefix();
-            const next = await generateNextVoucherNumber(calcs, prefix);
-            setVoucherNo(next);
-        });
+        getTdsPrefix()
+            .then(prefix => generateNextVoucherNumber(allCalcsRef.current, prefix))
+            .then(setVoucherNo);
     }
   }, [calculationToEdit]);
 
@@ -323,8 +338,21 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const handleSave = async () => {
     if (!user || !amount || amount <= 0) return;
     try {
-        if (calculationToEdit) await updateTdsCalculation(calculationToEdit.id, calculationData);
-        else await addTdsCalculation(calculationData);
+        if (calculationToEdit) {
+            await updateTdsCalculation(calculationToEdit.id, calculationData);
+        } else {
+            // The voucher number on screen is only a preview; claim a real one
+            // now so two people saving at the same moment can't both get it.
+            const prefix = await getTdsPrefix();
+            const reserved = await reserveNumberFor(
+                'tdsVoucher',
+                prefix,
+                allCalcsRef.current.map(c => c.voucherNo),
+                date.toISOString()
+            );
+            await addTdsCalculation({ ...calculationData, voucherNo: reserved });
+            setVoucherNo(reserved);
+        }
         toast({ title: "Saved Successfully" });
         onSaveSuccess();
     } catch {

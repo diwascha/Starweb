@@ -45,6 +45,7 @@ import {
 import { onSettingUpdate } from '@/services/settings-service';
 import type { PaymentTrackerEntry, CompanyProfile } from '@/lib/types';
 import { cn, toNepaliDate, generateId, generateNextPaymentTrackerNumber } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
@@ -307,8 +308,16 @@ export default function PaymentTrackerPage() {
 
         setIsSaving(true);
         try {
+            // An edit keeps the voucher number it was filed under. A new
+            // voucher takes its number now, atomically - the one on screen is
+            // only a preview and two people finalizing at once would otherwise
+            // both file under it.
+            const finalVoucherNo = isEditing && editingSourceVoucherNo
+                ? voucherNo
+                : await reserveNumberFor('paymentTracker', 'PT-', savedEntries.map(e => e.voucherNo), entryDate.toISOString());
+
             const payload = {
-                voucherNo,
+                voucherNo: finalVoucherNo,
                 date: entryDate.toISOString(),
                 entries: validEntries.map(e => ({
                     type: e.type,
@@ -326,7 +335,7 @@ export default function PaymentTrackerPage() {
                 await savePaymentVoucher(payload);
             }
 
-            toast({ title: isEditing ? 'Voucher Updated' : 'Voucher Saved', description: `Voucher ${voucherNo} archived.` });
+            toast({ title: isEditing ? 'Voucher Updated' : 'Voucher Saved', description: `Voucher ${finalVoucherNo} archived.` });
             
             resetDraft();
             setActiveTab('history');

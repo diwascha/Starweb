@@ -16,6 +16,7 @@ import { CalendarIcon, PlusCircle, Trash2, ChevronsUpDown, Check, Plus, X } from
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format, differenceInDays } from 'date-fns';
 import { cn, toNepaliDate, generateNextSalesNumber } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -415,8 +416,11 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 toast({ title: 'Success', description: 'Sales - Trip Sheet updated successfully.' });
                 router.push('/fleet/trip-sheets');
             } else {
-                await addTrip(tripDataForDb);
-                toast({ title: 'Success', description: 'Sales - Trip Sheet created and transaction recorded.' });
+                const reserved = await reserveNumberFor(
+                    'sales', 'SALE-', trips.map(t => t.tripNumber), values.date.toISOString(),
+                );
+                await addTrip({ ...tripDataForDb, tripNumber: reserved });
+                toast({ title: 'Success', description: `Sales - Trip Sheet ${reserved} created and transaction recorded.` });
                 router.push('/fleet/transactions');
             }
 

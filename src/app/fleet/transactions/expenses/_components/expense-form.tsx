@@ -33,6 +33,7 @@ import {
     ArrowRightLeft
 } from 'lucide-react';
 import { cn, toNepaliDate, generateNextExpenseNumber } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Destination } from '@/lib/types';
 import type { Expense, ExpenseType } from '@/lib/expense-types';
 import { addExpense, updateExpense, onExpensesUpdate } from '@/services/expense-service';
@@ -210,8 +211,13 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 await updateExpense(expenseToEdit.id, payload as any, user.username);
                 toast({ title: 'Success', description: 'Payment record updated.' });
             } else {
-                await addExpense({ ...payload as any, createdBy: user.username });
-                toast({ title: 'Success', description: 'Payment recorded.' });
+                // Reserved atomically at save; the number in the form is a
+                // preview computed from this client's list.
+                const reserved = await reserveNumberFor(
+                    'expense', 'EXP-', allExpenses.map(e => e.voucherNo), values.date.toISOString(),
+                );
+                await addExpense({ ...payload as any, voucherNo: reserved, createdBy: user.username });
+                toast({ title: 'Success', description: `Payment recorded as ${reserved}.` });
             }
             router.push('/fleet/transactions/expenses');
         } catch (error: any) {
