@@ -51,7 +51,9 @@ import {
   Layers,
   Boxes,
   ChevronRight,
-  ChevronsLeftRight
+  ChevronsLeftRight,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { 
   Table, 
@@ -84,6 +86,42 @@ import { ProductForm } from './product-form';
 import { BoxDesigner } from './box-designer';
 
 const ManageTermsDialog = React.lazy(() => import('./terms-dialog').then(m => ({ default: m.ManageTermsDialog })));
+
+/**
+ * One collapsible sub-section of the Quotation Setup panel.
+ *
+ * The four sections sat open side by side, which is fine on a monitor and a
+ * wall of scrolling on a phone where the grid collapses to one column. Each
+ * now opens on its own and shows a summary line when shut, so the panel can
+ * be read at a glance and only the section being edited takes space.
+ */
+const SetupSection = ({ title, summary, open, onToggle, action, children }: {
+    title: string;
+    summary?: React.ReactNode;
+    open: boolean;
+    onToggle: () => void;
+    action?: React.ReactNode;
+    children: React.ReactNode;
+}) => (
+    <Collapsible open={open} onOpenChange={onToggle} className="border rounded-md bg-background xl:border-0 xl:rounded-none xl:bg-transparent">
+        <div className="flex items-center border-b xl:pb-1.5">
+            <CollapsibleTrigger asChild>
+                <button type="button" className="flex-1 min-w-0 flex items-center gap-1.5 px-2.5 py-2 xl:px-0 xl:py-0 text-left hover:bg-muted/40 xl:hover:bg-transparent transition-colors">
+                    {open ? <ChevronUp className="h-3 w-3 shrink-0 text-muted-foreground" />
+                          : <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground shrink-0">{title}</span>
+                    {!open && summary && (
+                        <span className="text-[10px] text-muted-foreground/80 truncate">&middot; {summary}</span>
+                    )}
+                </button>
+            </CollapsibleTrigger>
+            {action && <div className="pr-1.5 xl:pr-0 shrink-0">{action}</div>}
+        </div>
+        <CollapsibleContent>
+            <div className="space-y-4 p-2.5 pt-3 xl:p-0 xl:pt-4">{children}</div>
+        </CollapsibleContent>
+    </Collapsible>
+);
 
 /**
  * Clickable header for a collapsible column group.
@@ -693,10 +731,30 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
   // makes the server and client markup disagree on hydration.
   const [collapsedGroups, setCollapsedGroups] = useState({ spec: false, gsm: false, calc: false });
 
+  // Which Quotation Setup sub-sections are open. Only Report Identity starts
+  // open - it's the one a new quotation always needs - and the rest show a
+  // summary line until opened. Remembered per browser like the column groups.
+  const [openSetupSections, setOpenSetupSections] = useState<Record<string, boolean>>({ identity: true });
+
+  const toggleSetupSection = useCallback((key: string) => {
+    setOpenSetupSections(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem('costing-setup-sections', JSON.stringify(next)); } catch { /* not worth failing an edit over */ }
+      return next;
+    });
+  }, []);
+
+  // Take-up factors are a mill parameter, changed once in a long while and
+  // wrong-by-accident is expensive, so the inputs start locked every time.
+  // Deliberately not persisted: unlocking is meant to be a per-sitting act.
+  const [takeUpLocked, setTakeUpLocked] = useState(true);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem('costing-collapsed-groups');
       if (saved) setCollapsedGroups(prev => ({ ...prev, ...JSON.parse(saved) }));
+      const savedSections = localStorage.getItem('costing-setup-sections');
+      if (savedSections) setOpenSetupSections(prev => ({ ...prev, ...JSON.parse(savedSections) }));
     } catch { /* private mode, or a corrupt value - the defaults are fine */ }
   }, []);
 
@@ -1312,8 +1370,12 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             <CollapsibleContent>
                 <CardContent className="pt-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-6">
-                        <div className="space-y-4">
-                            <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5">Report Identity</h3>
+                        <SetupSection
+                            title="Report Identity"
+                            open={!!openSetupSections.identity}
+                            onToggle={() => toggleSetupSection('identity')}
+                            summary={`${parties.find(p => p.id === selectedPartyId)?.name || 'No client'} · ${reportNumber || '-'}`}
+                        >
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1"><Label className="text-[10px] font-bold">Report No</Label><Input value={reportNumber} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
                                 <div className="space-y-1"><Label className="text-[10px] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><CalendarIcon className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
@@ -1363,10 +1425,14 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                     </Select>
                                 </div>
                             )}
-                        </div>
+                        </SetupSection>
 
-                        <div className="space-y-4">
-                            <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5">Global Rates (NPR)</h3>
+                        <SetupSection
+                            title="Global Rates (NPR)"
+                            open={!!openSetupSections.rates}
+                            onToggle={() => toggleSetupSection('rates')}
+                            summary={`${Object.keys(kraftPaperCosts).length} BF rates · conv ${conversionCost || 0}`}
+                        >
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2 col-span-2">
                                     <Label className="text-[10px] font-bold text-muted-foreground">KRAFT BF RATES</Label>
@@ -1390,7 +1456,23 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                 saved with the quotation - re-opening an old report
                                 costs it with the factors it was quoted at. */}
                             <div>
-                                <Label className="text-[10px] font-bold text-muted-foreground">Flute Take-up Factor</Label>
+                                <div className="flex items-center justify-between gap-2">
+                                    <Label className="text-[10px] font-bold text-muted-foreground">Flute Take-up Factor</Label>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setTakeUpLocked(v => !v)}
+                                        title={takeUpLocked
+                                            ? 'Locked - these are mill parameters and rarely change. Click to edit.'
+                                            : 'Unlocked - click to lock again. Locks itself next time the page opens.'}
+                                        className={cn('h-6 px-1.5 text-[9px] font-black uppercase tracking-widest gap-1',
+                                            takeUpLocked ? 'text-muted-foreground' : 'text-amber-600')}
+                                    >
+                                        {takeUpLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                                        {takeUpLocked ? 'Locked' : 'Editing'}
+                                    </Button>
+                                </div>
                                 <div className="grid grid-cols-2 gap-1.5 mt-1">
                                     {Object.entries(FLUTE_PROFILES).map(([k, p]) => {
                                         const effective = resolveTakeUp(k, fluteTakeUps);
@@ -1403,7 +1485,8 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                                 <Input
                                                     type="number"
                                                     step="0.01"
-                                                    className="h-8 text-xs px-2"
+                                                    disabled={takeUpLocked}
+                                                    className={cn('h-8 text-xs px-2', takeUpLocked && 'bg-muted/50 cursor-not-allowed')}
                                                     placeholder={String(p.takeUp)}
                                                     value={fluteTakeUps[k] ?? ''}
                                                     onChange={e => {
@@ -1422,7 +1505,9 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                     })}
                                 </div>
                                 <p className="text-[9px] text-muted-foreground mt-1 leading-tight">
-                                    Blank uses the default. Saved with this quotation, so changing it later won&apos;t reprice past reports.
+                                    {takeUpLocked
+                                        ? 'Unlock to change. Blank uses the default.'
+                                        : 'Blank uses the default. Saved with this quotation, so changing it later won\u2019t reprice past reports.'}
                                 </p>
                             </div>
 
@@ -1442,13 +1527,15 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                     ))}
                                 </div>
                             </div>
-                        </div>
+                        </SetupSection>
 
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between border-b pb-1.5">
-                                <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">T&amp;C and Logistics</h3>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1" onClick={() => setIsManageTermsDialogOpen(true)} title="Manage Master Terms"><Settings2 className="h-3 w-3" /></Button>
-                            </div>
+                        <SetupSection
+                            title="T&C and Logistics"
+                            open={!!openSetupSections.terms}
+                            onToggle={() => toggleSetupSection('terms')}
+                            summary={`${termsAndConditions.filter(t => t.isSelected).length} terms · transport ${transportCost || 0} ${transportCostType === 'Per Piece' ? '/pc' : '/consignment'}`}
+                            action={<Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsManageTermsDialogOpen(true)} title="Manage Master Terms"><Settings2 className="h-3 w-3" /></Button>}
+                        >
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1"><Label className="text-[10px] font-bold">Transport</Label><Input type="number" value={transportCost ?? ''} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
                                 <div className="space-y-1"><Label className="text-[10px] font-bold">Basis</Label>
@@ -1484,10 +1571,14 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                     <ScrollBar orientation="vertical" />
                                 </ScrollArea>
                             </div>
-                        </div>
+                        </SetupSection>
 
-                        <div className="space-y-4">
-                            <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5">Quotation Meta</h3>
+                        <SetupSection
+                            title="Quotation Meta"
+                            open={!!openSetupSections.meta}
+                            onToggle={() => toggleSetupSection('meta')}
+                            summary={`${status}${validUntilBS ? ` · valid ${validUntilBS}` : ''}`}
+                        >
                             <div className="space-y-1">
                                 <Label className="text-[10px] font-bold">Valid Until (BS)</Label>
                                 <Input value={validUntilBS} onChange={e => setValidUntilBS(e.target.value)} placeholder="YYYY/MM/DD" className="h-8 text-xs font-mono" />
@@ -1509,7 +1600,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                     </SelectContent>
                                 </Select>
                             </div>
-                        </div>
+                        </SetupSection>
                     </div>
                 </CardContent>
             </CollapsibleContent>
