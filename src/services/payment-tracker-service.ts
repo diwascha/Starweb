@@ -20,7 +20,6 @@ import type { PaymentTrackerEntry } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { reserveNumberFor } from './number-reservation-service';
 
 const getCollection = () => {
     const { db } = getFirebase();
@@ -88,6 +87,10 @@ export const savePaymentVoucher = async (data: {
                 requestResourceData: data,
             }));
         }
+        // Rethrow: the caller has already reserved a voucher number by this
+        // point, so a swallowed failure would report success, leave nothing
+        // saved, and burn that number out of the sequence for good.
+        throw err;
     });
 };
 
@@ -136,32 +139,6 @@ export const replacePaymentVoucher = async (oldVoucherNo: string, data: {
     });
 };
 
-export const addPaymentEntry = async (entry: Omit<PaymentTrackerEntry, 'id' | 'createdAt'>): Promise<string> => {
-    const { db } = getFirebase();
-    const docRef = doc(getCollection());
-    
-    const snap = await getDocs(getCollection());
-    const existing = snap.docs.map(fromFirestore);
-    const voucherNo = await reserveNumberFor('paymentTracker', 'PT-', existing.map(e => e.voucherNo), entry.date);
-
-    const payload = {
-        ...entry,
-        voucherNo,
-        createdAt: new Date().toISOString(),
-    };
-    
-    setDoc(docRef, payload).catch(async (err) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.PAYMENT_TRACKER,
-                operation: 'create',
-                requestResourceData: payload,
-            }));
-        }
-    });
-    return docRef.id;
-};
-
 export const updatePaymentEntry = async (id: string, updates: Partial<PaymentTrackerEntry>): Promise<void> => {
     const docRef = doc(getCollection(), id);
     const payload = {
@@ -208,5 +185,6 @@ export const deletePaymentVoucher = async (voucherNo: string): Promise<void> => 
                 operation: 'write'
             }));
         }
+        throw err;
     });
 };
