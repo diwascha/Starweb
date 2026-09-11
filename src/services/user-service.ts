@@ -157,12 +157,17 @@ export const saveUser = async (user: User) => {
 
     if (user.username && user.email) {
         const usernameRef = doc(db, COLLECTIONS.USERNAMES, user.username.toLowerCase().trim());
+        // `uid` is what ties this public lookup document to an account. The
+        // rules require it to match the caller (or the caller to be an admin),
+        // which is what stops a signed-in user squatting someone else's name.
+        const usernamePayload = {
+            uid: user.id,
+            email: user.email.toLowerCase().trim(),
+            username: user.username.toLowerCase().trim(),
+        };
         reportWriteFailure(
-            setDoc(usernameRef, { 
-            email: user.email.toLowerCase().trim(), 
-            username: user.username.toLowerCase().trim() 
-        }, { merge: true }),
-            { path: usernameRef.path, operation: 'write' }
+            setDoc(usernameRef, usernamePayload, { merge: true }),
+            { path: usernameRef.path, operation: 'write', requestResourceData: usernamePayload }
         );
     }
 };
@@ -231,10 +236,21 @@ export const loginWithUsername = async (auth: Auth, loginString: string, passwor
         if (snap.exists()) {
             email = snap.data()?.email || login;
         } else {
-            const q = query(collection(db, COLLECTIONS.SYSTEM_USERS), where("username", "==", login), limit(1));
-            const userSnap = await getDocs(q);
-            if (!userSnap.empty) {
-                email = userSnap.docs[0].data().email;
+            // Legacy fallback for accounts created before the `usernames`
+            // collection existed. It cannot succeed for an anonymous caller -
+            // this runs BEFORE sign-in, and listing system_users is admin-only -
+            // so a denial here is expected, not exceptional. Swallow it and let
+            // the sign-in below fail with the normal generic credential error;
+            // throwing instead would both break login and, by failing
+            // differently for a known username, leak which accounts exist.
+            try {
+                const q = query(collection(db, COLLECTIONS.SYSTEM_USERS), where("username", "==", login), limit(1));
+                const userSnap = await getDocs(q);
+                if (!userSnap.empty) {
+                    email = userSnap.docs[0].data().email;
+                }
+            } catch {
+                /* resolve as the raw login and let Firebase Auth reject it */
             }
         }
     }

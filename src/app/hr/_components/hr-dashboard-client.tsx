@@ -12,13 +12,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { onAttendanceUpdate } from '@/services/attendance-service';
+import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
 import { onPayrollUpdate } from '@/services/payroll-service';
 import NepaliDate from 'nepali-date-converter';
 import {
     getFiscalYearStart,
     getFiscalYearMonths,
-    getAvailableFiscalYears,
+    getFiscalYearsForBsYears,
+    getFiscalYearBsYears,
     formatFiscalYear,
 } from '@/lib/fiscal-year';
 import { aggregatePerformanceMetricsWithTrend, type PeriodPerformanceMetrics } from '@/lib/performance-metrics';
@@ -41,24 +42,39 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
 
    useEffect(() => {
        const unsubEmployees = onEmployeesUpdate(setEmployees);
-       const unsubAttendance = onAttendanceUpdate(setAttendance);
        const unsubPayroll = onPayrollUpdate(setPayroll);
 
        return () => {
            unsubEmployees();
-           unsubAttendance();
            unsubPayroll();
        }
     }, []);
 
+   // The dashboard summarises one fiscal year at a time, so it subscribes to
+   // one fiscal year at a time.
+   useEffect(() => {
+       const unsubAttendance = onAttendanceUpdate(
+           { bsYears: getFiscalYearBsYears(parseInt(selectedFiscalYear)) },
+           setAttendance
+       );
+       return () => unsubAttendance();
+   }, [selectedFiscalYear]);
+
+   // From a bounded probe of which BS years hold data. Deriving this from
+   // `attendance` would be circular now that attendance is scoped to the
+   // selected year.
+   const [dataBsYears, setDataBsYears] = useState<number[]>([]);
+   useEffect(() => {
+       let cancelled = false;
+       getAttendanceYears().then(years => { if (!cancelled) setDataBsYears(years); });
+       return () => { cancelled = true; };
+   }, []);
+
    const availableFiscalYears = useMemo(() => {
-       const years = getAvailableFiscalYears([
-           ...attendance.map(r => ({ bsYear: r.bsYear, bsMonth: r.bsMonth })),
-           ...payroll.map(p => ({ bsYear: p.bsYear, bsMonth: p.bsMonth })),
-       ]);
+       const years = getFiscalYearsForBsYears(dataBsYears);
        const current = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
        return years.includes(current) ? years : [current, ...years].sort((a, b) => b - a);
-   }, [attendance, payroll]);
+   }, [dataBsYears]);
 
    const fyStart = parseInt(selectedFiscalYear);
    const fyMonths = useMemo(() => getFiscalYearMonths(fyStart), [fyStart]);

@@ -13,10 +13,12 @@ import {
     where,
     updateDoc,
     deleteDoc,
-    orderBy
+    orderBy,
+    limit
 } from 'firebase/firestore';
 import type { AttendanceRecord, RawMachineLog } from '@/lib/types';
 import { format } from 'date-fns';
+import NepaliDate from 'nepali-date-converter';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -102,34 +104,108 @@ const fromFirestoreRecord = (snapshot: QueryDocumentSnapshot<DocumentData>): Att
     };
 };
 
-export const onRawLogsUpdate = (callback: (logs: RawMachineLog[]) => void): () => void => {
-    const collectionRef = getRawLogsCollection();
-    const q = query(collectionRef, orderBy('importedAt', 'desc'));
-    return onSnapshot(q, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestoreLog));
-    }, async (error) => {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'raw_machine_logs',
-                operation: 'list'
-            }));
+/**
+ * Which BS years a listener should stream.
+ *
+ * These two collections grow without bound - a row per employee per day,
+ * forever - and both listeners used to attach to the whole thing. Every HR
+ * screen therefore downloaded every attendance record ever imported, on every
+ * mount, and the cost grew every month.
+ *
+ * Scoping by BS YEAR rather than by month is deliberate. A Nepali fiscal year
+ * spans exactly two BS years (Shrawan of one through Ashadh of the next), and
+ * all four callers already work in fiscal years and already narrow to the
+ * precise month client-side. A single `where('bsYear', '==', y)` equality is
+ * enough to cut the read from "all history" to "the selected year", and being
+ * equality-only it needs NO composite index and no backfill of existing rows.
+ */
+export interface AttendanceScope {
+    /** Usually the two BS years of a fiscal year. Empty streams nothing. */
+    bsYears: number[];
+}
+
+/**
+ * Fan a listener out over several BS years and merge the results.
+ *
+ * Firestore has no `IN` on a field you also want live updates for without an
+ * index, so one listener per year and a merge is both simpler and cheaper than
+ * a composite query. Each year's slice is held separately and the callback
+ * fires with the union whenever any slice changes.
+ */
+const streamByBsYear = <T>(
+    getCollection: () => ReturnType<typeof collection>,
+    scope: AttendanceScope,
+    map: (snap: QueryDocumentSnapshot<DocumentData>) => T,
+    path: string,
+    callback: (rows: T[]) => void
+): () => void => {
+    const years = Array.from(new Set(scope.bsYears.filter(y => Number.isFinite(y) && y > 0)));
+
+    // No year selected yet: report empty rather than falling back to the whole
+    // collection, which is the behaviour being removed.
+    if (years.length === 0) {
+        callback([]);
+        return () => {};
+    }
+
+    const slices = new Map<number, T[]>();
+
+    // Hold the first emission until every year has reported once. Otherwise the
+    // caller sees one year's rows, believes loading is finished, and renders a
+    // half-populated fiscal year for the moment before the other year arrives.
+    // After that first complete pass, every update emits immediately.
+    let primed = false;
+    const emit = () => {
+        if (!primed) {
+            if (slices.size < years.length) return;
+            primed = true;
         }
-    });
+        callback(years.flatMap(y => slices.get(y) ?? []));
+    };
+
+    const unsubs = years.map(year =>
+        onSnapshot(
+            query(getCollection(), where('bsYear', '==', year)),
+            snapshot => {
+                slices.set(year, snapshot.docs.map(map));
+                emit();
+            },
+            async (error) => {
+                // Record an empty slice so one failing year cannot hold the
+                // priming gate shut and leave the page loading forever.
+                slices.set(year, []);
+                emit();
+                if (error.code === 'permission-denied') {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path,
+                        operation: 'list'
+                    }));
+                }
+            }
+        )
+    );
+
+    return () => unsubs.forEach(u => u());
 };
 
-export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
-    const collectionRef = getAttendanceCollection();
-    return onSnapshot(collectionRef, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestoreRecord));
-    }, async (error) => {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.ATTENDANCE,
-                operation: 'list'
-            }));
-        }
+export const onRawLogsUpdate = (
+    scope: AttendanceScope,
+    callback: (logs: RawMachineLog[]) => void
+): () => void =>
+    streamByBsYear(getRawLogsCollection, scope, fromFirestoreLog, 'raw_machine_logs', logs => {
+        // The old query carried orderBy('importedAt','desc'). Sorting here keeps
+        // that order across the merged per-year slices.
+        callback([...logs].sort((a, b) =>
+            String(b.importedAt ?? '').localeCompare(String(a.importedAt ?? ''))
+        ));
     });
-};
+
+export const onAttendanceUpdate = (
+    scope: AttendanceScope,
+    callback: (records: AttendanceRecord[]) => void
+): () => void =>
+    streamByBsYear(getAttendanceCollection, scope, fromFirestoreRecord, COLLECTIONS.ATTENDANCE, callback);
+
 
 export const deleteRawLog = async (id: string) => {
     const docRef = doc(getRawLogsCollection(), id);
@@ -242,22 +318,57 @@ export const deleteAllRawLogs = async (): Promise<void> => {
     }
 };
 
+/** Oldest BS year worth probing for data. The business predates the system by
+ *  a long way, but nothing was ever imported below this. */
+const EARLIEST_BS_YEAR = 2070;
+
+/**
+ * Which BS years actually hold data.
+ *
+ * This used to read FOUR ENTIRE COLLECTIONS with getDocs - attendance,
+ * behavior_ledger, payroll and raw logs - purely to collect the distinct
+ * `bsYear` values, then throw every document away. It was the single most
+ * expensive read in the app and it grew without bound; on a database with a
+ * hundred thousand attendance rows it billed a hundred thousand reads to
+ * populate a dropdown.
+ *
+ * Firestore has no DISTINCT, but the candidate set here is tiny and known: BS
+ * years from EARLIEST_BS_YEAR to next year. So probe each one with limit(1) and
+ * keep the years that come back non-empty. That is a fixed handful of reads
+ * returning at most one document each, it stays constant as the data grows, and
+ * it is exact rather than sampled.
+ */
 export const getAttendanceYears = async (): Promise<number[]> => {
     const { db } = getFirebase();
-    const years = new Set<number>();
+
+    const sources = [
+        getAttendanceCollection(),
+        getRawLogsCollection(),
+        collection(db, COLLECTIONS.PAYROLL),
+        collection(db, 'behavior_ledger'),
+    ];
+
+    const latest = new NepaliDate().getYear() + 1;
+    const candidates: number[] = [];
+    for (let y = latest; y >= EARLIEST_BS_YEAR; y--) candidates.push(y);
+
+    const probes = candidates.flatMap(year =>
+        sources.map(async source => {
+            const snap = await getDocs(query(source, where('bsYear', '==', year), limit(1)));
+            return snap.empty ? null : year;
+        })
+    );
+
     try {
-        const [attSnap, blSnap, paySnap, rawSnap] = await Promise.all([
-            getDocs(getAttendanceCollection()),
-            getDocs(collection(db, 'behavior_ledger')),
-            getDocs(collection(db, COLLECTIONS.PAYROLL)),
-            getDocs(getRawLogsCollection())
-        ]);
-        attSnap.docs.forEach(d => years.add(d.data().bsYear as number));
-        blSnap.docs.forEach(d => years.add(d.data().bsYear as number));
-        paySnap.docs.forEach(d => years.add(d.data().bsYear as number));
-        rawSnap.docs.forEach(d => years.add(d.data().bsYear as number));
-    } catch (e) {}
-    return Array.from(years).sort((a, b) => b - a);
+        const found = await Promise.all(probes);
+        return Array.from(new Set(found.filter((y): y is number => y !== null)))
+            .sort((a, b) => b - a);
+    } catch {
+        // A permission error or a dropped connection should not empty the year
+        // picker and strand the user on a blank page; fall back to the current
+        // fiscal year's two BS years.
+        return [latest, latest - 1];
+    }
 };
 
 export const updateRawLog = async (id: string, updates: Partial<RawMachineLog>) => {

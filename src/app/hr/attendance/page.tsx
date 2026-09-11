@@ -11,7 +11,7 @@ import { Search, Edit, Trash2, Loader2, Calculator, HardDrive, FilterX, UserChec
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { onEmployeesUpdate, updateEmployee } from '@/services/employee-service';
-import { updateAttendanceRecord, deleteAttendanceForMonth, deleteAttendanceAndPayrollForFiscalYear, onAttendanceUpdate, runHourlyCalculation, onAttendancePeriodLocksUpdate, bulkClockInOut, onRawLogsUpdate, updateRawLog, type AttendancePeriodLock } from '@/services/attendance-service';
+import { getAttendanceYears, updateAttendanceRecord, deleteAttendanceForMonth, deleteAttendanceAndPayrollForFiscalYear, onAttendanceUpdate, runHourlyCalculation, onAttendancePeriodLocksUpdate, bulkClockInOut, onRawLogsUpdate, updateRawLog, type AttendancePeriodLock } from '@/services/attendance-service';
 import { setFiscalYearPeriodLock, setCombinedPeriodLock } from '@/services/period-lock';
 import { onHolidaysUpdate, onLeaveRequestsUpdate, onShiftsUpdate } from '@/services/hr-admin-service';
 import { cn, formatTimeForDisplay, getAttendanceRowHighlight } from '@/lib/utils';
@@ -30,7 +30,7 @@ import { format as formatDate, startOfDay, isEqual, isWithinInterval } from 'dat
 
 import Link from 'next/link';
 import LedgerImportButton from './_components/ledger-import-button';
-import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
+import { getFiscalYearStart, getFiscalYearMonths, getFiscalYearsForBsYears, getFiscalYearBsYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
 
 type SortKey = 'date' | 'dateBS' | 'employeeName' | 'status' | 'clockIn' | 'clockOut' | 'gTime' | 'breakHours' | 'gHours' | 'grossHours' | 'regularHours' | 'overtimeHours' | 'remarks';
 type SortDirection = 'asc' | 'desc';
@@ -131,26 +131,37 @@ export default function AttendanceRegistryPage() {
   // COLUMN_LABELS can be toggled off.
   const visibleColCount = 4 + Object.values(visibleColumns).filter(Boolean).length;
 
+  // Reference data: small, bounded collections that every fiscal year needs.
   useEffect(() => {
     onEmployeesUpdate(setEmployees);
     const unsubHolidays = onHolidaysUpdate(setHolidays);
     const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
     const unsubLocks = onAttendancePeriodLocksUpdate(setPeriodLocks);
     const unsubShifts = onShiftsUpdate(setShifts);
-    const unsubRawLogs = onRawLogsUpdate(setRawLogs);
-    const unsubAttendance = onAttendanceUpdate((data) => {
-        setAttendance(data);
-        setIsDataLoading(false);
-    });
     return () => {
         unsubLocks();
         unsubHolidays();
         unsubLeaves();
         unsubShifts();
+    };
+  }, []);
+
+  // Attendance and raw logs grow forever, so they are scoped to the selected
+  // fiscal year and re-subscribed when it changes. The month filter below
+  // narrows further, client-side, from this much smaller set.
+  useEffect(() => {
+    const scope = { bsYears: getFiscalYearBsYears(fyStart) };
+    setIsDataLoading(true);
+    const unsubRawLogs = onRawLogsUpdate(scope, setRawLogs);
+    const unsubAttendance = onAttendanceUpdate(scope, (data) => {
+        setAttendance(data);
+        setIsDataLoading(false);
+    });
+    return () => {
         unsubRawLogs();
         unsubAttendance();
     };
-  }, []);
+  }, [fyStart]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -162,11 +173,22 @@ export default function AttendanceRegistryPage() {
     filterRegularHours, filterRemarks,
   ]);
 
+  // Loaded once from a bounded probe of which BS years hold data. It must NOT
+  // be derived from `attendance`: that is now scoped to the selected fiscal
+  // year, so deriving from it would leave the picker showing only the year
+  // already chosen, with no way back to any other.
+  const [dataBsYears, setDataBsYears] = useState<number[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    getAttendanceYears().then(years => { if (!cancelled) setDataBsYears(years); });
+    return () => { cancelled = true; };
+  }, []);
+
   const availableFiscalYears = useMemo(() => {
-    const years = getAvailableFiscalYears(attendance.map(r => ({ bsYear: r.bsYear, bsMonth: r.bsMonth })));
+    const years = getFiscalYearsForBsYears(dataBsYears);
     const current = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
     return years.includes(current) ? years : [current, ...years].sort((a, b) => b - a);
-  }, [attendance]);
+  }, [dataBsYears]);
 
   const requestSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';

@@ -39,7 +39,13 @@ service cloud.firestore {
     // --- Identity & Access ---
 
     match /system_users/{userId} {
-      allow read: if isAuthenticated(); 
+      // Was a blanket `read`, which let an authenticated-but-unapproved account
+      // enumerate every staff username, email and role flag. Reading your own
+      // record is needed at sign-in; listing everyone is an admin screen.
+      // (No password material lives here - Firebase Auth holds credentials and
+      // this document only carries passwordLastUpdated.)
+      allow get: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin(); 
 
       // Was `allow create: if true` - unauthenticated, any uid, any payload.
       // A new account may only be created by its own owner, unapproved and
@@ -59,9 +65,25 @@ service cloud.firestore {
     }
 
     match /sessions/{sessionId} {
-      // Users manage their own sessions (heartbeat/logout)
-      allow read, create, delete: if isAuthenticated();
-      allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      // Only `update` used to check ownership. `read` and `delete` were open to
+      // any authenticated account, so anyone signed in - including one still
+      // awaiting approval - could list every active session and delete them,
+      // force-logging out the whole company.
+      //
+      // `get` and `list` are split deliberately. A rule on `resource.data` can
+      // only be evaluated per document, so an ownership test cannot gate a
+      // whole-collection query. The app's own reads match this split: the
+      // session manager watches a SINGLE session document (a `get`), while the
+      // active-workstation list, the stale-session sweep and session revocation
+      // all live on the user-admin screen.
+      allow get: if isAuthenticated() &&
+                    (request.auth.uid == resource.data.get('userId', '') || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isAuthenticated() &&
+                       request.resource.data.get('userId', '') == request.auth.uid;
+      allow update, delete: if isAuthenticated() &&
+                       (request.auth.uid == resource.data.get('userId', '') || isAdmin());
     }
 
     match /usernames/{username} {
@@ -69,7 +91,15 @@ service cloud.firestore {
       // read of a SINGLE known document is required. Listing is not.
       allow get: if true;
       allow list: if isAuthenticated();
-      allow create: if isAuthenticated();
+      // The new document must point back at its creator; without this any
+      // signed-in user could claim arbitrary username documents and block real
+      // staff from registering them. An admin provisioning an account from the
+      // user-admin screen is writing on someone else's behalf, so it is allowed
+      // too - and `update` is stated explicitly, because saveUser re-writes this
+      // document with merge whenever a user is edited.
+      allow create, update: if isAdmin() ||
+                       (isAuthenticated() &&
+                        request.resource.data.get('uid', '') == request.auth.uid);
       allow delete: if isAdmin();
     }
     

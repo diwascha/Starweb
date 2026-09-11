@@ -18,7 +18,7 @@ import { getAttendanceYears, onAttendanceUpdate, deleteAttendanceForMonth } from
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { calculateAndSavePayrollForMonth, onPeriodLocksUpdate, hasBehaviorAnalyticsForMonth, generateBehaviorAnalyticsForMonth, type PayrollPeriodLock } from '@/services/payroll-service';
 import { setCombinedPeriodLock } from '@/services/period-lock';
-import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
+import { getFiscalYearStart, getFiscalYearMonths, getFiscalYearsForBsYears, getFiscalYearBsYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -67,7 +67,6 @@ export default function UnifiedWorkforcePage() {
     useEffect(() => {
         setIsLoadingData(true);
         const unsubEmp = onEmployeesUpdate(setEmployees);
-        const unsubAtt = onAttendanceUpdate(setAttendance);
         const unsubLocks = onPeriodLocksUpdate(setPeriodLocks);
 
         getAttendanceYears().then(years => {
@@ -86,16 +85,26 @@ export default function UnifiedWorkforcePage() {
 
         return () => {
             unsubEmp();
-            unsubAtt();
             unsubLocks();
         };
     }, []);
 
+    // Attendance is scoped to the selected fiscal year and re-subscribed when
+    // it changes; streaming the whole collection is what made this page's cost
+    // grow with every month of history.
+    useEffect(() => {
+        const fyStart = parseInt(selectedFiscalYear);
+        const unsubAtt = onAttendanceUpdate({ bsYears: getFiscalYearBsYears(fyStart) }, setAttendance);
+        return () => unsubAtt();
+    }, [selectedFiscalYear]);
+
+    // Derived from the year probe, not from `attendance` - that is now scoped
+    // to one fiscal year and would leave the picker offering only itself.
     const availableFiscalYears = useMemo(() => {
-        const years = getAvailableFiscalYears(attendance.map(a => ({ bsYear: a.bsYear, bsMonth: a.bsMonth })));
+        const years = getFiscalYearsForBsYears(bsYears);
         const current = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
         return years.includes(current) ? years : [current, ...years].sort((a, b) => b - a);
-    }, [attendance]);
+    }, [bsYears]);
 
     const fyMonths = useMemo(() => {
         const fy = selectedFiscalYear || String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()));

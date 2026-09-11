@@ -1,4 +1,6 @@
-/src
+# NOTE: this file is scoped to src-tauri/, so a bare `/src` here ignores the
+# Rust sources - not the Next.js ones. It did, which is why src/main.rs was
+# never committed and a stray copy ended up at the repo root's src/.
 /target
 /Cargo.lock
 /target-release

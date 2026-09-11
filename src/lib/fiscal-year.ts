@@ -43,23 +43,35 @@ export const getFiscalYearMonths = (fyStartYear: number): FiscalYearMonth[] => {
 export const isInFiscalYear = (bsYear: number, bsMonth: number, fyStartYear: number): boolean =>
     getFiscalYearStart(bsYear, bsMonth) === fyStartYear;
 
-/**
- * Derives the sorted (descending) list of fiscal years present in a set of
- * BS year/month pairs - e.g. from attendance or payroll records. Records
- * with a missing/zero bsYear (e.g. a bad import row) are excluded so they
- * never surface as a bogus "-1/00"-style bucket in a fiscal-year picker.
- */
-export const getAvailableFiscalYears = (periods: FiscalYearMonth[]): number[] => {
-    const years = new Set(
-        periods
-            .filter(p => p.bsYear > 0)
-            .map(p => getFiscalYearStart(p.bsYear, p.bsMonth))
-    );
-    return Array.from(years).sort((a, b) => b - a);
-};
-
 /** BS month name for a fiscal-year month index (0 = Shrawan .. 11 = Ashadh). */
 export const fiscalMonthName = (fyMonthIndex: number): string => {
     const bsMonth = (FISCAL_YEAR_START_MONTH + fyMonthIndex) % 12;
     return NEPALI_MONTHS.find(m => m.value === bsMonth)?.name || '';
+};
+
+/**
+ * The BS years a fiscal year touches, for scoping a Firestore listener.
+ *
+ * A fiscal year runs Shrawan of one BS year through Ashadh of the next, so it
+ * always spans exactly two. Listeners query `bsYear` by equality - one cheap
+ * index-free filter each - and narrow to the exact month client-side.
+ */
+export const getFiscalYearBsYears = (fyStartYear: number): number[] =>
+    Number.isFinite(fyStartYear) && fyStartYear > 0 ? [fyStartYear, fyStartYear + 1] : [];
+
+/**
+ * The fiscal years that BS years with data could belong to.
+ *
+ * A BS year Y straddles two fiscal years: its Shrawan-onward months belong to
+ * FY Y, its Baishakh-to-Ashadh months to FY Y-1. Without reading the months
+ * themselves we cannot tell which, so both are offered.
+ *
+ * This deliberately errs towards offering a fiscal year that turns out empty
+ * rather than hiding one that has data - an empty month in the picker is a
+ * cosmetic surprise, whereas a missing year is data the user cannot reach.
+ */
+export const getFiscalYearsForBsYears = (bsYears: number[]): number[] => {
+    const fys = new Set<number>();
+    bsYears.filter(y => y > 0).forEach(y => { fys.add(y); fys.add(y - 1); });
+    return Array.from(fys).sort((a, b) => b - a);
 };

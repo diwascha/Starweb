@@ -15,12 +15,13 @@ import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { cn } from '@/lib/utils';
 import type { Employee, AttendanceRecord, Payroll } from '@/lib/types';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { onAttendanceUpdate } from '@/services/attendance-service';
+import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
 import { onPayrollUpdate } from '@/services/payroll-service';
 import NepaliDate from 'nepali-date-converter';
 import {
     getFiscalYearStart,
-    getAvailableFiscalYears,
+    getFiscalYearsForBsYears,
+    getFiscalYearBsYears,
     formatFiscalYear,
 } from '@/lib/fiscal-year';
 import { aggregatePerformanceMetricsWithTrend, getBenchmarkPeriodGroups, type BenchmarkPeriodType, type PeriodPerformanceMetrics } from '@/lib/performance-metrics';
@@ -66,27 +67,41 @@ export default function EmployeePerformanceBenchmarkPage() {
     const [filterPositions, setFilterPositions] = useState<string[]>([]);
 
     useEffect(() => {
-        setIsLoading(true);
         const unsubEmp = onEmployeesUpdate(setEmployees);
-        const unsubAtt = onAttendanceUpdate((data) => {
-            setAttendance(data);
-            setIsLoading(false);
-        });
         const unsubPay = onPayrollUpdate(setPayroll);
         return () => {
             unsubEmp();
-            unsubAtt();
             unsubPay();
         };
     }, []);
 
+    // Which BS years hold data, from a bounded probe rather than by reading
+    // every attendance row. Drives the picker below.
+    const [dataBsYears, setDataBsYears] = useState<number[]>([]);
+    useEffect(() => {
+        let cancelled = false;
+        getAttendanceYears().then(years => { if (!cancelled) setDataBsYears(years); });
+        return () => { cancelled = true; };
+    }, []);
+
     const availableFiscalYears = useMemo(() => {
-        const years = getAvailableFiscalYears(attendance.map(r => ({ bsYear: r.bsYear, bsMonth: r.bsMonth })));
+        const years = getFiscalYearsForBsYears(dataBsYears);
         const current = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
         return years.includes(current) ? years : [current, ...years].sort((a, b) => b - a);
-    }, [attendance]);
+    }, [dataBsYears]);
 
     const fyStart = parseInt(selectedFiscalYear);
+
+    // Benchmarking compares months WITHIN one fiscal year, so that year is the
+    // whole working set - no reason to stream the rest of history for it.
+    useEffect(() => {
+        setIsLoading(true);
+        const unsubAtt = onAttendanceUpdate({ bsYears: getFiscalYearBsYears(fyStart) }, (data) => {
+            setAttendance(data);
+            setIsLoading(false);
+        });
+        return () => unsubAtt();
+    }, [fyStart]);
 
     const periodGroups = useMemo(() => getBenchmarkPeriodGroups(fyStart, periodType, 0), [fyStart, periodType]);
 

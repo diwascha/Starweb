@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { onRawLogsUpdate, deleteAllRawLogs, deleteRawLog } from '@/services/attendance/data';
+import { onRawLogsUpdate, deleteAllRawLogs, deleteRawLog, getAttendanceYears } from '@/services/attendance/data';
 import { addRawMachineLogs, bulkClockInOut } from '@/services/attendance/import';
 import { importLegacyPayrollSheet } from '@/services/payroll/legacy-import';
 import { setFiscalYearPeriodLock } from '@/services/period-lock';
@@ -102,19 +102,25 @@ export default function MachineLogsPage() {
     };
 
     useEffect(() => {
-        setIsLoading(true);
-        const unsub = onRawLogsUpdate((data) => {
-            setLogs(data);
-            setIsLoading(false);
-        });
         const unsubEmployees = onEmployeesUpdate(setEmployees);
         const unsubShifts = onShiftsUpdate(setShifts);
         return () => {
-            unsub();
             unsubEmployees();
             unsubShifts();
         };
     }, []);
+
+    // This page already shows exactly one BS year at a time, so it now fetches
+    // exactly one. Previously it streamed every raw punch ever imported and
+    // then threw away all but the selected year client-side.
+    useEffect(() => {
+        setIsLoading(true);
+        const unsub = onRawLogsUpdate({ bsYears: [parseInt(filterYear)] }, (data) => {
+            setLogs(data);
+            setIsLoading(false);
+        });
+        return () => unsub();
+    }, [filterYear]);
 
     const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
     const employeeByName = useMemo(() => new Map(employees.map(e => [e.name.toLowerCase().trim(), e])), [employees]);
@@ -168,11 +174,20 @@ export default function MachineLogsPage() {
         }
     };
 
+    // From a bounded probe rather than from `logs`, which now only ever holds
+    // the year already selected.
+    const [dataBsYears, setDataBsYears] = useState<number[]>([]);
+    useEffect(() => {
+        let cancelled = false;
+        getAttendanceYears().then(years => { if (!cancelled) setDataBsYears(years); });
+        return () => { cancelled = true; };
+    }, []);
+
     const availableYears = useMemo(() => {
-        const years = new Set(logs.map(l => l.bsYear));
+        const years = new Set(dataBsYears);
         years.add(new NepaliDate().getYear());
         return Array.from(years).sort((a, b) => b - a);
-    }, [logs]);
+    }, [dataBsYears]);
 
     const filteredAndSortedLogs = useMemo(() => {
         let filtered = [...logs];
