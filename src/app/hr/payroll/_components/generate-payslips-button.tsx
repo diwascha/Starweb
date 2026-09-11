@@ -1,12 +1,12 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileStack, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Employee, Payroll, CompanyProfile } from '@/lib/types';
-import { SlipCopy, defaultCompanyProfile } from '@/app/hr/payslip/_components/payslip-view';
+import { defaultCompanyProfile } from '@/app/hr/payslip/_components/payslip-view';
+import { drawPayslipPage } from '@/lib/payslip-pdf';
 import { getSetting } from '@/services/settings-service';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -29,7 +29,6 @@ export default function GeneratePayslipsButton({ payrollRecords, employees, bsYe
     const [isSelectOpen, setIsSelectOpen] = useState(false);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const { toast } = useToast();
-    const hostRef = useRef<HTMLDivElement>(null);
 
     const sortedRecords = useMemo(
         () => [...payrollRecords].sort((a, b) => a.employeeName.localeCompare(b.employeeName)),
@@ -58,54 +57,29 @@ export default function GeneratePayslipsButton({ payrollRecords, employees, bsYe
         setIsSelectOpen(false);
         setIsGenerating(true);
         try {
-            const [jsPDFModule, html2canvasModule, companySetting] = await Promise.all([
+            const [jsPDFModule, companySetting] = await Promise.all([
                 import('jspdf'),
-                import('html2canvas'),
                 getSetting('companyProfile'),
             ]);
             const jsPDF = jsPDFModule.default;
-            const html2canvas = html2canvasModule.default;
             const companyProfile: CompanyProfile = companySetting?.value || defaultCompanyProfile;
 
             const employeeMap = new Map(employees.map(e => [e.id, e]));
-            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
+            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
             let pageAdded = false;
 
-            const host = hostRef.current;
-            if (!host) return;
-
+            // Drawn straight into the PDF as text. The previous version had to
+            // mount each slip off-screen in React, wait 50ms for the browser to
+            // lay it out, then rasterise it with html2canvas - so a 40-employee
+            // run meant 40 React roots, 40 screenshots and 40 embedded images.
+            // None of that is needed to put text on a page.
             for (const payroll of recordsToGenerate) {
                 const employee = employeeMap.get(payroll.employeeId);
                 if (!employee) continue;
 
-                const container = document.createElement('div');
-                container.style.width = '800px';
-                container.style.filter = 'grayscale(1)';
-                host.appendChild(container);
-                const root = createRoot(container);
-                root.render(
-                    <div className="space-y-2 bg-white">
-                        <SlipCopy label="Employee Copy" employee={employee} payroll={payroll} bsYear={bsYear} bsMonthName={bsMonthName} companyProfile={companyProfile} />
-                        <SlipCopy label="Employer Copy" employee={employee} payroll={payroll} bsYear={bsYear} bsMonthName={bsMonthName} companyProfile={companyProfile} />
-                    </div>
-                );
-                // Let React commit and the browser lay out the off-screen node before capture.
-                await new Promise(resolve => setTimeout(resolve, 50));
-
-                // scale 1.5 + JPEG instead of PNG at scale 2: a run of 30-40
-                // employees at lossless PNG is what produced the ~400MB file -
-                // JPEG at this quality is a fraction of that per page while
-                // staying sharp enough to read and print.
-                const canvas = await html2canvas(container, { scale: 1.5 });
-                const imgData = canvas.toDataURL('image/jpeg', 0.85);
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
                 if (pageAdded) pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+                drawPayslipPage(pdf, { employee, payroll, bsYear, bsMonthName, companyProfile });
                 pageAdded = true;
-
-                root.unmount();
-                host.removeChild(container);
             }
 
             if (!pageAdded) {
@@ -129,7 +103,6 @@ export default function GeneratePayslipsButton({ payrollRecords, employees, bsYe
                 {isGenerating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileStack className="mr-1.5 h-3.5 w-3.5" />}
                 Generate Payslips
             </Button>
-            <div ref={hostRef} style={{ position: 'fixed', top: 0, left: '-9999px', zIndex: -1 }} />
 
             <Dialog open={isSelectOpen} onOpenChange={setIsSelectOpen}>
                 <DialogContent className="sm:max-w-md">

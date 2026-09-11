@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import type { Payroll, Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -65,6 +66,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         () => Object.fromEntries(COLUMN_LABELS.map(c => [c.key, true])) as Record<ColumnKey, boolean>
     );
     const [isExportingPdf, setIsExportingPdf] = useState(false);
+    const { toast } = useToast();
     const printableRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -170,9 +172,9 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         setExportMode(null);
     };
 
-    const handleExportXlsx = async () => {
-        const XLSX = (await import('xlsx'));
-        const fieldMap: Record<ColumnKey, (p: Payroll) => any> = {
+    // Shared by both exports so the PDF and the spreadsheet can never disagree
+    // about which columns are included or what a column contains.
+    const fieldMap: Record<ColumnKey, (p: Payroll) => any> = {
             employee: p => p.employeeName,
             regularHours: p => p.regularHours,
             otHours: p => p.otHours,
@@ -188,7 +190,10 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             net: p => p.netPayment,
             roundedNet: p => p.roundedNet ?? p.netPayment,
             remarks: p => p.remark,
-        };
+    };
+
+    const handleExportXlsx = async () => {
+        const XLSX = (await import('xlsx'));
         const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key]);
         const payrollExport = monthlyPayroll.map(p => {
             const row: Record<string, any> = {};
@@ -202,44 +207,83 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         XLSX.writeFile(workbook, `Payroll-${selectedBsYear}-${NEPALI_MONTHS[parseInt(selectedBsMonth)].name}.xlsx`);
     };
 
+    /**
+     * Pure vector PDF - a real table, not a screenshot of one.
+     *
+     * The old version rasterised the whole registry with html2canvas and then,
+     * to paginate, re-added THE SAME full-height image once per page at a
+     * different offset - so a five-page registry embedded the entire bitmap
+     * five times. autoTable paginates natively, repeats the header row on each
+     * page, and keeps every figure as selectable, searchable text.
+     *
+     * Columns come from the same fieldMap and exportColumns the spreadsheet
+     * export uses, so the two always agree.
+     */
     const handleExportPdf = async () => {
-        const node = printableRef.current;
-        if (!node) return;
         setIsExportingPdf(true);
-        node.classList.add('pdf-export-mode');
         try {
-            const jsPDF = (await import('jspdf')).default;
-            const html2canvas = (await import('html2canvas')).default;
-            await new Promise(resolve => setTimeout(resolve, 50));
-            // scale 1.5 (not 2) plus JPEG instead of PNG keeps this legible at
-            // print size while cutting the embedded image from tens of MB
-            // (a lossless PNG of a full data table) down to a few MB.
-            const canvas = await html2canvas(node, { scale: 1.5 });
-            const imgData = canvas.toDataURL('image/jpeg', 0.85);
-            const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4', compress: true });
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const imgWidth = pageWidth;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+                import('jspdf'),
+                import('jspdf-autotable'),
+            ]);
+            const monthName = NEPALI_MONTHS[parseInt(selectedBsMonth)].name;
+            const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key]);
 
-            // A long table renders taller than one page - slice it across as
-            // many pages as needed instead of silently cropping everything
-            // past the first page (which the previous single addImage did).
-            let heightLeft = imgHeight;
-            let position = 0;
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-            heightLeft -= pageHeight;
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-                heightLeft -= pageHeight;
-            }
+            const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
+            const pageWidth = pdf.internal.pageSize.getWidth();
+
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(13);
+            pdf.text('PAYROLL REGISTRY', pageWidth / 2, 13, { align: 'center' });
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9);
+            pdf.text(`${monthName} ${selectedBsYear} (BS)`, pageWidth / 2, 19, { align: 'center' });
+
+            const isNumericCol = (key: ColumnKey) => key !== 'employee' && key !== 'remarks';
+            const cell = (p: Payroll, key: ColumnKey) => {
+                const v = fieldMap[key](p);
+                if (v === undefined || v === null || v === '') return '';
+                return isNumericCol(key) && typeof v === 'number'
+                    ? v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : String(v);
+            };
+
+            autoTable(pdf, {
+                startY: 24,
+                head: [selectedCols.map(c => c.label)],
+                body: monthlyPayroll.map(p => selectedCols.map(c => cell(p, c.key))),
+                // A totals row matching the on-screen footer, so the printed
+                // registry reconciles without re-adding the column by hand.
+                foot: [selectedCols.map(c => (
+                    c.key === 'employee' ? 'TOTAL'
+                    : isNumericCol(c.key)
+                        ? (monthlyPayroll.reduce((sum, p) => sum + (Number(fieldMap[c.key](p)) || 0), 0))
+                            .toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : ''
+                ))],
+                theme: 'grid',
+                styles: { fontSize: 6.5, cellPadding: 1, lineColor: [200, 200, 200], lineWidth: 0.1, overflow: 'linebreak' },
+                headStyles: { fillColor: [235, 235, 235], textColor: 20, fontStyle: 'bold', fontSize: 6.5 },
+                footStyles: { fillColor: [245, 245, 245], textColor: 20, fontStyle: 'bold', fontSize: 6.5 },
+                columnStyles: Object.fromEntries(selectedCols.map((c, i) => [
+                    i, isNumericCol(c.key) ? { halign: 'right' } : { halign: 'left' },
+                ])) as any,
+                margin: { left: 8, right: 8 },
+                didDrawPage: (data: any) => {
+                    const h = pdf.internal.pageSize.getHeight();
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(7);
+                    pdf.setTextColor(130);
+                    pdf.text(`Page ${data.pageNumber}`, pageWidth - 10, h - 5, { align: 'right' });
+                    pdf.setTextColor(0);
+                },
+            });
+
             pdf.save(`Payroll-${selectedBsYear}-${NEPALI_MONTHS[parseInt(selectedBsMonth)].name}.pdf`);
         } catch (error) {
             console.error('PDF export failed', error);
+            toast({ title: 'PDF Export Failed', variant: 'destructive' });
         } finally {
-            node.classList.remove('pdf-export-mode');
             setIsExportingPdf(false);
         }
     };
@@ -410,12 +454,6 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                   .print\\:hidden { display: none !important; }
                   ${hiddenCols.map(k => `.printable-area [data-col="${k}"] { display: none !important; }`).join('\n                  ')}
                 }
-                /* Same reasoning for the PDF export capture - html2canvas
-                   captures the live colored DOM, so grayscale it only while
-                   .pdf-export-mode is applied (screen view stays in color). */
-                .pdf-export-mode { filter: grayscale(1); }
-                ${hiddenCols.map(k => `.pdf-export-mode [data-col="${k}"] { display: none !important; }`).join('\n                ')}
-                .pdf-export-mode [data-col="actions"] { display: none !important; }
             `}</style>
         </Card>
     );

@@ -6,6 +6,7 @@ import { Printer, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onSettingUpdate } from '@/services/settings-service';
+import { computePayslipFigures, drawPayslipPage, fmtAmount } from '@/lib/payslip-pdf';
 
 export const defaultCompanyProfile: CompanyProfile = {
   nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
@@ -14,23 +15,6 @@ export const defaultCompanyProfile: CompanyProfile = {
   phone: "N/A",
   email: "N/A",
   pan: "N/A"
-};
-
-/**
- * Matches PR_RoundNet from the payroll VBA module: floors to whole rupees,
- * then rounds the units digit to the nearest 5 (e.g. 15003 -> 15000,
- * 15004 -> 15005, 15008 -> 15010). Only used as a fallback when a record
- * has no stored roundedNet - historical/imported net figures are never
- * recomputed.
- */
-const roundNetToFive = (net: number): number => {
-  if (net <= 0) return net;
-  const baseInt = Math.floor(net);
-  let d = baseInt % 10;
-  if (d < 0) d += 10;
-  if (d <= 3) return baseInt - d;
-  if (d < 8) return baseInt - d + 5;
-  return baseInt - d + 10;
 };
 
 interface PayslipViewProps {
@@ -48,24 +32,14 @@ export function SlipCopy({ label, employee, payroll, bsYear, bsMonthName, compan
   bsMonthName: string;
   companyProfile: CompanyProfile;
 }) {
-  const basic = payroll?.regularPay ?? 0;
-  const allowance = payroll?.allowance ?? 0;
-  const ot = payroll?.otPay ?? 0;
-  const bonus = payroll?.bonus ?? 0;
-  const tds = payroll?.tds ?? 0;
-  const advance = payroll?.advance ?? 0;
+  // Same calculation the PDF uses (lib/payslip-pdf), so a printed slip can
+  // never disagree with the one on screen.
+  const {
+    basic, allowance, ot, bonus, tds, advance,
+    grossSalary, totalDeductions, netSalary, monthDays,
+  } = computePayslipFigures(payroll);
 
-  // salaryTotal/netPayment/roundedNet are 0 on historical rows that were
-  // never fully computed (0 is never a legitimate real value for a worked
-  // month), so `||` deliberately falls through to the derived formula
-  // instead of trusting a stored zero the way `??` would.
-  const grossSalary = payroll?.salaryTotal || (basic + allowance + ot + bonus - tds);
-  const totalDeductions = tds + advance;
-  const netSalary = payroll?.roundedNet || roundNetToFive(payroll?.netPayment || (grossSalary - advance));
-
-  const monthDays = (payroll?.presentDays ?? 0) + (payroll?.extraDays ?? 0) + (payroll?.leaveDays ?? 0);
-
-  const fmt = (n: number) => (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+  const fmt = fmtAmount;
 
   return (
     <div className="border-2 border-black text-black text-[11px] px-3 py-2">
@@ -187,27 +161,26 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
     }, 100);
   };
 
+  /**
+   * Pure vector PDF - real text, no screenshot.
+   *
+   * This used to capture the slip with html2canvas and embed the bitmap. Even
+   * as a compressed JPEG that is a picture of a payslip: the text can't be
+   * selected, searched or copied, and it blurs when zoomed. Drawing the same
+   * layout with jsPDF gives a file a fraction of the size with selectable
+   * text, and the figures come from the same computePayslipFigures the screen
+   * uses so the two can't disagree.
+   */
   const handleSaveAsPdf = async () => {
-    const printableArea = document.querySelector('.printable-area') as HTMLElement;
-    if (!printableArea) return;
-
     setIsGeneratingPdf(true);
-    printableArea.classList.add('pdf-export-mode');
     try {
         const jsPDF = (await import('jspdf')).default;
-        const html2canvas = (await import('html2canvas')).default;
-
-        const canvas = await html2canvas(printableArea, { scale: 1.5 });
-        const imgData = canvas.toDataURL('image/jpeg', 0.85);
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        drawPayslipPage(pdf, { employee, payroll, bsYear, bsMonthName, companyProfile });
         pdf.save(`Payslip-${employee.name}-${bsMonthName}-${bsYear}.pdf`);
     } catch (error) {
         console.error("Error generating PDF", error);
     } finally {
-        printableArea.classList.remove('pdf-export-mode');
         setIsGeneratingPdf(false);
     }
   };
