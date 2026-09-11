@@ -1,5 +1,6 @@
 'use client';
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { InvoiceCalculator } from './_components/invoice-calculator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -88,6 +89,10 @@ type SortKey = 'invoiceNumber' | 'date' | 'partyName' | 'netTotal';
 type SortDirection = 'asc' | 'desc';
 
 function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => void }) {
+    // Finance belongs to the packaging company. The PDF used to hardcode the
+    // name and address while the on-screen invoice read them from settings,
+    // so changing the company in Settings updated one and not the other.
+    const companyProfile = useBusinessProfile();
     const [invoices, setInvoices] = useState<EstimatedInvoice[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterParty, setFilterParty] = useState('All');
@@ -236,11 +241,11 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
             // Header
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(16);
-            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+            doc.text(companyProfile.nameEn.toUpperCase(), doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
 
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(10);
-            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+            doc.text((companyProfile.address || '').toUpperCase(), doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
 
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(14);

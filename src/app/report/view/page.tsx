@@ -56,7 +56,9 @@ function ReportViewContent() {
 
         fetchData();
         return onSettingUpdate('companyProfile', (s) => {
-            if (s?.value) setCompanyProfile(s.value);
+            // Fall back to the registry default rather than leaving the
+            // letterhead blank when no profile has been saved yet.
+            setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE);
         });
     }, [id]);
 
@@ -204,7 +206,7 @@ function ReportViewContent() {
                                 </div>
                                 <div>
                                     <p className="text-[9px] font-black uppercase text-neutral-400 tracking-widest mb-1">Authorized By</p>
-                                    <p className="text-xs font-bold uppercase">Shivam Packaging Quality Control</p>
+                                    <p className="text-xs font-bold uppercase">{companyProfile.nameEn} Quality Control</p>
                                 </div>
                             </div>
                         </div>

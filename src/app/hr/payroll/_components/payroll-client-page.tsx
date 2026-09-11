@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import type { Payroll, Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -67,6 +68,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
     );
     const [isExportingPdf, setIsExportingPdf] = useState(false);
     const { toast } = useToast();
+    const companyProfile = useBusinessProfile();
     const printableRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -234,10 +236,12 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
 
             pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(13);
-            pdf.text('PAYROLL REGISTRY', pageWidth / 2, 13, { align: 'center' });
+            pdf.text(companyProfile.nameEn.toUpperCase(), pageWidth / 2, 12, { align: 'center' });
+            pdf.setFontSize(10);
+            pdf.text('PAYROLL REGISTRY', pageWidth / 2, 17.5, { align: 'center' });
             pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(9);
-            pdf.text(`${monthName} ${selectedBsYear} (BS)`, pageWidth / 2, 19, { align: 'center' });
+            pdf.text(`${monthName} ${selectedBsYear} (BS)`, pageWidth / 2, 22.5, { align: 'center' });
 
             const isNumericCol = (key: ColumnKey) => key !== 'employee' && key !== 'remarks';
             const cell = (p: Payroll, key: ColumnKey) => {
@@ -249,7 +253,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             };
 
             autoTable(pdf, {
-                startY: 24,
+                startY: 27,
                 head: [selectedCols.map(c => c.label)],
                 body: monthlyPayroll.map(p => selectedCols.map(c => cell(p, c.key))),
                 // A totals row matching the on-screen footer, so the printed
@@ -329,8 +333,8 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
 
                 <div className="printable-area" ref={printableRef}>
                     <header className="hidden print:block text-center space-y-1 mb-8">
-                        <h1 className="text-2xl font-black uppercase">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-                        <p className="text-sm font-bold text-muted-foreground uppercase">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+                        <h1 className="text-2xl font-black uppercase">{companyProfile.nameEn}</h1>
+                        <p className="text-sm font-bold text-muted-foreground uppercase">{companyProfile.address}</p>
                         <h2 className="text-lg font-black underline mt-2 uppercase tracking-tighter">
                             Workforce Financial Registry: {NEPALI_MONTHS[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}
                         </h2>

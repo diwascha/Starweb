@@ -64,23 +64,10 @@ export const NEPALI_MONTHS = [
 
 export const NEPALI_MONTH_NAMES = NEPALI_MONTHS.map(m => m.name);
 
-export const DEFAULT_COMPANY_PROFILE = {
-  nameEn: "GENERIC ENTERPRISE PVT LTD.",
-  nameNp: "जेनेरिक इन्टरप्राइज प्रा.लि.",
-  address: "ADDRESS NOT CONFIGURED",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
-
-export const DEFAULT_FLEET_PROFILE = {
-  nameEn: "GENERIC LOGISTICS SEWA",
-  nameNp: "जेनेरिक ढुवानी सेवा",
-  address: "ADDRESS NOT CONFIGURED",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
+// Re-exported from the business entity registry, which is the single place
+// each company's letterhead defaults are defined. Kept here so the many
+// existing `from '@/lib/constants'` imports keep working.
+export { DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from './business-entities';
 
 export const PLY_OPTIONS = ['3', '5', '7', '9'];
 export const BF_OPTIONS = ['16 BF', '18 BF', '20 BF', '22 BF'];

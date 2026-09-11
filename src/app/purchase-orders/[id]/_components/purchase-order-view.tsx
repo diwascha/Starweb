@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
+import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 import type { PurchaseOrder, PurchaseOrderVersion, CompanyProfile, Amendment } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -53,14 +54,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const DEFAULT_COMPANY_PROFILE_LOCAL: CompanyProfile = {
-  nameEn: "Shivam Packaging Industry Private Limited",
-  nameNp: "शिवम् प्याकेजिङ्ग इन्डष्ट्री प्राइभेट लिमिटेड",
-  address: "Hetauda 08, Bagmati Province, Nepal",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
 
 const PAPER_TYPES = ['Kraft Paper', 'Virgin Paper'];
 
@@ -288,7 +281,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const [zoom, setZoom] = useState(1);
   const [selectedVersion, setSelectedVersion] = useState<PurchaseOrderVersion | null>(null);
   const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE_LOCAL);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
 
   const mainPrintRef = useRef<HTMLDivElement>(null);
   const snapshotPrintRef = useRef<HTMLDivElement>(null);
@@ -305,7 +298,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   }, [initialPurchaseOrder, poId]);
 
   useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE_LOCAL));
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
     return () => unsub();
   }, []);
 

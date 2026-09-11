@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -449,12 +450,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
 export default function TdsCalculatorPage() {
     const [activeTab, setActiveTab] = useState('calculator');
     const [calculationToEdit, setCalculationToEdit] = useState<TdsCalculation | null>(null);
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
-
-    useEffect(() => {
-        const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
-        return () => unsub();
-    }, []);
+    const companyProfile = useBusinessProfile();
 
     return (
         <div className="flex flex-col gap-8">

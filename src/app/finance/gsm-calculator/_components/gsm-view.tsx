@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import type { GsmReport, CompanyProfile } from '@/lib/types';
 import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -9,12 +10,7 @@ import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export function GsmReportView({ report }: { report: GsmReport }) {
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
-
-    useEffect(() => {
-        const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
-        return () => unsub();
-    }, []);
+    const companyProfile = useBusinessProfile();
 
     return (
         <div className="gsm-voucher bg-white text-black p-12 font-sans border-2 border-neutral-900 mx-auto" style={{ width: '210mm', minHeight: '297mm' }}>

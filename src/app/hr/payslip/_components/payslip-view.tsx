@@ -3,19 +3,14 @@
 import type { Employee, Payroll, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Save, Loader2, ArrowLeft } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { onSettingUpdate } from '@/services/settings-service';
 import { computePayslipFigures, drawPayslipPage, fmtAmount } from '@/lib/payslip-pdf';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 
-export const defaultCompanyProfile: CompanyProfile = {
-  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
-  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-  address: "Hetauda 08, Bagmati Province, Nepal",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
+// Re-exported so existing importers keep working; the value itself now
+// comes from the business entity registry rather than a second copy here.
+export { DEFAULT_COMPANY_PROFILE as defaultCompanyProfile } from '@/lib/constants';
 
 interface PayslipViewProps {
   employee: Employee;
@@ -147,13 +142,10 @@ export function SlipCopy({ label, employee, payroll, bsYear, bsMonthName, compan
 
 export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: PayslipViewProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+  // Letterhead for whichever business owns this route - HR belongs to the
+  // packaging company, so this resolves to Shivam without saying so.
+  const companyProfile = useBusinessProfile();
   const router = useRouter();
-
-  useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
-    return () => unsub();
-  }, []);
 
   const handlePrint = () => {
     setTimeout(() => {
