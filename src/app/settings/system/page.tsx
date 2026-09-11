@@ -50,6 +50,7 @@ import {
     saveUser,
     deleteUser as deleteUserService,
     validatePassword, 
+    MIN_PASSWORD_LENGTH, 
     setAdminPassword,
     adminCreateUserWithUsername,
     onUsernamesUpdate,
@@ -63,7 +64,7 @@ import { cn, getNormalizedPath } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
-import { exportData, importData } from '@/services/backup-service';
+import { exportData, importData, readBackupFile, gzipString } from '@/services/backup-service';
 import { Separator } from '@/components/ui/separator';
 
 const getModuleDisplayName = (m: Module): string => {
@@ -211,7 +212,7 @@ export default function SystemSettingsPage() {
         return;
     }
 
-    const { isValid, error } = validatePassword(userForm.password, !isEditing);
+    const { isValid, error } = validatePassword(userForm.password, !isEditing, userForm.username);
     if (!isValid) { setPasswordError(error!); return; }
     
     setIsSubmittingUser(true);
@@ -289,25 +290,21 @@ export default function SystemSettingsPage() {
     if (!restoreFile || !user) return;
     setIsRestoring(true);
     try {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const content = e.target?.result as string;
-                const data = JSON.parse(content);
-                await importData(data);
-                toast({ title: 'Restore Complete', description: 'The database has been updated.' });
-                setRestoreFile(null);
-                if (restoreInputRef.current) restoreInputRef.current.value = '';
-            } catch (err) {
-                toast({ title: 'Restore Failed', description: 'Invalid backup file format.', variant: 'destructive' });
-            } finally {
-                setIsRestoring(false);
-            }
-        };
-        reader.readAsText(restoreFile);
-    } catch {
+        // Handles both the plain .json backups and the gzipped .json.gz ones
+        // the daily auto-backup now produces.
+        const data = await readBackupFile(restoreFile);
+        await importData(data);
+        toast({ title: 'Restore Complete', description: 'The database has been updated.' });
+        setRestoreFile(null);
+        if (restoreInputRef.current) restoreInputRef.current.value = '';
+    } catch (err: any) {
+        toast({
+            title: 'Restore Failed',
+            description: err?.message || 'Invalid backup file format.',
+            variant: 'destructive',
+        });
+    } finally {
         setIsRestoring(false);
-        toast({ title: 'Error', description: 'Could not read restore file.', variant: 'destructive' });
     }
   };
 
@@ -834,7 +831,7 @@ export default function SystemSettingsPage() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select Snapshot File</Label>
-                            <Input type="file" accept=".json" onChange={handleRestoreFileChange} ref={restoreInputRef} className="max-w-md h-10 border-destructive/20 bg-white" />
+                            <Input type="file" accept=".json,.gz" onChange={handleRestoreFileChange} ref={restoreInputRef} className="max-w-md h-10 border-destructive/20 bg-white" />
                         </div>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -895,7 +892,7 @@ export default function SystemSettingsPage() {
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Access Credential</Label>
-                                    <Input type="password" value={userForm.password} onChange={e => { setUserForm(p => ({...p, password: e.target.value})); setPasswordError(null); }} placeholder={editingUser ? "Leave blank to keep" : "Minimum 6 chars"} className="h-10 font-mono" />
+                                    <Input type="password" value={userForm.password} onChange={e => { setUserForm(p => ({...p, password: e.target.value})); setPasswordError(null); }} placeholder={editingUser ? "Leave blank to keep" : `${MIN_PASSWORD_LENGTH}+ chars, mixed case, a number`} className="h-10 font-mono" />
                                     {passwordError && <p className="text-[8px] font-black text-red-600 uppercase tracking-tighter mt-1">{passwordError}</p>}
                                 </div>
                             </div>

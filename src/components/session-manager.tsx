@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { startSession, updateHeartbeat, endSession, onSessionRevoked } from '@/services/session-service';
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useIdleLogout, IDLE_TIMEOUT_MS, IDLE_WARNING_MS, clearStoredActivity } from '@/hooks/use-idle-logout';
 
 const DEVICE_ID_KEY = 'ss_device_id';
 const DEVICE_NAME_KEY = 'ss_device_name';
@@ -21,6 +22,28 @@ export function SessionManager() {
     const sessionIdRef = useRef<string | null>(null);
     const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
     const listenerUnsubRef = useRef<(() => void) | null>(null);
+
+    // Shared machines get left signed in. Firebase persists the session to
+    // localStorage, so without this an unattended browser - or the Tauri
+    // desktop wrapper, which is the same webview - stays open to whoever
+    // sits down next.
+    useIdleLogout({
+        enabled: !!user,
+        onWarning: () => {
+            toast({
+                title: 'Still there?',
+                description: `You will be signed out in ${Math.round(IDLE_WARNING_MS / 60000)} minutes. Move the mouse or press a key to stay signed in.`,
+            });
+        },
+        onIdle: () => {
+            toast({
+                title: 'Signed out',
+                description: `No activity for ${Math.round(IDLE_TIMEOUT_MS / 60000)} minutes.`,
+                variant: 'destructive',
+            });
+            logout();
+        },
+    });
 
     useEffect(() => {
         const initializeSession = async () => {
@@ -76,6 +99,7 @@ export function SessionManager() {
                 await endSession(sessionIdRef.current);
                 sessionIdRef.current = null;
             }
+            clearStoredActivity();
         };
 
         if (user) {

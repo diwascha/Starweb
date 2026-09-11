@@ -24,7 +24,7 @@
  * the dataset gets large.
  */
 
-import { exportData } from '@/services/backup-service';
+import { exportData, gzipString } from '@/services/backup-service';
 
 const STORAGE_PREFIX = 'starsutra:lastAutoBackup:';
 
@@ -77,12 +77,21 @@ export const runDailyAutoBackup = async (username: string, userId: string): Prom
     if (!isAutoBackupDue(userId)) return false;
 
     const data = await exportData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+
+    // Compact JSON, then gzip where the platform has CompressionStream.
+    // The pretty-printed export was ~16 MB and growing; this brings it to
+    // roughly a fifth of that. Falls back to plain .json so a webview
+    // without CompressionStream still gets its backup.
+    const json = JSON.stringify(data);
+    const gz = await gzipString(json);
+    const blob = gz ?? new Blob([json], { type: 'application/json' });
+    const extension = gz ? 'json.gz' : 'json';
+
     const url = URL.createObjectURL(blob);
     try {
         const link = document.createElement('a');
         link.href = url;
-        link.download = `starsutra-autobackup-${username}-${today()}.json`;
+        link.download = `starsutra-autobackup-${username}-${today()}.${extension}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

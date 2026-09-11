@@ -59,11 +59,52 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | any): Use
  * Validates password strength and requirements.
  * Used during user creation and password updates.
  */
-export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean; error?: string } => {
+/** Minimum password length for a new account. */
+export const MIN_PASSWORD_LENGTH = 10;
+
+/** Choices that pass a naive length test but should not be accepted. */
+const WEAK_PASSWORD_SUBSTRINGS = [
+    'password', 'passw0rd', '12345', 'qwerty', 'abc123',
+    'admin', 'shivam', 'sijan', 'starsutra', 'letmein',
+];
+
+/**
+ * Password rules for account creation and password changes.
+ *
+ * The floor was six characters - Firebase's own default. For a system
+ * holding payroll, PAN numbers, bank details and the cheque ledger that is
+ * not a meaningful barrier, and because the app is a static export an
+ * attacker who guesses a password gets everything that account can reach,
+ * with the Firestore rules as the only remaining check.
+ *
+ * Deliberately a predictable floor rather than a strength meter: rules
+ * people can read are easier to satisfy than a bar that moves.
+ */
+export const validatePassword = (
+    password: string,
+    isRequired: boolean = true,
+    username: string = ''
+): { isValid: boolean; error?: string } => {
     if (!isRequired && !password) return { isValid: true };
     if (isRequired && !password) return { isValid: false, error: "Password is required." };
-    if (password && password.length < 6) return { isValid: false, error: "Password must be at least 6 characters." };
-    return { isValid: true };
+
+    const problems: string[] = [];
+    if (password.length < MIN_PASSWORD_LENGTH) problems.push(`at least ${MIN_PASSWORD_LENGTH} characters`);
+    if (!/[a-z]/.test(password)) problems.push('a lowercase letter');
+    if (!/[A-Z]/.test(password)) problems.push('an uppercase letter');
+    if (!/[0-9]/.test(password)) problems.push('a number');
+
+    const lower = password.toLowerCase();
+    if (WEAK_PASSWORD_SUBSTRINGS.some(bad => lower.includes(bad))) {
+        problems.push('something less guessable - it contains a common word');
+    }
+    if (username && username.length >= 3 && lower.includes(username.toLowerCase())) {
+        problems.push('no part of the username');
+    }
+
+    return problems.length
+        ? { isValid: false, error: `Password needs ${problems.join(', ')}.` }
+        : { isValid: true };
 };
 
 export const onUsersUpdate = (callback: (users: User[]) => void) => {

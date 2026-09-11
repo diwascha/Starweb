@@ -21,6 +21,8 @@ import { runDailyAutoBackup } from '@/lib/auto-backup';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
 
+const FAILED_ATTEMPTS_KEY = 'starsutra:failedLoginAttempts';
+
 const loginSchema = z.object({
   loginString: z.string().min(1, { message: 'Username or Email is required' }),
   password: z.string().min(1, { message: 'Password is required' }),
@@ -37,7 +39,31 @@ export default function LoginPage() {
   const auth = useAuthService();
   const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
 
+  // Persisted, so refreshing the page no longer clears the captcha gate.
+  // This is friction, not a security boundary - anyone can edit localStorage.
+  // The real brute-force protection is Firebase's own server-side throttle,
+  // which surfaces below as TOO_MANY_ATTEMPTS_TRY_LATER.
   const [failedAttempts, setFailedAttempts] = useState(0);
+
+  useEffect(() => {
+    try {
+      const stored = Number(localStorage.getItem(FAILED_ATTEMPTS_KEY));
+      if (Number.isFinite(stored) && stored > 0) setFailedAttempts(stored);
+    } catch { /* private window - gate falls back to in-memory */ }
+  }, []);
+
+  const recordFailedAttempt = () => {
+    setFailedAttempts(prev => {
+      const next = prev + 1;
+      try { localStorage.setItem(FAILED_ATTEMPTS_KEY, String(next)); } catch {}
+      return next;
+    });
+  };
+
+  const clearFailedAttempts = () => {
+    setFailedAttempts(0);
+    try { localStorage.removeItem(FAILED_ATTEMPTS_KEY); } catch {}
+  };
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [captchaChallenge, setCaptchaChallenge] = useState({ a: 0, b: 0 });
 
@@ -123,10 +149,10 @@ export default function LoginPage() {
 
       logAudit(`Successful Login: ${cloudUser.username}`, 'Security');
       toast({ title: 'Welcome', description: `Signed in as ${cloudUser.username}` });
-      setFailedAttempts(0);
+      clearFailedAttempts();
       
     } catch (error: any) {
-      setFailedAttempts(prev => prev + 1);
+      recordFailedAttempt();
       logAudit(`Failed Login: ${data.loginString}`, 'Security', { code: error.code });
       
       let errorMessage = 'Invalid username or password.';
