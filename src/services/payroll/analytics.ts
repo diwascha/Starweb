@@ -6,33 +6,6 @@ import { createTimestamp } from '@/lib/service-utils';
 import { format } from 'date-fns';
 import { isPeriodLocked } from '../attendance/data';
 
-export const isAnalyticsRow = (name: string): boolean => {
-    const n = String(name || '').trim().toLowerCase();
-    return ['employee', 'total', 'pattern insights', 'day of week patterns', 'month-to-month'].some(p => n.includes(p));
-};
-
-export const extractSection = (jsonData: any[][], marker: string): any[] => {
-    const m = marker.toLowerCase();
-    let idx = jsonData.findIndex(row => row.join(' ').toLowerCase().includes(m));
-    if (idx === -1) return [];
-    const headers = jsonData[idx + 1].map(h => String(h || '').trim());
-    const data: any[] = [];
-    for (let i = idx + 2; i < jsonData.length; i++) {
-        const row = jsonData[i];
-        if (!row || row.every(c => !c) || isAnalyticsRow(String(row[0]))) break;
-        const item: any = {};
-        headers.forEach((h, j) => { if (h) item[h] = row[j]; });
-        data.push(item);
-    }
-    return data;
-};
-
-export const extractPatternInsights = (jsonData: any[][]): string[] => {
-    const idx = jsonData.findIndex(row => row.join(' ').toLowerCase().includes('pattern insights'));
-    if (idx === -1) return [];
-    return jsonData.slice(idx + 1).map(r => String(r[0] || '').trim()).filter(t => t && !isAnalyticsRow(t));
-};
-
 /**
  * Fills in the "Behavioral Scoreboard" (behavior_ledger) and "Intelligence
  * Insights" (behavior_analytics) collections directly from processed

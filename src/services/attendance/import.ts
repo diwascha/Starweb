@@ -104,52 +104,6 @@ export const addRawMachineLogs = async (
     }
 };
 
-export const addBulkManualLogs = async (
-    dateRange: { from: Date, to: Date },
-    employeeNames: string[],
-    times: { clockIn: string, clockOut: string, remarks: string, punchMode: 'BOTH' | 'IN_ONLY' | 'OUT_ONLY' },
-    createdBy: string
-): Promise<number> => {
-    const { db } = getFirebase();
-    const now = createTimestamp();
-    const CHUNK_SIZE = 400;
-    const dates: Date[] = [];
-    let curr = startOfDay(new Date(dateRange.from));
-    const end = startOfDay(new Date(dateRange.to));
-    while (curr <= end) { dates.push(new Date(curr)); curr.setDate(curr.getDate() + 1); }
-
-    const operations: { ref: any, data: any }[] = [];
-    employeeNames.forEach(name => {
-        dates.forEach(adDate => {
-            const nepaliDate = new NepaliDate(adDate);
-            const compositeKey = `${name.toLowerCase().trim()}_${format(adDate, 'yyyy-MM-dd')}`;
-            const logData: Partial<RawMachineLog> = {
-                date: adDate.toISOString(), dateBS: nepaliDate.format('YYYY/MM/DD'), bsYear: nepaliDate.getYear(), bsMonth: nepaliDate.getMonth(),
-                employeeName: name, statusFromMachine: (times.punchMode === 'BOTH' && times.clockIn && times.clockOut) ? 'Present' : 'Absent',
-                remarks: times.remarks || null, importedAt: now, importedBy: createdBy, sourceSheet: 'Manual Bulk Entry', isManual: true,
-            };
-            if (times.punchMode === 'BOTH' || times.punchMode === 'IN_ONLY') logData.clockIn = times.clockIn || null;
-            if (times.punchMode === 'BOTH' || times.punchMode === 'OUT_ONLY') logData.clockOut = times.clockOut || null;
-            operations.push({ ref: doc(getRawLogsCollection(), compositeKey), data: logData });
-        });
-    });
-
-    for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
-        const chunk = operations.slice(i, i + CHUNK_SIZE);
-        const batch = writeBatch(db);
-        chunk.forEach(o => batch.set(o.ref, o.data, { merge: true }));
-        await batch.commit().catch(err => {
-            if (err.code === 'permission-denied') {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: 'raw_machine_logs_bulk',
-                    operation: 'write'
-                }));
-            }
-        });
-    }
-    return operations.length;
-};
-
 /**
  * Bulk Clock In / Clock Out: stamps just one side of the punch (clockIn or
  * clockOut) for every selected employee on one date, merging into whatever
