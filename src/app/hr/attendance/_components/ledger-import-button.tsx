@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { previewLedgerSheet, importLedgerWorkbook, NON_DATA_SHEETS, type LedgerSheetPreview, type ConfirmedSheetMapping } from '@/services/attendance/ledger-import';
+import { readUploadedWorkbook } from '@/lib/workbook-import';
 interface MappingRow extends LedgerSheetPreview {
     year: string;
     month: string;
@@ -50,10 +51,10 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
         try {
             const XLSX = await import('xlsx');
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
                     const data = new Uint8Array(event.target?.result as ArrayBuffer);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const workbook = await readUploadedWorkbook(data, { sheetjs: { cellDates: true } });
 
                     const candidateSheets = workbook.SheetNames.filter(
                         name => !NON_DATA_SHEETS.has(name.trim().toLowerCase())

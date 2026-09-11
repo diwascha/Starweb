@@ -39,10 +39,3 @@ export function useBusinessProfile(entityId?: BusinessEntityId): CompanyProfile 
 
   return profile;
 }
-
-/** The entity that owns the current route, when a page needs its label or id
- *  rather than its letterhead. */
-export function useBusinessEntity(entityId?: BusinessEntityId): BusinessEntity {
-  const pathname = usePathname();
-  return entityId ? getEntity(entityId) : resolveEntityForPath(pathname);
-}

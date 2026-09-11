@@ -65,6 +65,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 import NepaliDate from 'nepali-date-converter';
+import { readUploadedWorkbook } from '@/lib/workbook-import';
 
 export default function CompaniesManagementPage() {
     const { user } = useAuth();
@@ -209,7 +210,7 @@ export default function CompaniesManagementPage() {
             reader.onload = async (event) => {
                 try {
                     const data = new Uint8Array(event.target?.result as ArrayBuffer);
-                    const workbook = XLSX.read(data, { type: 'array' });
+                    const workbook = await readUploadedWorkbook(data);
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const json = XLSX.utils.sheet_to_json<any>(sheet);
                     const localCompanies = [...companies];

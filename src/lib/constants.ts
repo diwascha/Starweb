@@ -63,7 +63,6 @@ export const NEPALI_MONTHS = [
   { value: 11, name: "Chaitra" }
 ];
 
-export const NEPALI_MONTH_NAMES = NEPALI_MONTHS.map(m => m.name);
 
 // Re-exported from the business entity registry, which is the single place
 // each company's letterhead defaults are defined. Kept here so the many

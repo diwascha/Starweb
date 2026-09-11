@@ -53,6 +53,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { ProductForm } from '../cost-report/_components/product-form';
 import { SortableHead } from '@/components/ui/sortable-head';
+import { readUploadedWorkbook } from '@/lib/workbook-import';
 
 const formatLabel = (key: string) => {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
@@ -564,7 +565,7 @@ export default function PackSpecPage() {
       reader.onload = async (event) => {
         try {
           const data = new Uint8Array(event.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
+          const workbook = await readUploadedWorkbook(data);
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const json = XLSX.utils.sheet_to_json<any>(sheet);
 

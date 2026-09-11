@@ -39,9 +39,6 @@ export const getFiscalYearMonths = (fyStartYear: number): FiscalYearMonth[] => {
     return months;
 };
 
-/** True if the given BS year/month falls within the given fiscal year. */
-export const isInFiscalYear = (bsYear: number, bsMonth: number, fyStartYear: number): boolean =>
-    getFiscalYearStart(bsYear, bsMonth) === fyStartYear;
 
 /** BS month name for a fiscal-year month index (0 = Shrawan .. 11 = Ashadh). */
 export const fiscalMonthName = (fyMonthIndex: number): string => {

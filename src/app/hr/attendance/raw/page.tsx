@@ -39,6 +39,7 @@ import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import type { Employee, HrShift } from '@/lib/types';
 import { onEmployeesUpdate, updateEmployee } from '@/services/employee-service';
 import { onShiftsUpdate } from '@/services/hr-admin-service';
+import { readUploadedWorkbook } from '@/lib/workbook-import';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -277,7 +278,7 @@ export default function MachineLogsPage() {
 
                 try {
                     const data = new Uint8Array(event.target?.result as ArrayBuffer);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const workbook = await readUploadedWorkbook(data, { sheetjs: { cellDates: true } });
                     const dataSheets = workbook.SheetNames.filter(
                         name => !NON_ATTENDANCE_SHEETS.has(name.trim().toLowerCase())
                     );

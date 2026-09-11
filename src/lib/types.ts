@@ -197,7 +197,6 @@ export type EmployeeStatus = 'Working' | 'Long Leave' | 'Resigned' | 'Dismissed'
 // Freeform, but 'Production' | 'Admin' / the roles below are offered as quick-pick defaults in the UI.
 export type Department = string;
 export type Position = string;
-export type PositionStatus = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers' | 'Staff';
 export type BloodGroup = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
 
 export interface EmployeeDocument {
@@ -502,33 +501,6 @@ export interface BehaviorAnalyticsEntry {
     bestDayOfWeek: string;
     worstDayOfWeek: string;
     source?: 'excel-import' | 'generated'; // Provenance: pulled from the source workbook's own ledger vs computed here from attendance.
-}
-
-export interface AnalyticsData {
-    punctuality: any[];
-    behavior: any[];
-    workforce: any[];
-    patterns: any[];
-    highestAbsenteeism: { day: string; count: number };
-    highestLateArrivals: { day: string; count: number };
-    lateHotspots: { date: string; count: number }[];
-    saturdayUtilization: number;
-    mostPunctualWeekday: { day: string; rate: number };
-    worstShiftStart: { time: string; rate: number };
-    importedReport?: AnalyticsReport | null;
-}
-
-export interface AnalyticsReport {
-    id: string; // bsYear-bsMonth
-    bsYear: number;
-    bsMonth: number;
-    behavioralPatterns: any[];
-    enhancedInsights: any[];
-    patternInsights: string[];
-    dayOfWeekPatterns: any[];
-    monthToMonthComparison: any[];
-    importedAt: string;
-    importedBy: string;
 }
 
 export type VehicleStatus = 'Active' | 'In Maintenance' | 'Decommissioned';
@@ -1336,6 +1308,3 @@ export interface SessionRecord {
   isStale?: boolean; // client-side derived or cleanup-flagged
 }
 
-export interface SessionConfig {
-  inactivityThresholdMinutes: number;
-}
