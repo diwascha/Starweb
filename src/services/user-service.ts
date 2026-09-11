@@ -143,17 +143,39 @@ export const deleteUsernameRecord = async (username: string) => {
 };
 
 
+/**
+ * Create or update a user's profile.
+ *
+ * This one AWAITS the server, unlike almost every other write in the app.
+ * Those are deliberately fire-and-forget because an offline write pends
+ * rather than failing, and a spinning save button on a dropped connection is
+ * worse than a queued record. Account provisioning is the opposite case:
+ *
+ *   - It cannot work offline anyway - the Firebase Auth account it pairs with
+ *     is created over the network moments earlier.
+ *   - Reporting success wrongly is expensive. The admin closes the dialog
+ *     believing the account exists, and the new user is left with an Auth
+ *     login that resolves to no profile and can never sign in.
+ *
+ * So the caller gets a real result and can show a real error.
+ */
 export const saveUser = async (user: User) => {
     const { db } = getFirebase();
     if (!user?.id) throw new Error("Invalid user ID.");
 
     const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, user.id);
     const payload = { ...user, updatedAt: serverTimestamp() };
-    
-    reportWriteFailure(
-        setDoc(userRef, payload, { merge: true }),
-        { path: userRef.path, operation: 'update', requestResourceData: payload }
-    );
+
+    try {
+        await setDoc(userRef, payload, { merge: true });
+    } catch (err: any) {
+        if (err?.code === 'permission-denied') {
+            throw new Error(
+                'You do not have permission to save this account. Only an administrator can create or change user accounts.'
+            );
+        }
+        throw new Error(`Could not save the account: ${err?.message || err}`);
+    }
 
     if (user.username && user.email) {
         const usernameRef = doc(db, COLLECTIONS.USERNAMES, user.username.toLowerCase().trim());
@@ -212,6 +234,13 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     
     try {
         const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email.toLowerCase().trim(), password);
+
+        // The username had to be reserved before the account existed, so it
+        // could not carry a uid. Attach it now: `uid` is what ties this
+        // publicly-readable lookup document to an account, and the rules use
+        // it to stop a signed-in user squatting someone else's name.
+        await setDoc(usernameRef, { uid: userCredential.user.uid }, { merge: true });
+
         await deleteApp(secondaryApp);
         logAudit(`New User Created: ${login}`, 'Security');
         return userCredential.user;

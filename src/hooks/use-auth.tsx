@@ -21,7 +21,22 @@ interface UserSession {
   isAdmin: boolean;
   permissions: Permissions;
   passwordLastUpdated?: string;
+  /** When this browser first signed in. Survives profile updates - see the
+   *  note on the Firestore snapshot below. */
   sessionCreatedAt: number;
+  /**
+   * True only once the `system_users` document has been read back from
+   * Firestore in THIS page load.
+   *
+   * The session is mirrored into localStorage so the shell can render
+   * immediately, but localStorage is editable by whoever is sitting at the
+   * machine. `isAdmin: true` typed into devtools used to be enough to unlock
+   * every module in the UI, and because the security rules grant any approved
+   * user access to the business collections, the UI was the only thing
+   * standing in the way. A restored session therefore carries NO privileges
+   * until the server copy confirms them.
+   */
+  verified: boolean;
 }
 
 interface AuthContextType {
@@ -93,6 +108,10 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
             return;
         }
 
+        // An unverified session has no permissions yet, so evaluating them
+        // here would bounce a legitimate user out as "no authorized modules".
+        if (user && !user.verified) return;
+
         if (user && !isAuthSegment(normalizedPath) && !user.isAdmin) {
             const pathSegments = pathname.split('/').filter(Boolean);
             const firstSegment = pathSegments[0] || 'dashboard';
@@ -120,7 +139,8 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
     const isAuthSegment = (path: string) => path === '/login' || path === '/signup';
 
     const normalizedPath = getNormalizedPath(pathname);
-    if (loading || (!user && !isAuthSegment(normalizedPath))) {
+    if (loading || (!user && !isAuthSegment(normalizedPath)) ||
+        (user && !user.verified && !isAuthSegment(normalizedPath))) {
         return (
             <div className="flex h-screen items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-3">
@@ -185,7 +205,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
              setUser(null);
              toast({ title: 'Session Expired', description: 'Please login again.' });
         } else if (session) {
-            setUser(session);
+            // Render the shell with the remembered identity, but strip every
+            // privilege: these values came from localStorage, which the person
+            // at the keyboard can edit. The Firestore snapshot below is what
+            // grants access, and until it lands `verified` is false and
+            // hasPermission() answers no to everything.
+            setUser({
+                ...session,
+                isAdmin: false,
+                permissions: {},
+                verified: false,
+            });
         }
       } catch {
         localStorage.removeItem(USER_SESSION_KEY);
@@ -224,6 +254,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 return;
             }
 
+            // The absolute age limit used to be unenforceable: this line set
+            // sessionCreatedAt to Date.now() on every snapshot, and the
+            // snapshot fires on every page load, so the 24-hour check on
+            // restore compared "now" against "now" and never expired anything.
+            // Carry the original sign-in time forward instead.
+            const startedAt = (() => {
+                try {
+                    const prior = JSON.parse(localStorage.getItem(USER_SESSION_KEY) || 'null');
+                    const t = Number(prior?.sessionCreatedAt);
+                    return Number.isFinite(t) && t > 0 ? t : Date.now();
+                } catch {
+                    return Date.now();
+                }
+            })();
+
+            if (Date.now() - startedAt > SESSION_MAX_AGE) {
+                toast({ title: 'Session Expired', description: 'Please sign in again.' });
+                logout();
+                return;
+            }
+
             const session: UserSession = {
                 id: firebaseUser.uid,
                 username: data.username || 'staradmin',
@@ -232,13 +283,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 isAdmin: !!data.isAdmin,
                 permissions: data.permissions || {},
                 passwordLastUpdated: data.passwordLastUpdated,
-                sessionCreatedAt: Date.now()
+                sessionCreatedAt: startedAt,
+                verified: true,
             };
             
             localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
             setUser(session);
         }, (err) => {
+            // Without this snapshot nothing is verified, so the app would sit
+            // on "Authorizing" forever. Fail closed and send them back to the
+            // login screen rather than leaving a half-authorised shell up.
             console.error("User sync failure:", err);
+            toast({
+                title: 'Could not verify your access',
+                description: 'Sign in again to continue.',
+                variant: 'destructive',
+            });
+            logout();
         });
 
       } else {
@@ -266,7 +327,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAdmin: !!userToLogin.isAdmin,
         permissions: userToLogin.permissions || {},
         passwordLastUpdated: userToLogin.passwordLastUpdated,
-        sessionCreatedAt: now
+        sessionCreatedAt: now,
+        // The login page has just read this profile from Firestore under the
+        // signed-in user's own credentials, so it is server-sourced. The
+        // onAuthStateChanged snapshot re-confirms it a moment later.
+        verified: true,
     };
     localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
     setUser(session);
@@ -274,6 +339,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const hasPermission = useCallback((module: string, action: Action | 'create'): boolean => {
     if (!user) return false;
+    // A session restored from localStorage is not an authorisation.
+    if (!user.verified) return false;
     if (user.isAdmin) return true;
     if (user.isApproved === false) return false;
     

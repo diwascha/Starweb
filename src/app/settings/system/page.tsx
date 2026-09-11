@@ -222,11 +222,31 @@ export default function SystemSettingsPage() {
             const authUser = await adminCreateUserWithUsername(auth, userForm.username, userForm.email, userForm.password);
             finalUserId = authUser.uid;
         }
-        await saveUser({ id: finalUserId, username: userForm.username.toLowerCase().trim(), email: userForm.email.toLowerCase().trim(), isApproved: userForm.isApproved, isAdmin: userForm.isAdmin, permissions: userForm.permissions });
-        toast({ title: 'User Account Updated' });
+
+        try {
+            await saveUser({ id: finalUserId, username: userForm.username.toLowerCase().trim(), email: userForm.email.toLowerCase().trim(), isApproved: userForm.isApproved, isAdmin: userForm.isAdmin, permissions: userForm.permissions });
+        } catch (saveError: any) {
+            // The sign-in account already exists at this point but has no
+            // profile, so the person cannot sign in. Say so plainly rather
+            // than leaving the admin to discover it when the user complains.
+            if (!isEditing) {
+                throw new Error(
+                    `The sign-in account for "${userForm.username}" was created, but its profile could not be saved, ` +
+                    `so they cannot sign in yet. ${saveError.message} Re-open this dialog and save again to finish setting them up.`
+                );
+            }
+            throw saveError;
+        }
+
+        toast({
+            title: isEditing ? 'User account updated' : 'User account created',
+            description: userForm.isApproved
+                ? `${userForm.username} can sign in now.`
+                : `${userForm.username} cannot sign in until you approve the account.`,
+        });
         setIsUserDialogOpen(false);
     } catch (e: any) {
-        toast({ title: 'Error', description: e.message, variant: 'destructive' });
+        toast({ title: 'Could not save the account', description: e.message, variant: 'destructive' });
     } finally {
         setIsSubmittingUser(false);
     }

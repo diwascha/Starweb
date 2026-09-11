@@ -48,12 +48,23 @@ service cloud.firestore {
       allow list: if isAdmin(); 
 
       // Was `allow create: if true` - unauthenticated, any uid, any payload.
-      // A new account may only be created by its own owner, unapproved and
-      // non-admin; an existing admin promotes it afterwards.
-      allow create: if isAuthenticated() && 
-                       request.auth.uid == userId &&
-                       request.resource.data.get('isApproved', false) == false &&
-                       request.resource.data.get('isAdmin', false) == false;
+      //
+      // Accounts in this app are PROVISIONED BY AN ADMIN (Settings > System);
+      // there is no self-signup page. So an admin must be able to write a
+      // profile for a uid that is not their own - the first version of this
+      // rule allowed only self-creation and silently broke user creation
+      // entirely: the Firebase Auth account was made, the profile write was
+      // denied, and the new user could never sign in.
+      //
+      // The self-creation branch stays for a future signup page, and for the
+      // fact that anyone can mint an Auth account directly against the public
+      // API key: such a profile is forced unapproved and non-admin, which
+      // grants nothing until an admin approves it.
+      allow create: if isAdmin() ||
+                       (isAuthenticated() && 
+                        request.auth.uid == userId &&
+                        request.resource.data.get('isApproved', false) == false &&
+                        request.resource.data.get('isAdmin', false) == false);
 
       allow update: if (isAdmin() && request.auth.uid != userId) || 
                        (isAuthenticated() && request.auth.uid == userId && 
