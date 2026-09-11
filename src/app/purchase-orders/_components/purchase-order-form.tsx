@@ -14,7 +14,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X, ChevronDown, Save, Loader2 } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
-import { cn, generateNextPONumber, toNepaliDate, normalizeBF } from '@/lib/utils';
+import { cn, generateNextPONumber, resolveNumberingRule, toNepaliDate, normalizeBF } from '@/lib/utils';
+import { reserveNextNumber } from '@/services/number-reservation-service';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -180,6 +181,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   // reach into the form.
   const purchaseOrdersRef = useRef<PurchaseOrder[]>([]);
   const suggestedForDate = useRef<string | null>(null);
+  // What we last suggested, so a number the user edited by hand is left alone.
+  const suggestedNumberRef = useRef<string>('');
 
   useEffect(() => {
     if (!isClient || poToEdit) return;
@@ -189,7 +192,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     suggestedForDate.current = dateKey;
     generateNextPONumber(purchaseOrdersRef.current, watchedPoDate?.toISOString()).then(nextPoNumber => {
       // Don't stomp a number the user has already edited themselves.
-      if (!form.getValues('poNumber') || form.getValues('poNumber').startsWith('SPI-')) {
+      if (!form.getValues('poNumber') || form.getValues('poNumber') === suggestedNumberRef.current) {
+        suggestedNumberRef.current = nextPoNumber;
         form.setValue('poNumber', nextPoNumber);
       }
     });
@@ -359,6 +363,35 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         }
 
       } else {
+        // Reserve the number atomically, here at save rather than when the
+        // form opened. The number shown while typing is only a preview
+        // computed from this client's list - two people filling in a PO at
+        // the same moment see the same suggestion. This transaction is what
+        // guarantees they don't both get it.
+        //
+        // A number the user typed themselves is respected as-is: they may be
+        // backfilling a legacy document, and silently renumbering it would be
+        // worse than the gap.
+        const suggested = suggestedNumberRef.current;
+        const userChoseTheirOwn = !!values.poNumber && values.poNumber !== suggested;
+
+        if (!userChoseTheirOwn) {
+          const { prefix, startNum } = await resolveNumberingRule('purchaseOrder', 'SPI-', poData.poDate);
+          const reserved = await reserveNextNumber(
+            'purchaseOrder',
+            prefix,
+            purchaseOrdersRef.current.map(p => p.poNumber),
+            startNum,
+          );
+          if (reserved !== values.poNumber) {
+            toast({
+              title: 'Number reassigned',
+              description: `Another order took ${values.poNumber || 'that number'} first. This one is ${reserved}.`,
+            });
+          }
+          poData.poNumber = reserved;
+        }
+
         const newPOId = await addPurchaseOrder(poData);
         toast({ title: 'Success', description: `Purchase Order ${finalize ? 'created' : 'saved as draft'}.` });
         

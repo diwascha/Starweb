@@ -7,6 +7,7 @@ export const COLLECTIONS = {
   REPORTS: 'reports',
   PRODUCTS: 'products',
   PURCHASE_ORDERS: 'purchaseOrders',
+  NUMBER_COUNTERS: 'numberCounters',
   RAW_MATERIALS: 'rawMaterials',
   EMPLOYEES: 'employees',
   ATTENDANCE: 'attendance',

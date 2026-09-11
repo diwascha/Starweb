@@ -110,21 +110,25 @@ export const calculateNextSequence = (
 /**
  * Standard rule-based numbering logic for ALL document types.
  */
-export const generateNextNumber = async (
-  items: any[],
-  fieldName: string,
+/**
+ * Which prefix and starting number apply to a document of this type on this
+ * date. Split out so the on-screen preview and the atomic reservation at save
+ * time resolve the SAME rule - otherwise a document could be previewed under
+ * one fiscal year's prefix and reserved under another's.
+ */
+export const resolveNumberingRule = async (
   settingKey: DocumentType,
   defaultPrefix: string,
   documentDate?: string
-): Promise<string> => {
+): Promise<{ prefix: string; startNum: number }> => {
   const numberingSetting = await getSetting('documentPrefixes');
   const numberingConfig = (numberingSetting?.value as DocumentPrefixes) || {};
   const rawRules = numberingConfig[settingKey];
-  
+
   const rules = Array.isArray(rawRules) ? rawRules : [];
-  
+
   let matchedRule: NumberingRule | undefined;
-  
+
   if (documentDate) {
     const docDate = new Date(documentDate);
     matchedRule = rules.find(r => {
@@ -138,10 +142,30 @@ export const generateNextNumber = async (
   if (!matchedRule) {
     matchedRule = rules.find(r => r.status === 'Active');
   }
-  
-  const prefix = matchedRule?.prefix || (typeof rawRules === 'string' ? rawRules : defaultPrefix);
-  const startNum = matchedRule?.startingNumber || 1;
-  
+
+  return {
+    prefix: matchedRule?.prefix || (typeof rawRules === 'string' ? rawRules : defaultPrefix),
+    startNum: matchedRule?.startingNumber || 1,
+  };
+};
+
+/**
+ * The number a form SHOWS while it is being filled in.
+ *
+ * This is a preview, not a reservation - it is computed from the caller's
+ * local list and two people can see the same suggestion at once. The number
+ * that actually goes on the document is reserved atomically at save time via
+ * reserveNextNumber (services/number-reservation-service).
+ */
+export const generateNextNumber = async (
+  items: any[],
+  fieldName: string,
+  settingKey: DocumentType,
+  defaultPrefix: string,
+  documentDate?: string
+): Promise<string> => {
+  const { prefix, startNum } = await resolveNumberingRule(settingKey, defaultPrefix, documentDate);
+
   const numberStrings = items.map(item => {
       // Handle complex items like Transactions which store the ID in specific fields or narratives
       if (settingKey === 'paymentReceipt' || settingKey === 'tdsVoucher' || settingKey === 'chequeVoucher' || settingKey === 'gsmVoucher' || settingKey === 'paymentTracker') {
