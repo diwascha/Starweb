@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement, Party, PartyType, AccountOwnership } from '@/lib/types';
+import type { RawMaterial, PurchaseOrder, PurchaseOrderStatus, Amendment, UnitOfMeasurement, Party, PartyType, AccountOwnership } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X, ChevronDown, Save, Loader2 } from 'lucide-react';
@@ -76,6 +76,14 @@ const generateMaterialName = (type: string, size: string, gsm: string, bf: strin
     }
     return '';
 };
+
+/**
+ * Statuses that mean the order has moved on physically. Amending the paperwork
+ * of an order that has already shipped or been delivered must not rewind it to
+ * 'Amended' - the goods are still shipped. The amendment is recorded in the
+ * amendment log either way.
+ */
+const ADVANCED_STATUSES: PurchaseOrderStatus[] = ['Shipped', 'Delivered', 'Canceled'];
 
 export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
@@ -155,20 +163,37 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     setIsClient(true);
     const unsubs = [
       onRawMaterialsUpdate(setRawMaterials),
-      onPurchaseOrdersUpdate(setPurchaseOrders),
+      onPurchaseOrdersUpdate((list) => { setPurchaseOrders(list); purchaseOrdersRef.current = list; }),
       onUomsUpdate(setUoms),
       onPartiesUpdate(setParties)
     ];
     return () => unsubs.forEach(unsub => unsub());
   }, []);
   
+  // Suggest a PO number once per date, and never again afterwards.
+  //
+  // This used to depend on `purchaseOrders`, which is a live Firestore
+  // subscription - so every time anyone else in the company saved a purchase
+  // order, this effect re-ran and overwrote the number in the open form,
+  // including one the user had typed by hand. The ref records which date a
+  // number has already been suggested for, so a remote change can no longer
+  // reach into the form.
+  const purchaseOrdersRef = useRef<PurchaseOrder[]>([]);
+  const suggestedForDate = useRef<string | null>(null);
+
   useEffect(() => {
-    if(isClient && !poToEdit && purchaseOrders.length > 0) {
-        generateNextPONumber(purchaseOrders, watchedPoDate?.toISOString()).then(nextPoNumber => {
-            form.setValue('poNumber', nextPoNumber);
-        });
-    }
-  }, [isClient, poToEdit, purchaseOrders, form, watchedPoDate]);
+    if (!isClient || poToEdit) return;
+    const dateKey = watchedPoDate ? watchedPoDate.toISOString().slice(0, 10) : '';
+    if (!dateKey || suggestedForDate.current === dateKey) return;
+
+    suggestedForDate.current = dateKey;
+    generateNextPONumber(purchaseOrdersRef.current, watchedPoDate?.toISOString()).then(nextPoNumber => {
+      // Don't stomp a number the user has already edited themselves.
+      if (!form.getValues('poNumber') || form.getValues('poNumber').startsWith('SPI-')) {
+        form.setValue('poNumber', nextPoNumber);
+      }
+    });
+  }, [isClient, poToEdit, form, watchedPoDate]);
 
   useEffect(() => {
     if (poToEdit) {
@@ -303,18 +328,25 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       };
 
       if (poToEdit?.id) {
-        if (!isCurrentlyDraft && !finalize) {
+        if (isCurrentlyDraft) {
+          // A draft stays a draft until it is explicitly finalized.
+          poData.status = finalize ? 'Ordered' : 'Draft';
+        } else {
+          // Already finalized: editing it is an amendment, and it is logged as
+          // one. What it must NOT do is rewind the order's progress - the old
+          // code set 'Amended' unconditionally, so amending a Shipped or
+          // Delivered order silently threw that state away. A separate gap let
+          // `finalize` on an already-final order fall through to 'Ordered',
+          // which did the same thing by a different route.
           const newAmendment: Amendment = {
             date: now,
             remarks: 'Order details updated after finalization.',
             amendedBy: user.username,
           };
-          poData.status = 'Amended';
           poData.amendments = [...(poToEdit.amendments || []), newAmendment];
-        } else if (isCurrentlyDraft && finalize) {
-           poData.status = 'Ordered';
-        } else if (isCurrentlyDraft && !finalize) {
-           poData.status = 'Draft';
+          poData.status = ADVANCED_STATUSES.includes(poToEdit.status)
+            ? poToEdit.status
+            : 'Amended';
         }
 
         await updatePurchaseOrder(poToEdit.id, poData);

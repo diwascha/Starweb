@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { deleteField } from 'firebase/firestore';
 import Link from 'next/link';
 import { 
   PlusCircle, 
@@ -21,14 +22,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Truck,
-  FileText,
-  Save,
-  Loader2,
   RefreshCcw
 } from 'lucide-react';
 import type { PurchaseOrder, PurchaseOrderStatus, Amendment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,7 +61,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { onPurchaseOrdersUpdate, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
@@ -203,13 +201,14 @@ export default function PurchaseOrdersListPage() {
   const handleDeletePurchaseOrder = async (id: string) => {
     try {
       await deletePurchaseOrder(id);
+      // deletePurchaseOrder now rejects on failure, so this catch is real.
       toast({ title: 'Purchase Order Deleted', description: 'The purchase order has been successfully deleted.' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete purchase order.', variant: 'destructive' });
     }
   };
   
-  const updatePurchaseOrderStatus = (id: string, status: PurchaseOrderStatus, dateISO?: string, remarks?: string) => {
+  const updatePurchaseOrderStatus = async (id: string, status: PurchaseOrderStatus, dateISO?: string, remarks?: string) => {
     const po = purchaseOrders.find(p => p.id === id);
     if (!po) return;
 
@@ -237,19 +236,24 @@ export default function PurchaseOrdersListPage() {
       }
       
       // If reverting to Ordered, clear out dispatch and delivery dates
+      // Reverting to Ordered clears the dispatch/delivery dates. Firestore's
+      // deleteField() removes them outright; writing null left the fields
+      // present as null against a `string | undefined` type.
       if (status === 'Ordered') {
-          updateData.shippedDate = null;
-          updateData.deliveryDate = null;
+          updateData.shippedDate = deleteField();
+          updateData.deliveryDate = deleteField();
       }
 
-      updatePurchaseOrder(id, updateData);
+      // Awaited: the previous version fired this off and toasted success
+      // immediately, so a rejected write still reported "Status Updated".
+      await updatePurchaseOrder(id, updateData);
       toast({
         title: 'Status Updated',
         description: `Purchase Order status has been updated to ${status}.`,
       });
     } catch (error) {
        console.error("Failed to update status:", error);
-       toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+       toast({ title: 'Error', description: 'Failed to update status. The order was not changed.', variant: 'destructive' });
     }
   };
 
@@ -267,9 +271,9 @@ export default function PurchaseOrdersListPage() {
     setStatusDialogOpen(true);
   };
   
-  const handleConfirmStatusUpdate = () => {
+  const handleConfirmStatusUpdate = async () => {
     if (purchaseOrderToUpdate && targetStatus) {
-      updatePurchaseOrderStatus(
+      await updatePurchaseOrderStatus(
           purchaseOrderToUpdate.id, 
           targetStatus, 
           statusDate?.toISOString(), 

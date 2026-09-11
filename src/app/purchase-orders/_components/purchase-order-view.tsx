@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 import type { PurchaseOrder, PurchaseOrderVersion, CompanyProfile, Amendment } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import {
     Printer,
@@ -63,14 +64,15 @@ function PurchaseOrderDocument({
   containerRef,
   companyProfile
 }: {
-  purchaseOrder: any,
+  purchaseOrder: PurchaseOrderVersion['data'] & Partial<Pick<PurchaseOrder, 'versions'>>,
   includeAmendments?: boolean,
   containerRef?: React.RefObject<HTMLDivElement | null>,
   companyProfile: CompanyProfile
 }) {
   const nepaliPoDateString = new NepaliDate(new Date(purchaseOrder.poDate)).format('YYYY/MM/DD');
-  const hasAmendments = purchaseOrder.amendments && purchaseOrder.amendments.length > 0;
-  const lastAmendment = hasAmendments ? purchaseOrder.amendments[purchaseOrder.amendments.length - 1] : null;
+  const amendmentList = purchaseOrder.amendments || [];
+  const hasAmendments = amendmentList.length > 0;
+  const lastAmendment = hasAmendments ? amendmentList[amendmentList.length - 1] : null;
   const amendedDate = lastAmendment ? new Date(lastAmendment.date) : null;
   const nepaliAmendedDateString = amendedDate ? new NepaliDate(amendedDate).format('YYYY/MM/DD') : '';
 
@@ -236,7 +238,7 @@ function PurchaseOrderDocument({
         <div className="mt-8 text-[10px]">
             <div>
                 <p className="font-extrabold uppercase text-[9px] text-neutral-500 mb-1">Delivery Location</p>
-                <p className="font-semibold">{purchaseOrder.deliveryLocation || companyProfile.address}</p>
+                <p className="font-semibold">{companyProfile.address}</p>
             </div>
             {purchaseOrder.remarks && (
                 <div className="mt-4">
@@ -250,7 +252,7 @@ function PurchaseOrderDocument({
             <div className="mt-8 border border-amber-200 bg-amber-50/60 rounded-md px-4 py-3">
                 <h3 className="text-[9px] font-extrabold uppercase text-amber-800 mb-2">Amendment History</h3>
                 <div className="space-y-1">
-                    {purchaseOrder.amendments.map((am: any, i: number) => (
+                    {amendmentList.map((am: any, i: number) => (
                         <p key={i} className="text-[9px] text-neutral-600">
                             <span className="font-extrabold text-neutral-900">Rev {i + 1}</span>
                             <span className="mx-1.5 text-neutral-300">|</span>
@@ -281,7 +283,9 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const [zoom, setZoom] = useState(1);
   const [selectedVersion, setSelectedVersion] = useState<PurchaseOrderVersion | null>(null);
   const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
+  // Purchase orders belong to the packaging company; the shared hook resolves
+  // that from the route instead of another hand-rolled settings subscription.
+  const companyProfile = useBusinessProfile();
 
   const mainPrintRef = useRef<HTMLDivElement>(null);
   const snapshotPrintRef = useRef<HTMLDivElement>(null);
@@ -297,68 +301,188 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     }
   }, [initialPurchaseOrder, poId]);
 
-  useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
-    return () => unsub();
-  }, []);
-
-  const handleExportPdf = async (ref: React.RefObject<HTMLDivElement | null>, poNo: string) => {
+  /**
+   * Pure vector PDF - a real document, not a screenshot of one.
+   *
+   * This used to rasterise the page with html2canvas at scale 2 and embed it
+   * as JPEG, slicing the canvas by hand to paginate. That produced a picture
+   * of a purchase order: text a supplier can't select, search or copy, blurry
+   * when zoomed, and hundreds of kilobytes a page. autoTable paginates the
+   * item table natively and keeps every figure as text.
+   *
+   * `ref` is no longer read - the PDF is built from the order data directly -
+   * but the signature is kept so the JPG export and the buttons stay as they
+   * are.
+   */
+  const handleExportPdf = async (_ref: React.RefObject<HTMLDivElement | null>, poNo: string) => {
     const key = `pdf-${poNo}`;
-    const element = ref.current;
-    if (!element) return;
+    const po = purchaseOrder;
+    if (!po) return;
     setIsExporting(prev => ({ ...prev, [key]: true }));
     try {
-        const html2canvas = (await import('html2canvas')).default;
-        const { jsPDF } = await import('jspdf');
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable'),
+        ]);
 
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            backgroundColor: '#ffffff',
-        } as any);
+        // Derived here rather than reaching into the document component -
+        // this handler builds the PDF from the order data, not the DOM.
+        const nepaliPoDateString = new NepaliDate(new Date(po.poDate)).format('YYYY/MM/DD');
+        const groupedItems = (po.items || []).reduce((acc: Record<string, any[]>, item: any) => {
+            const k = item.rawMaterialType || 'Other';
+            (acc[k] = acc[k] || []).push(item);
+            return acc;
+        }, {});
+        const grandTotals = (po.items || []).reduce((acc: Record<string, number>, item: any) => {
+            const q = parseFloat(item.quantity);
+            if (!isNaN(q) && q > 0) acc[item.unit] = (acc[item.unit] || 0) + q;
+            return acc;
+        }, {});
+        const displayNameFor = (item: any, isPaper: boolean, type: string) => {
+            if (!isPaper) return item.rawMaterialName || type;
+            return [item.rawMaterialName || type, item.gsm ? `${item.gsm} GSM` : '', normalizeBF(item.bf) || '']
+                .filter(Boolean).join(' · ');
+        };
 
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgHeight = (canvas.height * pageWidth) / canvas.width;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const M = 14;
+        let y = 16;
 
-        if (imgHeight <= pageHeight + 1) {
-            pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidth, imgHeight);
-        } else {
-            const pageCanvasHeight = Math.floor((pageHeight * canvas.width) / pageWidth);
-            let renderedHeight = 0;
-            let pageIndex = 0;
-            while (renderedHeight < canvas.height) {
-                const sliceHeight = Math.min(pageCanvasHeight, canvas.height - renderedHeight);
-                const pageCanvas = document.createElement('canvas');
-                pageCanvas.width = canvas.width;
-                pageCanvas.height = sliceHeight;
-                const ctx = pageCanvas.getContext('2d')!;
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-                ctx.drawImage(canvas, 0, renderedHeight, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+        // Letterhead
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+        doc.text((companyProfile.nameEn || '').toUpperCase(), pageWidth / 2, y, { align: 'center' });
+        if (companyProfile.nameNp) {
+            y += 5; doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+            doc.text(companyProfile.nameNp, pageWidth / 2, y, { align: 'center' });
+        }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+        if (companyProfile.address) { y += 4.5; doc.text(companyProfile.address, pageWidth / 2, y, { align: 'center' }); }
+        if (companyProfile.pan) { y += 4; doc.text(`PAN: ${companyProfile.pan}`, pageWidth / 2, y, { align: 'center' }); }
 
-                if (pageIndex > 0) pdf.addPage();
-                pdf.addImage(
-                    pageCanvas.toDataURL('image/jpeg', 0.95),
-                    'JPEG', 0, 0, pageWidth, (sliceHeight * pageWidth) / canvas.width
-                );
-                renderedHeight += sliceHeight;
-                pageIndex++;
-            }
+        y += 3; doc.setLineWidth(0.5); doc.line(M, y, pageWidth - M, y);
+        y += 6;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+        doc.text('PURCHASE ORDER', pageWidth / 2, y, { align: 'center' });
+
+        // Order meta and vendor, side by side
+        y += 7;
+        const colR = pageWidth / 2 + 4;
+        doc.setFontSize(8);
+        const line = (label: string, value: string, x: number, yy: number) => {
+            doc.setFont('helvetica', 'bold'); doc.setTextColor(120);
+            doc.text(label.toUpperCase(), x, yy);
+            doc.setFont('helvetica', 'bold'); doc.setTextColor(0);
+            doc.text(value || '-', x, yy + 4);
+        };
+        line('Vendor', po.companyName, M, y);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+        let vy = y + 8;
+        if (po.companyAddress) { doc.text(po.companyAddress, M, vy); vy += 4; }
+        if (po.panNumber) { doc.text(`PAN: ${po.panNumber}`, M, vy); vy += 4; }
+
+        line('PO Number', `#${po.poNumber}`, colR, y);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+        let my = y + 8;
+        doc.text(`Status: ${po.status || 'Issued'}`, colR, my); my += 4;
+        doc.text(`Date: ${nepaliPoDateString} BS  (${new Date(po.poDate).toLocaleDateString('en-CA')})`, colR, my); my += 4;
+        if (po.deliveryDate) {
+            doc.text(`Delivery: ${new Date(po.deliveryDate).toLocaleDateString('en-CA')}`, colR, my); my += 4;
+        }
+        doc.setTextColor(0);
+
+        // Items, grouped by material type exactly as the on-screen document is
+        let cursor = Math.max(vy, my) + 4;
+        Object.entries(groupedItems).forEach(([type, itemsOfType]: [string, any]) => {
+            const isPaper = String(type).toLowerCase().includes('paper');
+            const head = isPaper
+                ? [['#', 'Description / Grade', 'Size (in)', 'GSM', 'BF', 'Quantity']]
+                : [['#', 'Description / Grade', 'Quantity']];
+            const body = (itemsOfType as any[]).map((item, i) => isPaper
+                ? [i + 1, displayNameFor(item, true, type), item.size || '-', item.gsm || '-', normalizeBF(item.bf) || '-', `${item.quantity} ${item.unit}`]
+                : [i + 1, displayNameFor(item, false, type), `${item.quantity} ${item.unit}`]);
+
+            const totals = (itemsOfType as any[]).reduce((acc: Record<string, number>, it: any) => {
+                const q = parseFloat(it.quantity);
+                if (!isNaN(q) && q > 0) acc[it.unit] = (acc[it.unit] || 0) + q;
+                return acc;
+            }, {});
+            const totalText = Object.entries(totals).map(([u, t]) => `${(t as number).toLocaleString()} ${u}`).join('  /  ');
+
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(90);
+            doc.text(String(type).toUpperCase(), M, cursor);
+            doc.setTextColor(0);
+
+            autoTable(doc, {
+                startY: cursor + 2,
+                head, body,
+                foot: [isPaper
+                    ? [{ content: `Subtotal - ${type}`, colSpan: 5, styles: { halign: 'right' as const } }, totalText]
+                    : [{ content: `Subtotal - ${type}`, colSpan: 2, styles: { halign: 'right' as const } }, totalText]],
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 1.5, lineColor: [200, 200, 200], lineWidth: 0.1, overflow: 'linebreak' },
+                headStyles: { fillColor: [235, 235, 235], textColor: 20, fontStyle: 'bold' },
+                footStyles: { fillColor: [248, 248, 248], textColor: 20, fontStyle: 'bold' },
+                columnStyles: isPaper
+                    ? { 0: { cellWidth: 8, halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'right' } }
+                    : { 0: { cellWidth: 8, halign: 'center' }, 2: { halign: 'right' } },
+                margin: { left: M, right: M },
+            });
+            cursor = ((doc as any).lastAutoTable?.finalY || cursor) + 7;
+        });
+
+        // Grand total
+        const grandText = Object.entries(grandTotals).map(([u, t]) => `${(t as number).toLocaleString()} ${u}`).join('   ');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+        doc.text(`TOTAL ORDER VOLUME:  ${grandText || '-'}`, pageWidth - M, cursor, { align: 'right' });
+        cursor += 8;
+
+        const block = (label: string, value: string) => {
+            if (!value) return;
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(120);
+            doc.text(label.toUpperCase(), M, cursor);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(0);
+            const wrapped = doc.splitTextToSize(value, pageWidth - M * 2);
+            doc.text(wrapped, M, cursor + 4);
+            cursor += 4 + wrapped.length * 4 + 4;
+        };
+        block('Delivery Location', companyProfile.address || '');
+        block('Remarks', po.remarks || '');
+
+        if (po.amendments?.length) {
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(120);
+            doc.text('AMENDMENT HISTORY', M, cursor);
+            doc.setTextColor(0);
+            autoTable(doc, {
+                startY: cursor + 2,
+                head: [['Date', 'By', 'Remarks']],
+                body: po.amendments.map((am: any) => [
+                    new Date(am.date).toLocaleDateString('en-CA'), am.amendedBy || '-', am.remarks || '',
+                ]),
+                theme: 'grid',
+                styles: { fontSize: 7, cellPadding: 1.2, lineColor: [210, 210, 210], lineWidth: 0.1, overflow: 'linebreak' },
+                headStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: 'bold' },
+                columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 30 } },
+                margin: { left: M, right: M },
+            });
+            cursor = ((doc as any).lastAutoTable?.finalY || cursor) + 10;
         }
 
-        const blob = pdf.output('blob');
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `PO-${poNo}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        // Signatures
+        const pageH = doc.internal.pageSize.getHeight();
+        const sigY = Math.min(Math.max(cursor + 12, pageH - 30), pageH - 20);
+        const sigW = (pageWidth - M * 2 - 20) / 3;
+        ['Prepared By', 'Checked By', 'Authorised By'].forEach((role, i) => {
+            const x = M + i * (sigW + 10);
+            doc.setDrawColor(0); doc.setLineWidth(0.2);
+            doc.line(x, sigY, x + sigW, sigY);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+            doc.text(role.toUpperCase(), x, sigY + 4);
+        });
+
+        doc.save(`PO-${poNo}.pdf`);
     } catch (error) {
+        console.error('PDF export failed', error);
         toast({ title: 'PDF Export Failed', variant: 'destructive' });
     } finally {
         setIsExporting(prev => ({ ...prev, [key]: false }));
