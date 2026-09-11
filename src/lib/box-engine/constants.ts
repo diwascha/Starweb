@@ -15,6 +15,12 @@ import type { LayerRole } from './types';
  *
  * `takeUp` is the ratio of fluted medium consumed per unit of board length.
  *
+ * These are DEFAULTS, not fixed law. Mills quote different take-ups and
+ * revise them, so every value here can be overridden per quotation from the
+ * costing screen (Flute Take-up, stored on the report alongside the paper
+ * rates). A saved quotation keeps the factors it was costed with, so
+ * changing them later never silently reprices past work.
+ *
  * IMPORTANT - B is pinned to 1.35 on purpose. The legacy formula in
  * cost-calculator.ts multiplied EVERY flute's GSM by a hard-coded 1.35, and
  * every record ever saved by this app has fluteType 'B' (it was defaulted in
@@ -25,7 +31,7 @@ import type { LayerRole } from './types';
  * `heightMm` is the nominal flute height, used for board caliper.
  */
 export const FLUTE_PROFILES: Record<string, { label: string; takeUp: number; heightMm: number }> = {
-  A: { label: 'A Flute (coarse)', takeUp: 1.54, heightMm: 4.7 },
+  A: { label: 'A Flute (coarse)', takeUp: 1.55, heightMm: 4.7 },
   B: { label: 'B Flute (standard)', takeUp: 1.35, heightMm: 2.5 },
   C: { label: 'C Flute (medium)', takeUp: 1.43, heightMm: 3.6 },
   E: { label: 'E Flute (fine)', takeUp: 1.27, heightMm: 1.5 },

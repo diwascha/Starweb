@@ -32,7 +32,7 @@ export {
   deriveLayers, deriveLayersFromLegacy, projectLayersToLegacy, describeLayers,
   makeLayer, sanitizeLayers, isLegacyItem, resolveGeometry, plyToLayerCount,
 } from './layers';
-export { calculateLayers, consolidateMaterials, resolveLayerRate, layerTakeUp } from './cost';
+export { calculateLayers, consolidateMaterials, resolveLayerRate, layerTakeUp, resolveTakeUp } from './cost';
 export { calculateStrength, calculateBurst, calculateEct, calculateCaliper, resolveDerating } from './strength';
 export { buildRecommendation } from './recommend';
 
@@ -67,7 +67,7 @@ export const analyzeBox = (item: any, rates: RateContext): BoxAnalysis => {
 
   // E
   const conditions = readConditions(item);
-  const strength = calculateStrength(layers, geometry, conditions, item?.measuredEct);
+  const strength = calculateStrength(layers, geometry, conditions, item?.measuredEct, rates.fluteTakeUps);
 
   // F + G
   const recommendation = buildRecommendation(strength, layers, conditions);

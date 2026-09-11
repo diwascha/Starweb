@@ -211,6 +211,10 @@ export interface RateContext {
    *  material name (e.g. DUPLEX). */
   other?: Record<string, number>;
   conversion: number;
+  /** Per-quotation flute take-up factors, keyed by profile (B, A, C, ...).
+   *  Overrides the built-in defaults. Stored on the report so a saved
+   *  quotation keeps the factors it was costed with. */
+  fluteTakeUps?: Record<string, number>;
   transport: number;
   transportType: string;
   isAccessory?: boolean;

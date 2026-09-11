@@ -65,7 +65,10 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn, toNepaliDate, normalizeBF, generateId } from '@/lib/utils';
 import { calculateItemCost as sharedCalculateItemCost } from '@/lib/cost-calculator';
 import type { RateContext } from '@/lib/box-engine';
-import { PAPER_MATERIALS } from '@/lib/box-engine';
+import {
+  PAPER_MATERIALS, FLUTE_PROFILES, DEFAULT_FLUTE_PROFILE, deriveLayers,
+  projectLayersToLegacy, resolveTakeUp,
+} from '@/lib/box-engine';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -105,6 +108,26 @@ const GroupToggle = ({ label, collapsed, onToggle }: { label: string; collapsed:
     </button>
 );
 
+/**
+ * The flute combination of a row, e.g. "B" for a single wall or "B+C" for a
+ * double wall whose two mediums differ. Mixed constructions are real (a 5 ply
+ * can be B+B, A+A or B+C) and the engine resolves each flute layer's take-up
+ * independently, so the summary has to be able to show more than one.
+ */
+const fluteSummary = (o: any): string => {
+    const layers = deriveLayers(o);
+    const flutes = layers.filter((l: any) => l.kind === 'flute');
+    if (flutes.length === 0) return '-';
+    return flutes.map((l: any) => l.fluteProfile || DEFAULT_FLUTE_PROFILE).join('+');
+};
+
+/** True when a row's flute layers don't all share one profile - that row
+ *  can't be set from the single-value dropdown without flattening it. */
+const hasMixedFlutes = (o: any): boolean => {
+    const flutes = deriveLayers(o).filter((l: any) => l.kind === 'flute');
+    return new Set(flutes.map((l: any) => l.fluteProfile || DEFAULT_FLUTE_PROFILE)).size > 1;
+};
+
 /** The GSM stack of a row as "120/100/120", outer to inner, skipping the
  *  slots a lower ply count doesn't use. */
 const gsmSummary = (o: any): string => {
@@ -127,6 +150,7 @@ const CostingTableRow = React.memo(({
     onRemoveItem,
     onDuplicateItem,
     onOpenDesigner,
+    onFluteChange,
     collapsedGroups,
     onTogglePrint,
     selectedForPrint,
@@ -216,7 +240,7 @@ const CostingTableRow = React.memo(({
                 {collapsedGroups.spec ? (
                     <TableCell className="border-x px-2 text-[10px] leading-tight text-center bg-blue-50/20">
                         <div className="font-bold tabular-nums">{item.l || 0}&times;{item.b || 0}&times;{item.h || 0}</div>
-                        <div className="text-muted-foreground tabular-nums">{item.noOfPcs || 0} pcs &middot; {item.ply || 0} ply</div>
+                        <div className="text-muted-foreground tabular-nums">{item.noOfPcs || 0} pcs &middot; {item.ply || 0} ply &middot; {fluteSummary(item)}</div>
                         <div className="text-muted-foreground truncate">{(item.paperType || '').charAt(0) || '-'} {normalizeBF(item.paperBf) || '-'} &middot; {item.wastagePercent || 0}%</div>
                     </TableCell>
                 ) : (<>
@@ -229,6 +253,29 @@ const CostingTableRow = React.memo(({
                         <SelectTrigger className="h-8 text-center px-1"><SelectValue/></SelectTrigger>
                         <SelectContent>{PLY_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
                     </Select>
+                </TableCell>
+                <TableCell className="border-r px-2">
+                    {hasMixedFlutes(item) ? (
+                        // A mixed construction can't be expressed by one dropdown -
+                        // flattening it here would silently rewrite the other flute.
+                        <button
+                            type="button"
+                            onClick={() => onOpenDesigner(index)}
+                            title="Mixed flute construction - open the Box Designer to edit each layer"
+                            className="h-8 w-full text-[11px] font-bold rounded border bg-white hover:bg-muted/40"
+                        >
+                            {fluteSummary(item)}
+                        </button>
+                    ) : (
+                        <Select value={fluteSummary(item) === '-' ? DEFAULT_FLUTE_PROFILE : fluteSummary(item)} onValueChange={v => onFluteChange(index, v)}>
+                            <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                {Object.entries(FLUTE_PROFILES).map(([k, p]) => (
+                                    <SelectItem key={k} value={k}>{k} &middot; {p.takeUp}x</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 </TableCell>
                 <TableCell className="border-r px-2">
                     <Select value={item.paperType ?? 'KRAFT'} onValueChange={v => onItemChange(index, 'paperType', v)}>
@@ -309,7 +356,7 @@ const CostingTableRow = React.memo(({
                         {collapsedGroups.spec ? (
                             <TableCell className="border-x px-2 text-[10px] leading-tight text-center text-muted-foreground">
                                 <div className="tabular-nums">{acc.l || 0}&times;{acc.b || 0}</div>
-                                <div className="tabular-nums">{acc.noOfPcs || 0} pcs &middot; {acc.ply || 0} ply</div>
+                                <div className="tabular-nums">{acc.noOfPcs || 0} pcs &middot; {acc.ply || 0} ply &middot; {acc.fluteType || DEFAULT_FLUTE_PROFILE}</div>
                             </TableCell>
                         ) : (<>
                         <TableCell className="border-r p-0"><Input type="number" value={acc.l ?? ''} onChange={e => onItemChange(index, 'acc_l', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
@@ -320,6 +367,14 @@ const CostingTableRow = React.memo(({
                             <Select value={acc.ply ?? '3'} onValueChange={v => onItemChange(index, 'acc_ply', { aIdx, v })}>
                                 <SelectTrigger className="h-8 text-center px-1"><SelectValue/></SelectTrigger>
                                 <SelectContent>{PLY_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </TableCell>
+                        <TableCell className="border-r px-2">
+                            <Select value={acc.fluteType || DEFAULT_FLUTE_PROFILE} onValueChange={v => onItemChange(index, 'acc_fluteType', { aIdx, v })}>
+                                <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    {Object.keys(FLUTE_PROFILES).map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                                </SelectContent>
                             </Select>
                         </TableCell>
                         <TableCell className="border-r px-2">
@@ -406,6 +461,7 @@ const CostingItemCard = React.memo(({
     onRemoveItem,
     onDuplicateItem,
     onOpenDesigner,
+    onFluteChange,
     collapsedGroups,
     onOpenQuickAddProduct
 }: any) => {
@@ -493,13 +549,32 @@ const CostingItemCard = React.memo(({
                     <div><Label className="text-[9px]">Pcs</Label><Input type="number" value={item.noOfPcs ?? ''} onChange={e => onItemChange(index, 'noOfPcs', e.target.value)} className="h-9 text-xs" /></div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                     <div>
                         <Label className="text-[9px]">Ply</Label>
                         <Select value={item.ply ?? '3'} onValueChange={v => onItemChange(index, 'ply', v)}>
                             <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
                             <SelectContent>{PLY_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
                         </Select>
+                    </div>
+                    <div>
+                        <Label className="text-[9px]">Flute</Label>
+                        {hasMixedFlutes(item) ? (
+                            <button type="button" onClick={() => onOpenDesigner(index)}
+                                title="Mixed flute construction - edit per layer in the Box Designer"
+                                className="h-9 w-full text-xs font-bold rounded border bg-white">
+                                {fluteSummary(item)}
+                            </button>
+                        ) : (
+                            <Select value={fluteSummary(item) === '-' ? DEFAULT_FLUTE_PROFILE : fluteSummary(item)} onValueChange={v => onFluteChange(index, v)}>
+                                <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(FLUTE_PROFILES).map(([k, pr]) => (
+                                        <SelectItem key={k} value={k}>{k} &middot; {pr.takeUp}x</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
                     </div>
                     <div>
                         <Label className="text-[9px]">Paper Type</Label>
@@ -636,6 +711,11 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
   // Kraft is rated by BF and virgin has a single rate; anything else had no
   // home until layers could each carry their own material.
   const [otherPaperCosts, setOtherPaperCosts] = useState<Record<string, number>>({});
+  // Flute take-up factors for this quotation. Mills quote different figures
+  // (B+B 1.35, A+A 1.55 is one mill's table) and revise them, so they are
+  // editable here and stored on the report - a saved quotation keeps the
+  // factors it was costed with rather than silently repricing later.
+  const [fluteTakeUps, setFluteTakeUps] = useState<Record<string, number>>({});
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, address: '', panNumber: '', ownership: 'Shivam' as AccountOwnership });
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
@@ -653,8 +733,8 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
   const { user } = useAuth();
 
   const calculateItemCost = useCallback((item: any, globalK: any, globalV: number, globalC: number, globalT: number, tType: string, isAcc = false): CalculatedValues => {
-    return sharedCalculateItemCost(item, globalK, globalV, globalC, globalT, tType, isAcc, Number(accessoryConversionCost) || 0, otherPaperCosts);
-  }, [accessoryConversionCost, otherPaperCosts]);
+    return sharedCalculateItemCost(item, globalK, globalV, globalC, globalT, tType, isAcc, Number(accessoryConversionCost) || 0, otherPaperCosts, fluteTakeUps);
+  }, [accessoryConversionCost, otherPaperCosts, fluteTakeUps]);
 
   useEffect(() => {
     if (items.length === 0) return;
@@ -686,12 +766,13 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
     kraftByBf: kraftPaperCosts,
     virgin: Number(virginPaperCost) || 0,
     other: otherPaperCosts,
+    fluteTakeUps,
     conversion: Number(conversionCost) || 0,
     accessoryConversion: Number(accessoryConversionCost) || 0,
     transport: Number(transportCost) || 0,
     transportType: transportCostType,
     isAccessory: false,
-  }), [kraftPaperCosts, virginPaperCost, otherPaperCosts, conversionCost, accessoryConversionCost, transportCost, transportCostType]);
+  }), [kraftPaperCosts, virginPaperCost, otherPaperCosts, fluteTakeUps, conversionCost, accessoryConversionCost, transportCost, transportCostType]);
 
   useEffect(() => {
     const unsubCostSettings = onSettingUpdate('costing', (s) => {
@@ -702,6 +783,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             setConversionCost(s.value.conversionCost || '');
             setAccessoryConversionCost(s.value.accessoryConversionCost || '');
             setOtherPaperCosts(s.value.otherPaperCosts || {});
+            setFluteTakeUps(s.value.fluteTakeUps || {});
             setTermsAndConditions(prev => prev.length === 0 ? (s.value.termsAndConditions || []) : prev);
         }
     });
@@ -736,6 +818,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
           setStatus(reportToEdit.status || 'Draft');
           setTermsAndConditions(reportToEdit.termsAndConditions || []);
           setOtherPaperCosts(reportToEdit.otherPaperCosts || {});
+          setFluteTakeUps(reportToEdit.fluteTakeUps || {});
           const kCosts = reportToEdit.kraftPaperCosts || {};
           const vCost = Number(reportToEdit.virginPaperCost) || 0;
           const cCost = Number(reportToEdit.conversionCost) || 0;
@@ -906,6 +989,35 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
     });
   }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost, transportCost, transportCostType]);
 
+  /**
+   * Set the flute profile for a row from the table.
+   *
+   * Writing item.fluteType alone isn't enough once a row has an explicit
+   * layer stack - deriveLayers returns that stack, so the legacy field would
+   * be ignored. Every flute layer is updated to match, which is exactly what
+   * a single-value dropdown means. Rows with mixed flutes don't reach here;
+   * the table sends those to the Box Designer instead of flattening them.
+   */
+  const handleFluteChange = useCallback((idx: number, profile: string) => {
+    setItems(prev => {
+        const item: any = prev[idx];
+        if (!item) return prev;
+        const patch: Record<string, any> = { fluteType: profile };
+        if (item.layers?.length) {
+            const nextLayers = item.layers.map((l: any) =>
+                l.kind === 'flute' ? { ...l, fluteProfile: profile } : l);
+            Object.assign(patch, { layers: nextLayers, ...projectLayersToLegacy(nextLayers) });
+            // projectLayersToLegacy also rewrites ply/paperType from the stack;
+            // fluteType is the field we actually mean to change here.
+            patch.fluteType = profile;
+        }
+        const next = [...prev];
+        next[idx] = { ...item, ...patch };
+        next[idx].calculated = calculateItemCost(next[idx], kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType);
+        return next;
+    });
+  }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost, transportCost, transportCostType]);
+
   const handleSubmitParty = async () => {
     if (!user) return;
     if (!partyForm.name) {
@@ -948,6 +1060,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             conversionCost: Number(conversionCost) || 0,
             accessoryConversionCost: Number(accessoryConversionCost) || 0,
             otherPaperCosts,
+            fluteTakeUps,
             transportCost: Number(transportCost) || 0,
             transportCostType,
             termsAndConditions,
@@ -974,6 +1087,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             conversionCost: Number(conversionCost) || 0,
             accessoryConversionCost: Number(accessoryConversionCost) || 0,
             otherPaperCosts,
+            fluteTakeUps,
         }, user.username);
 
         const updatePromises: any[] = [];
@@ -1150,7 +1264,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
   // just leaves white space instead of removing the horizontal scroll.
   const tableMinWidth = useMemo(() => {
     const ALWAYS = 10 + 280 + 140 + 80;             // checkbox, product, total, actions
-    const spec = collapsedGroups.spec ? 170 : 870;  // L/B/H + pcs/ply/type/bf/waste
+    const spec = collapsedGroups.spec ? 170 : 980;  // L/B/H + pcs/ply/flute/type/bf/waste
     const gsm = collapsedGroups.gsm ? 150 : maxPly * 100;
     const calc = collapsedGroups.calc ? 150 : 430;  // T.GSM, weight, gross, transport
     return ALWAYS + spec + gsm + calc;
@@ -1271,6 +1385,47 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                             {/* Kraft is priced by BF and virgin has one rate. Anything
                                 else a layer might be made of needs its own rate, or
                                 that layer silently costs nothing. */}
+                            {/* Take-up factors. Mills quote different figures for the
+                                same profile and revise them, so these are editable and
+                                saved with the quotation - re-opening an old report
+                                costs it with the factors it was quoted at. */}
+                            <div>
+                                <Label className="text-[10px] font-bold text-muted-foreground">Flute Take-up Factor</Label>
+                                <div className="grid grid-cols-2 gap-1.5 mt-1">
+                                    {Object.entries(FLUTE_PROFILES).map(([k, p]) => {
+                                        const effective = resolveTakeUp(k, fluteTakeUps);
+                                        const isOverridden = effective !== p.takeUp;
+                                        return (
+                                            <div key={k} className="flex items-center gap-1">
+                                                <span className={cn("text-[10px] w-10 shrink-0 font-bold", isOverridden && "text-primary")} title={`${p.label} - default ${p.takeUp}x`}>
+                                                    {k}{isOverridden && '*'}
+                                                </span>
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    className="h-8 text-xs px-2"
+                                                    placeholder={String(p.takeUp)}
+                                                    value={fluteTakeUps[k] ?? ''}
+                                                    onChange={e => {
+                                                        const v = e.target.value;
+                                                        setFluteTakeUps(prev => {
+                                                            const next = { ...prev };
+                                                            // Clearing the box returns that profile to its
+                                                            // default rather than costing it at zero.
+                                                            if (v === '') delete next[k]; else next[k] = parseFloat(v);
+                                                            return next;
+                                                        });
+                                                    }}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-[9px] text-muted-foreground mt-1 leading-tight">
+                                    Blank uses the default. Saved with this quotation, so changing it later won&apos;t reprice past reports.
+                                </p>
+                            </div>
+
                             <div>
                                 <Label className="text-[10px] font-bold text-muted-foreground">Other Papers (NPR/kg)</Label>
                                 <div className="grid grid-cols-2 gap-1.5 mt-1">
@@ -1394,6 +1549,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                             onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))}
                             onDuplicateItem={handleDuplicateItem}
                             onOpenDesigner={setDesignerIndex}
+                            onFluteChange={handleFluteChange}
                             collapsedGroups={collapsedGroups}
                             onOpenQuickAddProduct={(idx: number, search: string) => {
                                 setActiveRowIndexForProduct(idx);
@@ -1420,7 +1576,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                         eight input columns for one read-only summary cell. */}
                                     <th
                                         rowSpan={collapsedGroups.spec ? 2 : 1}
-                                        colSpan={collapsedGroups.spec ? 1 : 8}
+                                        colSpan={collapsedGroups.spec ? 1 : 9}
                                         className={cn('text-center border-x font-bold text-black bg-blue-50/50 p-0', collapsedGroups.spec && 'min-w-[170px]')}
                                     >
                                         <GroupToggle label="Specification" collapsed={collapsedGroups.spec} onToggle={() => toggleGroup('spec')} />
@@ -1454,6 +1610,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                         <th className="text-center min-w-[110px] bg-blue-50/30">H</th>
                                         <th className="text-center min-w-[80px] bg-blue-50/30" title="Number of pieces">Pcs</th>
                                         <th className="text-center min-w-[80px] bg-blue-50/30" title="Number of paper layers in the board (3/5/7/9-ply corrugated)">Ply</th>
+                                        <th className="text-center min-w-[110px] bg-blue-50/30" title="Flute profile. Sets the take-up factor applied to every fluted layer - a double wall shows both, e.g. B+C. Take-up factors are editable under Global Rates.">Flute</th>
                                         <th className="text-center min-w-[150px] bg-blue-50/30" title="Paper type: Kraft, Virgin, or Mixed">Type (K/V/M)</th>
                                         <th className="text-center min-w-[130px] bg-blue-50/30" title="Burst Factor rating of the kraft paper - looked up against the Global Rates on the left">Paper BF</th>
                                         <th className="text-center border-r min-w-[100px] bg-blue-50/30" title="Extra paper weight added on top to account for production wastage">Waste %</th>
@@ -1490,6 +1647,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                         onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))}
                                         onDuplicateItem={handleDuplicateItem}
                                         onOpenDesigner={setDesignerIndex}
+                                        onFluteChange={handleFluteChange}
                                         collapsedGroups={collapsedGroups}
                                         onTogglePrint={handleTogglePrint}
                                         selectedForPrint={selectedForPrint}

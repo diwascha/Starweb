@@ -20,7 +20,7 @@
  */
 
 import { normalizeBF } from '../utils';
-import { DEFAULT_FLUTE_TAKEUP, FLUTE_PROFILES, PAPER_MATERIALS } from './constants';
+import { DEFAULT_FLUTE_PROFILE, DEFAULT_FLUTE_TAKEUP, FLUTE_PROFILES, PAPER_MATERIALS } from './constants';
 import { describeLayers } from './layers';
 import type {
   BoxGeometry, BoxLayer, LayerBreakdown, MaterialRequirementLine, RateContext,
@@ -31,11 +31,30 @@ const num = (v: any): number => {
   return isNaN(n) ? 0 : n;
 };
 
-/** Take-up: liners lie flat, fluted medium consumes extra paper. */
-export const layerTakeUp = (layer: BoxLayer): number => {
+/**
+ * Take-up for one flute profile, honouring a per-quotation override.
+ *
+ * Different mills quote different take-ups for the same profile and revise
+ * them over time, so the built-in table is only a default. `overrides` comes
+ * from the report's own stored factors, which is what lets a historical
+ * quotation keep costing exactly as it did when it was quoted.
+ */
+export const resolveTakeUp = (
+  profileKey: string | undefined,
+  overrides?: Record<string, number>
+): number => {
+  const key = profileKey || DEFAULT_FLUTE_PROFILE;
+  const override = overrides?.[key];
+  if (typeof override === 'number' && override > 0) return override;
+  return FLUTE_PROFILES[key]?.takeUp ?? DEFAULT_FLUTE_TAKEUP;
+};
+
+/** Take-up: liners lie flat, fluted medium consumes extra paper. Each flute
+ *  layer resolves independently, so a double wall can be B+B, A+A, or a
+ *  mixed B+C without the engine treating them as one profile. */
+export const layerTakeUp = (layer: BoxLayer, overrides?: Record<string, number>): number => {
   if (layer.kind !== 'flute') return 1;
-  const profile = layer.fluteProfile && FLUTE_PROFILES[layer.fluteProfile];
-  return profile ? profile.takeUp : DEFAULT_FLUTE_TAKEUP;
+  return resolveTakeUp(layer.fluteProfile, overrides);
 };
 
 const rateKeyFor = (paperType: string): 'kraft-bf' | 'virgin' | 'other' =>
@@ -85,7 +104,7 @@ export const calculateLayers = (
 
   return describeLayers(layers).map(({ layer, position, role, roleLabel: label }) => {
     const gsm = num(layer.gsm);
-    const takeUp = layerTakeUp(layer);
+    const takeUp = layerTakeUp(layer, rates.fluteTakeUps);
     const effectiveGsm = gsm * takeUp;
 
     const weightPerBox = geometry.sheetArea * effectiveGsm;

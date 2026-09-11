@@ -1170,6 +1170,10 @@ export interface CostReport {
    *  rate (Duplex, White Top, ...), keyed by material. Needed now that each
    *  layer of a board can be a different material. */
   otherPaperCosts?: Record<string, number>;
+  /** Flute take-up factors this quotation was costed with, keyed by profile.
+   *  Snapshotted like the paper rates so revising the factors later never
+   *  silently reprices a quotation that was already sent to a customer. */
+  fluteTakeUps?: Record<string, number>;
   transportCost: number;
   transportCostType: 'Per Piece' | 'Per Consignment';
   items: Omit<CostReportItem, 'calculated'>[]; // We only store the inputs, not the calculated values
@@ -1198,6 +1202,7 @@ export interface CostSetting {
     conversionCost: number;
     accessoryConversionCost: number; // Added
     otherPaperCosts?: Record<string, number>;
+    fluteTakeUps?: Record<string, number>;
     termsAndConditions?: CostReportTerm[];
     history: CostSettingHistoryEntry[];
     createdBy?: string;

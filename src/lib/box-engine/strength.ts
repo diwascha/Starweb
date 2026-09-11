@@ -113,7 +113,8 @@ export const estimateLayerRct = (layer: BoxLayer): number => {
  */
 export const calculateEct = (
   layers: BoxLayer[],
-  measuredBoardEct?: string
+  measuredBoardEct?: string,
+  fluteTakeUps?: Record<string, number>
 ): { ectKnPerM: number; confidence: StrengthConfidence; estimatedLayers: number } => {
   const boardEct = num(measuredBoardEct);
   if (boardEct > 0) {
@@ -128,7 +129,7 @@ export const calculateEct = (
     const measuredRct = num(layer.rctKnPerM);
     const rct = measuredRct > 0 ? measuredRct : estimateLayerRct(layer);
     if (measuredRct <= 0) estimatedLayers += 1;
-    ect += rct * layerTakeUp(layer);
+    ect += rct * layerTakeUp(layer, fluteTakeUps);
   });
 
   return {
@@ -168,13 +169,14 @@ export const calculateStrength = (
   layers: BoxLayer[],
   geometry: BoxGeometry,
   conditions: ServiceConditions = {},
-  measuredBoardEct?: string
+  measuredBoardEct?: string,
+  fluteTakeUps?: Record<string, number>
 ): StrengthResult => {
   const limitations: string[] = [];
 
   const burstKgfPerCm2 = calculateBurst(layers);
   const { ectKnPerM, confidence: ectConfidence, estimatedLayers: ectEstimated } =
-    calculateEct(layers, measuredBoardEct);
+    calculateEct(layers, measuredBoardEct, fluteTakeUps);
   const { caliperMm, confidence: caliperConfidence, estimatedLayers: calEstimated } =
     calculateCaliper(layers);
 

@@ -33,7 +33,11 @@ export const calculateItemCost = (
   /** NPR/kg for materials outside the kraft/virgin pair (Duplex, White Top,
    *  ...), keyed by uppercase material name. Optional and additive, so every
    *  existing call site keeps working unchanged. */
-  globalOther: Record<string, number> = {}
+  globalOther: Record<string, number> = {},
+  /** Flute take-up factors for this quotation, keyed by profile. Optional and
+   *  additive; omitting it uses the built-in defaults, which is what keeps
+   *  every previously-saved report costing exactly as before. */
+  globalFluteTakeUps: Record<string, number> = {}
 ): CalculatedValues => {
   const l = parseFloat(item.l) || 0;
   const b = parseFloat(item.b) || 0;
@@ -52,6 +56,7 @@ export const calculateItemCost = (
     kraftByBf: globalK || {},
     virgin: globalV || 0,
     other: globalOther,
+    fluteTakeUps: globalFluteTakeUps,
     conversion: globalC || 0,
     accessoryConversion: globalAC || 0,
     transport: globalT || 0,

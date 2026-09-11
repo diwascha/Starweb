@@ -248,5 +248,46 @@ check('projects back to middleGsm', projected.middleGsm, '140');
 check('projects back to bottomGsm', projected.bottomGsm, '120');
 check('projects back to flute2Gsm', projected.flute2Gsm, '110');
 
+section('10. Flute take-up - defaults, per-quotation overrides, mixed walls');
+
+const fluteBox = (profiles: string[], takeUps?: Record<string, number>) => analyzeBox({
+  ...baseItem(),
+  layers: [
+    makeLayer('liner', { paperType: 'KRAFT', bf: '18 BF', gsm: '120' }),
+    ...profiles.flatMap(p => [
+      makeLayer('flute', { paperType: 'KRAFT', bf: '18 BF', gsm: '100', fluteProfile: p }),
+      makeLayer('liner', { paperType: 'KRAFT', bf: '18 BF', gsm: '120' }),
+    ]),
+  ],
+}, { ...rates, fluteTakeUps: takeUps });
+
+check('B uses 1.35', fluteBox(['B']).layers[1].takeUp, 1.35);
+check('A uses 1.55', fluteBox(['A']).layers[1].takeUp, 1.55);
+check('C uses 1.43', fluteBox(['C']).layers[1].takeUp, 1.43);
+
+// A double wall may mix profiles - each flute resolves on its own.
+const mixedWall = fluteBox(['B', 'C']);
+const mixedTakeUps = mixedWall.layers.filter(l => l.kind === 'flute').map(l => l.takeUp);
+check('B+C wall resolves each flute separately', mixedTakeUps, [1.35, 1.43]);
+check('B+B wall gives two equal take-ups', fluteBox(['B', 'B']).layers.filter(l => l.kind === 'flute').map(l => l.takeUp), [1.35, 1.35]);
+check('A+A wall gives two 1.55s', fluteBox(['A', 'A']).layers.filter(l => l.kind === 'flute').map(l => l.takeUp), [1.55, 1.55]);
+
+// A mill's own figures override the defaults.
+const millFactors = { B: 1.38, A: 1.60 };
+check('override replaces the B default', fluteBox(['B'], millFactors).layers[1].takeUp, 1.38);
+check('override replaces the A default', fluteBox(['A'], millFactors).layers[1].takeUp, 1.60);
+check('unlisted profile keeps its default', fluteBox(['C'], millFactors).layers[1].takeUp, 1.43);
+check('override changes the cost', fluteBox(['B'], millFactors).paperCost > fluteBox(['B']).paperCost, true);
+check('zero/blank override is ignored, not costed at zero', fluteBox(['B'], { B: 0 }).layers[1].takeUp, 1.35);
+
+// Overrides must reach the strength model too, since take-up feeds ECT.
+check('override feeds through to ECT', fluteBox(['B'], millFactors).strength.ectKnPerM > fluteBox(['B']).strength.ectKnPerM, true);
+
+// The whole point of snapshotting: no override means historical behaviour.
+const legacyNoOverride: any = calculateItemCost(baseItem(), K, V, C, T, 'Per Piece');
+const legacyWithEmpty: any = calculateItemCost(baseItem(), K, V, C, T, 'Per Piece', false, AC, {}, {});
+check('an empty override map costs identically to none', legacyWithEmpty.paperCost, legacyNoOverride.paperCost, 1e-9);
+check('legacy rows still resolve at 1.35', legacyNoOverride.totalGsm, 120 + 100 * 1.35 + 120, 1e-9);
+
 console.log(`\n${'='.repeat(60)}\n${passed} passed, ${failed} failed\n${'='.repeat(60)}`);
 process.exit(failed > 0 ? 1 : 0);
