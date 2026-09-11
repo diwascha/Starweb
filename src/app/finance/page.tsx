@@ -1,7 +1,7 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Calculator, FileText, Receipt, Scale, Wallet } from 'lucide-react';
+import { Calculator, FileText, Receipt, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function FinanceDashboardPage() {

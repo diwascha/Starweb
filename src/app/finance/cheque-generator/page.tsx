@@ -6,38 +6,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-  Search,
-  ArrowUpDown,
-  MoreHorizontal,
-  Printer,
-  Trash2,
-  Edit,
-  AlertTriangle,
-  PlusCircle,
-  History,
-  Check,
-  X,
-  Clock,
-  FilterX,
-  Users,
-  ShieldCheck,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Minus,
-  RotateCcw,
-  CalendarIcon,
-  CreditCard,
-  Receipt,
-  Building2,
-  FileDown,
-  Loader2,
-  Eye,
-} from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History, Check, X, Clock, FilterX, Users, ShieldCheck, ChevronLeft, ChevronRight, Plus, Minus, RotateCcw, CalendarIcon, CreditCard, Receipt, Building2, FileDown, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
+import { onChequesUpdate, deleteCheque, updateChequeSplit } from '@/services/cheque-service';
 import type { Cheque, ChequeSplit, ChequeStatus, PartialPayment, Account, Party } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -62,6 +34,8 @@ import {
 import { format, startOfToday } from 'date-fns';
 import { ChequeView } from './_components/cheque-view';
 import { NepalChequeView } from './_components/nepal-cheque-print';
+import { exportChequeVoucherPdf } from '@/lib/cheque-voucher-pdf';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
@@ -257,6 +231,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   });
 
   const { toast } = useToast();
+  const companyProfile = useBusinessProfile();
   const { user, getAllowedOwnerships } = useAuth();
   const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
 
@@ -431,9 +406,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, remark?: string, customDate?: Date) => {
       if (!user) return;
 
-      const updatedSplits = cheque.splits.map((s) => {
-        if (s.id !== splitId) return s;
-
+      // Runs inside a transaction against freshly read splits, so two people
+      // acting on the same cheque serialise instead of clobbering each other.
+      const mutate = (s: any) => {
         const updated: any = {
           ...s,
           status: newStatus,
@@ -442,7 +417,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
         if (newStatus === 'Paid') {
           const totalAmount = Number(s.amount) || 0;
-          const paid = (s.partialPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+          const paid = (s.partialPayments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
           const remaining = totalAmount - paid;
           if (remaining > EPS) {
             updated.partialPayments = [
@@ -460,10 +435,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         }
 
         return updated;
-      });
+      };
 
       try {
-        await updateCheque(cheque.id, { splits: updatedSplits as any, lastModifiedBy: user.username });
+        await updateChequeSplit(cheque.id, splitId, mutate, user.username);
         toast({ title: 'Status updated', description: `Cheque marked as ${newStatus}.` });
       } catch {
         toast({ title: 'Update failed', description: 'The status could not be saved.', variant: 'destructive' });
@@ -491,32 +466,28 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
     setIsPostingPayment(true);
 
-    const updatedSplits = payingSplit.parentCheque.splits.map((s) => {
-      if (s.id !== payingSplit.id) return s;
-
-      const newPayment: PartialPayment = {
-        id: generateId(),
-        date: newPaymentDate.toISOString(),
-        amount: amt,
-        remarks: newPaymentRemark.trim(),
-      };
-
+    // Built inside the transaction from the split as stored, not from the
+    // snapshot this component is holding - otherwise a payment posted by
+    // someone else a moment ago would be dropped from the array we write.
+    const newPayment: PartialPayment = {
+      id: generateId(),
+      date: newPaymentDate.toISOString(),
+      amount: amt,
+      remarks: newPaymentRemark.trim(),
+    };
+    const mutate = (s: any) => {
       const partialPayments = [...(s.partialPayments || []), newPayment];
-      const totalPaid = partialPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const totalPaid = partialPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
       const chequeAmount = Number(s.amount) || 0;
-
       return {
         ...s,
         partialPayments,
         status: totalPaid + EPS >= chequeAmount ? 'Paid' : 'Partially Paid',
       };
-    });
+    };
 
     try {
-      await updateCheque(payingSplit.parentCheque.id, {
-        splits: updatedSplits as any,
-        lastModifiedBy: user.username,
-      });
+      await updateChequeSplit(payingSplit.parentCheque.id, payingSplit.id, mutate, user.username);
       toast({ title: 'Payment recorded' });
       setNewPaymentAmount('');
       setNewPaymentRemark('');
@@ -532,11 +503,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   const handleDeletePartialPayment = async (paymentId: string) => {
     if (!user || !payingSplit) return;
 
-    const updatedSplits = payingSplit.parentCheque.splits.map((s) => {
-      if (s.id !== payingSplit.id) return s;
-
-      const partialPayments = (s.partialPayments || []).filter((p) => p.id !== paymentId);
-      const totalPaid = partialPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const mutate = (s: any) => {
+      const partialPayments = (s.partialPayments || []).filter((p: any) => p.id !== paymentId);
+      const totalPaid = partialPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
       const chequeAmount = Number(s.amount) || 0;
 
       // Removing one of several payments can still leave the cheque settled,
@@ -545,16 +514,24 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         chequeAmount > 0 && totalPaid + EPS >= chequeAmount ? 'Paid' : totalPaid > 0 ? 'Partially Paid' : 'Due';
 
       return { ...s, partialPayments, status };
-    });
+    };
 
     try {
-      await updateCheque(payingSplit.parentCheque.id, {
-        splits: updatedSplits as any,
-        lastModifiedBy: user.username,
-      });
+      await updateChequeSplit(payingSplit.parentCheque.id, payingSplit.id, mutate, user.username);
       toast({ title: 'Payment removed' });
     } catch {
       toast({ title: 'Delete failed', description: 'The payment is still on the ledger.', variant: 'destructive' });
+    }
+  };
+
+  // Was `(id) => deleteCheque(id)` - not awaited, no error path, so a
+  // rejected delete left the voucher on the ledger without a word.
+  const handleDeleteVoucher = async (id: string) => {
+    try {
+      await deleteCheque(id);
+      toast({ title: 'Voucher deleted', description: 'The cheque voucher has been removed.' });
+    } catch {
+      toast({ title: 'Delete failed', description: 'The voucher is still on the ledger.', variant: 'destructive' });
     }
   };
 
@@ -636,25 +613,20 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     if (!chequeToPrint) return;
     setIsExporting(true);
     try {
-        const html2canvas = (await import('html2canvas')).default;
-        const { jsPDF } = await import('jspdf');
-        const element = printRef.current;
-        if (!element) return;
-
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff'
-        });
-        
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`Voucher-${chequeToPrint.voucherNo}.pdf`);
+        // Was html2canvas at scale 2 as a JPEG - a ~295 KB picture in which
+        // not one cheque number could be selected or searched.
+        const party = parties.find(p => p.name === chequeToPrint.payeeName);
+        const allRemarks = Array.from(new Set(chequeToPrint.splits.map(s => s.remarks).filter(Boolean))).join('; ');
+        await exportChequeVoucherPdf({
+            voucherNo: chequeToPrint.voucherNo,
+            voucherDate: new Date(chequeToPrint.paymentDate),
+            payeeName: chequeToPrint.payeeName,
+            payeeAddress: party?.address,
+            payeePan: party?.panNumber,
+            remarks: allRemarks,
+            account: accounts.find(a => a.id === chequeToPrint.accountId),
+            splits: chequeToPrint.splits.map(s => ({ ...s, chequeDate: new Date(s.chequeDate) })),
+        }, companyProfile);
         toast({ title: 'Success', description: 'Voucher exported as PDF.' });
     } catch (error) {
         console.error("PDF export failed:", error);
@@ -823,7 +795,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                       setSplitToReset(s);
                       setIsResetDialogOpen(true);
                     }}
-                    onDeleteVoucher={(id) => deleteCheque(id)}
+                    onDeleteVoucher={handleDeleteVoucher}
                   />
                 ))}
 

@@ -5,9 +5,9 @@ import type { GsmReport } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Printer, Trash2, Eye, Search, FilterX, ChevronLeft, ChevronRight, User, Edit } from 'lucide-react';
-import { toNepaliDate, generateId } from '@/lib/utils';
-import { format } from 'date-fns';
+import { MoreHorizontal, Printer, Trash2, Search, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
+import { toNepaliDate } from '@/lib/utils';
+
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -23,6 +23,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { deleteGsmReport } from '@/services/gsm-service';
+import { useToast } from '@/hooks/use-toast';
 
 interface GsmReportsListProps {
     reports: GsmReport[];
@@ -31,6 +32,20 @@ interface GsmReportsListProps {
 }
 
 export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps) {
+    const { toast } = useToast();
+
+    // Was `onClick={() => deleteGsmReport(r.id)}` - fired and forgotten, with
+    // no await and no error path, so a rejected delete left the row on screen
+    // and said nothing at all.
+    const handleDelete = async (id: string, voucherNo: string) => {
+        try {
+            await deleteGsmReport(id);
+            toast({ title: 'Report deleted', description: `${voucherNo} has been removed.` });
+        } catch {
+            toast({ title: 'Delete failed', description: `${voucherNo} is still on the ledger.`, variant: 'destructive' });
+        }
+    };
+
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 15;
@@ -97,7 +112,7 @@ export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader><AlertDialogTitle>Delete this report?</AlertDialogTitle><AlertDialogDescription>This action is permanent and will remove the verification log for {r.voucherNo}.</AlertDialogDescription></AlertDialogHeader>
-                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteGsmReport(r.id)} className="bg-destructive text-white">Delete Permanent</AlertDialogAction></AlertDialogFooter>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(r.id, r.voucherNo)} className="bg-destructive text-white">Delete Permanent</AlertDialogAction></AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                         </DropdownMenuContent>

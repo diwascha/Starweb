@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Trash2, Printer, Save, Loader2, Plus, Image as ImageIcon, ChevronDown, X } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Trash2, Printer, Save, Loader2, Plus, ChevronDown, X } from 'lucide-react';
 import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber, generateId } from '@/lib/utils';
 import { reserveNumberFor } from '@/services/number-reservation-service';
+import { drawPdfLetterhead } from '@/lib/pdf-letterhead';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
@@ -20,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addEstimatedInvoice, onEstimatedInvoicesUpdate, updateEstimatedInvoice } from '@/services/estimate-invoice-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { InvoiceView } from './invoice-view';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
@@ -40,6 +42,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     const [parties, setParties] = useState<Party[]>([]);
 
     const { toast } = useToast();
+    const companyProfile = useBusinessProfile();
     const { user, getAllowedOwnerships } = useAuth();
     const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
 
@@ -258,14 +261,68 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         try {
             const { jsPDF } = await import('jspdf');
             const { default: autoTable } = await import('jspdf-autotable');
-            const doc = new jsPDF();
-            autoTable(doc, {
-                startY: 65,
-                head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
-                body: invoiceData.items.map((item, index) => [index + 1, item.productName, item.quantity, item.rate, item.gross]),
-                theme: 'grid'
+            // Was `new jsPDF()` straight into autoTable at startY 65: no
+            // letterhead, no invoice number, no party, no date, no total -
+            // just an item table below 65mm of blank paper.
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const M = 14;
+
+            const headEnd = drawPdfLetterhead(doc, companyProfile, {
+                x: pageWidth / 2, y: 15, align: 'center',
+                nameSize: 14, detailSize: 9, showPan: false,
             });
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(13);
+            doc.text('ESTIMATE INVOICE', pageWidth / 2, headEnd + 8, { align: 'center' });
+
+            let y = headEnd + 17;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Invoice No: ${invoiceData.invoiceNumber}`, M, y);
+            doc.text(
+                `Date: ${toNepaliDate(invoiceData.date)} BS (${new Date(invoiceData.date).toLocaleDateString('en-CA')})`,
+                pageWidth - M, y, { align: 'right' }
+            );
+            y += 5;
+            doc.text(`Party: ${invoiceData.party.name}`, M, y);
+            if (invoiceData.party.address) { y += 5; doc.text(`Address: ${invoiceData.party.address}`, M, y); }
+            if (invoiceData.party.panNumber) { y += 5; doc.text(`PAN/VAT: ${invoiceData.party.panNumber}`, M, y); }
+
+            autoTable(doc, {
+                startY: y + 5,
+                head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
+                body: invoiceData.items.map((item, index) => [
+                    index + 1,
+                    item.productName,
+                    item.quantity,
+                    Number(item.rate).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+                    Number(item.gross).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+                ]),
+                foot: [
+                    [{ content: 'Gross Total', colSpan: 4, styles: { halign: 'right' as const } },
+                     Number(invoiceData.grossTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })],
+                    ...(Number(invoiceData.vatTotal) > 0
+                        ? [[{ content: 'VAT', colSpan: 4, styles: { halign: 'right' as const } },
+                            Number(invoiceData.vatTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })]]
+                        : []),
+                    [{ content: 'Net Total', colSpan: 4, styles: { halign: 'right' as const } },
+                     Number(invoiceData.netTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })],
+                ],
+                theme: 'grid',
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [235, 235, 235], textColor: 20, fontStyle: 'bold' },
+                footStyles: { fillColor: [248, 248, 248], textColor: 20, fontStyle: 'bold' },
+                columnStyles: { 0: { cellWidth: 12, halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+                margin: { left: M, right: M },
+            });
+
             doc.save(`Estimate-${invoiceData.invoiceNumber}.pdf`);
+        } catch (error) {
+            // Previously try/finally with no catch, so a failure was silent.
+            console.error('Estimate invoice export failed', error);
+            toast({ title: 'Export Failed', description: 'The invoice PDF could not be created.', variant: 'destructive' });
         } finally {
             setIsExporting(false);
         }

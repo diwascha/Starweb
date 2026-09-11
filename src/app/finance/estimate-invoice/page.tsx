@@ -1,5 +1,7 @@
 'use client';
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
+import { printElement } from '@/lib/print-window';
+import { drawPdfLetterhead } from '@/lib/pdf-letterhead';
 import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { InvoiceCalculator } from './_components/invoice-calculator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -7,24 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Search, 
-  ArrowUpDown, 
-  MoreHorizontal, 
-  View, 
-  Edit, 
-  Trash2, 
-  History, 
-  Printer, 
-  Save, 
-  Image as ImageIcon, 
-  Loader2, 
-  ChevronLeft, 
-  ChevronRight,
-  FilterX,
-  Users,
-  CalendarIcon
-} from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, History, Printer, Save, Image as ImageIcon, ChevronLeft, ChevronRight, FilterX, Users, CalendarIcon } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
@@ -202,23 +187,17 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     
     const handlePrint = (invoice: EstimatedInvoice) => {
         setSelectedInvoice(invoice);
+        // Waits a tick for the hidden printable area to render the selection.
         setTimeout(() => {
-            const printableArea = printRef.current;
-            if (!printableArea) return;
-            
-            const printWindow = window.open('', '', 'height=800,width=800');
-            printWindow?.document.write('<html><head><title>Print Invoice</title>');
-            printWindow?.document.write('<style>@media print{@page{size: A4;margin: 0;}body{margin: 1.6cm;}}body{font-family:sans-serif;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;}.text-right{text-align:right;}.font-bold{font-bold:bold;}</style>');
-            printWindow?.document.write('</head><body>');
-            printWindow?.document.write(printableArea.innerHTML);
-            printWindow?.document.write('</body></html>');
-            printWindow?.document.close();
-            printWindow?.focus();
-            setTimeout(() => {
-                printWindow?.print();
-                printWindow?.close();
-                setSelectedInvoice(null);
-            }, 250);
+            // Was a hand-written <style> of about eight rules, which dropped
+            // the entire layout, and one of the rules was `font-bold: bold` -
+            // not a CSS property, so bold text printed non-bold. The shared
+            // helper copies the real stylesheets instead.
+            const opened = printElement(printRef.current, { title: `Estimate ${invoice.invoiceNumber}` });
+            if (!opened) {
+                toast({ title: 'Could not open the print window', description: 'Allow pop-ups for this site and try again.', variant: 'destructive' });
+            }
+            setSelectedInvoice(null);
         }, 100);
     };
 
@@ -236,20 +215,18 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
         try {
             const { jsPDF } = await import('jspdf');
             const { default: autoTable } = await import('jspdf-autotable');
-            const doc = new jsPDF();
-            
-            // Header
-            doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(16);
-            doc.text(companyProfile.nameEn.toUpperCase(), doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+            // compress: true because the shared letterhead carries the Nepali
+            // name as an image (see lib/devanagari-pdf).
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
 
-            doc.setFont('Helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.text((companyProfile.address || '').toUpperCase(), doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+            const headEnd = drawPdfLetterhead(doc, companyProfile, {
+                x: doc.internal.pageSize.getWidth() / 2, y: 15, align: 'center',
+                nameSize: 14, detailSize: 9, showPan: false,
+            });
 
-            doc.setFont('Helvetica', 'bold');
+            doc.setFont('helvetica', 'bold');
             doc.setFontSize(14);
-            doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' });
+            doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, headEnd + 8, { align: 'center' });
 
             // Info
             doc.setFontSize(10);

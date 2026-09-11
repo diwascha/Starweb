@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Calculator, XCircle } from 'lucide-react';
+import { Calculator } from 'lucide-react';
 import { useEffect } from 'react';
 import { logError } from '@/services/log-service';
 

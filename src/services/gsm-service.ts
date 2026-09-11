@@ -71,7 +71,7 @@ export const addGsmReport = async (report: Omit<GsmReport, 'id' | 'createdAt'>):
         createdAt: new Date().toISOString() 
     };
     
-    setDoc(docRef, payload).catch(async (err) => {
+    await setDoc(docRef, payload).catch(async (err) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: COLLECTIONS.GSM_REPORTS,
@@ -79,6 +79,11 @@ export const addGsmReport = async (report: Omit<GsmReport, 'id' | 'createdAt'>):
                 requestResourceData: payload,
             }));
         }
+        // Rethrown so the caller's error handling can actually run. This
+        // was fire-and-forget: the await resolved before the write, the
+        // rejection was swallowed, and every caller toasted success over a
+        // write that never landed.
+        throw err;
     });
     return docRef.id;
 };
@@ -87,7 +92,7 @@ export const updateGsmReport = async (id: string, updates: Partial<Omit<GsmRepor
     const reportRef = doc(getGsmCollection(), id);
     const payload = { ...updates, lastModifiedAt: new Date().toISOString() };
     
-    updateDoc(reportRef, payload).catch(async (err) => {
+    await updateDoc(reportRef, payload).catch(async (err) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: reportRef.path,
@@ -95,17 +100,27 @@ export const updateGsmReport = async (id: string, updates: Partial<Omit<GsmRepor
                 requestResourceData: payload,
             }));
         }
+        // Rethrown so the caller's error handling can actually run. This
+        // was fire-and-forget: the await resolved before the write, the
+        // rejection was swallowed, and every caller toasted success over a
+        // write that never landed.
+        throw err;
     });
 };
 
 export const deleteGsmReport = async (id: string): Promise<void> => {
     const reportRef = doc(getGsmCollection(), id);
-    deleteDoc(reportRef).catch(async (err) => {
+    await deleteDoc(reportRef).catch(async (err) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ 
                 path: reportRef.path, 
                 operation: 'delete' 
             }));
         }
+        // Rethrown so the caller's error handling can actually run. This
+        // was fire-and-forget: the await resolved before the write, the
+        // rejection was swallowed, and every caller toasted success over a
+        // write that never landed.
+        throw err;
     });
 };

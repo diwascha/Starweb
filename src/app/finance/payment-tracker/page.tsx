@@ -2,31 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-    Plus, 
-    Search, 
-    Edit, 
-    Trash2, 
-    FileText,
-    FilterX, 
-    Loader2, 
-    Calendar as CalendarIconLucide, 
-    X,
-    Printer,
-    FileDown,
-    Image as ImageIcon,
-    Save,
-    History,
-    ChevronLeft,
-    ChevronRight,
-    Calculator,
-    PlusCircle,
-    Hash,
-    ArrowDownCircle,
-    ArrowUpCircle,
-    Eye
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Search, Edit, Trash2, FileText, FilterX, Loader2, Calendar as CalendarIconLucide, X, Printer, FileDown, Image as ImageIcon, Save, History, Calculator, PlusCircle, Hash, ArrowDownCircle, ArrowUpCircle, Eye } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -46,6 +23,7 @@ import { onSettingUpdate } from '@/services/settings-service';
 import type { PaymentTrackerEntry, CompanyProfile } from '@/lib/types';
 import { cn, toNepaliDate, generateId, generateNextPaymentTrackerNumber } from '@/lib/utils';
 import { reserveNumberFor } from '@/services/number-reservation-service';
+import { printElement } from '@/lib/print-window';
 import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
@@ -70,7 +48,7 @@ import {
     DialogFooter, 
     DialogDescription 
 } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 
 interface DraftEntry {
@@ -492,29 +470,14 @@ export default function PaymentTrackerPage() {
     };
 
     const executePrintVoucher = () => {
-        const win = window.open('', '', 'height=800,width=1000');
-        if (!win) {
+        const opened = printElement(reportRef.current, {
+            title: 'Print Ledger',
+            delayMs: 500,
+            extraCss: '@page { size: A4; margin: 0; } body { padding: 0; } .po-report { border: none !important; box-shadow: none !important; }',
+        });
+        if (!opened) {
             toast({ title: 'Popup Blocked', description: 'Allow popups for this site to print.', variant: 'destructive' });
-            return;
         }
-        
-        const styleTags = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-            .map(node => node.outerHTML)
-            .join('\n');
-
-        win.document.write(`<!DOCTYPE html><html><head><title>Print Ledger</title>${styleTags}
-            <style>
-                @page { size: A4; margin: 0; }
-                body { margin: 0; padding: 0; background: #fff; }
-                .po-report { border: none !important; box-shadow: none !important; }
-            </style>
-        </head><body>${reportRef.current?.innerHTML}</body></html>`);
-        win.document.close();
-        win.focus();
-        setTimeout(() => {
-            win.print();
-            win.close();
-        }, 500);
     };
 
     const receivedDrafts = draftEntries.filter(e => e.type === 'Received');

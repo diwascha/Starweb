@@ -1,12 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useBusinessProfile } from '@/hooks/use-business-profile';
-import type { GsmReport, CompanyProfile } from '@/lib/types';
-import { toNepaliDate, toWords } from '@/lib/utils';
+import { GsmReport } from '@/lib/types';
+import { toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
-import { onSettingUpdate } from '@/services/settings-service';
-import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export function GsmReportView({ report }: { report: GsmReport }) {

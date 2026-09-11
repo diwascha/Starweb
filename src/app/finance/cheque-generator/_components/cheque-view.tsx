@@ -2,8 +2,8 @@
 
 import { toWords, toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Account, CompanyProfile } from '@/lib/types';
-import { useState, useEffect } from 'react';
+import { Account } from '@/lib/types';
+
 import { useBusinessProfile } from '@/hooks/use-business-profile';
 
 interface SplitDetail {

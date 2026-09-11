@@ -1,14 +1,13 @@
 'use client';
 
-import type { Party, EstimateInvoiceItem, CompanyProfile } from '@/lib/types';
+import { Party, EstimateInvoiceItem } from '@/lib/types';
 import { toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { useState, useEffect } from 'react';
+
 import { useBusinessProfile } from '@/hooks/use-business-profile';
-import { onSettingUpdate } from '@/services/settings-service';
-import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
+
 
 interface InvoiceViewProps {
   invoiceNumber: string;

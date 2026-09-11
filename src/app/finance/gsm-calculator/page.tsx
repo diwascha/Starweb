@@ -1,6 +1,9 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
+import { printElement } from '@/lib/print-window';
+import { exportGsmReportPdf } from '@/lib/gsm-report-pdf';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { 
@@ -28,6 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function GsmCalculatorPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const companyProfile = useBusinessProfile();
     const [activeTab, setActiveTab] = useState('calculator');
     const [reports, setReports] = useState<GsmReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -61,42 +65,20 @@ export default function GsmCalculatorPage() {
     };
 
     const executePrint = () => {
-        const win = window.open('', '', 'height=800,width=900');
-        if (!win) return;
-        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-            .map(s => s.outerHTML).join('');
-        
-        win.document.write(`<html><head><title>GSM Report</title>${styles}</head><body>`);
-        win.document.write(document.querySelector('.gsm-voucher')?.outerHTML || '');
-        win.document.write('</body></html>');
-        win.document.close();
-        win.focus();
-        setTimeout(() => { win.print(); win.close(); }, 500);
+        const voucher = document.querySelector('.gsm-voucher') as HTMLElement | null;
+        if (!printElement(voucher, { title: 'GSM Report', delayMs: 500 })) {
+            toast({ title: 'Could not open the print window', description: 'Allow pop-ups for this site and try again.', variant: 'destructive' });
+        }
     };
 
     const handleExportPdf = async () => {
         if (!selectedReport) return;
         setIsExporting(true);
         try {
-            const element = document.querySelector('.gsm-voucher') as HTMLElement;
-            if (!element) return;
-
-            const html2canvas = (await import('html2canvas')).default;
-            const { jsPDF } = await import('jspdf');
-
-            const canvas = await html2canvas(element, { 
-                scale: 2,
-                useCORS: true,
-                backgroundColor: '#ffffff'
-            });
-            
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            
-            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`GSM-Report-${selectedReport.voucherNo}.pdf`);
+            // Was html2canvas at scale 2 embedded as a JPEG - a ~295 KB
+            // picture of the report, with no selectable figures. Drawn as
+            // real text and a real table it is around 20 KB.
+            await exportGsmReportPdf(selectedReport, companyProfile);
             toast({ title: 'PDF Export Successful' });
         } catch (error) {
             console.error(error);

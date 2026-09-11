@@ -30,41 +30,13 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getEstimatedInvoices = async (): Promise<EstimatedInvoice[]> => {
-    const q = query(getInvoicesCollection(), orderBy('createdAt', 'desc'));
-    try {
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(fromFirestore);
-    } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'list' }));
-        }
-        throw error;
-    }
-};
 
-export const getEstimatedInvoice = async (id: string): Promise<EstimatedInvoice | null> => {
-    if (!id || typeof id !== 'string' || id.includes('/')) return null;
-    const docRef = doc(getInvoicesCollection(), id);
-    try {
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            return fromFirestore(docSnap);
-        }
-        return null;
-    } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'get' }));
-        }
-        return null;
-    }
-};
 
 export const addEstimatedInvoice = async (invoice: Omit<EstimatedInvoice, 'id'>): Promise<string> => {
     const docRef = doc(getInvoicesCollection());
     const payload = { ...invoice, createdAt: new Date().toISOString() };
     
-    setDoc(docRef, payload).catch(async (err: any) => {
+    await setDoc(docRef, payload).catch(async (err: any) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: COLLECTIONS.ESTIMATED_INVOICES,
@@ -72,6 +44,11 @@ export const addEstimatedInvoice = async (invoice: Omit<EstimatedInvoice, 'id'>)
                 requestResourceData: payload,
             }));
         }
+        // Rethrown so the caller's error handling can actually run. This
+        // was fire-and-forget: the await resolved before the write, the
+        // rejection was swallowed, and every caller toasted success over a
+        // write that never landed.
+        throw err;
     });
     return docRef.id;
 };
@@ -80,7 +57,7 @@ export const updateEstimatedInvoice = async (id: string, invoice: Partial<Omit<E
     const invoiceDoc = doc(getInvoicesCollection(), id);
     const payload = { ...invoice, lastModifiedAt: new Date().toISOString() };
     
-    updateDoc(invoiceDoc, payload).catch(async (err: any) => {
+    await updateDoc(invoiceDoc, payload).catch(async (err: any) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: COLLECTIONS.ESTIMATED_INVOICES,
@@ -88,6 +65,11 @@ export const updateEstimatedInvoice = async (id: string, invoice: Partial<Omit<E
                 requestResourceData: payload,
             }));
         }
+        // Rethrown so the caller's error handling can actually run. This
+        // was fire-and-forget: the await resolved before the write, the
+        // rejection was swallowed, and every caller toasted success over a
+        // write that never landed.
+        throw err;
     });
 };
 
@@ -107,9 +89,14 @@ export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[
 
 export const deleteEstimatedInvoice = async (id: string): Promise<void> => {
     const invoiceDoc = doc(getInvoicesCollection(), id);
-    deleteDoc(invoiceDoc).catch(async (err: any) => {
+    await deleteDoc(invoiceDoc).catch(async (err: any) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'delete' }));
         }
+        // Rethrown so the caller's error handling can actually run. This
+        // was fire-and-forget: the await resolved before the write, the
+        // rejection was swallowed, and every caller toasted success over a
+        // write that never landed.
+        throw err;
     });
 };

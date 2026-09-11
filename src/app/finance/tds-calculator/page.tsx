@@ -10,46 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { 
-    CalendarIcon, 
-    Edit, 
-    Trash2, 
-    Printer, 
-    Save, 
-    Loader2, 
-    Search, 
-    ArrowUpDown, 
-    ChevronsUpDown, 
-    Check, 
-    Plus, 
-    MoreHorizontal, 
-    ChevronLeft, 
-    ChevronRight,
-    PlusCircle
-} from 'lucide-react';
-import { toNepaliDate, toWords, generateNextVoucherNumber, cn } from '@/lib/utils';
+import { CalendarIcon, Edit, Trash2, Printer, Save, Search, ArrowUpDown, ChevronsUpDown, MoreHorizontal, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
+import { toNepaliDate, toWords, generateNextVoucherNumber } from '@/lib/utils';
 import { reserveNumberFor } from '@/services/number-reservation-service';
+import { printElement } from '@/lib/print-window';
+import { exportTdsVoucherPdf } from '@/lib/tds-voucher-pdf';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { 
@@ -63,13 +32,13 @@ import type { TdsCalculation, TdsRate, Party, PartyType, CompanyProfile, Account
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
-import { onSettingUpdate } from '@/services/settings-service';
+
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Switch } from '@/components/ui/switch';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { DEFAULT_COMPANY_PROFILE, NEPALI_MONTHS } from '@/lib/constants';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+
+import { ScrollArea } from '@/components/ui/scroll-area';
+
 import NepaliDate from 'nepali-date-converter';
 
 const INITIAL_TDS_RATES: TdsRate[] = [
@@ -126,6 +95,7 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
     const [isVoucherViewOpen, setIsVoucherViewOpen] = useState(false);
     const [selectedRecordForView, setSelectedRecordForView] = useState<TdsCalculation | null>(null);
     const [isExporting, setIsExporting] = useState(false);
+    const [recordToDelete, setRecordToDelete] = useState<TdsCalculation | null>(null);
     const printRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -154,37 +124,43 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
     const paginated = filtered.slice((currentPage - 1) * itemsPerPage, itemsPerPage === -1 ? undefined : currentPage * itemsPerPage);
     const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(filtered.length / itemsPerPage);
 
+    // Deleting a tax voucher used to be a single unguarded dropdown click:
+    // no confirmation, no await, no error path. It now confirms first and
+    // reports what actually happened.
+    const handleConfirmDelete = async () => {
+        const target = recordToDelete;
+        if (!target) return;
+        try {
+            await deleteTdsCalculation(target.id);
+            toast({ title: 'Voucher deleted', description: `${target.voucherNo} has been removed.` });
+        } catch {
+            toast({ title: 'Delete failed', description: `${target.voucherNo} is still on the ledger.`, variant: 'destructive' });
+        } finally {
+            setRecordToDelete(null);
+        }
+    };
+
     const handlePrint = () => {
-        if (!printRef.current) return;
-        const win = window.open('', '', 'height=800,width=800');
-        win?.document.write('<html><head><title>Print Voucher</title></head><body>');
-        win?.document.write(printRef.current.innerHTML);
-        win?.document.write('</body></html>');
-        win?.document.close();
-        win?.focus();
-        setTimeout(() => { win?.print(); win?.close(); }, 250);
+        // Was written into a bare window with no stylesheets at all, so the
+        // voucher printed as unstyled text.
+        if (!printElement(printRef.current, { title: `TDS Voucher ${selectedRecordForView?.voucherNo || ''}` })) {
+            toast({ title: 'Could not open the print window', description: 'Allow pop-ups for this site and try again.', variant: 'destructive' });
+        }
     };
 
     const handleExportPdf = async () => {
         if (!selectedRecordForView) return;
         setIsExporting(true);
         try {
-            const jsPDF = (await import('jspdf')).default;
-            const autoTable = (await import('jspdf-autotable')).default;
-            const doc = new jsPDF('p', 'mm', 'a5');
-            autoTable(doc, {
-                startY: 50,
-                head: [['Label', 'Value']],
-                body: [
-                    ['Voucher No', selectedRecordForView.voucherNo],
-                    ['Party', selectedRecordForView.partyName || 'N/A'],
-                    ['Base Amount', selectedRecordForView.taxableAmount.toLocaleString()],
-                    ['TDS Amount', selectedRecordForView.tdsAmount.toLocaleString()],
-                    ['Net Payable', selectedRecordForView.netPayable.toLocaleString()]
-                ],
-                theme: 'grid'
-            });
-            doc.save(`TDS-Voucher-${selectedRecordForView.voucherNo}.pdf`);
+            // One shared builder, so this and the calculator dialog produce
+            // the same document - they used to emit five fields and two
+            // fields respectively, neither with a letterhead.
+            await exportTdsVoucherPdf(selectedRecordForView, companyProfile);
+        } catch (error) {
+            // Previously try/finally with no catch: a failure surfaced as an
+            // unhandled rejection and the user was told nothing.
+            console.error('TDS voucher export failed', error);
+            toast({ title: 'Export Failed', description: 'The voucher PDF could not be created.', variant: 'destructive' });
         } finally {
             setIsExporting(false);
         }
@@ -224,7 +200,7 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onSelect={() => { setSelectedRecordForView(calc); setIsVoucherViewOpen(true); }}><Printer className="mr-2 h-4 w-4" /> View/Print</DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => onEdit(calc)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                                <DropdownMenuItem className="text-destructive" onSelect={() => deleteTdsCalculation(calc.id)}><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                <DropdownMenuItem className="text-destructive" onSelect={() => setRecordToDelete(calc)}><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
@@ -255,6 +231,21 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!recordToDelete} onOpenChange={(open) => !open && setRecordToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this TDS voucher?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This permanently removes voucher {recordToDelete?.voucherNo} for {recordToDelete?.partyName || 'this party'}. Tax records are usually kept for audit, so delete only if it was entered in error.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-white">Delete Permanently</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }
@@ -458,16 +449,16 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                 <DialogHeader className="p-6 border-b bg-muted/5 shrink-0"><DialogTitle className="text-xl font-black uppercase">Document Preview</DialogTitle></DialogHeader>
                 <ScrollArea className="flex-1 bg-gray-100 p-8"><div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">{calculationData && <TdsVoucherView calculation={calculationData as any} companyProfile={companyProfile} />}</div></ScrollArea>
                 <DialogFooter className="p-6 border-t bg-white shrink-0"><Button variant="outline" onClick={async () => {
-                    const jsPDF = (await import('jspdf')).default;
-                    const autoTable = (await import('jspdf-autotable')).default;
-                    const doc = new jsPDF('p', 'mm', 'a5');
-                    autoTable(doc, { head: [['Label', 'Value']], body: [['Voucher', voucherNo], ['Net', netAmount.toLocaleString()]] });
-                    doc.save(`TDS-${voucherNo}.pdf`);
+                    try {
+                        await exportTdsVoucherPdf(calculationData as any, companyProfile);
+                    } catch (error) {
+                        console.error('TDS voucher export failed', error);
+                        toast({ title: 'Export Failed', description: 'The voucher PDF could not be created.', variant: 'destructive' });
+                    }
                 }} className="h-10 px-6 uppercase font-bold text-[10px]">Save PDF</Button><Button onClick={() => {
-                    if (!printRef.current) return;
-                    const win = window.open('', '', 'height=800,width=800');
-                    win?.document.write('<html><body>' + printRef.current.innerHTML + '</body></html>');
-                    win?.document.close(); win?.focus(); setTimeout(() => { win?.print(); win?.close(); }, 250);
+                    if (!printElement(printRef.current, { title: `TDS Voucher ${voucherNo}` })) {
+                        toast({ title: 'Could not open the print window', description: 'Allow pop-ups for this site and try again.', variant: 'destructive' });
+                    }
                 }} className="h-10 px-10 font-black uppercase text-[10px] shadow-lg shadow-primary/20"><Printer className="mr-2 h-4 w-4" /> Print Voucher</Button></DialogFooter>
             </DialogContent>
         </Dialog>

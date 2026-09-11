@@ -139,35 +139,7 @@ export const replacePaymentVoucher = async (oldVoucherNo: string, data: {
     });
 };
 
-export const updatePaymentEntry = async (id: string, updates: Partial<PaymentTrackerEntry>): Promise<void> => {
-    const docRef = doc(getCollection(), id);
-    const payload = {
-        ...updates,
-        lastModifiedAt: new Date().toISOString(),
-    };
 
-    updateDoc(docRef, payload).catch(async (err) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-    });
-};
-
-export const deletePaymentEntry = async (id: string): Promise<void> => {
-    const docRef = doc(getCollection(), id);
-    deleteDoc(docRef).catch(async (err) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'delete',
-            }));
-        }
-    });
-};
 
 export const deletePaymentVoucher = async (voucherNo: string): Promise<void> => {
     const { db } = getFirebase();

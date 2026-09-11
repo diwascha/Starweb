@@ -60,7 +60,7 @@ export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' |
         createdAt: new Date().toISOString(),
     };
     const docRef = doc(getTdsCollection());
-    setDoc(docRef, payload).catch(async (err: any) => {
+    await setDoc(docRef, payload).catch(async (err: any) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'tdsCalculations',
@@ -68,6 +68,11 @@ export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' |
                 requestResourceData: payload,
             }));
         }
+        // Rethrown so the caller's error handling can actually run. This
+        // was fire-and-forget: the await resolved before the write, the
+        // rejection was swallowed, and every caller toasted success over a
+        // write that never landed.
+        throw err;
     });
     return docRef.id;
 };
@@ -78,7 +83,7 @@ export const updateTdsCalculation = async (id: string, calculation: Partial<TdsC
         ...calculation,
         lastModifiedAt: new Date().toISOString(),
     };
-    updateDoc(calcDoc, payload).catch(async (err: any) => {
+    await updateDoc(calcDoc, payload).catch(async (err: any) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: calcDoc.path,
@@ -86,23 +91,14 @@ export const updateTdsCalculation = async (id: string, calculation: Partial<TdsC
                 requestResourceData: payload,
             }));
         }
+        // Rethrown so the caller's error handling can actually run. This
+        // was fire-and-forget: the await resolved before the write, the
+        // rejection was swallowed, and every caller toasted success over a
+        // write that never landed.
+        throw err;
     });
 };
 
-export const getTdsCalculations = async (): Promise<TdsCalculation[]> => {
-    try {
-        const snapshot = await getDocs(getTdsCollection());
-        return snapshot.docs.map(fromFirestore);
-    } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'tdsCalculations',
-                operation: 'list',
-            }));
-        }
-        throw error;
-    }
-}
 
 export const onTdsCalculationsUpdate = (callback: (calculations: TdsCalculation[]) => void): () => void => {
     return onSnapshot(getTdsCollection(), 
@@ -122,12 +118,17 @@ export const onTdsCalculationsUpdate = (callback: (calculations: TdsCalculation[
 
 export const deleteTdsCalculation = async (id: string): Promise<void> => {
     const calcDoc = doc(getTdsCollection(), id);
-    deleteDoc(calcDoc).catch(async (err: any) => {
+    await deleteDoc(calcDoc).catch(async (err: any) => {
         if (err.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: 'tdsCalculations',
                 operation: 'delete',
             }));
         }
+        // Rethrown so the caller's error handling can actually run. This
+        // was fire-and-forget: the await resolved before the write, the
+        // rejection was swallowed, and every caller toasted success over a
+        // write that never landed.
+        throw err;
     });
 };
