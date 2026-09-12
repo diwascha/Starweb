@@ -52,7 +52,6 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { exportData } from '@/services/backup-service';
 import { useConnectionStatus } from '@/firebase';
 import { useState, useEffect } from 'react';
 import { getNormalizedPath } from '@/lib/utils';
@@ -111,7 +110,6 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { user, logout, hasPermission } = useAuth();
   const { toast } = useToast();
-  const [isExporting, setIsExporting] = useState(false);
   const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
 
   useEffect(() => {
@@ -121,24 +119,6 @@ export function AppSidebar() {
     return () => unsubBranding();
   }, []);
   
-  const handleExportData = async () => {
-    setIsExporting(true);
-    try {
-        const data = await exportData();
-        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
-        const link = document.createElement("a");
-        link.href = jsonString;
-        link.download = `starsutra-backup-${new Date().toISOString()}.json`;
-        link.click();
-        toast({ title: 'Export Successful', description: 'Your data has been downloaded.' });
-    } catch (error) {
-        console.error("Export failed:", error);
-        toast({ title: 'Export Failed', description: 'Could not export data.', variant: 'destructive' });
-    } finally {
-        setIsExporting(false);
-    }
-  };
-
   const handleSignOut = async () => {
     try {
         await logout();
@@ -224,7 +204,7 @@ export function AppSidebar() {
             </Collapsible>
         )}
 
-        {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
+        {hasPermission('reports', 'view') && (
             <Collapsible asChild defaultOpen={getIsActive('/reports') || getIsActive('/report') || getIsActive('/products')} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
@@ -263,7 +243,7 @@ export function AppSidebar() {
             </Collapsible>
         )}
         
-        {(hasPermission('purchaseOrders', 'view') || hasPermission('rawMaterials', 'view')) && (
+        {hasPermission('purchaseOrders', 'view') && (
             <Collapsible asChild defaultOpen={getIsActive('/purchase-orders') || getIsActive('/raw-materials')} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
@@ -468,6 +448,11 @@ export function AppSidebar() {
             )}
         </SidebarMenu>
 
+        {/* Every other section is permission-gated; Settings was not, so a user
+            with no settings access still saw General, Finance and System in the
+            nav. System is an administrator screen - it creates accounts and
+            grants admin rights - so it is gated separately below. */}
+        {hasPermission('settings', 'view') && (
         <Collapsible asChild defaultOpen={getIsActive('/settings')} className="group/collapsible">
             <SidebarMenu>
                 <SidebarSeparator />
@@ -483,12 +468,15 @@ export function AppSidebar() {
                         <SidebarMenuSub>
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/general')}><Link href="/settings/general" className="flex items-center gap-2"><Settings2 className="h-4 w-4"/><span>General</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/finance')}><Link href="/settings/finance" className="flex items-center gap-2"><Calculator className="h-4 w-4"/><span>Finance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            {user.isAdmin && (
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/system')}><Link href="/settings/system" className="flex items-center gap-2"><ShieldAlert className="h-4 w-4"/><span>System</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            )}
                         </SidebarMenuSub>
                     </CollapsibleContent>
                 </SidebarMenuItem>
             </SidebarMenu>
         </Collapsible>
+        )}
       </SidebarContent>
        <SidebarFooter>
         <SidebarMenu>

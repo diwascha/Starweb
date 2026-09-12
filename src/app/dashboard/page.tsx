@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import NepaliDate from 'nepali-date-converter';
-import { ShoppingCart, Truck, TrendingUp, TrendingDown, Minus, Clock, Calendar as CalendarIcon, ChevronRight, FileText, Package, MousePointer2 } from 'lucide-react';
+import { ShoppingCart, Truck, TrendingUp, TrendingDown, Minus, Clock, Calendar as CalendarIcon, ChevronRight, FileText, Package, MousePointer2, LayoutDashboard } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -191,6 +191,29 @@ function TileShell({
         <CardContent className="p-3">{children}</CardContent>
       </Card>
     </Link>
+  );
+}
+
+/** The manufacturing / transport / rent contributions behind one total. */
+function RevenueSplit({ revenue }: { revenue: { mfg: number; fleet: number; rental: number } }) {
+  const parts = [
+    { label: 'Mfg', value: revenue.mfg },
+    { label: 'Transport', value: revenue.fleet },
+    { label: 'Rent', value: revenue.rental },
+  ].filter(p => p.value > 0);
+
+  // One stream means the headline number already says everything.
+  if (parts.length < 2) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+      {parts.map(p => (
+        <span key={p.label} className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+          {p.label}{' '}
+          <span className="tabular-nums text-foreground/70">Rs.{nf(p.value)}</span>
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -610,6 +633,14 @@ export default function DashboardPage() {
   const canFleet = hasPermission('fleet', 'view');
   const canPO = hasPermission('purchaseOrders', 'view');
   const canCRM = hasPermission('crm', 'view');
+  const canSettings = hasPermission('settings', 'view');
+
+  // Someone whose work is entirely in HR, rental or notes can see none of the
+  // tiles below. That used to leave a header over blank space, which reads as a
+  // broken page rather than as "this is not for you".
+  const visibleTileCount =
+    (canFinance ? 2 : 0) + (canFleet ? 1 : 0) + (canCRM ? 1 : 0) +
+    (canPO ? 1 : 0) + (canSettings ? 1 : 0);
 
   const revProgress = useMemo(() => {
     if (stats.prevRevenue.total <= 0) return 0;
@@ -691,7 +722,16 @@ export default function DashboardPage() {
                   iconClass="text-emerald-600"
                   progress={revProgress}
                   footer={
-                    <DeltaBadge current={stats.revenue.total} previous={stats.prevRevenue.total} />
+                    <div className="space-y-1.5">
+                      <DeltaBadge current={stats.revenue.total} previous={stats.prevRevenue.total} />
+                      {/* This total sums three separate businesses -
+                          manufacturing invoices, transport trips and rent - and
+                          which of them contribute depends on what the signed-in
+                          user may read. Showing the split is the difference
+                          between a number you can act on and one you have to
+                          go and reconstruct. */}
+                      <RevenueSplit revenue={stats.revenue} />
+                    </div>
                   }
                 />
               ))}
@@ -785,15 +825,37 @@ export default function DashboardPage() {
               />
             )}
 
-            <ValueTile
-              href="/settings/system?tab=usage"
-              accent="border-l-indigo-400"
-              label="System Engagement"
-              value={stats.totalVisits.toLocaleString()}
-              sub="Views"
-              icon={MousePointer2}
-              iconClass="text-indigo-400"
-            />
+            {/* Page-visit data only loads for users with settings access, and
+                the page this links to is administrator-only. Ungated, it showed
+                everyone else a permanent zero pointing at a door they cannot
+                open. */}
+            {canSettings && (
+              <ValueTile
+                href="/settings/system?tab=usage"
+                accent="border-l-indigo-400"
+                label="System Engagement"
+                value={stats.totalVisits.toLocaleString()}
+                sub="Views"
+                icon={MousePointer2}
+                iconClass="text-indigo-400"
+              />
+            )}
+
+            {visibleTileCount === 0 && (
+              <div className="sm:col-span-2 xl:col-span-3">
+                <Card className="border-2 border-dashed shadow-none">
+                  <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+                    <LayoutDashboard className="h-7 w-7 text-muted-foreground/50" />
+                    <p className="text-sm font-bold">Nothing to summarise here yet</p>
+                    <p className="max-w-sm text-xs text-muted-foreground">
+                      This dashboard reports on finance, fleet, purchasing and CRM.
+                      Your account does not have access to those, so use the sidebar
+                      to reach the modules you do work in.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
 
           {/* Attention Required section */}
