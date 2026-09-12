@@ -326,26 +326,49 @@ export default function DashboardPage() {
         markReady(key);
       };
 
+    // The dashboard aggregates across every module, and the security rules now
+    // enforce the per-module permissions rather than letting any approved user
+    // read everything. So it must only subscribe to what this user may read:
+    // an ungated listener would be denied at the rules layer and surface as an
+    // error, breaking the whole page for a restricted user.
+    //
+    // The panels below were already gated by these same checks - this makes the
+    // data fetching agree with the display, and stops the dashboard paying for
+    // reads it will never show.
+    const when = (allowed: boolean, subscribe: () => () => void, key: string) => {
+      if (allowed) return subscribe();
+      markReady(key);            // nothing to wait for
+      return () => {};
+    };
+
+    const canFinanceView = hasPermission('finance', 'view');
+    const canFleetView = hasPermission('fleet', 'view');
+    const canPOView = hasPermission('purchaseOrders', 'view');
+    const canCRMView = hasPermission('crm', 'view');
+    const canRentalView = hasPermission('rental', 'view');
+    const canReportsView = hasPermission('reports', 'view');
+    const canSettingsView = hasPermission('settings', 'view');
+
     const unsubs = [
-      onPoliciesUpdate(wrap('policies', setPolicies)),
-      onPurchaseOrdersUpdate(wrap('pos', setPurchaseOrders)),
-      onEstimatedInvoicesUpdate(wrap('invoices', setInvoices)),
-      onPageVisitsUpdate(wrap('visits', setPageVisits)),
-      onChequesUpdate(wrap('cheques', setCheques)),
-      onTripsUpdate(wrap('trips', setTrips)),
-      onRentalBillsUpdate(wrap('rental', setRentalBills)),
-      onProductsUpdate(wrap('products', setProducts)),
-      onCostReportsUpdate(wrap('costReports', setCostReports)),
-      onGsmReportsUpdate(wrap('gsmReports', setGsmReports)),
-      onVehiclesUpdate(wrap('vehicles', setVehicles)),
-      onDriversUpdate(wrap('drivers', setDrivers)),
+      when(canFleetView,   () => onPoliciesUpdate(wrap('policies', setPolicies)), 'policies'),
+      when(canPOView,      () => onPurchaseOrdersUpdate(wrap('pos', setPurchaseOrders)), 'pos'),
+      when(canFinanceView, () => onEstimatedInvoicesUpdate(wrap('invoices', setInvoices)), 'invoices'),
+      when(canSettingsView,() => onPageVisitsUpdate(wrap('visits', setPageVisits)), 'visits'),
+      when(canFinanceView, () => onChequesUpdate(wrap('cheques', setCheques)), 'cheques'),
+      when(canFleetView,   () => onTripsUpdate(wrap('trips', setTrips)), 'trips'),
+      when(canRentalView,  () => onRentalBillsUpdate(wrap('rental', setRentalBills)), 'rental'),
+      when(canReportsView, () => onProductsUpdate(wrap('products', setProducts)), 'products'),
+      when(canCRMView,     () => onCostReportsUpdate(wrap('costReports', setCostReports)), 'costReports'),
+      when(canFinanceView, () => onGsmReportsUpdate(wrap('gsmReports', setGsmReports)), 'gsmReports'),
+      when(canFleetView,   () => onVehiclesUpdate(wrap('vehicles', setVehicles)), 'vehicles'),
+      when(canFleetView,   () => onDriversUpdate(wrap('drivers', setDrivers)), 'drivers'),
       onSettingUpdate('companyProfile', (s: any) => {
         if (s?.value) setCompanyProfile(s.value);
       }),
     ];
 
     return () => unsubs.forEach((unsub) => unsub?.());
-  }, [markReady]);
+  }, [markReady, hasPermission]);
 
   const { currentMonthStart, currentMonthEnd, lastMonthStart, lastMonthEnd } = useMemo(() => {
     const now = new Date();

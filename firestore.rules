@@ -3,28 +3,161 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Core Security Helpers ---
+    // =========================================================================
+    // HOW THESE RULES COMBINE - read this before editing.
+    //
+    // Firestore evaluates EVERY match block whose path matches, and grants
+    // access if ANY of them allows it. Rules are OR-ed; a later, stricter block
+    // does not override an earlier, looser one.
+    //
+    // This app previously ended with:
+    //
+    //     match /{collectionName}/{docId} { allow read, write: if isApproved(); }
+    //
+    // which also matches /system_users/{uid}. So every carefully written
+    // restriction on that collection was being OR-ed away, and any approved
+    // user could set isAdmin: true on their own profile - or rewrite the real
+    // administrator's. Verified against the emulator, not assumed.
+    //
+    // The catch-all below therefore EXCLUDES the identity collections by name,
+    // leaving their own blocks authoritative.
+    // =========================================================================
+
+    // --- Core helpers ---
 
     function isAuthenticated() {
       return request.auth != null;
     }
 
+    function userData() {
+      return get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data;
+    }
+
+    function userExists() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/system_users/$(request.auth.uid));
+    }
+
     // Absence of the flag means NOT approved. It previously defaulted to true,
-    // which combined with an open create rule on system_users let anyone mint
-    // themselves an approved account and read/write the whole database.
+    // which combined with an open create rule let anyone mint themselves an
+    // approved account.
     function isApproved() {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.get('isApproved', false) == true;
+      return userExists() && userData().get('isApproved', false) == true;
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/system_users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/system_users/$(request.auth.uid)).data.get('isAdmin', false) == true;
+      return userExists() && userData().get('isAdmin', false) == true;
     }
 
-    // --- Semi-Public Configurations ---
+    // --- Per-module permissions ---
+    //
+    // The permissions map on each system_users document is what the admin sets
+    // in Settings > System. Until now it was enforced only in the browser: the
+    // rules asked nothing but `isApproved`, so any approved user had full read
+    // and write over every business collection, and an HR clerk could read the
+    // finance ledger straight from the console. These functions make the
+    // stored permissions actually decide.
+    //
+    // Shape: permissions: { hr: { actions: ['view','add'], ownerships: [...] } }
+
+    // Two shapes exist in the data. The current one is
+    //   permissions: { hr: { actions: [...], ownerships: [...] } }
+    // but older accounts stored the actions as a bare list,
+    //   permissions: { hr: ['view', 'add'] }
+    // and hasPermission() in the browser still honours both. If these rules
+    // understood only the new shape, anyone never re-saved since the format
+    // changed would see their modules in the UI and be denied by the server -
+    // a broken app for exactly the long-standing accounts you can least
+    // afford to break. Both are accepted here.
+    function permEntry(mod) {
+      return userData().get(['permissions', mod], {});
+    }
+
+    function actionsFor(mod) {
+      return permEntry(mod) is list ? permEntry(mod) : permEntry(mod).get('actions', []);
+    }
+
+    function can(mod, action) {
+      return isApproved() && (isAdmin() || actionsFor(mod).hasAny(['all', action]));
+    }
+
+    // Reference data shared by several modules (a party is used by finance,
+    // purchase orders and CRM). Permission on any one of them is enough.
+    function canAny(mods, action) {
+      return isApproved() && (isAdmin() ||
+             (mods.hasAny(['finance'])        && actionsFor('finance').hasAny(['all', action])) ||
+             (mods.hasAny(['purchaseOrders']) && actionsFor('purchaseOrders').hasAny(['all', action])) ||
+             (mods.hasAny(['crm'])            && actionsFor('crm').hasAny(['all', action])) ||
+             (mods.hasAny(['reports'])        && actionsFor('reports').hasAny(['all', action])) ||
+             (mods.hasAny(['hr'])             && actionsFor('hr').hasAny(['all', action])) ||
+             (mods.hasAny(['fleet'])          && actionsFor('fleet').hasAny(['all', action])) ||
+             (mods.hasAny(['rental'])         && actionsFor('rental').hasAny(['all', action])));
+    }
+
+    // Which module owns a collection. Anything not listed falls through to the
+    // catch-all at the bottom.
+    function moduleOf(col) {
+      return {
+        // HR
+        'employees': 'hr', 'attendance': 'hr', 'payroll': 'hr',
+        'raw_machine_logs': 'hr', 'bonus_ledger': 'hr', 'bonus_summaries': 'hr',
+        'behavior_ledger': 'hr', 'behavior_analytics': 'hr', 'analytics_reports': 'hr',
+        'hr_shifts': 'hr', 'leave_requests': 'hr', 'public_holidays': 'hr',
+        'attendance_periods': 'hr', 'payroll_periods': 'hr',
+        // Finance
+        'tdsCalculations': 'finance',
+        'cheques': 'finance', 'expenses': 'finance', 'payment_tracker': 'finance',
+        // Fleet
+        'vehicles': 'fleet', 'drivers': 'fleet', 'policies': 'fleet',
+        'trips': 'fleet', 'destinations': 'fleet',
+        // Rental
+        'rentalProperties': 'rental', 'rentalUnits': 'rental',
+        'rentalAgreements': 'rental', 'rentalBills': 'rental',
+        // CRM
+        'crm_contacts': 'crm', 'crm_deals': 'crm', 'crm_followups': 'crm',
+        'crm_interactions': 'crm', 'costReports': 'crm',
+        // Purchase orders
+        'purchaseOrders': 'purchaseOrders', 'rawMaterials': 'purchaseOrders',
+        // Reports
+        'reports': 'reports',
+        // The GSM calculator lives at /finance/gsm-calculator, so this is a
+        // finance screen despite the name.
+        'gsm_reports': 'finance',
+        // Notes
+        'notes': 'notes',
+        // Settings-owned data
+        'files': 'settings', 'pageVisits': 'settings'
+      }.get(col, '');
+    }
+
+    // Reference data used across modules.
+    // Reference data used across modules. The lists were derived from which
+    // route directories actually import the owning service - guessing here is
+    // how you lock staff out of their own screens.
+    function sharedModulesOf(col) {
+      return {
+        // Estimate invoices read and WRITE products (the invoice calculator
+        // calls addProduct/updateProduct), so finance belongs here.
+        'products': ['reports', 'crm', 'finance', 'purchaseOrders'],
+        'parties': ['finance', 'purchaseOrders', 'crm', 'fleet', 'rental'],
+        'uom': ['purchaseOrders', 'fleet', 'reports'],
+        'accounts': ['finance', 'fleet', 'rental'],
+        'estimatedInvoices': ['finance', 'crm'],
+        'transactions': ['fleet', 'finance'],
+        // Document-number reservation: every module that issues a numbered
+        // document has to increment this.
+        'numberCounters': ['finance', 'purchaseOrders', 'crm', 'reports', 'hr', 'fleet', 'rental']
+      }.get(col, []);
+    }
+
+    // Collections with their own blocks below. The catch-all must not grant
+    // anything here, or it would OR away their restrictions - which is exactly
+    // the bug described at the top of this file.
+    function isIdentityCollection(col) {
+      return col in ['system_users', 'sessions', 'usernames', 'logs', 'settings'];
+    }
+
+    // --- Semi-public configuration ---
 
     match /settings/companyProfile { allow read: if true; }
     match /settings/fleetCompanyProfile { allow read: if true; }
@@ -32,68 +165,53 @@ service cloud.firestore {
     match /settings/ownership_categories { allow read: if true; }
 
     match /settings/{settingId} {
-      allow read: if isAuthenticated(); 
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // --- Identity & Access ---
+    // --- Identity & access ---
 
     match /system_users/{userId} {
-      // Was a blanket `read`, which let an authenticated-but-unapproved account
-      // enumerate every staff username, email and role flag. Reading your own
-      // record is needed at sign-in; listing everyone is an admin screen.
-      // (No password material lives here - Firebase Auth holds credentials and
-      // this document only carries passwordLastUpdated.)
+      // Reading your own record is needed at sign-in; listing every staff
+      // username, email and role flag is an admin screen.
       allow get: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow list: if isAdmin(); 
+      allow list: if isAdmin();
 
-      // Was `allow create: if true` - unauthenticated, any uid, any payload.
-      //
-      // Accounts in this app are PROVISIONED BY AN ADMIN (Settings > System);
-      // there is no self-signup page. So an admin must be able to write a
-      // profile for a uid that is not their own - the first version of this
-      // rule allowed only self-creation and silently broke user creation
-      // entirely: the Firebase Auth account was made, the profile write was
-      // denied, and the new user could never sign in.
-      //
-      // The self-creation branch stays for a future signup page, and for the
-      // fact that anyone can mint an Auth account directly against the public
-      // API key: such a profile is forced unapproved and non-admin, which
-      // grants nothing until an admin approves it.
+      // Accounts are PROVISIONED BY AN ADMIN (Settings > System); there is no
+      // self-signup page, so an admin must be able to write a profile for a uid
+      // that is not their own. The self-creation branch stays for a future
+      // signup page and for the fact that anyone can mint an Auth account
+      // against the public API key: such a profile is forced unapproved and
+      // non-admin, which grants nothing until an admin approves it.
       allow create: if isAdmin() ||
-                       (isAuthenticated() && 
+                       (isAuthenticated() &&
                         request.auth.uid == userId &&
                         request.resource.data.get('isApproved', false) == false &&
                         request.resource.data.get('isAdmin', false) == false);
 
-      allow update: if (isAdmin() && request.auth.uid != userId) || 
-                       (isAuthenticated() && request.auth.uid == userId && 
+      // A user may edit their own profile but may never change their own
+      // approval, admin flag, or permissions - that is the escalation path.
+      allow update: if (isAdmin() && request.auth.uid != userId) ||
+                       (isAuthenticated() && request.auth.uid == userId &&
                         request.resource.data.get('isApproved', false) == resource.data.get('isApproved', false) &&
-                        request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false));
-                        
-      allow delete: if isAdmin() && userId != request.auth.uid && 
+                        request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false) &&
+                        request.resource.data.get('permissions', {}) == resource.data.get('permissions', {}));
+
+      allow delete: if isAdmin() && userId != request.auth.uid &&
                        resource.data.get('isAdmin', false) != true;
     }
 
     match /sessions/{sessionId} {
-      // Only `update` used to check ownership. `read` and `delete` were open to
-      // any authenticated account, so anyone signed in - including one still
-      // awaiting approval - could list every active session and delete them,
-      // force-logging out the whole company.
-      //
-      // `get` and `list` are split deliberately. A rule on `resource.data` can
+      // `get` and `list` are split deliberately: a rule on resource.data can
       // only be evaluated per document, so an ownership test cannot gate a
-      // whole-collection query. The app's own reads match this split: the
-      // session manager watches a SINGLE session document (a `get`), while the
-      // active-workstation list, the stale-session sweep and session revocation
-      // all live on the user-admin screen.
-      allow get: if isAuthenticated() &&
+      // whole-collection query. The session manager watches a SINGLE session
+      // document; the active-workstation list is an admin screen.
+      allow get: if isAuthenticated() && resource != null &&
                     (request.auth.uid == resource.data.get('userId', '') || isAdmin());
       allow list: if isAdmin();
-
       allow create: if isAuthenticated() &&
                        request.resource.data.get('userId', '') == request.auth.uid;
-      allow update, delete: if isAuthenticated() &&
+      allow update, delete: if isAuthenticated() && resource != null &&
                        (request.auth.uid == resource.data.get('userId', '') || isAdmin());
     }
 
@@ -102,31 +220,61 @@ service cloud.firestore {
       // read of a SINGLE known document is required. Listing is not.
       allow get: if true;
       allow list: if isAuthenticated();
-      // The new document must point back at its creator; without this any
-      // signed-in user could claim arbitrary username documents and block real
-      // staff from registering them. An admin provisioning an account from the
-      // user-admin screen is writing on someone else's behalf, so it is allowed
-      // too - and `update` is stated explicitly, because saveUser re-writes this
-      // document with merge whenever a user is edited.
+      // The document must point back at its creator, so a signed-in user
+      // cannot squat someone else's name. An admin provisions on their behalf.
       allow create, update: if isAdmin() ||
                        (isAuthenticated() &&
                         request.resource.data.get('uid', '') == request.auth.uid);
       allow delete: if isAdmin();
     }
-    
+
     match /logs/{logId} {
       // Was `if true`: any anonymous caller could create unlimited documents.
       allow create: if isAuthenticated();
       allow read, delete: if isAdmin();
     }
 
-    // --- Unified Application Data Rules ---
+    // --- Business data, gated by the admin-assigned module permissions ---
 
-    match /{collectionName}/{docId} {
-      allow read, write: if isApproved();
-      
+    match /{col}/{docId} {
+      allow read:   if !isIdentityCollection(col) && (
+                       moduleOf(col) != '' ? can(moduleOf(col), 'view')
+                     : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'view')
+                     : isApproved());
+
+      allow create: if !isIdentityCollection(col) && (
+                       moduleOf(col) != '' ? can(moduleOf(col), 'add')
+                     : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'add')
+                     : isApproved());
+
+      allow update: if !isIdentityCollection(col) && (
+                       moduleOf(col) != '' ? can(moduleOf(col), 'edit')
+                     : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'edit')
+                     : isApproved());
+
+      allow delete: if !isIdentityCollection(col) && (
+                       moduleOf(col) != '' ? can(moduleOf(col), 'delete')
+                     : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'delete')
+                     : isApproved());
+
+      // Subcollections inherit the parent collection's module.
       match /{allPaths=**} {
-        allow read, write: if isApproved();
+        allow read:   if !isIdentityCollection(col) && (
+                         moduleOf(col) != '' ? can(moduleOf(col), 'view')
+                       : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'view')
+                       : isApproved());
+        allow create: if !isIdentityCollection(col) && (
+                         moduleOf(col) != '' ? can(moduleOf(col), 'add')
+                       : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'add')
+                       : isApproved());
+        allow update: if !isIdentityCollection(col) && (
+                         moduleOf(col) != '' ? can(moduleOf(col), 'edit')
+                       : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'edit')
+                       : isApproved());
+        allow delete: if !isIdentityCollection(col) && (
+                         moduleOf(col) != '' ? can(moduleOf(col), 'delete')
+                       : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'delete')
+                       : isApproved());
       }
     }
   }

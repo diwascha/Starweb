@@ -1,5 +1,15 @@
 # Before deploying the hardened Firestore rules
 
+> **The rules now enforce per-module permissions, not just approval.** Run
+> `scripts/rules-tests/permissions.test.mjs` against the emulator first (see
+> that folder's README) — it needs no credentials and no access to the live
+> project. Then work through the steps below.
+>
+> **Step 3 matters more than it used to.** An approved account no longer gets
+> everything; it gets exactly the modules set in Settings > System. Confirm
+> each person's permissions there *before* deploying, or they will sign in to
+> an app with nothing in it.
+
 The rules now treat a missing `isApproved` field as **not approved**. It
 previously defaulted to `true`, which is what made the vulnerability possible:
 `system_users` allowed `create: if true`, so anyone could write
@@ -79,3 +89,20 @@ await firebase.firestore().collection('system_users').doc('some-other-uid')
 ```
 
 And an account with no `isApproved` must be unable to read any collection.
+
+
+## 6. After deploying: check one person from each role
+
+The rules stopped being a single `isApproved` check, so a wrong module mapping
+now shows up as a member of staff locked out of their own screen rather than as
+a security hole. Have one person from each role sign in and open their main
+page — HR to payroll, finance to the cheque ledger, purchasing to the PO list.
+
+If someone is denied where they should not be, the mapping in `firestore.rules`
+is what to fix: `moduleOf()` for a collection owned by one module,
+`sharedModulesOf()` for reference data used by several. Add the case to
+`scripts/rules-tests/permissions.test.mjs` first so it cannot regress.
+
+Two mappings were wrong on the first attempt and only the test suite caught
+them: estimate invoices genuinely read and write `products`, and `gsm_reports`
+is a finance screen despite the name.

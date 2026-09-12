@@ -87,6 +87,12 @@ const CORE_MODULES: string[] = ['dashboard', 'settings', 'notes'];
 
 export default function SystemSettingsPage() {
   const { user, logout } = useAuth();
+  // This screen creates users, grants administrator rights, deletes accounts
+  // and reads every session and log. It was reachable by anyone with
+  // `settings: view` - the rules blocked the damage, but a non-admin still saw
+  // the whole administration surface and a wall of permission errors from the
+  // admin-only listeners below.
+  const isAdministrator = !!user?.isAdmin;
   const auth = useAuthService();
   const { toast } = useToast();
   
@@ -125,6 +131,7 @@ export default function SystemSettingsPage() {
   });
 
   useEffect(() => {
+    if (!isAdministrator) return;
     const unsubs = [
         onUsersUpdate(setUsers),
         onUsernamesUpdate(setUsernames),
@@ -162,7 +169,7 @@ export default function SystemSettingsPage() {
     if (storedName) setLocalWorkstationName(storedName);
 
     return () => unsubs.forEach(u => u());
-  }, []);
+  }, [isAdministrator]);
 
   const openUserDialog = (userToEdit: User | null = null) => {
     const freshPermissions: Permissions = {};
@@ -180,7 +187,11 @@ export default function SystemSettingsPage() {
         setUserForm({ username: userToEdit.username, email: userToEdit.email || '', isApproved: userToEdit.isApproved !== false, isAdmin: !!userToEdit.isAdmin, password: '', permissions: freshPermissions });
     } else {
         setEditingUser(null);
-        setUserForm({ username: '', email: '', isApproved: true, isAdmin: false, password: '', permissions: freshPermissions });
+        // New accounts start UNAPPROVED. Defaulting to approved made the
+        // administrator's approval an opt-out rather than a step - and since
+        // an approved account is what the security rules key on, ticking
+        // nothing used to hand out a working login.
+        setUserForm({ username: '', email: '', isApproved: false, isAdmin: false, password: '', permissions: freshPermissions });
     }
     setIsUserDialogOpen(true);
   };
@@ -412,6 +423,27 @@ export default function SystemSettingsPage() {
         setIsCleaningSessions(false);
     }
   };
+
+  if (!isAdministrator) {
+    return (
+      <div className="flex flex-col gap-8">
+        <header>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">System &amp; Security</h1>
+          <p className="text-muted-foreground text-sm">Administrator access required.</p>
+        </header>
+        <Card className="border-2">
+          <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
+            <ShieldAlert className="h-8 w-8 text-muted-foreground" />
+            <p className="max-w-sm text-sm font-semibold text-muted-foreground">
+              This page manages user accounts, permissions and sessions. Only an
+              administrator can open it. Ask one of yours if you need something
+              changed here.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
