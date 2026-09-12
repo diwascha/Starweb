@@ -262,9 +262,19 @@ export default function EmployeesPage() {
 
     try {
       let photoURL = editingEmployee?.photoURL || '';
+      let photoWarning: string | null = null;
       if (photoFile) {
-        const filePath = `employee-photos/${user.username}-${Date.now()}-${photoFile.name}`;
-        photoURL = await uploadFile(photoFile, filePath);
+        // A failed photo upload used to abort the whole save, so the employee
+        // was never created and the form's contents were lost behind a generic
+        // "Action failed." Photo storage needs the Blaze plan and is simply
+        // unavailable on the free one, which made that a guaranteed dead end.
+        // The record is the point; the picture is decoration.
+        try {
+          const filePath = `employee-photos/${user.username}-${Date.now()}-${photoFile.name}`;
+          photoURL = await uploadFile(photoFile, filePath);
+        } catch (uploadError: any) {
+          photoWarning = uploadError?.message || 'The photo could not be uploaded.';
+        }
       } else if (formState.photoURL === '') {
         photoURL = '';
       }
@@ -280,10 +290,12 @@ export default function EmployeesPage() {
 
       if (editingEmployee) {
         await updateEmployee(editingEmployee.id, { ...employeeData, lastModifiedBy: user.username } as any);
-        toast({ title: 'Employee Updated' });
+        toast({ title: 'Employee Updated', description: photoWarning ?? undefined,
+                variant: photoWarning ? 'destructive' : undefined });
       } else {
         await addEmployee({ ...employeeData, createdBy: user.username, createdAt: new Date().toISOString() } as any);
-        toast({ title: 'New Employee Added' });
+        toast({ title: 'New Employee Added', description: photoWarning ?? undefined,
+                variant: photoWarning ? 'destructive' : undefined });
       }
       setIsEmployeeDialogOpen(false);
     } catch {

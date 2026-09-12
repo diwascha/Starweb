@@ -119,14 +119,23 @@ provisioned by an admin. Left on, anyone can create an Auth account against the
 public API key. They would land unapproved and get nothing, but there is no
 reason to leave the door open.
 
-**Storage stays off.** Firebase Storage needs the Blaze plan, so the file
-screen at `/filesystem` cannot work on the free plan — it now says so plainly
-instead of failing with a raw SDK error. `storage.rules` is written and waiting
-in the repo but deliberately left out of `firebase.json`, so a plain
-`firebase deploy` will not fail against a project with no bucket. If you ever
-move to Blaze, add `"storage": { "rules": "storage.rules" }` to `firebase.json`
-and deploy it **at the same time** as enabling the bucket — an unruled bucket
-is how they end up public.
+**Storage is off, and two features quietly depend on it.** Firebase Storage
+needs the Blaze plan, so there is no bucket on the free plan. The standalone
+file screen has been removed for that reason — but **employee photos and driver
+photos also upload to Storage**, and they are still in the app because the rest
+of those forms works fine.
+
+Attaching a photo used to abort the entire save, so the employee or driver was
+never created and the form's contents were lost behind a generic "Action
+failed." Now the record saves and the toast says the photo could not be
+attached. Everything except the picture works on the free plan.
+
+`storage.rules` is written and waiting but deliberately left out of
+`firebase.json`, so a plain `firebase deploy` will not fail against a project
+with no bucket. If you move to Blaze, add
+`"storage": { "rules": "storage.rules" }` to `firebase.json` and deploy it **at
+the same time** as enabling the bucket — an unruled bucket is how they end up
+public. Photo uploads then start working with no code change.
 
 **The API key in `src/firebase/config.ts` is not a secret.** Client Firebase
 keys are public project identifiers and ship in every web app's bundle. What it

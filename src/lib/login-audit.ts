@@ -100,6 +100,3 @@ export const flushFailedLogins = (): number => {
     }
     return queue.length;
 };
-
-/** Number of failures waiting to be written, for the "N failed attempts" hint. */
-export const pendingFailedLoginCount = (): number => read().length;

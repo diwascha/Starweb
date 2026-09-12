@@ -80,11 +80,7 @@ const routeToCoreModule = (segment: string): Module | null => {
         'fleet': 'fleet',
         'rental': 'rental',
         'notes': 'notes',
-        'settings': 'settings',
-        // The file store had no entry, so routeToCoreModule returned null, the
-        // permission check below was skipped entirely, and any approved user
-        // could list, upload and delete files by typing the URL.
-        'filesystem': 'settings'
+        'settings': 'settings'
     };
     return map[segment] || null;
 };
@@ -121,10 +117,11 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
             const firstSegment = pathSegments[0] || 'dashboard';
             const currentModule = routeToCoreModule(firstSegment);
             
-            // An unmapped segment used to mean "no check at all", which is how
-            // /filesystem went unguarded. Unknown routes are now treated as
-            // forbidden, so a route added later fails closed instead of
-            // silently becoming public to every signed-in user.
+            // An unmapped segment used to mean "no check at all" - that is how
+            // the file screen sat unguarded until it was removed. Unknown
+            // routes are now treated as forbidden, so a route added later fails
+            // closed instead of silently becoming public to every signed-in
+            // user.
             {
                 if (!currentModule || !hasPermission(currentModule, 'view')) {
                     const pageOrder: Module[] = ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr', 'fleet', 'rental', 'notes', 'settings'];

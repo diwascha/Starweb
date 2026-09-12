@@ -126,7 +126,7 @@ service cloud.firestore {
         // Notes
         'notes': 'notes',
         // Settings-owned data
-        'files': 'settings', 'pageVisits': 'settings'
+        'pageVisits': 'settings'
       }.get(col, '');
     }
 

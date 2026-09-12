@@ -28,7 +28,7 @@ const CRM_COLS = ['crm_contacts','crm_deals','crm_followups','crm_interactions',
 const PO_COLS = ['purchaseOrders','rawMaterials'];
 const REPORT_COLS = ['reports','gsm_reports'];
 const SHARED = ['parties','products','uom','numberCounters'];
-const ALL = [...HR_COLS,...FIN_COLS,...FLEET_COLS,...RENTAL_COLS,...CRM_COLS,...PO_COLS,...REPORT_COLS,...SHARED,'notes','files','pageVisits'];
+const ALL = [...HR_COLS,...FIN_COLS,...FLEET_COLS,...RENTAL_COLS,...CRM_COLS,...PO_COLS,...REPORT_COLS,...SHARED,'notes','pageVisits'];
 
 await env.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore();

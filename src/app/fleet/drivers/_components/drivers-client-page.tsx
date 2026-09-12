@@ -162,9 +162,17 @@ export default function DriversClientPage({
 
         try {
             let photoURL = editingDriver?.photoURL || '';
-             if (photoFile) {
-                const filePath = `driver-photos/${user.username}-${Date.now()}-${photoFile.name}`;
-                photoURL = await uploadFile(photoFile, filePath);
+            let photoWarning: string | null = null;
+            if (photoFile) {
+                // See the note on the employee form: a failed upload used to
+                // abort the whole save. Photo storage needs the Blaze plan, so
+                // on the free plan that lost the driver record entirely.
+                try {
+                    const filePath = `driver-photos/${user.username}-${Date.now()}-${photoFile.name}`;
+                    photoURL = await uploadFile(photoFile, filePath);
+                } catch (uploadError: any) {
+                    photoWarning = uploadError?.message || 'The photo could not be uploaded.';
+                }
             } else if (formState.photoURL === '') {
                 photoURL = '';
             }
@@ -172,11 +180,13 @@ export default function DriversClientPage({
             if (editingDriver) {
                 const updatedData: Partial<Omit<Driver, 'id'>> = { ...formState, photoURL, lastModifiedBy: user.username };
                 await updateDriver(editingDriver.id, updatedData);
-                toast({ title: 'Success', description: 'Driver updated.' });
+                toast({ title: 'Success', description: photoWarning ?? 'Driver updated.',
+                        variant: photoWarning ? 'destructive' : undefined });
             } else {
                 const newData: Omit<Driver, 'id' | 'lastModifiedAt'> = { ...formState, photoURL, createdBy: user.username, createdAt: new Date().toISOString() };
                 await addDriver(newData);
-                toast({ title: 'Success', description: 'New driver added.' });
+                toast({ title: 'Success', description: photoWarning ?? 'New driver added.',
+                        variant: photoWarning ? 'destructive' : undefined });
             }
             setIsDialogOpen(false);
             resetForm();

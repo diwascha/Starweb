@@ -53,7 +53,7 @@ export const BUSINESS_ENTITIES: BusinessEntity[] = [
     // list them so the mapping is readable rather than implied.
     modules: [
       'crm', 'hr', 'finance', 'products', 'purchase-orders', 'raw-materials',
-      'report', 'reports', 'dashboard', 'notes', 'filesystem', 'settings',
+      'report', 'reports', 'dashboard', 'notes', 'settings',
     ],
     extendedFields: true,
     defaults: {
