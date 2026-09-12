@@ -1,0 +1,58 @@
+rules_version = '2';
+
+// Firebase Storage rules.
+//
+// NOT DEPLOYED, AND NOT DEPLOYABLE ON THE SPARK (FREE) PLAN.
+//
+// Firebase Storage has required the Blaze plan for projects created since late
+// 2024, so this project has no bucket and the file screen at /filesystem
+// cannot work. This file is kept ready rather than deleted: the moment Storage
+// is enabled, an unruled bucket is the hole, and writing the rules afterwards
+// is how buckets end up public.
+//
+// To use it later: add `"storage": { "rules": "storage.rules" }` to
+// firebase.json, then `firebase deploy --only storage`. It is deliberately
+// left out of firebase.json for now so that a plain `firebase deploy` does not
+// fail against a project with no bucket.
+//
+// This file did not exist. Storage is genuinely used - the file screen uploads
+// to `uploads/` and stores the download URL in the `files` collection - so
+// whatever was configured in the console was the only thing protecting it, and
+// it was never tied to the app's permission model.
+//
+// Storage rules cannot read Firestore, so they cannot consult the per-module
+// permissions the way firestore.rules now does. What they CAN do is require a
+// signed-in user, cap the size, and refuse anything outside the one prefix the
+// app actually writes. Firestore still gates the `files` records that make an
+// upload discoverable in the UI.
+//
+// NOTE: a Storage download URL is a bearer token - anyone holding the link can
+// fetch the object regardless of these rules. Do not put anything here that
+// would be damaging if the link leaked.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // The file screen writes `uploads/<timestamp>_<name>`.
+    match /uploads/{fileName} {
+      allow read: if isSignedIn();
+
+      // 25 MB matches the spreadsheet import cap, and keeps a runaway or
+      // hostile upload from filling the bucket.
+      allow create, update: if isSignedIn()
+                            && request.resource.size < 25 * 1024 * 1024;
+
+      allow delete: if isSignedIn();
+    }
+
+    // Nothing else is written by the app. Deny by default so a new path has to
+    // be added here deliberately rather than inheriting access.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
