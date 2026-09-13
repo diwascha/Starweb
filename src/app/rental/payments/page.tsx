@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onRentalBillsUpdate } from '@/services/rental-billing-service';
@@ -22,8 +23,9 @@ function PaymentCollection() {
     const tenantIdFromUrl = searchParams.get('tenantId');
     
     const { user } = useAuth();
+    const { inScope } = useOwnershipScope('rental');
     const { toast } = useToast();
-    
+
     const [tenants, setTenants] = useState<Party[]>([]);
     const [bills, setBills] = useState<RentalBill[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
@@ -36,10 +38,10 @@ function PaymentCollection() {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        onPartiesUpdate(data => setTenants(data.filter(p => p.type === 'Tenant' || p.type === 'Both')));
-        onRentalBillsUpdate(setBills);
-        onAccountsUpdate(data => setAccounts(data.filter(a => a.ownership === 'Rental' || a.ownership === 'Both')));
-    }, []);
+        onPartiesUpdate(data => setTenants(data.filter(p => (p.type === 'Tenant' || p.type === 'Both') && inScope(p.ownership))));
+        onRentalBillsUpdate(data => setBills(data.filter(b => inScope(b.ownership))));
+        onAccountsUpdate(data => setAccounts(data.filter(a => inScope(a.ownership))));
+    }, [inScope]);
 
     const tenantSummary = useMemo(() => {
         if (!selectedTenantId) return null;

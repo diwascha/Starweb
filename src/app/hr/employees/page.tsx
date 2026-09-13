@@ -64,6 +64,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { onEmployeesUpdate, addEmployee, updateEmployee, deleteEmployee } from '@/services/employee-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -138,6 +139,7 @@ export default function EmployeesPage() {
 
   const { toast } = useToast();
   const { hasPermission, user } = useAuth();
+  const { inScope } = useOwnershipScope('hr');
 
   const [isCustomDepartment, setIsCustomDepartment] = useState(false);
   const [isCustomPosition, setIsCustomPosition] = useState(false);
@@ -155,11 +157,11 @@ export default function EmployeesPage() {
   useEffect(() => {
     setIsLoading(true);
     const unsubscribe = onEmployeesUpdate((employeesData) => {
-        setEmployees(employeesData);
+        setEmployees(employeesData.filter(e => inScope(e.ownership)));
         setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [inScope]);
 
   useEffect(() => {
     setCurrentPage(1);

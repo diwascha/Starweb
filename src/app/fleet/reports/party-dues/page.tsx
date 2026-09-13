@@ -11,7 +11,7 @@ import { Users, Search, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import type { Transaction, Party } from '@/lib/types';
-import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 
 interface PartyDue {
     party: Party;
@@ -26,17 +26,15 @@ export default function PartyDuesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [showZero, setShowZero] = useState(false);
-    const { getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('fleet'), [getAllowedOwnerships]);
+    const { inScope } = useOwnershipScope('fleet');
 
     useEffect(() => {
         let loaded = 0;
         const check = () => { loaded++; if (loaded >= 2) setIsLoading(false); };
-        const inScope = (ownership: string) => ownership === 'Both' || allowedOwnerships.includes(ownership);
         const unsubTx = onTransactionsUpdate(data => { setTransactions(data.filter(x => inScope(x.ownership))); check(); });
         const unsubParty = onPartiesUpdate(data => { setParties(data.filter(x => inScope(x.ownership))); check(); });
         return () => { unsubTx(); unsubParty(); };
-    }, [allowedOwnerships]);
+    }, [inScope]);
 
     const partyDues = useMemo<PartyDue[]>(() => {
         return parties.map(party => {

@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onPropertiesUpdate } from '@/services/property-service';
 import { onUnitsUpdate } from '@/services/unit-service';
 import { onRentalBillsUpdate } from '@/services/rental-billing-service';
@@ -29,6 +30,7 @@ import Link from 'next/link';
 
 export default function RentalDashboardPage() {
   const { user, hasPermission } = useAuth();
+  const { inScope } = useOwnershipScope('rental');
   const [properties, setProperties] = useState<RentalProperty[]>([]);
   const [units, setUnits] = useState<RentalUnit[]>([]);
   const [bills, setBills] = useState<RentalBill[]>([]);
@@ -38,14 +40,14 @@ export default function RentalDashboardPage() {
   useEffect(() => {
     setIsLoading(true);
     const unsubs = [
-      onPropertiesUpdate(setProperties),
-      onUnitsUpdate(setUnits),
-      onRentalBillsUpdate(setBills),
-      onAgreementsUpdate(setAgreements),
+      onPropertiesUpdate((data) => setProperties(data.filter(p => inScope(p.ownership)))),
+      onUnitsUpdate((data) => setUnits(data.filter(u => inScope(u.ownership)))),
+      onRentalBillsUpdate((data) => setBills(data.filter(b => inScope(b.ownership)))),
+      onAgreementsUpdate((data) => setAgreements(data.filter(a => inScope(a.ownership)))),
     ];
     setIsLoading(false);
     return () => unsubs.forEach(unsub => unsub());
-  }, []);
+  }, [inScope]);
 
   const stats = useMemo(() => {
     const occupied = units.filter(u => u.status === 'Occupied').length;

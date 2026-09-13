@@ -23,6 +23,7 @@ import {
 import NepaliDate from 'nepali-date-converter';
 import { format, isToday, isFuture, isPast, addDays, startOfDay } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import type { FollowUp, Party, Deal, FollowUpStatus } from '@/lib/types';
 import { onFollowUpsUpdate, addFollowUp, updateFollowUp, deleteFollowUp } from '@/services/crm-service';
@@ -68,6 +69,7 @@ import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 
 export default function FollowUpsPage() {
     const { user } = useAuth();
+    const { inScope } = useOwnershipScope('crm');
     const { toast } = useToast();
     
     const [followups, setFollowups] = useState<FollowUp[]>([]);
@@ -92,14 +94,14 @@ export default function FollowUpsPage() {
         const unsubs = [
             onFollowUpsUpdate(setFollowups),
             onPartiesUpdate((data) => {
-                setParties(data.filter(p => p.type === 'Customer' || p.type === 'Both')
+                setParties(data.filter(p => (p.type === 'Customer' || p.type === 'Both') && inScope(p.ownership))
                     .sort((a, b) => a.name.localeCompare(b.name)));
             }),
             onDealsUpdate(setDeals),
         ];
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [inScope]);
 
     const categorizedData = useMemo(() => {
         const today = startOfDay(new Date());

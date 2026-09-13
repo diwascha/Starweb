@@ -31,6 +31,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
         status: data.status || 'Active',
         renewedFromId: data.renewedFromId || null,
         renewedToId: data.renewedToId || null,
+        ownership: data.ownership || 'Both', // legacy docs predate ownership scoping - default visible rather than hidden
     };
 }
 

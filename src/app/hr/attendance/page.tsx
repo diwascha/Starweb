@@ -31,6 +31,7 @@ import {
     Users
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Badge } from '@/components/ui/badge';
 import { onEmployeesUpdate, updateEmployee } from '@/services/employee-service';
 import {
@@ -99,7 +100,8 @@ export default function AttendanceRegistryPage() {
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
   const { toast } = useToast();
   const { hasPermission, user } = useAuth();
-  
+  const { inScope } = useOwnershipScope('hr');
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -168,7 +170,7 @@ export default function AttendanceRegistryPage() {
   const visibleColCount = 4 + Object.values(visibleColumns).filter(Boolean).length;
 
   useEffect(() => {
-    onEmployeesUpdate(setEmployees);
+    onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
     const unsubHolidays = onHolidaysUpdate(setHolidays);
     const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
     const unsubLocks = onAttendancePeriodLocksUpdate(setPeriodLocks);
@@ -186,7 +188,7 @@ export default function AttendanceRegistryPage() {
         unsubRawLogs();
         unsubAttendance();
     };
-  }, []);
+  }, [inScope]);
 
   // Reset pagination when filters change
   useEffect(() => {

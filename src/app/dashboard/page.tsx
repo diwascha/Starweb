@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onPoliciesUpdate } from '@/services/policy-service';
 import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 import { onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
@@ -321,6 +322,11 @@ function TripleTile({
 
 export default function DashboardPage() {
   const { hasPermission } = useAuth();
+  const { inScope: inScopeFinance } = useOwnershipScope('finance');
+  const { inScope: inScopeFleet } = useOwnershipScope('fleet');
+  const { inScope: inScopeRental } = useOwnershipScope('rental');
+  const { inScope: inScopePO } = useOwnershipScope('purchaseOrders');
+  const { inScope: inScopeReports } = useOwnershipScope('reports');
 
   const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -354,25 +360,25 @@ export default function DashboardPage() {
       };
 
     const unsubs = [
-      onPoliciesUpdate(wrap('policies', setPolicies)),
-      onPurchaseOrdersUpdate(wrap('pos', setPurchaseOrders)),
-      onEstimatedInvoicesUpdate(wrap('invoices', setInvoices)),
+      onPoliciesUpdate(wrap('policies', (v: PolicyOrMembership[]) => setPolicies(v.filter((p) => inScopeFleet(p.ownership))))),
+      onPurchaseOrdersUpdate(wrap('pos', (v: PurchaseOrder[]) => setPurchaseOrders(v.filter((p) => inScopePO(p.ownership))))),
+      onEstimatedInvoicesUpdate(wrap('invoices', (v: EstimatedInvoice[]) => setInvoices(v.filter((i) => inScopeFinance(i.ownership))))),
       onPageVisitsUpdate(wrap('visits', setPageVisits)),
-      onChequesUpdate(wrap('cheques', setCheques)),
-      onTripsUpdate(wrap('trips', setTrips)),
-      onRentalBillsUpdate(wrap('rental', setRentalBills)),
-      onProductsUpdate(wrap('products', setProducts)),
-      onCostReportsUpdate(wrap('costReports', setCostReports)),
-      onGsmReportsUpdate(wrap('gsmReports', setGsmReports)),
-      onVehiclesUpdate(wrap('vehicles', setVehicles)),
-      onDriversUpdate(wrap('drivers', setDrivers)),
+      onChequesUpdate(wrap('cheques', (v: Cheque[]) => setCheques(v.filter((c) => inScopeFinance(c.ownership))))),
+      onTripsUpdate(wrap('trips', (v: Trip[]) => setTrips(v.filter((t) => inScopeFleet(t.ownership))))),
+      onRentalBillsUpdate(wrap('rental', (v: RentalBill[]) => setRentalBills(v.filter((r) => inScopeRental(r.ownership))))),
+      onProductsUpdate(wrap('products', (v: Product[]) => setProducts(v.filter((p) => inScopeReports(p.ownership))))),
+      onCostReportsUpdate(wrap('costReports', (v: CostReport[]) => setCostReports(v.filter((c) => inScopeReports(c.ownership))))),
+      onGsmReportsUpdate(wrap('gsmReports', (v: GsmReport[]) => setGsmReports(v.filter((g) => inScopeReports(g.ownership))))),
+      onVehiclesUpdate(wrap('vehicles', (v: Vehicle[]) => setVehicles(v.filter((veh) => inScopeFleet(veh.ownership))))),
+      onDriversUpdate(wrap('drivers', (v: Driver[]) => setDrivers(v.filter((d) => inScopeFleet(d.ownership))))),
       onSettingUpdate('companyProfile', (s: any) => {
         if (s?.value) setCompanyProfile(s.value);
       }),
     ];
 
     return () => unsubs.forEach((unsub) => unsub?.());
-  }, [markReady]);
+  }, [markReady, inScopeFinance, inScopeFleet, inScopeRental, inScopePO, inScopeReports]);
 
   const { currentMonthStart, currentMonthEnd, lastMonthStart, lastMonthEnd } = useMemo(() => {
     const now = new Date();

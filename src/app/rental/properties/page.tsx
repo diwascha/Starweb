@@ -33,6 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { onPropertiesUpdate, addProperty, updateProperty, deleteProperty } from '@/services/property-service';
 import { onUnitsUpdate, addUnit, updateUnit, deleteUnit } from '@/services/unit-service';
@@ -44,6 +45,7 @@ function AssetRegistryContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { user, hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('rental');
     const { toast } = useToast();
 
     // Route State
@@ -76,14 +78,14 @@ function AssetRegistryContent() {
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
-            onPropertiesUpdate(setProperties),
+            onPropertiesUpdate((data) => setProperties(data.filter(p => inScope(p.ownership)))),
             onUnitsUpdate((data) => {
-                setUnits(data);
+                setUnits(data.filter(u => inScope(u.ownership)));
                 setIsLoading(false);
             })
         ];
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [inScope]);
 
     // Reset pagination when filters change
     useEffect(() => {

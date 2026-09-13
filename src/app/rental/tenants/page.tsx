@@ -78,6 +78,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty, deleteParty } from '@/services/party-service';
 import { onAgreementsUpdate, activateAgreement } from '@/services/agreement-service';
@@ -100,8 +101,9 @@ import { Separator } from '@/components/ui/separator';
 
 export default function TenantsPage() {
   const { user, hasPermission } = useAuth();
+  const { inScope } = useOwnershipScope('rental');
   const { toast } = useToast();
-  
+
   const [activeTab, setActiveTab] = useState('records');
   const [tenants, setTenants] = useState<Party[]>([]);
   const [agreements, setAgreements] = useState<RentalAgreement[]>([]);
@@ -160,19 +162,19 @@ export default function TenantsPage() {
     setIsLoading(true);
     const unsubs = [
         onPartiesUpdate((data) => {
-            setTenants(data.filter(p => 
-                (p.type === 'Tenant' || p.type === 'Both') && 
-                (p.ownership === 'Rental' || p.ownership === 'Both')
+            setTenants(data.filter(p =>
+                (p.type === 'Tenant' || p.type === 'Both') &&
+                inScope(p.ownership)
             ));
         }),
-        onAgreementsUpdate(setAgreements),
-        onTransactionsUpdate(setTransactions),
-        onRentalBillsUpdate(setBills),
-        onPropertiesUpdate(setProperties)
+        onAgreementsUpdate((data) => setAgreements(data.filter(a => inScope(a.ownership)))),
+        onTransactionsUpdate((data) => setTransactions(data.filter(t => inScope(t.ownership)))),
+        onRentalBillsUpdate((data) => setBills(data.filter(b => inScope(b.ownership)))),
+        onPropertiesUpdate((data) => setProperties(data.filter(p => inScope(p.ownership))))
     ];
     setIsLoading(false);
     return () => unsubs.forEach(u => u());
-  }, []);
+  }, [inScope]);
 
   useEffect(() => {
     setCurrentPage(1);

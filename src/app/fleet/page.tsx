@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle, Wallet, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useState, useEffect, useMemo } from 'react';
 import type { Vehicle, Driver, PolicyOrMembership, Transaction, CompanyProfile } from '@/lib/types';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
@@ -22,9 +23,8 @@ import { useToast } from '@/hooks/use-toast';
 import { DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 
 export default function FleetDashboardPage() {
-    const { user, hasPermission, getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('fleet'), [getAllowedOwnerships]);
-    const inScope = (ownership: string) => ownership === 'Both' || allowedOwnerships.includes(ownership);
+    const { user, hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('fleet');
     const [isLoading, setIsLoading] = useState(true);
 
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -46,7 +46,7 @@ export default function FleetDashboardPage() {
         ];
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
-    }, [allowedOwnerships]);
+    }, [inScope]);
     
     const stats = useMemo(() => {
         if (isLoading) return { totalVehicles: 0, totalDrivers: 0, netThisMonth: 0, vehicleStatusData: [] };

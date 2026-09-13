@@ -42,6 +42,7 @@ import { cn, toNepaliDate, generateNextPolicyNumber } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/services/policy-service';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
 import { addTransaction } from '@/services/transaction-service';
@@ -78,6 +79,7 @@ export default function PoliciesPage() {
         memberType: 'Vehicle',
         renewedFromId: null,
         status: 'Active',
+        ownership: 'Sijan',
     });
     
     const [searchQuery, setSearchQuery] = useState('');
@@ -92,7 +94,8 @@ export default function PoliciesPage() {
 
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
-    
+    const { inScope } = useOwnershipScope('fleet');
+
     const membersById = useMemo(() => {
         const map = new Map<string, { name: string, type: 'Vehicle' | 'Driver' }>();
         vehicles.forEach(v => map.set(v.id, { name: v.name, type: 'Vehicle' }));
@@ -102,9 +105,9 @@ export default function PoliciesPage() {
 
     useEffect(() => {
         setIsLoading(true);
-        const unsubPolicies = onPoliciesUpdate(setPolicies);
-        const unsubVehicles = onVehiclesUpdate(setVehicles);
-        const unsubDrivers = onDriversUpdate(setDrivers);
+        const unsubPolicies = onPoliciesUpdate((data) => setPolicies(data.filter(p => inScope(p.ownership))));
+        const unsubVehicles = onVehiclesUpdate((data) => setVehicles(data.filter(v => inScope(v.ownership))));
+        const unsubDrivers = onDriversUpdate((data) => setDrivers(data.filter(d => inScope(d.ownership))));
         setIsLoading(false);
 
         return () => {
@@ -112,7 +115,7 @@ export default function PoliciesPage() {
             unsubVehicles();
             unsubDrivers();
         }
-    }, []);
+    }, [inScope]);
     
     useEffect(() => {
         setFilterMemberId('All');
@@ -141,6 +144,7 @@ export default function PoliciesPage() {
             memberType: 'Vehicle',
             status: 'Active',
             renewedFromId: null,
+            ownership: 'Sijan',
         });
     };
 
@@ -166,6 +170,7 @@ export default function PoliciesPage() {
                     memberType: policy.memberType,
                     renewedFromId: policy.id,
                     status: 'Active',
+                    ownership: policy.ownership || 'Sijan',
                 });
             } else {
                 setEditingPolicy(policy);
@@ -181,6 +186,7 @@ export default function PoliciesPage() {
                     memberType: policy.memberType,
                     renewedFromId: policy.renewedFromId || null,
                     status: policy.status || 'Active',
+                    ownership: policy.ownership || 'Sijan',
                 });
             }
         } else {
@@ -269,7 +275,7 @@ export default function PoliciesPage() {
                         referenceType: 'Policy Registry',
                         referenceId: newPolicyId,
                         createdBy: user.username,
-                        ownership: 'Sijan'
+                        ownership: formState.ownership,
                     });
                 }
 

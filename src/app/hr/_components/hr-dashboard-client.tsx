@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate } from '@/services/attendance-service';
 import { onPayrollUpdate } from '@/services/payroll-service';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import NepaliDate from 'nepali-date-converter';
 import {
     getFiscalYearStart,
@@ -39,18 +40,19 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
        String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()))
    );
    const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('All');
+   const { inScope } = useOwnershipScope('hr');
 
    useEffect(() => {
-       const unsubEmployees = onEmployeesUpdate(setEmployees);
+       const unsubEmployees = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
        const unsubAttendance = onAttendanceUpdate(setAttendance);
-       const unsubPayroll = onPayrollUpdate(setPayroll);
+       const unsubPayroll = onPayrollUpdate((data) => setPayroll(data.filter(p => inScope(p.ownership))));
 
        return () => {
            unsubEmployees();
            unsubAttendance();
            unsubPayroll();
        }
-    }, []);
+    }, [inScope]);
 
    const availableFiscalYears = useMemo(() => {
        const years = getAvailableFiscalYears([

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   PlusCircle, 
@@ -33,6 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onExpensesUpdate, deleteExpense } from '@/services/expense-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
@@ -131,9 +132,8 @@ export default function ExpenseLogsPage() {
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
 
     const { toast } = useToast();
-    const { hasPermission, getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('fleet'), [getAllowedOwnerships]);
-    const inScope = useCallback((ownership: string) => ownership === 'Both' || allowedOwnerships.includes(ownership), [allowedOwnerships]);
+    const { hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('fleet');
     const router = useRouter();
 
     useEffect(() => {

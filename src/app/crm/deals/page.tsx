@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import type { Deal, DealStage, Party } from '@/lib/types';
 import { onDealsUpdate, addDeal, updateDeal, deleteDeal } from '@/services/deal-service';
@@ -69,6 +70,7 @@ const LOST_REASONS = ['Price', 'Competitor', 'Timing', 'No Response', 'Other'];
 
 export default function DealsPipelinePage() {
     const { user } = useAuth();
+    const { inScope } = useOwnershipScope('crm');
     const { toast } = useToast();
     
     const [deals, setDeals] = useState<Deal[]>([]);
@@ -103,13 +105,13 @@ export default function DealsPipelinePage() {
         const unsubs = [
             onDealsUpdate(setDeals),
             onPartiesUpdate((data) => {
-                setParties(data.filter(p => p.type === 'Customer' || p.type === 'Both')
+                setParties(data.filter(p => (p.type === 'Customer' || p.type === 'Both') && inScope(p.ownership))
                     .sort((a, b) => a.name.localeCompare(b.name)));
                 setIsLoading(false);
             })
         ];
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [inScope]);
 
     const filteredAndSortedDeals = useMemo(() => {
         let filtered = [...deals];

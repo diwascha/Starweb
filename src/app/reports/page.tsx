@@ -22,24 +22,26 @@ import { onProductsUpdate } from '@/services/product-service';
 import type { Report, Product } from '@/lib/types';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { format, subDays, startOfMonth } from 'date-fns';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 
 export default function ReportsDashboardPage() {
     const [reports, setReports] = useState<Report[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const { inScope } = useOwnershipScope('reports');
 
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
-            onReportsUpdate(setReports),
-            onProductsUpdate(setProducts)
+            onReportsUpdate((data) => setReports(data.filter(r => inScope(r.ownership)))),
+            onProductsUpdate((data) => setProducts(data.filter(p => inScope(p.ownership))))
         ];
         const timer = setTimeout(() => setIsLoading(false), 800);
         return () => {
             unsubs.forEach(u => u());
             clearTimeout(timer);
         };
-    }, []);
+    }, [inScope]);
 
     const stats = useMemo(() => {
         const now = new Date();

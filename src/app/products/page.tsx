@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
@@ -59,15 +60,16 @@ export default function ProductsPage() {
     const { toast } = useToast();
     const router = useRouter();
     const { hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('reports');
 
     useEffect(() => {
         setIsLoading(true);
         const unsub = onProductsUpdate((data) => {
-            setProducts(data);
+            setProducts(data.filter(p => inScope(p.ownership)));
             setIsLoading(false);
         });
         return () => unsub();
-    }, []);
+    }, [inScope]);
 
     const filteredProducts = useMemo(() => {
         return products.filter(p => 

@@ -29,6 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import {
     onRawLogsUpdate,
     deleteAllRawLogs,
@@ -71,6 +72,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function MachineLogsPage() {
     const { user, hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('hr');
     const { toast } = useToast();
 
     const [logs, setLogs] = useState<any[]>([]);
@@ -133,14 +135,14 @@ export default function MachineLogsPage() {
             setLogs(data);
             setIsLoading(false);
         });
-        const unsubEmployees = onEmployeesUpdate(setEmployees);
+        const unsubEmployees = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
         const unsubShifts = onShiftsUpdate(setShifts);
         return () => {
             unsub();
             unsubEmployees();
             unsubShifts();
         };
-    }, []);
+    }, [inScope]);
 
     const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
     const employeeByName = useMemo(() => new Map(employees.map(e => [e.name.toLowerCase().trim(), e])), [employees]);

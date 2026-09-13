@@ -564,6 +564,7 @@ export interface Driver {
     createdAt: string; // ISO string
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO string
+    ownership: string;
 }
 
 export type PolicyStatus = 'Active' | 'Renewed' | 'Archived';
@@ -584,8 +585,9 @@ export interface PolicyOrMembership {
   lastModifiedBy?: string;
   lastModifiedAt?: string; // ISO string
   renewedFromId?: string | null;
-  renewedToId?: string | null;   // 
+  renewedToId?: string | null;   //
   status?: PolicyStatus;
+  ownership: string;
 }
 
 

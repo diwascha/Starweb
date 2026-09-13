@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party, Account, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -52,7 +52,7 @@ import { onSettingUpdate } from '@/services/settings-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { NEPALI_MONTHS, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -126,9 +126,7 @@ export default function FleetTransactionsPage() {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const router = useRouter();
     const { toast } = useToast();
-    const { getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('fleet'), [getAllowedOwnerships]);
-    const inScope = useCallback((ownership: string) => ownership === 'Both' || allowedOwnerships.includes(ownership), [allowedOwnerships]);
+    const { inScope } = useOwnershipScope('fleet');
 
     const [filterParties, setFilterParties] = useState<string[]>([]);
     const [filterVehicles, setFilterVehicles] = useState<string[]>([]);

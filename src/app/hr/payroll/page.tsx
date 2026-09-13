@@ -20,6 +20,7 @@ import { calculateAndSavePayrollForMonth, onPeriodLocksUpdate, hasBehaviorAnalyt
 import { setCombinedPeriodLock } from '@/services/period-lock';
 import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { Employee, AttendanceRecord } from '@/lib/types';
@@ -40,6 +41,7 @@ export default function UnifiedWorkforcePage() {
     const activeTab = searchParams.get('tab') || "payroll";
     const router = useRouter();
     const { user, hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('hr');
     const { toast } = useToast();
 
     // Global Selection State
@@ -66,7 +68,7 @@ export default function UnifiedWorkforcePage() {
 
     useEffect(() => {
         setIsLoadingData(true);
-        const unsubEmp = onEmployeesUpdate(setEmployees);
+        const unsubEmp = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
         const unsubAtt = onAttendanceUpdate(setAttendance);
         const unsubLocks = onPeriodLocksUpdate(setPeriodLocks);
 
@@ -89,7 +91,7 @@ export default function UnifiedWorkforcePage() {
             unsubAtt();
             unsubLocks();
         };
-    }, []);
+    }, [inScope]);
 
     const availableFiscalYears = useMemo(() => {
         const years = getAvailableFiscalYears(attendance.map(a => ({ bsYear: a.bsYear, bsMonth: a.bsMonth })));

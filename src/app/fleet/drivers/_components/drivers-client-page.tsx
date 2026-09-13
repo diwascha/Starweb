@@ -31,6 +31,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
@@ -71,6 +72,7 @@ export default function DriversClientPage({
         contactNumber: '',
         dateOfBirth: new Date().toISOString(),
         photoURL: '',
+        ownership: 'Sijan',
     });
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -81,15 +83,16 @@ export default function DriversClientPage({
 
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
-    
+    const { inScope } = useOwnershipScope('fleet');
+
     useEffect(() => {
         setIsLoading(true);
         const unsubscribe = onDriversUpdate((data) => {
-            setDrivers(data);
+            setDrivers(data.filter(d => inScope(d.ownership)));
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [inScope]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -104,6 +107,7 @@ export default function DriversClientPage({
             contactNumber: '',
             dateOfBirth: new Date().toISOString(),
             photoURL: '',
+            ownership: 'Sijan',
         });
         setPhotoFile(null);
         setPhotoPreview(null);

@@ -45,6 +45,7 @@ import {
 import { format, subDays, isPast, isToday, startOfDay } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import type { Party, CRMContact, InteractionLog, Deal, FollowUp } from '@/lib/types';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onContactsUpdate, onInteractionsUpdate, onFollowUpsUpdate } from '@/services/crm-service';
@@ -54,7 +55,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 
 export default function CrmDashboardPage() {
   const { user } = useAuth();
-  
+  const { inScope } = useOwnershipScope('crm');
+
   const [companies, setCompanies] = useState<Party[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [interactions, setInteractions] = useState<InteractionLog[]>([]);
@@ -64,7 +66,7 @@ export default function CrmDashboardPage() {
   useEffect(() => {
     setIsLoading(true);
     const unsubs = [
-        onPartiesUpdate((data) => setCompanies(data.filter(p => p.type === 'Customer' || p.type === 'Both'))),
+        onPartiesUpdate((data) => setCompanies(data.filter(p => (p.type === 'Customer' || p.type === 'Both') && inScope(p.ownership)))),
         onDealsUpdate(setDeals),
         onInteractionsUpdate(setInteractions),
         onFollowUpsUpdate(setFollowups)
@@ -76,7 +78,7 @@ export default function CrmDashboardPage() {
         unsubs.forEach(u => u());
         clearTimeout(timer);
     };
-  }, []);
+  }, [inScope]);
 
   const stats = useMemo(() => {
     const now = new Date();

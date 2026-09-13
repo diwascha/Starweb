@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { onAgreementsUpdate } from '@/services/agreement-service';
 import { onRentalBillsUpdate, generateRentBill } from '@/services/rental-billing-service';
@@ -16,6 +17,7 @@ import NepaliDate from 'nepali-date-converter';
 
 export default function RentBillingPage() {
     const { user } = useAuth();
+    const { inScope } = useOwnershipScope('rental');
     const { toast } = useToast();
     const [agreements, setAgreements] = useState<RentalAgreement[]>([]);
     const [bills, setBills] = useState<RentalBill[]>([]);
@@ -25,9 +27,9 @@ export default function RentBillingPage() {
     const currentYear = new NepaliDate().getYear();
 
     useEffect(() => {
-        onAgreementsUpdate(setAgreements);
-        onRentalBillsUpdate(setBills);
-    }, []);
+        onAgreementsUpdate((data) => setAgreements(data.filter(a => inScope(a.ownership))));
+        onRentalBillsUpdate((data) => setBills(data.filter(b => inScope(b.ownership))));
+    }, [inScope]);
 
     const pendingAgreements = useMemo(() => {
         return agreements.filter(a => {

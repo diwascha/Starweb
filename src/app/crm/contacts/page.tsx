@@ -54,12 +54,14 @@ import {
     DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 export default function ContactsDirectoryPage() {
     const { user } = useAuth();
+    const { inScope } = useOwnershipScope('crm');
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
     
@@ -88,14 +90,14 @@ export default function ContactsDirectoryPage() {
             onContactsUpdate(setContacts),
             onPartiesUpdate((data) => {
                 setCompanies(
-                    data.filter(p => p.type === 'Customer' || p.type === 'Both' || p.type === 'Tenant')
+                    data.filter(p => (p.type === 'Customer' || p.type === 'Both' || p.type === 'Tenant') && inScope(p.ownership))
                         .sort((a, b) => a.name.localeCompare(b.name))
                 );
                 setIsLoading(false);
             })
         ];
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [inScope]);
 
     const filteredContacts = useMemo(() => {
         return contacts.filter(c => {
