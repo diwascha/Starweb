@@ -136,7 +136,7 @@ export default function NewReportPage() {
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-10 w-10 border shadow-sm"><ArrowLeft className="h-5 w-5" /></Button>
                     <div>
-                        <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Initialize QT Report</h1>
+                        <h1 className="text-3xl font-black tracking-tight text-foreground uppercase">Initialize QT Report</h1>
                         <p className="text-muted-foreground text-sm font-medium italic">Create a new technical verification document.</p>
                     </div>
                 </div>
@@ -144,9 +144,9 @@ export default function NewReportPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
-                    <Card className="shadow-sm border-gray-100 overflow-hidden">
+                    <Card className="shadow-sm border-border overflow-hidden">
                         <CardHeader className="bg-muted/10 border-b py-4 px-6">
-                            <CardTitle className="text-sm font-black uppercase text-gray-900 flex items-center gap-2">
+                            <CardTitle className="text-sm font-black uppercase text-foreground flex items-center gap-2">
                                 <Package className="h-4 w-4 text-primary"/>
                                 Product Selection
                             </CardTitle>
@@ -156,7 +156,7 @@ export default function NewReportPage() {
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Search Manufacturing Catalog</Label>
                                 <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" role="combobox" className="w-full justify-between h-11 text-base font-bold bg-white">
+                                        <Button variant="outline" role="combobox" className="w-full justify-between h-11 text-base font-bold bg-card">
                                             {selectedProduct ? selectedProduct.name : "Select or type product name..."}
                                             <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
@@ -189,11 +189,11 @@ export default function NewReportPage() {
                         <Card className="shadow-lg border-primary/20 overflow-hidden ring-4 ring-primary/5 animate-in fade-in slide-in-from-bottom-2">
                             <CardHeader className="bg-primary/5 border-b py-5 px-6">
                                 <div className="flex items-center justify-between">
-                                    <CardTitle className="text-sm font-black uppercase text-gray-900 flex items-center gap-2">
+                                    <CardTitle className="text-sm font-black uppercase text-foreground flex items-center gap-2">
                                         <Edit className="h-4 w-4 text-primary"/>
                                         Test Parameters Result
                                     </CardTitle>
-                                    <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">
+                                    <Badge variant="outline" className="bg-card px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">
                                         {selectedProduct.specification.ply} Ply Construction
                                     </Badge>
                                 </div>
@@ -224,7 +224,7 @@ export default function NewReportPage() {
                 </div>
 
                 <div className="lg:col-span-1 space-y-8">
-                    <Card className="shadow-sm border-gray-100 bg-white">
+                    <Card className="shadow-sm border-border bg-card">
                         <CardHeader className="py-4 border-b bg-muted/5">
                             <CardTitle className="text-xs uppercase font-black tracking-widest text-muted-foreground">Document Identity</CardTitle>
                         </CardHeader>
@@ -237,7 +237,7 @@ export default function NewReportPage() {
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Document Date</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start h-10 font-bold text-xs border-2 bg-white">
+                                        <Button variant="outline" className="w-full justify-start h-10 font-bold text-xs border-2 bg-card">
                                             <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
                                             {toNepaliDate(formData.date.toISOString())} BS ({format(formData.date, "PP")})
                                         </Button>

@@ -122,18 +122,18 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
               <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl><FormMessage/></FormItem>
             )}/>
             <FormField control={form.control} name="date" render={({ field }) => (
-              <FormItem><FormLabel>Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start text-left font-normal bg-white"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select Date'}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
+              <FormItem><FormLabel>Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start text-left font-normal bg-card"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select Date'}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
             )}/>
             <FormField control={form.control} name="billingType" render={({ field }) => (
-              <FormItem><FormLabel>Source</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select><FormMessage/></FormItem>
+              <FormItem><FormLabel>Source</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-card"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select><FormMessage/></FormItem>
             )}/>
           </div>
           {watchedBillingType === 'Bank' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t border-blue-100">
                   <FormField control={form.control} name="accountId" render={({ field }) => (
-                      <FormItem><FormLabel>Bank Account</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}><FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Select Account"/></SelectTrigger></FormControl><SelectContent>{sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                      <FormItem><FormLabel>Bank Account</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}><FormControl><SelectTrigger className="bg-card"><SelectValue placeholder="Select Account"/></SelectTrigger></FormControl><SelectContent>{sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
                   )}/>
-                  <FormField control={form.control} name="chequeNo" render={({ field }) => (<FormItem><FormLabel>Cheque / Ref #</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white" /></FormControl></FormItem>)}/>
+                  <FormField control={form.control} name="chequeNo" render={({ field }) => (<FormItem><FormLabel>Cheque / Ref #</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-card" /></FormControl></FormItem>)}/>
               </div>
           )}
         </Card>

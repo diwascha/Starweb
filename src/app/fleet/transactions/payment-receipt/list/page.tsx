@@ -70,7 +70,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
             <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
+                    <Button variant="outline" className="w-full justify-between h-9 bg-card border-border shadow-none font-normal text-xs px-3 text-left">
                         <div className="flex items-center gap-2 overflow-hidden text-left">
                             {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                             <span className="truncate">{displayText}</span>
@@ -390,7 +390,7 @@ export default function VoucherLogsPage() {
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
+                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-card text-xs px-3", !dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-3.5 w-3.5" />
                                 <span className="truncate">
                                     {dateRange?.from ? (
@@ -477,7 +477,7 @@ export default function VoucherLogsPage() {
                                     <div className="flex flex-col gap-1">
                                         <div className="flex flex-wrap gap-x-2 gap-y-0.5">
                                             {v.partyIds.map(id => (
-                                                <span key={id} className="text-[11px] font-semibold text-gray-900 leading-tight">
+                                                <span key={id} className="text-[11px] font-semibold text-foreground leading-tight">
                                                     {partiesById.get(id) || id}
                                                 </span>
                                             ))}
@@ -491,7 +491,7 @@ export default function VoucherLogsPage() {
                                 </TableCell>
                                 <TableCell className="text-[11px]">
                                     <div className="flex flex-col">
-                                        <span className="font-medium text-gray-700">{v.billingType}</span>
+                                        <span className="font-medium text-foreground">{v.billingType}</span>
                                         {v.accountName && <span className="text-[9px] text-muted-foreground">{v.accountName}</span>}
                                     </div>
                                 </TableCell>
@@ -534,7 +534,7 @@ export default function VoucherLogsPage() {
                                     setItemsPerPage(parseInt(v));
                                     setCurrentPage(1);
                                 }}>
-                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>

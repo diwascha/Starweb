@@ -458,7 +458,7 @@ export default function GeneralSettingsPage() {
   return (
     <div className="flex flex-col gap-8">
         <header>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">General Configuration</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">General Configuration</h1>
             <p className="text-muted-foreground text-sm">Identity, branding, and system-wide standards.</p>
         </header>
 
@@ -472,10 +472,10 @@ export default function GeneralSettingsPage() {
             </TabsList>
 
             <TabsContent value="branding" className="animate-in fade-in slide-in-from-left-2">
-                 <Card className="shadow-sm border-gray-100 bg-white">
+                 <Card className="shadow-sm border-border bg-card">
                     <CardHeader className="flex flex-row items-center justify-between py-6 px-8 border-b bg-primary/5">
                         <div className="space-y-1">
-                            <CardTitle className="text-xl font-black text-gray-900 tracking-tight">System Identity</CardTitle>
+                            <CardTitle className="text-xl font-black text-foreground tracking-tight">System Identity</CardTitle>
                             <CardDescription className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Application naming and persona.</CardDescription>
                         </div>
                         <Button onClick={handleSaveAppBranding} disabled={isSavingBranding} className="h-10 px-8 font-black text-[10px] uppercase tracking-widest shadow-lg">
@@ -516,7 +516,7 @@ export default function GeneralSettingsPage() {
             </TabsContent>
 
             <TabsContent value="ownership" className="animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b bg-muted/5">
                         <div>
                             <CardTitle className="text-base font-black uppercase">Ownership Categories</CardTitle>
@@ -536,7 +536,7 @@ export default function GeneralSettingsPage() {
                             <TableBody>
                                 {ownershipCategories.map(cat => (
                                     <TableRow key={cat.name} className="h-14 border-b group">
-                                        <TableCell className="font-black pl-6 text-gray-900 uppercase tracking-tighter">{cat.name}</TableCell>
+                                        <TableCell className="font-black pl-6 text-foreground uppercase tracking-tighter">{cat.name}</TableCell>
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1 max-w-md">
                                                 {cat.modules?.length === modules.length ? (
@@ -582,7 +582,7 @@ export default function GeneralSettingsPage() {
             </TabsContent>
 
             <TabsContent value="uom" className="animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Units of Measurement</CardTitle>
                         <Button size="sm" onClick={() => { setEditingUom(null); setUomForm({name:'', abbreviation:''}); setIsUomDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> New Unit</Button>
@@ -622,7 +622,7 @@ export default function GeneralSettingsPage() {
                     <p className="text-[10px] font-bold uppercase text-muted-foreground">Document prefixes are automatically selected based on the entry date. Updating a rule will re-sequence existing records in that range.</p>
                 </div>
                 {groupedDocumentTypes.map((group) => (
-                    <Card key={group.label} className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <Card key={group.label} className="shadow-sm border-border bg-card overflow-hidden">
                         <CardHeader className="bg-primary/5 border-b py-3 px-6">
                             <div className="flex items-center gap-2">
                                 <group.icon className="h-4 w-4 text-primary" />
@@ -648,7 +648,7 @@ export default function GeneralSettingsPage() {
                                         
                                         return (
                                             <TableRow key={t} className="h-12 border-b">
-                                                <TableCell className="font-black pl-6 text-gray-900 uppercase tracking-tighter">{getDocumentName(t)}</TableCell>
+                                                <TableCell className="font-black pl-6 text-foreground uppercase tracking-tighter">{getDocumentName(t)}</TableCell>
                                                 <TableCell className="font-mono text-blue-600 font-black">{active?.prefix || (typeof rawRules === 'string' ? rawRules : '(System Default)')}</TableCell>
                                                 <TableCell className="text-center font-bold">{active?.startingNumber.toString().padStart(3, '0') || '001'}</TableCell>
                                                 <TableCell className="text-muted-foreground italic text-[10px]">
@@ -954,7 +954,7 @@ export default function GeneralSettingsPage() {
                                 <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: [...CORE_MODULES]})} className="h-5 px-1.5 text-[8px] uppercase font-black">Clear Functional</Button>
                             </div>
                         </div>
-                        <ScrollArea className="h-[250px] border rounded-lg bg-gray-50/30 p-2">
+                        <ScrollArea className="h-[250px] border rounded-lg bg-muted/30 p-2">
                             <div className="grid grid-cols-1 gap-1">
                                 {modules.map(m => {
                                     const isCore = CORE_MODULES.includes(m);
@@ -1021,7 +1021,7 @@ function EntityProfileCard({ entity, profile, onChange, onSave, isSaving }: {
   );
 
   return (
-    <Card className="shadow-sm border-gray-100 overflow-hidden">
+    <Card className="shadow-sm border-border overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between bg-primary/5 py-4 px-6 border-b">
         <div>
           <CardTitle className="text-lg font-black tracking-tight">{entity.label}</CardTitle>

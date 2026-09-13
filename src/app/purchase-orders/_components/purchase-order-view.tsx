@@ -82,7 +82,7 @@ function PurchaseOrderDocument({
   return (
     <div
       ref={containerRef}
-      className="po-document bg-white text-neutral-900 font-sans flex flex-col"
+      className="paper po-document bg-white text-neutral-900 font-sans flex flex-col"
       style={{ padding: '14mm 14mm 12mm', fontVariantNumeric: 'tabular-nums' }}
     >
         <header className="flex items-start justify-between pb-5 border-b-2 border-neutral-900">

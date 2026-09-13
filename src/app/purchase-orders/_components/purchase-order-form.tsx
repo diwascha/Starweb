@@ -1040,7 +1040,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                             value={categoryRenameValue} 
                             onChange={e => setCategoryRenameValue(e.target.value)}
                             placeholder="New category name..."
-                            className="h-8 text-xs bg-white"
+                            className="h-8 text-xs bg-card"
                         />
                         <Button size="sm" variant="outline" onClick={() => setIsRenamingCategory(false)} className="h-8">Cancel</Button>
                         <Button size="sm" onClick={handleRenameCategory} className="h-8">Apply</Button>

@@ -39,12 +39,16 @@
     --sidebar-ring: 217 91% 76%;
   }
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    /* Cards, popovers and the sidebar used to be the SAME value as the page
+       background, so every surface dissolved into the one behind it and the
+       interface read as a flat sheet. Each is now a step lighter than the
+       ground, which is what makes a card look like a card. */
+    --background: 222 47% 7%;
+    --foreground: 210 40% 96%;
+    --card: 222 40% 11%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 40% 13%;
+    --popover-foreground: 210 40% 96%;
     --primary: 217 91% 76%;
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
@@ -53,17 +57,19 @@
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 261 44% 80%;
     --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 62.8% 30.6%;
+    /* The old destructive was so dark it read as maroon on a dark ground and
+       lost all urgency; overdue cheques and expired policies depend on it. */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 217 25% 22%;
+    --input: 217 25% 22%;
     --ring: 217 91% 76%;
     --chart-1: 217 91% 76%;
     --chart-2: 261 44% 80%;
     --chart-3: 173 58% 39%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-background: 222 45% 9%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 217 91% 76%;
     --sidebar-primary-foreground: 222.2 47.4% 11.2%;
@@ -80,5 +86,61 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Paper surfaces.
+
+   Payslips, cheque vouchers, purchase orders and reports are previews of a
+   printed page. They should look like paper in either theme - a dark payslip
+   is not a dark-mode feature, it is a preview that no longer matches what
+   comes out of the printer. `.paper` pins the light palette inside a subtree
+   regardless of the theme.
+   --------------------------------------------------------------------------- */
+.paper,
+.dark .paper {
+  --background: 0 0% 100%;
+  --foreground: 224 71% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 71% 4%;
+  --muted: 210 20% 96%;
+  --muted-foreground: 215 16% 40%;
+  --border: 214 20% 85%;
+  --input: 214 20% 85%;
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+}
+
+/* ---------------------------------------------------------------------------
+   Printing.
+
+   The safety net for every printed document, whichever theme is active. A dark
+   theme must never reach the printer: it wastes toner, and a payslip or cheque
+   voucher printed white-on-black is not a usable business record.
+   --------------------------------------------------------------------------- */
+@media print {
+  :root, .dark, .paper {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 30%;
+    --border: 0 0% 75%;
+    --input: 0 0% 75%;
+  }
+
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Force a white ground even where a page hardcoded a dark utility class. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

@@ -380,7 +380,7 @@ export default function DriversClientPage({
                                     setItemsPerPage(parseInt(v));
                                     setCurrentPage(1);
                                 }}>
-                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>

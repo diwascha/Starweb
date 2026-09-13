@@ -227,7 +227,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 shadow-sm border-gray-100">
+                <Card className="lg:col-span-2 shadow-sm border-border">
                     <CardHeader className="bg-muted/10 border-b py-4 px-6">
                         <CardTitle className="text-sm font-black uppercase flex items-center gap-2">
                             <HistoryIcon className="h-4 w-4 text-primary" />
@@ -283,7 +283,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                     </CardContent>
                 </Card>
 
-                <Card className="shadow-sm border-gray-100 h-fit">
+                <Card className="shadow-sm border-border h-fit">
                     <CardHeader className="py-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black">Dimension System</CardTitle></CardHeader>
                     <CardContent className="p-4">
                         <RadioGroup value={unit} onValueChange={(v: any) => setUnit(v)} className="flex flex-col gap-2 p-2 bg-muted/30 rounded-lg border border-dashed">
@@ -304,7 +304,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                         </CardTitle>
                         <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground mt-1">Multi-reel grammage verification grid.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleAddRow} className="h-8 font-black text-[10px] uppercase tracking-widest bg-white border-primary/20 text-primary hover:bg-primary/5">
+                    <Button variant="outline" size="sm" onClick={handleAddRow} className="h-8 font-black text-[10px] uppercase tracking-widest bg-card border-primary/20 text-primary hover:bg-primary/5">
                         <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Reel Row
                     </Button>
                 </CardHeader>
@@ -320,7 +320,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                                 <TableHead className="w-10 pr-6"></TableHead>
                             </TableRow>
                         </TableHeader>
-                        <TableBody className="bg-white">
+                        <TableBody className="bg-card">
                             {entries.map((entry) => (
                                 <TableRow key={entry.id} className="h-14 border-b group hover:bg-muted/5 transition-colors">
                                     <TableCell className="pl-6 py-2">

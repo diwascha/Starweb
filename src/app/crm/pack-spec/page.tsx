@@ -642,7 +642,7 @@ export default function PackSpecPage() {
     <div className="flex flex-col gap-5">
       <header className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 uppercase">PackSpec Catalog</h1>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground uppercase">PackSpec Catalog</h1>
           <p className="text-muted-foreground text-sm font-medium italic">Technical specification data sheets for client products.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -680,7 +680,7 @@ export default function PackSpecPage() {
           { label: 'Ply Variants', value: stats.plyVariants, icon: Layers, tone: 'text-foreground' },
           { label: 'Incomplete Specs', value: stats.incomplete, icon: FileText, tone: stats.incomplete > 0 ? 'text-amber-600' : 'text-foreground' },
         ].map(s => (
-          <Card key={s.label} className="shadow-sm border-gray-100">
+          <Card key={s.label} className="shadow-sm border-border">
             <CardContent className="p-3 flex items-center gap-3">
               <s.icon className={cn('h-4 w-4 shrink-0 opacity-40', s.tone)} />
               <div className="min-w-0">
@@ -695,14 +695,14 @@ export default function PackSpecPage() {
       {/* Filter bar. These used to be funnel icons hidden inside two of the
           six column headers, which meant in practice nobody found them.
           Every filter now lives in one labelled, always-visible row. */}
-      <Card className="shadow-sm border-gray-100">
+      <Card className="shadow-sm border-border">
         <CardContent className="p-3 space-y-3">
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search code, product, or client..."
-                className="pl-8 h-9 bg-white border-gray-300"
+                className="pl-8 h-9 bg-card border-border"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               />
@@ -757,7 +757,7 @@ export default function PackSpecPage() {
         </div>
       )}
 
-      <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+      <Card className="shadow-sm border-border bg-card overflow-hidden">
         {/* ---------------- Desktop: sortable table ---------------- */}
         <CardContent className="p-0 hidden md:block">
           <div className="overflow-x-auto">
@@ -788,17 +788,17 @@ export default function PackSpecPage() {
                     return (
                     <TableRow key={product.id} className={cn('hover:bg-muted/30 group h-14 border-b transition-colors', incomplete && 'bg-amber-50/30')}>
                         <TableCell className="pl-6">
-                            <Badge variant="outline" className="font-mono text-[10px] bg-white border-gray-200 text-gray-600 px-1.5">{product.materialCode || 'N/A'}</Badge>
+                            <Badge variant="outline" className="font-mono text-[10px] bg-card border-border text-muted-foreground px-1.5">{product.materialCode || 'N/A'}</Badge>
                         </TableCell>
-                        <TableCell className="font-black text-gray-900 uppercase tracking-tighter">
+                        <TableCell className="font-black text-foreground uppercase tracking-tighter">
                             <span className="inline-flex items-center gap-1.5">
                                 {incomplete && <span title="Missing dimensions or ply - this product can't produce a full data sheet" className="text-amber-500">&#9888;</span>}
                                 {product.name}
                             </span>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground uppercase font-bold tracking-tight truncate max-w-[180px]">{product.partyName || 'Unassigned Client'}</TableCell>
-                        <TableCell className="text-center text-xs font-bold text-gray-600">{spec.boxType || '—'}</TableCell>
-                        <TableCell className="text-center font-mono text-xs text-gray-500">{spec.dimension || 'N/A'}</TableCell>
+                        <TableCell className="text-center text-xs font-bold text-muted-foreground">{spec.boxType || '—'}</TableCell>
+                        <TableCell className="text-center font-mono text-xs text-muted-foreground">{spec.dimension || 'N/A'}</TableCell>
                         <TableCell className="text-center">
                             {spec.ply ? (
                                 <Badge variant="secondary" className="text-[9px] font-black uppercase h-5 px-2 bg-blue-50 text-blue-700 border-blue-100">{spec.ply} Ply</Badge>
@@ -806,18 +806,18 @@ export default function PackSpecPage() {
                                 <span className="text-muted-foreground text-xs opacity-30">—</span>
                             )}
                         </TableCell>
-                        <TableCell className="text-center text-[11px] text-gray-600">
+                        <TableCell className="text-center text-[11px] text-muted-foreground">
                             {spec.paperType ? (
                                 <span className="font-bold">{spec.paperType}{spec.paperBf ? ` ${spec.paperBf}` : ''}</span>
                             ) : <span className="opacity-30">—</span>}
                         </TableCell>
-                        <TableCell className="text-center font-mono text-xs text-gray-500 tabular-nums">{spec.gsm || '—'}</TableCell>
+                        <TableCell className="text-center font-mono text-xs text-muted-foreground tabular-nums">{spec.gsm || '—'}</TableCell>
                         <TableCell className="text-right pr-6">
                             <div className="flex items-center justify-end gap-2">
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-[9px] font-black uppercase tracking-widest opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity border-gray-300"
+                                    className="h-8 text-[9px] font-black uppercase tracking-widest opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity border-border"
                                     onClick={() => handleViewSpec(product)}
                                 >
                                     <FileText className="mr-1.5 h-3.5 w-3.5 text-primary" /> Technical Sheet
@@ -929,7 +929,7 @@ export default function PackSpecPage() {
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">Rows:</span>
                         <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(parseInt(v)); setCurrentPage(1); }}>
-                            <SelectTrigger className="h-8 w-[75px] bg-white border-gray-200 text-xs font-bold"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-8 w-[75px] bg-card border-border text-xs font-bold"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="10">10</SelectItem>
                                 <SelectItem value="25">25</SelectItem>
@@ -958,7 +958,7 @@ export default function PackSpecPage() {
       <Dialog open={isProductEditorOpen} onOpenChange={setIsProductEditorOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col p-0 border-none shadow-2xl overflow-hidden">
             <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
-                <DialogTitle className="text-2xl font-black text-gray-900 uppercase tracking-tight">{productToEdit ? 'Edit Product Catalog Entry' : 'New Catalog Entry'}</DialogTitle>
+                <DialogTitle className="text-2xl font-black text-foreground uppercase tracking-tight">{productToEdit ? 'Edit Product Catalog Entry' : 'New Catalog Entry'}</DialogTitle>
                 <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Define board composition layers and technical specs for the CRM catalog.</DialogDescription>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 pb-6">
@@ -1007,12 +1007,12 @@ export default function PackSpecPage() {
                     </div>
                 </div>
               </DialogHeader>
-              <ScrollArea className="flex-1 bg-gray-100/50 p-4 sm:p-12">
-                <div ref={printableRef} className="printable-area mx-auto px-10 py-8 bg-white text-black font-sans shadow-2xl ring-1 ring-black/5" style={{ width: '210mm', minHeight: '297mm' }}>
+              <ScrollArea className="flex-1 bg-muted/50 p-4 sm:p-12">
+                <div ref={printableRef} className="printable-area mx-auto px-10 py-8 bg-card text-foreground font-sans shadow-2xl ring-1 ring-black/5" style={{ width: '210mm', minHeight: '297mm' }}>
                 <header className="text-center mb-5 border-b-2 border-neutral-900 pb-3">
                     <h1 className="text-lg font-black uppercase tracking-tight">{companyProfile.nameEn}</h1>
                     {companyProfile.nameNp && <h2 className="text-[13px] font-semibold text-neutral-700">{companyProfile.nameNp}</h2>}
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">{companyProfile.address}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{companyProfile.address}</p>
                     <h2 className="text-xs font-black mt-3 uppercase tracking-[0.2em]">Technical Data Sheet</h2>
                 </header>
 
@@ -1027,14 +1027,14 @@ export default function PackSpecPage() {
                                 <React.Fragment key={`${row.section}-${row.label}`}>
                                     {isNewSection && (
                                         <tr>
-                                            <td colSpan={2} className="pt-3 pb-1 text-[9px] font-black uppercase tracking-widest text-neutral-400 border-b border-neutral-300">
+                                            <td colSpan={2} className="pt-3 pb-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b border-border">
                                                 {row.section}
                                             </td>
                                         </tr>
                                     )}
                                     <tr className="border-b border-neutral-100">
-                                        <td className="py-1 pr-4 w-[45%] font-bold uppercase text-[10px] text-neutral-500 align-top">{row.label}</td>
-                                        <td className="py-1 font-bold text-neutral-900 break-words">{row.value}</td>
+                                        <td className="py-1 pr-4 w-[45%] font-bold uppercase text-[10px] text-muted-foreground align-top">{row.label}</td>
+                                        <td className="py-1 font-bold text-foreground break-words">{row.value}</td>
                                     </tr>
                                 </React.Fragment>
                             );
@@ -1042,7 +1042,7 @@ export default function PackSpecPage() {
                     </tbody>
                 </table>
 
-                <div className="mt-8 pt-4 border-t border-dashed border-neutral-300 flex justify-between text-[9px] text-neutral-400 uppercase tracking-widest font-black">
+                <div className="mt-8 pt-4 border-t border-dashed border-border flex justify-between text-[9px] text-muted-foreground uppercase tracking-widest font-black">
                     <span>End of Technical Data Sheet</span>
                     <span>{format(new Date(), 'dd MMM yyyy')}</span>
                 </div>

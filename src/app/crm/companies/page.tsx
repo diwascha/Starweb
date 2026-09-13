@@ -366,7 +366,7 @@ export default function CompaniesManagementPage() {
             'Prospect': 'bg-blue-50 text-blue-700 border-blue-100',
             'Negotiation': 'bg-amber-50 text-amber-700 border-amber-100',
             'Customer': 'bg-emerald-50 text-emerald-700 border-emerald-100',
-            'Past Client': 'bg-gray-50 text-gray-700 border-gray-100'
+            'Past Client': 'bg-muted text-foreground border-border'
         };
         return (
             <Badge variant="outline" className={cn("text-[8px] font-black uppercase tracking-widest px-1.5 h-4 shadow-none", variants[classification])}>
@@ -379,7 +379,7 @@ export default function CompaniesManagementPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Companies &amp; Contacts</h1>
+                    <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">Companies &amp; Contacts</h1>
                     <p className="text-muted-foreground text-sm font-medium">Account profiles with their people, activity, and quotation history in one place.</p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -387,7 +387,7 @@ export default function CompaniesManagementPage() {
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Filter accounts..."
-                            className="pl-8 w-64 bg-white h-10 border-gray-300 shadow-sm"
+                            className="pl-8 w-64 bg-card h-10 border-border shadow-sm"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                         />
@@ -430,7 +430,7 @@ export default function CompaniesManagementPage() {
                 </div>
             )}
 
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader className="bg-muted/50">
@@ -469,7 +469,7 @@ export default function CompaniesManagementPage() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
-                                                <span className="font-black text-gray-900 leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{c.name}</span>
+                                                <span className="font-black text-foreground leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{c.name}</span>
                                                 <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
                                                     <MapPin className="h-2.5 w-2.5 text-primary opacity-50"/> {c.address || 'Location unassigned'}
                                                 </span>
@@ -482,7 +482,7 @@ export default function CompaniesManagementPage() {
                                                         {primary.name.charAt(0)}
                                                     </div>
                                                     <div className="flex flex-col min-w-0">
-                                                        <span className="text-xs font-black text-gray-800 uppercase tracking-tighter truncate">{primary.name}</span>
+                                                        <span className="text-xs font-black text-foreground uppercase tracking-tighter truncate">{primary.name}</span>
                                                         <span className="text-[9px] uppercase font-bold text-muted-foreground truncate">{primary.phone || primary.designation || 'Staff'}</span>
                                                     </div>
                                                 </div>
@@ -557,7 +557,7 @@ export default function CompaniesManagementPage() {
                                                         ].map(f => (
                                                             <div key={f.label}>
                                                                 <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{f.label}</div>
-                                                                <div className="text-xs font-bold text-gray-800 break-words">{f.value || <span className="opacity-30">—</span>}</div>
+                                                                <div className="text-xs font-bold text-foreground break-words">{f.value || <span className="opacity-30">—</span>}</div>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -582,7 +582,7 @@ export default function CompaniesManagementPage() {
                                                                 <p className="text-[10px] text-muted-foreground italic font-medium uppercase tracking-widest">No people recorded for this company.</p>
                                                             </div>
                                                         ) : (
-                                                            <div className="border rounded-lg divide-y bg-white overflow-hidden">
+                                                            <div className="border rounded-lg divide-y bg-card overflow-hidden">
                                                                 {companyContacts.map((ct: CRMContact) => (
                                                                     <div key={ct.id} className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 py-2 hover:bg-muted/20 transition-colors">
                                                                         <div className="flex items-center gap-2 min-w-0 sm:w-56 shrink-0">
@@ -590,7 +590,7 @@ export default function CompaniesManagementPage() {
                                                                                 {ct.name.charAt(0)}
                                                                             </div>
                                                                             <div className="min-w-0">
-                                                                                <div className="text-xs font-black text-gray-900 uppercase tracking-tight truncate flex items-center gap-1.5">
+                                                                                <div className="text-xs font-black text-foreground uppercase tracking-tight truncate flex items-center gap-1.5">
                                                                                     {ct.name}
                                                                                     {ct.isPrimary && <Badge variant="outline" className="text-[7px] h-3.5 px-1 font-black uppercase bg-primary/5 border-primary/20 text-primary">Primary</Badge>}
                                                                                 </div>
@@ -598,11 +598,11 @@ export default function CompaniesManagementPage() {
                                                                             </div>
                                                                         </div>
                                                                         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 min-w-0">
-                                                                            <div className="text-[11px] text-gray-700 truncate flex items-center gap-1.5">
+                                                                            <div className="text-[11px] text-foreground truncate flex items-center gap-1.5">
                                                                                 <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
                                                                                 {ct.phone ? <a href={`tel:${ct.phone}`} className="hover:underline">{ct.phone}</a> : <span className="opacity-30">—</span>}
                                                                             </div>
-                                                                            <div className="text-[11px] text-gray-700 truncate flex items-center gap-1.5">
+                                                                            <div className="text-[11px] text-foreground truncate flex items-center gap-1.5">
                                                                                 <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
                                                                                 {ct.email ? <a href={`mailto:${ct.email}`} className="hover:underline truncate">{ct.email}</a> : <span className="opacity-30">—</span>}
                                                                             </div>
@@ -647,7 +647,7 @@ export default function CompaniesManagementPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle className="uppercase tracking-tight">Delete Account?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently remove <span className="font-bold text-gray-900">{deletingCompany?.name}</span> from the registry. This action cannot be undone.
+                            This will permanently remove <span className="font-bold text-foreground">{deletingCompany?.name}</span> from the registry. This action cannot be undone.
                             {(() => {
                                 const contactCount = deletingCompany ? contacts.filter(c => c.partyId === deletingCompany.id).length : 0;
                                 if (contactCount === 0 && !deleteQuotationCount) return null;
@@ -674,14 +674,14 @@ export default function CompaniesManagementPage() {
             <Dialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Merge Accounts</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">Merge Accounts</DialogTitle>
                         <DialogDescription>Consolidate duplicate records. Data from the source will be moved to the destination, and the source will be deleted.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-6 py-4">
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground">Source Account (TO BE DELETED)</Label>
                             <Select value={mergeSourceId} onValueChange={setMergeSourceId}>
-                                <SelectTrigger className="h-10 bg-white">
+                                <SelectTrigger className="h-10 bg-card">
                                     <SelectValue placeholder="Select account to remove..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -699,7 +699,7 @@ export default function CompaniesManagementPage() {
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground">Destination Account (TO KEEP)</Label>
                             <Select value={mergeDestId} onValueChange={setMergeDestId}>
-                                <SelectTrigger className="h-10 bg-white">
+                                <SelectTrigger className="h-10 bg-card">
                                     <SelectValue placeholder="Select account to keep..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -727,14 +727,14 @@ export default function CompaniesManagementPage() {
             <Dialog open={isAttributesDialogOpen} onOpenChange={setIsAttributesDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Edit Custom Attributes</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">Edit Custom Attributes</DialogTitle>
                         <DialogDescription>Define strategic metadata for this client account.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Client Score</Label>
                             <Select value={attributesForm.clientScore} onValueChange={v => setAttributesForm({...attributesForm, clientScore: v})}>
-                                <SelectTrigger className="h-10 bg-white">
+                                <SelectTrigger className="h-10 bg-card">
                                     <SelectValue placeholder="Select score category..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -765,7 +765,7 @@ export default function CompaniesManagementPage() {
             <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">{editingContact ? 'Edit Contact' : 'Add Contact'}</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">{editingContact ? 'Edit Contact' : 'Add Contact'}</DialogTitle>
                         <DialogDescription>{editingContact ? 'Update this person\'s details.' : `Add a person at ${selectedCompany?.name || 'this account'}.`}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -808,7 +808,7 @@ export default function CompaniesManagementPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle className="uppercase tracking-tight">Delete Contact?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently remove <span className="font-bold text-gray-900">{deletingContact?.name}</span> from the directory. This action cannot be undone.
+                            This will permanently remove <span className="font-bold text-foreground">{deletingContact?.name}</span> from the directory. This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

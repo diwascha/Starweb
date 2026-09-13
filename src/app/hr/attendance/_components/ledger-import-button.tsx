@@ -184,7 +184,7 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                     <CardContent className="py-6 flex items-center gap-4">
                         <Loader2 className="h-6 w-6 text-primary animate-spin" />
                         <div className="space-y-1">
-                            <p className="text-sm font-black uppercase text-gray-900">Processing Master Ledger</p>
+                            <p className="text-sm font-black uppercase text-foreground">Processing Master Ledger</p>
                             {ledgerImportProgress && (
                                 <p className="text-[10px] text-primary font-black uppercase tracking-widest animate-pulse">
                                     {ledgerImportProgress}
@@ -198,7 +198,7 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
             <Dialog open={isMappingDialogOpen} onOpenChange={setIsMappingDialogOpen}>
                 <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900">Confirm Sheet Placement</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground">Confirm Sheet Placement</DialogTitle>
                         <DialogDescription>
                             Confirm the year and month each sheet belongs to before importing. Attendance rows use their own dates when present; the payroll block has no date column of its own, so this is what files it under a period.
                         </DialogDescription>
@@ -208,7 +208,7 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                         <label className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20 cursor-pointer">
                             <Checkbox checked={includeConsolidatedSummary} onCheckedChange={(v) => setIncludeConsolidatedSummary(Boolean(v))} />
                             <div>
-                                <p className="text-xs font-black uppercase text-gray-900">Also Import "Consolidated Ledger" Summary</p>
+                                <p className="text-xs font-black uppercase text-foreground">Also Import "Consolidated Ledger" Summary</p>
                                 <p className="text-[10px] text-muted-foreground">Imports its own pre-computed Bonus, Behavior, and Analytics sections.</p>
                             </div>
                         </label>
@@ -230,7 +230,7 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                                     <TableRow key={row.sheetName} className="h-14">
                                         <TableCell className="pl-4">
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-gray-900">{row.sheetName}</span>
+                                                <span className="font-bold text-foreground">{row.sheetName}</span>
                                                 <span className="text-[9px] text-muted-foreground uppercase">
                                                     {row.rowCount} rows{!row.hasAttendance && !row.hasPayroll ? ' - no recognizable data' : ''}
                                                     {row.isConsolidatedSummary ? ' - also the Consolidated Ledger summary sheet' : ''}

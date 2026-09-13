@@ -76,7 +76,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
             <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
+                    <Button variant="outline" className="w-full justify-between h-9 bg-card border-border shadow-none font-normal text-xs px-3 text-left">
                         <div className="flex items-center gap-2 overflow-hidden text-left">
                             {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                             <span className="truncate">{displayText}</span>
@@ -279,7 +279,7 @@ export default function ExpenseLogsPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900 uppercase">Expense History</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground uppercase">Expense History</h1>
                     <p className="text-muted-foreground text-sm">Log of operational cash/bank payment outflows.</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -307,7 +307,7 @@ export default function ExpenseLogsPage() {
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
+                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-card text-xs px-3", !dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-3.5 w-3.5" />
                                 <span className="truncate">{dateRange?.from ? (dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")) : 'Pick AD Range'}</span>
                             </Button>
@@ -320,7 +320,7 @@ export default function ExpenseLogsPage() {
                 )}
             </div>
 
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader className="bg-muted/50">
@@ -345,7 +345,7 @@ export default function ExpenseLogsPage() {
                                     <TableCell><span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">{vehiclesById.get(e.vehicleId) || 'N/A'}</span></TableCell>
                                     <TableCell><Badge variant="outline" className={cn("text-[9px] uppercase font-bold", e.expenseType === 'Maintenance' && "bg-amber-50 text-amber-700", e.expenseType === 'Advance' && "bg-emerald-50 text-emerald-700", e.expenseType === 'Loan Repayment' && "bg-orange-50 text-orange-700")}>{e.expenseType}</Badge></TableCell>
                                     <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/50 border-none">{e.paymentMode}</Badge></TableCell>
-                                    <TableCell className="py-3"><div className="flex flex-col"><span className="text-[11px] font-semibold text-gray-900">{e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}</span>{e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}</div></TableCell>
+                                    <TableCell className="py-3"><div className="flex flex-col"><span className="text-[11px] font-semibold text-foreground">{e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}</span>{e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}</div></TableCell>
                                     <TableCell className="text-right font-black text-red-600 text-[11px] tabular-nums">Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right pr-6">
                                         <DropdownMenu>
@@ -373,7 +373,7 @@ export default function ExpenseLogsPage() {
                         <div className="flex items-center gap-6">
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground whitespace-nowrap">Rows</span>
-                                <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(parseInt(v)); setCurrentPage(1); }}><SelectTrigger className="h-8 w-[70px] bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="25">25</SelectItem><SelectItem value="50">50</SelectItem><SelectItem value="-1">All</SelectItem></SelectContent></Select>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(parseInt(v)); setCurrentPage(1); }}><SelectTrigger className="h-8 w-[70px] bg-card"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="25">25</SelectItem><SelectItem value="50">50</SelectItem><SelectItem value="-1">All</SelectItem></SelectContent></Select>
                             </div>
                             {itemsPerPage !== -1 && (
                                 <div className="flex items-center gap-2">

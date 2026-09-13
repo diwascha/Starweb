@@ -55,6 +55,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useConnectionStatus } from '@/firebase';
 import { useState, useEffect } from 'react';
 import { getNormalizedPath } from '@/lib/utils';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
@@ -145,8 +146,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2.5 px-2 py-2">
-            <img src={logo.src} width="28" height="28" alt="Logo" className="rounded-md group-data-[collapsible=icon]:mx-auto object-contain bg-white" />
-            <h1 className="text-lg font-black tracking-tighter group-data-[collapsible=icon]:hidden truncate text-gray-900">
+            <img src={logo.src} width="28" height="28" alt="Logo" className="rounded-md group-data-[collapsible=icon]:mx-auto object-contain bg-card" />
+            <h1 className="text-lg font-black tracking-tighter group-data-[collapsible=icon]:hidden truncate text-foreground">
                 {appBranding.appName}
             </h1>
         </div>
@@ -494,6 +495,11 @@ export function AppSidebar() {
                <SidebarMenuButton className="hidden group-data-[collapsible=icon]:flex" tooltip="Sign Out" onClick={handleSignOut}>
                   <LogOut />
                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+               <div className="px-2 pb-1 group-data-[collapsible=icon]:hidden">
+                  <ThemeToggle className="w-full justify-center" />
+               </div>
             </SidebarMenuItem>
             <SidebarMenuItem>
                 <SidebarCollapseButton />

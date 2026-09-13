@@ -670,7 +670,7 @@ export default function AttendanceRegistryPage() {
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary/10 rounded-xl"><UserCheck className="h-6 w-6 text-primary"/></div>
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Attendance Logs</h1>
+                    <h1 className="text-3xl font-black tracking-tight text-foreground uppercase">Attendance Logs</h1>
                     <p className="text-muted-foreground text-sm font-medium italic">Validated labor metrics and work-hour records.</p>
                 </div>
             </div>
@@ -682,13 +682,13 @@ export default function AttendanceRegistryPage() {
                 <Button
                     variant="outline"
                     onClick={() => { setBulkClockSelectedIds([]); setBulkClockActionType('IN'); setBulkClockTime('08:00'); setIsBulkClockOpen(true); }}
-                    className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200"
+                    className="h-10 uppercase text-[10px] font-black tracking-widest border-border"
                 >
                     <Users className="mr-2 h-3.5 w-3.5"/> Bulk Clock In/Out
                 </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200">
+                        <Button variant="outline" className="h-10 uppercase text-[10px] font-black tracking-widest border-border">
                             <Columns3 className="mr-2 h-3.5 w-3.5"/> Columns
                         </Button>
                     </DropdownMenuTrigger>
@@ -713,7 +713,7 @@ export default function AttendanceRegistryPage() {
                     onClick={() => setBulkLockConfirm('lock')}
                     disabled={isTogglingLock}
                     title={`Lock Attendance and Payroll for every month of FY ${formatFiscalYear(fyStart)}.`}
-                    className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200 text-amber-700 hover:bg-amber-50"
+                    className="h-10 uppercase text-[10px] font-black tracking-widest border-border text-amber-700 hover:bg-amber-50"
                 >
                     {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Lock className="mr-2 h-3.5 w-3.5" />}
                     Lock All
@@ -723,7 +723,7 @@ export default function AttendanceRegistryPage() {
                     onClick={() => setBulkLockConfirm('unlock')}
                     disabled={isTogglingLock}
                     title={`Unlock Attendance and Payroll for every month of FY ${formatFiscalYear(fyStart)}.`}
-                    className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
+                    className="h-10 uppercase text-[10px] font-black tracking-widest border-border text-muted-foreground hover:text-primary"
                 >
                     {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
                     Unlock All
@@ -749,14 +749,14 @@ export default function AttendanceRegistryPage() {
             <div className="space-y-1.5 w-[110px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
                 <Select value={selectedFiscalYear} onValueChange={setSelectedFiscalYear}>
-                    <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                     <SelectContent>{availableFiscalYears.map(y => <SelectItem key={`fy-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}</SelectContent>
                 </Select>
             </div>
             <div className="space-y-1.5 w-[150px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month</Label>
                 <Select value={selectedFyMonthIndex} onValueChange={setSelectedFyMonthIndex}>
-                    <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="All">All Months</SelectItem>
                         {Array.from({ length: 12 }, (_, i) => i).map(i => <SelectItem key={`fym-${i}`} value={String(i)}>{fiscalMonthName(i)}</SelectItem>)}
@@ -766,7 +766,7 @@ export default function AttendanceRegistryPage() {
             <div className="space-y-1.5 w-[180px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employee</Label>
                 <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}>
-                    <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Employees" /></SelectTrigger>
+                    <SelectTrigger className="h-9 bg-card"><SelectValue placeholder="All Employees" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="All">All Employees</SelectItem>
                         {sortedEmployeesForFilter.map(e => <SelectItem key={`filter-emp-${e.id}`} value={e.name}>{e.name}</SelectItem>)}
@@ -776,7 +776,7 @@ export default function AttendanceRegistryPage() {
             <div className="space-y-1.5 w-[150px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Status</Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Status" /></SelectTrigger>
+                    <SelectTrigger className="h-9 bg-card"><SelectValue placeholder="All Status" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="All">All Status</SelectItem>
                         <SelectItem value="Present">Present</SelectItem>
@@ -794,7 +794,7 @@ export default function AttendanceRegistryPage() {
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Quick Search</Label>
                 <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search employee..." className="pl-8 h-9 text-xs bg-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                    <Input placeholder="Search employee..." className="pl-8 h-9 text-xs bg-card" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
             </div>
             
@@ -876,7 +876,7 @@ export default function AttendanceRegistryPage() {
             </AlertDialogContent>
         </AlertDialog>
 
-        <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+        <Card className="shadow-sm border-border bg-card overflow-hidden">
             <CardContent className="p-0">
                 <ScrollArea className="w-full">
                     <Table>
@@ -969,9 +969,9 @@ export default function AttendanceRegistryPage() {
                                 const highlight = getAttendanceRowHighlight(r);
                                 return (
                                 <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors" style={highlight ? { backgroundColor: highlight } : undefined}>
-                                    <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
+                                    <TableCell className="pl-6 font-mono text-muted-foreground text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
                                     {isColVisible('bsDate') && <TableCell className="font-mono font-bold text-blue-900">{r.dateBS}</TableCell>}
-                                    <TableCell className="font-black text-gray-900">{r.employeeName}</TableCell>
+                                    <TableCell className="font-black text-foreground">{r.employeeName}</TableCell>
                                     {isColVisible('shift') && (
                                         <TableCell>
                                             {(() => {
@@ -1029,9 +1029,9 @@ export default function AttendanceRegistryPage() {
                                     {isColVisible('gTime') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.gTime != null ? r.gTime.toFixed(2) : '—'}</TableCell>}
                                     {isColVisible('breakHours') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.breakHours != null ? r.breakHours.toFixed(2) : '—'}</TableCell>}
                                     {isColVisible('gHours') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.gHours != null ? r.gHours.toFixed(2) : '—'}</TableCell>}
-                                    <TableCell className="text-right font-bold text-gray-900">{r.grossHours.toFixed(1)}</TableCell>
+                                    <TableCell className="text-right font-bold text-foreground">{r.grossHours.toFixed(1)}</TableCell>
                                     {isColVisible('overtime') && <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>}
-                                    {isColVisible('regularHours') && <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>}
+                                    {isColVisible('regularHours') && <TableCell className="text-right font-black text-foreground">{r.regularHours.toFixed(1)}</TableCell>}
                                     {isColVisible('remarks') && (
                                         <TableCell className="max-w-[200px] truncate text-[10px] text-muted-foreground italic" title={getDisplayRemark(r)}>
                                             {getDisplayRemark(r)}
@@ -1076,7 +1076,7 @@ export default function AttendanceRegistryPage() {
                                 setItemsPerPage(parseInt(v));
                                 setCurrentPage(1);
                             }}>
-                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1119,7 +1119,7 @@ export default function AttendanceRegistryPage() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black text-gray-900">Manual Tweak</DialogTitle>
+                    <DialogTitle className="text-xl font-black text-foreground">Manual Tweak</DialogTitle>
                     <DialogDescription>Adjust work hours for {editingRecord?.employeeName}.</DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-5 py-4">
@@ -1139,14 +1139,14 @@ export default function AttendanceRegistryPage() {
                 {calcStep === 'confirm' ? (
                     <>
                         <DialogHeader>
-                            <DialogTitle className="text-xl font-black text-gray-900">Run Attendance Processor</DialogTitle>
+                            <DialogTitle className="text-xl font-black text-foreground">Run Attendance Processor</DialogTitle>
                             <DialogDescription>
                                 You are about to recalculate <span className="font-bold text-foreground">{calcTargetMonth ? `${fiscalMonthName(parseInt(selectedFyMonthIndex))}, ${calcTargetMonth.bsYear}` : 'the selected month'}</span> — the month currently shown on this page. No other month is affected.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-2 py-2">
                             <p className="text-[10px] font-black uppercase text-muted-foreground">This will:</p>
-                            <ul className="text-[11px] text-gray-700 space-y-1.5 list-disc pl-4">
+                            <ul className="text-[11px] text-foreground space-y-1.5 list-disc pl-4">
                                 <li>Delete and regenerate every processed attendance record for this month from the raw machine logs.</li>
                                 <li>Apply each employee's assigned shift, break window, and the HR Operational Rules configured under HR Setting.</li>
                                 <li>Overwrite any manual tweaks made to this month's attendance records.</li>
@@ -1169,7 +1169,7 @@ export default function AttendanceRegistryPage() {
                 ) : (
                     <>
                         <DialogHeader>
-                            <DialogTitle className="text-xl font-black text-gray-900">Calculation Complete</DialogTitle>
+                            <DialogTitle className="text-xl font-black text-foreground">Calculation Complete</DialogTitle>
                             <DialogDescription>
                                 {calcTargetMonth ? `${fiscalMonthName(parseInt(selectedFyMonthIndex))}, ${calcTargetMonth.bsYear}` : 'This period'} has been recalculated.
                             </DialogDescription>
@@ -1195,7 +1195,7 @@ export default function AttendanceRegistryPage() {
         <Dialog open={isShiftAssignOpen} onOpenChange={setIsShiftAssignOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black text-gray-900">Reschedule Shift</DialogTitle>
+                    <DialogTitle className="text-xl font-black text-foreground">Reschedule Shift</DialogTitle>
                     <DialogDescription>
                         {employeeMap.get(shiftAssignEmployeeId)?.name || 'Employee'} — assigning a shift only changes how future calculations read this employee's break window and default duty times. Existing clock-in/out records are never touched.
                     </DialogDescription>
@@ -1230,7 +1230,7 @@ export default function AttendanceRegistryPage() {
         <Dialog open={isBulkClockOpen} onOpenChange={setIsBulkClockOpen}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black text-gray-900">Bulk Clock In / Clock Out</DialogTitle>
+                    <DialogTitle className="text-xl font-black text-foreground">Bulk Clock In / Clock Out</DialogTitle>
                     <DialogDescription>Stamp a single clock time for multiple employees on one date. Only the selected side (In or Out) is written — the other punch and any existing record are preserved.</DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-3 gap-4 py-2">

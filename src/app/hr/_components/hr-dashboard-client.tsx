@@ -155,22 +155,22 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
 
   return (
     <div className="grid gap-6">
-       <div className="rounded-xl overflow-hidden shadow-sm border border-gray-100">
+       <div className="rounded-xl overflow-hidden shadow-sm border border-border">
             <div className="bg-[#1c355e] text-white text-center py-2.5 font-black uppercase tracking-widest text-sm">
                 HR &amp; Payroll Dashboard
             </div>
-            <div className="bg-white p-4 flex flex-col sm:flex-row flex-wrap items-end gap-4 border-b">
+            <div className="bg-card p-4 flex flex-col sm:flex-row flex-wrap items-end gap-4 border-b">
                 <div className="space-y-1.5 w-[120px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
                     <Select value={selectedFiscalYear} onValueChange={setSelectedFiscalYear}>
-                        <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>{availableFiscalYears.map(y => <SelectItem key={`dash-fy-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}</SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-1.5 w-[200px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employee</Label>
                     <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-                        <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">(All Employees)</SelectItem>
                             {[...employees].sort((a, b) => a.name.localeCompare(b.name)).map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
@@ -234,7 +234,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
             </Card>
        </div>
 
-       <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+       <Card className="shadow-sm border-border bg-card overflow-hidden">
             <CardHeader className="bg-[#1c355e]/5 border-b py-4 px-6">
                 <CardTitle className="text-sm font-black uppercase tracking-tight">Company Overview - FY {formatFiscalYear(fyStart)}</CardTitle>
                 <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Every employee, aggregated across the full fiscal year - the same figures Analytics and Performance Benchmark use.</CardDescription>
@@ -244,7 +244,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                     <Table className="text-[11px] border-collapse">
                         <TableHeader className="bg-muted/30">
                             <TableRow className="h-11">
-                                <TableHead className="sticky left-0 bg-background z-20 border-r pl-6 font-black uppercase text-gray-900">Employee</TableHead>
+                                <TableHead className="sticky left-0 bg-background z-20 border-r pl-6 font-black uppercase text-foreground">Employee</TableHead>
                                 <TableHead className="text-center font-bold uppercase px-3">Months</TableHead>
                                 <TableHead className="text-center font-bold uppercase px-3 text-blue-700">Avg Attend %</TableHead>
                                 <TableHead className="text-center font-bold uppercase px-3">Attend Trend</TableHead>
@@ -261,7 +261,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                                 <TableRow><TableCell colSpan={10} className="text-center py-16 text-muted-foreground italic">No calculated attendance found for FY {formatFiscalYear(fyStart)}.</TableCell></TableRow>
                             ) : overviewRows.map(r => (
                                 <TableRow key={r.employeeId} className={cn("hover:bg-muted/20 h-12 border-b", r.flags.length > 0 && "bg-amber-50/40")}>
-                                    <TableCell className="sticky left-0 bg-background z-10 border-r pl-6 font-black text-gray-900 uppercase tracking-tighter">{r.employeeName}</TableCell>
+                                    <TableCell className="sticky left-0 bg-background z-10 border-r pl-6 font-black text-foreground uppercase tracking-tighter">{r.employeeName}</TableCell>
                                     <TableCell className="text-center tabular-nums px-3">{r.monthsWithData}</TableCell>
                                     <TableCell className={cn("text-center tabular-nums px-3 font-bold", r.flags.includes('Attendance well below peers') ? 'text-red-600' : 'text-blue-700')}>{r.attendanceRate.toFixed(1)}</TableCell>
                                     <TableCell className="text-center px-3"><TrendBadge trend={r.trend} /></TableCell>
@@ -284,7 +284,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                         {overviewTotals && (
                             <TableFooter className="bg-muted/50 font-black h-12 border-t-2">
                                 <TableRow>
-                                    <TableCell className="sticky left-0 bg-background z-20 border-r pl-6 text-gray-900 uppercase tracking-tighter">Total / Median (Headcount: {overviewTotals.headcount})</TableCell>
+                                    <TableCell className="sticky left-0 bg-background z-20 border-r pl-6 text-foreground uppercase tracking-tighter">Total / Median (Headcount: {overviewTotals.headcount})</TableCell>
                                     <TableCell></TableCell>
                                     <TableCell className="text-center tabular-nums px-3">{overviewTotals.median.toFixed(1)}</TableCell>
                                     <TableCell colSpan={2}></TableCell>
@@ -310,7 +310,7 @@ function TrendBadge({ trend }: { trend: PeriodPerformanceMetrics['trend'] }) {
     const config = {
         Improving: { icon: TrendingUp, cls: 'border-emerald-200 text-emerald-700' },
         Declining: { icon: TrendingDown, cls: 'border-red-200 text-red-700' },
-        Stable: { icon: Minus, cls: 'border-gray-200 text-muted-foreground' },
+        Stable: { icon: Minus, cls: 'border-border text-muted-foreground' },
     }[trend];
     const Icon = config.icon;
     return (

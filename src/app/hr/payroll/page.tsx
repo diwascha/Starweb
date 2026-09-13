@@ -268,20 +268,20 @@ export default function UnifiedWorkforcePage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Payroll</h1>
+                    <h1 className="text-3xl font-black tracking-tight text-foreground uppercase">Payroll</h1>
                     <p className="text-muted-foreground text-sm font-medium">Consolidated view for period: <span className="text-primary font-bold">{periodName}</span></p>
                 </div>
             </header>
 
             {/* Global Controller Header */}
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden print:hidden">
+            <Card className="shadow-sm border-border bg-card overflow-hidden print:hidden">
                 <CardHeader className="py-4 px-6 bg-muted/5 border-b">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div className="flex flex-col sm:flex-row items-center gap-3">
                             <div className="flex items-center gap-2">
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Fiscal Year</Label>
                                 <Select value={selectedFiscalYear} onValueChange={handleFiscalYearChange} disabled={isLoadingData}>
-                                    <SelectTrigger className="w-[110px] h-9 bg-white"><SelectValue placeholder="FY" /></SelectTrigger>
+                                    <SelectTrigger className="w-[110px] h-9 bg-card"><SelectValue placeholder="FY" /></SelectTrigger>
                                     <SelectContent>
                                         {availableFiscalYears.map(y => <SelectItem key={`fy-opt-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}
                                     </SelectContent>
@@ -290,7 +290,7 @@ export default function UnifiedWorkforcePage() {
                             <div className="flex items-center gap-2">
                                 <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Month</Label>
                                 <Select value={selectedFyMonthIndex} onValueChange={handleFyMonthChange} disabled={isLoadingData}>
-                                    <SelectTrigger className="w-[140px] h-9 bg-white"><SelectValue placeholder="Month" /></SelectTrigger>
+                                    <SelectTrigger className="w-[140px] h-9 bg-card"><SelectValue placeholder="Month" /></SelectTrigger>
                                     <SelectContent>
                                         {fyMonths.map((m, i) => <SelectItem key={`fy-month-opt-${i}`} value={String(i)}>{fiscalMonthName(i)}</SelectItem>)}
                                     </SelectContent>
@@ -366,7 +366,7 @@ export default function UnifiedWorkforcePage() {
                                     title={isLocked
                                         ? 'Unlock Calculation first to sync.'
                                         : "Shows this month's behavioral analytics if they already exist, or generates them once if they don't. Only affects the selected month."}
-                                    className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
+                                    className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-border text-muted-foreground hover:text-primary"
                                 >
                                     {isRefreshing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-2 h-3.5 w-3.5" />}
                                     Sync Metrics
@@ -383,15 +383,15 @@ export default function UnifiedWorkforcePage() {
 
             <Tabs defaultValue={activeTab} className="w-full">
                 <TabsList className="bg-muted/50 p-1 h-12 w-full justify-start gap-4 mb-6 border overflow-x-auto no-scrollbar print:hidden">
-                    <TabsTrigger value="payroll" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    <TabsTrigger value="payroll" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
                         <FileText className="h-4 w-4"/>
                         Financial Registry
                     </TabsTrigger>
-                    <TabsTrigger value="bonus" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    <TabsTrigger value="bonus" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
                         <Award className="h-4 w-4"/>
                         Bonus Evaluation
                     </TabsTrigger>
-                    <TabsTrigger value="analytics" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    <TabsTrigger value="analytics" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
                         <BarChart2 className="h-4 w-4"/>
                         Behavioral Intelligence
                     </TabsTrigger>
@@ -435,7 +435,7 @@ export default function UnifiedWorkforcePage() {
                     {calcDialogStep === 'confirm' ? (
                         <>
                             <DialogHeader>
-                                <DialogTitle className="text-xl font-black text-gray-900">
+                                <DialogTitle className="text-xl font-black text-foreground">
                                     {pendingCalcAction === 'recalculate' ? 'Recalculate Payroll' : 'Sync Metrics'}
                                 </DialogTitle>
                                 <DialogDescription>
@@ -445,14 +445,14 @@ export default function UnifiedWorkforcePage() {
                             <div className="space-y-2 py-2">
                                 <p className="text-[10px] font-black uppercase text-muted-foreground">This will:</p>
                                 {pendingCalcAction === 'recalculate' ? (
-                                    <ul className="text-[11px] text-gray-700 space-y-1.5 list-disc pl-4">
+                                    <ul className="text-[11px] text-foreground space-y-1.5 list-disc pl-4">
                                         <li>Recompute basic pay, overtime pay, and bonus accrual for every employee with attendance this month, from that attendance.</li>
                                         <li>Apply the wage, TDS, and bonus eligibility rules configured under HR Setting.</li>
                                         <li>Overwrite any existing Payroll and Bonus Ledger records for this month.</li>
                                         <li>Re-lock this period automatically once finished.</li>
                                     </ul>
                                 ) : (
-                                    <ul className="text-[11px] text-gray-700 space-y-1.5 list-disc pl-4">
+                                    <ul className="text-[11px] text-foreground space-y-1.5 list-disc pl-4">
                                         <li>Show this month's behavioral analytics if they already exist, or generate them once if they don't.</li>
                                         <li>Only ever touch this month - no other period's analytics are affected.</li>
                                         <li>Re-lock this period automatically once finished.</li>
@@ -473,7 +473,7 @@ export default function UnifiedWorkforcePage() {
                     ) : (
                         <>
                             <DialogHeader>
-                                <DialogTitle className="text-xl font-black text-gray-900">
+                                <DialogTitle className="text-xl font-black text-foreground">
                                     {pendingCalcAction === 'recalculate' ? 'Recalculation Complete' : 'Sync Complete'}
                                 </DialogTitle>
                                 <DialogDescription>{periodName}</DialogDescription>

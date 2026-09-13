@@ -35,6 +35,12 @@ const DEFAULT_PAGE_CSS = `
   body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 body { background: #fff; }
+
+/* The print window is written fresh, so it never carries the app's dark
+   class and the theme tokens resolve to their light values. Stating it
+   explicitly means a future change to how this window is built cannot quietly
+   start sending a dark payslip to the printer. */
+:root { color-scheme: light; }
 `;
 
 /**

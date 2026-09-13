@@ -104,7 +104,7 @@ export default function PurchaseHistoryPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Purchase History</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Purchase History</h1>
                     <p className="text-muted-foreground text-sm">Procurement logs for parts, fuel, and fleet assets.</p>
                 </div>
                 {hasPermission('fleet', 'create') && (
@@ -117,12 +117,12 @@ export default function PurchaseHistoryPage() {
             <div className="flex flex-wrap gap-4 items-end bg-muted/20 p-4 rounded-xl border border-dashed">
                 <div className="space-y-1.5 min-w-[200px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Search</Label>
-                    <Input placeholder="Search POs or Vendors..." className="h-9 text-xs bg-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                    <Input placeholder="Search POs or Vendors..." className="h-9 text-xs bg-card" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
                 <div className="space-y-1.5 w-[180px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Supplier</Label>
                     <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                        <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Vendors" /></SelectTrigger>
+                        <SelectTrigger className="h-9 bg-card"><SelectValue placeholder="All Vendors" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Vendors</SelectItem>
                             {parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both').map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
@@ -132,7 +132,7 @@ export default function PurchaseHistoryPage() {
                 <div className="space-y-1.5 w-[150px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Truck</Label>
                     <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                        <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Trucks" /></SelectTrigger>
+                        <SelectTrigger className="h-9 bg-card"><SelectValue placeholder="All Trucks" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Trucks</SelectItem>
                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
@@ -141,7 +141,7 @@ export default function PurchaseHistoryPage() {
                 </div>
             </div>
 
-            <Card className="shadow-sm border-gray-100 overflow-hidden">
+            <Card className="shadow-sm border-border overflow-hidden">
                 <Table>
                     <TableHeader className="bg-muted/50">
                         <TableRow>

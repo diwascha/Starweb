@@ -99,7 +99,7 @@ export default function GeneratePayslipsButton({ payrollRecords, employees, bsYe
 
     return (
         <>
-            <Button variant="outline" size="sm" onClick={openSelectDialog} disabled={isGenerating || payrollRecords.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest border-gray-300">
+            <Button variant="outline" size="sm" onClick={openSelectDialog} disabled={isGenerating || payrollRecords.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest border-border">
                 {isGenerating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileStack className="mr-1.5 h-3.5 w-3.5" />}
                 Generate Payslips
             </Button>
@@ -107,7 +107,7 @@ export default function GeneratePayslipsButton({ payrollRecords, employees, bsYe
             <Dialog open={isSelectOpen} onOpenChange={setIsSelectOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900">Generate Payslips</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground">Generate Payslips</DialogTitle>
                         <DialogDescription>
                             Choose which employees to include. Each generates a 2-page slip (Employee + Employer copy) in one combined PDF.
                         </DialogDescription>

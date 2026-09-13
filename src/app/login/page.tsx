@@ -251,17 +251,17 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
          <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
-            <div className="w-24 h-24 rounded-3xl bg-white shadow-2xl flex items-center justify-center overflow-hidden border-2 border-primary/20 p-2">
+            <div className="w-24 h-24 rounded-3xl bg-card shadow-2xl flex items-center justify-center overflow-hidden border-2 border-primary/20 p-2">
                 <img src={logo.src} width="80" height="80" alt="App Logo" className="object-contain" />
             </div>
             <div className="space-y-1">
-                <h1 className="text-3xl font-black tracking-tight text-gray-900">{appBranding.appName}</h1>
+                <h1 className="text-3xl font-black tracking-tight text-foreground">{appBranding.appName}</h1>
                 {appBranding.appMotto && (
                     <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{appBranding.appMotto}</p>
                 )}
             </div>
         </div>
-        <Card className="shadow-2xl border-none ring-1 ring-black/5 bg-white">
+        <Card className="shadow-2xl border-none ring-1 ring-black/5 bg-card">
           <CardHeader className="text-center pb-2">
             <CardTitle className="text-xl font-bold flex items-center justify-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-primary"/>
@@ -299,10 +299,10 @@ export default function LoginPage() {
                         <Button type="button" variant="ghost" size="icon" className="h-3 w-3 text-amber-700" onClick={generateCaptcha}><RefreshCw className="h-3 w-3" /></Button>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className="flex-1 bg-white border-2 border-amber-200 rounded-lg h-10 flex items-center justify-center font-black text-amber-900 text-lg tabular-nums">
+                        <div className="flex-1 bg-card border-2 border-amber-200 rounded-lg h-10 flex items-center justify-center font-black text-amber-900 text-lg tabular-nums">
                             {captchaChallenge.a} + {captchaChallenge.b} = ?
                         </div>
-                        <Input id="captchaAnswer" value={captchaAnswer} onChange={e => setCaptchaAnswer(e.target.value)} disabled={isSubmitting} inputMode="numeric" className="w-24 h-10 border-amber-200 bg-white font-black text-center" autoComplete="off" />
+                        <Input id="captchaAnswer" value={captchaAnswer} onChange={e => setCaptchaAnswer(e.target.value)} disabled={isSubmitting} inputMode="numeric" className="w-24 h-10 border-amber-200 bg-card font-black text-center" autoComplete="off" />
                     </div>
                 </div>
               )}
@@ -344,7 +344,7 @@ export default function LoginPage() {
                     />
                     {/* A slow shimmer over the filled part, so even a long
                         single step never looks stalled. */}
-                    <div className="absolute inset-y-0 left-0 animate-pulse rounded-full bg-white/25"
+                    <div className="absolute inset-y-0 left-0 animate-pulse rounded-full bg-card/25"
                          style={{ width: `${progressPct}%` }} />
                   </div>
 

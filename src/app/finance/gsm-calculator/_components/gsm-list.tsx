@@ -63,7 +63,7 @@ export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
     return (
-        <Card className="shadow-sm border-gray-100 bg-white">
+        <Card className="shadow-sm border-border bg-card">
             <CardHeader className="py-4 border-b bg-muted/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <CardTitle className="text-sm font-black uppercase">Report History</CardTitle>
@@ -73,7 +73,7 @@ export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                     <Input 
                         placeholder="Search logs..." 
-                        className="pl-8 h-8 text-xs bg-white" 
+                        className="pl-8 h-8 text-xs bg-card" 
                         value={searchQuery} 
                         onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} 
                     />
@@ -96,9 +96,9 @@ export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps
                             <TableRow key={r.id} className="h-12 border-b hover:bg-muted/10">
                                 <TableCell className="pl-6 font-mono">{toNepaliDate(r.date)}</TableCell>
                                 <TableCell className="font-bold text-blue-700">{r.voucherNo}</TableCell>
-                                <TableCell className="font-black text-gray-900 uppercase tracking-tighter">{r.vendorName}</TableCell>
+                                <TableCell className="font-black text-foreground uppercase tracking-tighter">{r.vendorName}</TableCell>
                                 <TableCell className="text-center font-bold text-muted-foreground">{(r.entries || []).length} Reels</TableCell>
-                                <TableCell className="text-right"><Badge variant="outline" className="font-black tabular-nums bg-gray-50">{r.avgGsm.toFixed(2)}</Badge></TableCell>
+                                <TableCell className="text-right"><Badge variant="outline" className="font-black tabular-nums bg-muted">{r.avgGsm.toFixed(2)}</Badge></TableCell>
                                 <TableCell className="text-right pr-6">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>

@@ -402,7 +402,7 @@ export default function PoliciesPage() {
         if (policy.status === 'Archived') return <Badge variant="outline" className="text-muted-foreground border-muted-foreground">Archived</Badge>;
         
         if (policy.daysRemaining < 0) return <Badge variant="destructive">Expired</Badge>;
-        if (policy.daysRemaining <= 15) return <Badge variant="default" className="bg-amber-500 text-black hover:bg-amber-600">Soon</Badge>;
+        if (policy.daysRemaining <= 15) return <Badge variant="default" className="bg-amber-500 text-foreground hover:bg-amber-600">Soon</Badge>;
         return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>;
     };
 

@@ -96,7 +96,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
             <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
+                    <Button variant="outline" className="w-full justify-between h-9 bg-card border-border shadow-none font-normal text-xs px-3 text-left">
                         <div className="flex items-center gap-2 overflow-hidden text-left">
                             {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                             <span className="truncate text-left">{displayText}</span>
@@ -549,7 +549,7 @@ export default function TripSheetsPage() {
                                 setItemsPerPage(parseInt(v));
                                 setCurrentPage(1);
                             }}>
-                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -633,7 +633,7 @@ export default function TripSheetsPage() {
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Custom AD Range</Label>
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
+                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-card text-xs px-3", !dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-3.5 w-3.5" />
                                 <span className="truncate">
                                     {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}`) : format(dateRange.from, "MMM d")) : (<span>Pick a date range</span>)}
@@ -648,7 +648,7 @@ export default function TripSheetsPage() {
                 <div className="space-y-1.5 w-full md:w-[150px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
                     <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                        <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
+                        <SelectTrigger className="bg-card h-9 text-xs"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Vehicles</SelectItem>
                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
@@ -658,7 +658,7 @@ export default function TripSheetsPage() {
                 <div className="space-y-1.5 w-full md:w-[200px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Customer</Label>
                     <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                        <SelectTrigger className="bg-white h-9 text-xs">
+                        <SelectTrigger className="bg-card h-9 text-xs">
                             <SelectValue placeholder="All Customers" />
                         </SelectTrigger>
                         <SelectContent>

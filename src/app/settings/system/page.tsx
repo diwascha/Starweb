@@ -428,7 +428,7 @@ export default function SystemSettingsPage() {
     return (
       <div className="flex flex-col gap-8">
         <header>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">System &amp; Security</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">System &amp; Security</h1>
           <p className="text-muted-foreground text-sm">Administrator access required.</p>
         </header>
         <Card className="border-2">
@@ -449,7 +449,7 @@ export default function SystemSettingsPage() {
     <div className="flex flex-col gap-8">
         <header className="flex items-center justify-between">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">System & Security</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">System & Security</h1>
                 <p className="text-muted-foreground text-sm">RBAC, cloud logs, and usage analytics.</p>
             </div>
             <div className="flex gap-2">
@@ -476,10 +476,10 @@ export default function SystemSettingsPage() {
             <TabsContent value="users" className="space-y-6 animate-in fade-in slide-in-from-left-2">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-1 space-y-6">
-                        <Card className="shadow-sm border-gray-100 h-fit">
+                        <Card className="shadow-sm border-border h-fit">
                             <CardHeader className="bg-muted/30 py-4 px-6 border-b"><CardTitle className="text-xs uppercase font-black">My Account</CardTitle></CardHeader>
                             <CardContent className="p-6 space-y-6">
-                                <p className="font-black text-lg text-gray-900 uppercase leading-none">{user?.username}</p>
+                                <p className="font-black text-lg text-foreground uppercase leading-none">{user?.username}</p>
                                 <Separator className="border-dashed" />
                                 <div className="space-y-4">
                                     <div className="space-y-1.5">
@@ -508,7 +508,7 @@ export default function SystemSettingsPage() {
                             </CardContent>
                         </Card>
                     </div>
-                    <Card className="lg:col-span-2 shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <Card className="lg:col-span-2 shadow-sm border-border bg-card overflow-hidden">
                         <CardHeader className="py-4 border-b bg-primary/5"><CardTitle className="text-sm font-black uppercase">User Directory</CardTitle></CardHeader>
                         <CardContent className="p-0">
                             <Table className="text-xs">
@@ -571,7 +571,7 @@ export default function SystemSettingsPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="lg:col-span-2 shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <Card className="lg:col-span-2 shadow-sm border-border bg-card overflow-hidden">
                         <CardHeader className="py-4 border-b bg-muted/5">
                             <CardTitle className="text-sm font-black uppercase tracking-tight">Active Workstations & Profiles</CardTitle>
                             <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Real-time monitoring of authenticated cloud sessions.</CardDescription>
@@ -595,13 +595,13 @@ export default function SystemSettingsPage() {
                                             <TableRow key={s.id} className={cn("h-14 border-b transition-colors", isStale ? "bg-red-50/30" : "hover:bg-muted/10")}>
                                                 <TableCell className="pl-6">
                                                     <div className="flex flex-col">
-                                                        <span className="font-black text-gray-900 uppercase tracking-tighter">{s.deviceName || `WS-${s.deviceId.substring(0,4).toUpperCase()}`}</span>
+                                                        <span className="font-black text-foreground uppercase tracking-tighter">{s.deviceName || `WS-${s.deviceId.substring(0,4).toUpperCase()}`}</span>
                                                         <span className="text-[8px] text-muted-foreground font-mono truncate max-w-[180px]" title={s.userAgent}>{s.userAgent}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
-                                                        <span className="font-bold text-gray-700 uppercase">{s.username}</span>
+                                                        <span className="font-bold text-foreground uppercase">{s.username}</span>
                                                         <div className="flex items-center gap-1.5 text-[8px] text-muted-foreground uppercase">
                                                             <Timer className="h-2.5 w-2.5" />
                                                             <span>Online {formatDistanceToNow(new Date(s.loginAt))}</span>
@@ -643,7 +643,7 @@ export default function SystemSettingsPage() {
             </TabsContent>
 
             <TabsContent value="identities" className="space-y-6 animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="py-4 border-b bg-muted/5">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-muted/50 rounded-xl"><Fingerprint className="h-5 w-5 text-primary"/></div>
@@ -670,7 +670,7 @@ export default function SystemSettingsPage() {
                                         <TableRow key={entry.username} className={cn("h-12 border-b transition-colors", isOrphaned ? "bg-red-50/50" : "hover:bg-muted/10")}>
                                             <TableCell className="pl-6">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-black text-gray-900 uppercase tracking-tighter">{entry.username}</span>
+                                                    <span className="font-black text-foreground uppercase tracking-tighter">{entry.username}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="font-mono text-muted-foreground">{entry.email}</TableCell>
@@ -696,7 +696,7 @@ export default function SystemSettingsPage() {
                                                         <AlertDialogHeader>
                                                             <AlertDialogTitle className="font-black uppercase tracking-tight">Delete Identity Mapping?</AlertDialogTitle>
                                                             <AlertDialogDescription>
-                                                                This will remove the reservation for username <span className="font-bold text-gray-900">"{entry.username}"</span>. 
+                                                                This will remove the reservation for username <span className="font-bold text-foreground">"{entry.username}"</span>. 
                                                                 If a user profile exists, they will no longer be able to log in with this username.
                                                             </AlertDialogDescription>
                                                         </AlertDialogHeader>
@@ -740,33 +740,33 @@ export default function SystemSettingsPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-black text-gray-900 tabular-nums">
+                            <div className="text-3xl font-black text-foreground tabular-nums">
                                 {totalUsageViews.toLocaleString()}
                                 <span className="text-xs font-bold text-muted-foreground ml-2 uppercase tracking-tighter">Total Views</span>
                             </div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-muted/10 border-gray-200 shadow-none">
+                    <Card className="bg-muted/10 border-border shadow-none">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                                 <MousePointer2 className="h-3 w-3" /> Unique Paths
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-black text-gray-900 tabular-nums">
+                            <div className="text-3xl font-black text-foreground tabular-nums">
                                 {aggregatedVisits.length.toLocaleString()}
                                 <span className="text-xs font-bold text-muted-foreground ml-2 uppercase tracking-tighter">Mapped Routes</span>
                             </div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-muted/10 border-gray-200 shadow-none">
+                    <Card className="bg-muted/10 border-border shadow-none">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                                 <Clock className="h-3 w-3" /> Active Period
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-lg font-black text-gray-900 uppercase">
+                            <div className="text-lg font-black text-foreground uppercase">
                                 Real-time
                                 <span className="text-xs font-bold text-emerald-600 ml-2 uppercase tracking-tighter animate-pulse">Monitoring Active</span>
                             </div>
@@ -774,9 +774,9 @@ export default function SystemSettingsPage() {
                     </Card>
                 </div>
 
-                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="border-b py-4 px-6 bg-muted/5">
-                        <CardTitle className="text-sm font-black uppercase tracking-tight text-gray-900">Granular Route Analysis</CardTitle>
+                        <CardTitle className="text-sm font-black uppercase tracking-tight text-foreground">Granular Route Analysis</CardTitle>
                         <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Identified modules for development focus. Grouped by canonical normalized path.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -806,7 +806,7 @@ export default function SystemSettingsPage() {
                                         <TableCell className="pl-6">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary transition-colors" />
-                                                <span className="font-black text-gray-900 font-mono tracking-tight text-[11px]">
+                                                <span className="font-black text-foreground font-mono tracking-tight text-[11px]">
                                                     {visit.path === '/' ? '/ROOT' : visit.path}
                                                 </span>
                                             </div>
@@ -816,7 +816,7 @@ export default function SystemSettingsPage() {
                                         </TableCell>
                                         <TableCell className="text-right pr-6">
                                             <div className="flex items-center justify-end gap-3">
-                                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                                                <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden shrink-0 hidden sm:block">
                                                     <div 
                                                         className="h-full bg-primary" 
                                                         style={{ width: `${Math.min(100, (visit.count / totalUsageViews) * 500)}%` }} 
@@ -840,13 +840,13 @@ export default function SystemSettingsPage() {
             </TabsContent>
 
             <TabsContent value="logs" className="space-y-6 animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="py-4 border-b bg-red-50/10"><CardTitle className="text-sm font-black uppercase">System Audit Log</CardTitle></CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-[10px]"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Time</TableHead><TableHead>Scope</TableHead><TableHead>Message</TableHead></TableRow></TableHeader>
                         <TableBody>{logs.map((log: any, idx) => (
                             <TableRow key={log.id || idx} className="h-10 border-b">
-                                <TableCell className="pl-6 font-mono text-gray-500">{log.timestamp ? format(new Date(log.timestamp), 'HH:mm:ss') : '-'}</TableCell>
+                                <TableCell className="pl-6 font-mono text-muted-foreground">{log.timestamp ? format(new Date(log.timestamp), 'HH:mm:ss') : '-'}</TableCell>
                                 <TableCell><Badge variant="outline" className="text-[8px] uppercase">{log.module || 'Global'}</Badge></TableCell>
                                 <TableCell className="font-medium">{log.message}</TableCell>
                             </TableRow>
@@ -883,7 +883,7 @@ export default function SystemSettingsPage() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select Snapshot File</Label>
-                            <Input type="file" accept=".json,.gz" onChange={handleRestoreFileChange} ref={restoreInputRef} className="max-w-md h-10 border-destructive/20 bg-white" />
+                            <Input type="file" accept=".json,.gz" onChange={handleRestoreFileChange} ref={restoreInputRef} className="max-w-md h-10 border-destructive/20 bg-card" />
                         </div>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -949,7 +949,7 @@ export default function SystemSettingsPage() {
                                 </div>
                             </div>
 
-                            <div className="flex flex-col sm:flex-row gap-6 p-4 rounded-xl bg-gray-50 border border-gray-200">
+                            <div className="flex flex-col sm:flex-row gap-6 p-4 rounded-xl bg-muted border border-border">
                                 <div className="flex items-center gap-3">
                                     <Switch checked={userForm.isAdmin} onCheckedChange={v => setUserForm(p => ({...p, isAdmin: v}))} />
                                     <div className="space-y-0.5">
@@ -979,7 +979,7 @@ export default function SystemSettingsPage() {
                                     <Badge variant="outline" className="text-[8px] font-black uppercase bg-primary/5">Module Control</Badge>
                                 </div>
                                 
-                                <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+                                <div className="border rounded-xl overflow-hidden shadow-sm bg-card">
                                     <div className="bg-muted/50 border-b px-4 py-2 flex items-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">
                                         <div className="flex-1">Functional Module</div>
                                         <div className="w-[180px] text-center">Operational Rights</div>
@@ -993,7 +993,7 @@ export default function SystemSettingsPage() {
                                                 return (
                                                     <div key={m} className="flex items-center p-4 hover:bg-muted/5 transition-colors group">
                                                         <div className="flex-1">
-                                                            <p className="font-black text-gray-900 uppercase tracking-tighter text-xs">{getModuleDisplayName(m)}</p>
+                                                            <p className="font-black text-foreground uppercase tracking-tighter text-xs">{getModuleDisplayName(m)}</p>
                                                             <p className="text-[9px] text-muted-foreground uppercase font-bold">{m}</p>
                                                         </div>
                                                         
@@ -1041,8 +1041,8 @@ export default function SystemSettingsPage() {
                     </div>
                 </ScrollArea>
 
-                <DialogFooter className="p-6 border-t bg-white shrink-0">
-                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest h-11 px-8 border-gray-300">Cancel</Button>
+                <DialogFooter className="p-6 border-t bg-card shrink-0">
+                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest h-11 px-8 border-border">Cancel</Button>
                     <Button onClick={handleUserSubmit} disabled={isSubmittingUser} className="font-black uppercase text-[10px] tracking-widest h-11 px-12 shadow-xl shadow-primary/20">
                         {isSubmittingUser ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
                         Authorize & Commit Profile

@@ -336,14 +336,14 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         <Input
                             placeholder="Search..."
-                            className="pl-8 h-8 text-xs w-[180px] bg-white border-gray-200 shadow-none"
+                            className="pl-8 h-8 text-xs w-[180px] bg-card border-border shadow-none"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
 
                     <Select value={filterParty} onValueChange={(v) => { setFilterParty(v); setCurrentPage(1); }}>
-                        <SelectTrigger className="h-8 w-[150px] bg-white text-xs border-gray-200 shadow-none">
+                        <SelectTrigger className="h-8 w-[150px] bg-card text-xs border-border shadow-none">
                             <div className="flex items-center gap-2">
                                 <Users className="h-3 w-3 text-muted-foreground" />
                                 <SelectValue placeholder="All Parties" />
@@ -357,7 +357,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("h-8 w-[180px] justify-start text-left font-normal bg-white text-xs px-2 border-gray-200", !dateRange && "text-muted-foreground")}>
+                            <Button variant="outline" className={cn("h-8 w-[180px] justify-start text-left font-normal bg-card text-xs px-2 border-border", !dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-1.5 h-3 w-3" />
                                 <span className="truncate">
                                     {dateRange?.from ? (
@@ -459,7 +459,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                                 setItemsPerPage(parseInt(v));
                                 setCurrentPage(1);
                             }}>
-                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -505,7 +505,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                     <DialogDescription>Review and print your estimate invoice.</DialogDescription>
                  </DialogHeader>
                 <ScrollArea className="flex-1 bg-muted/20 p-8">
-                    <div className="mx-auto w-[210mm] shadow-2xl bg-white p-4">
+                    <div className="mx-auto w-[210mm] shadow-2xl bg-card p-4">
                         {selectedInvoice && (
                             <InvoiceView 
                                 invoiceNumber={selectedInvoice.invoiceNumber}
@@ -520,7 +520,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                         )}
                     </div>
                 </ScrollArea>
-                <DialogFooter className="p-6 border-t bg-white">
+                <DialogFooter className="p-6 border-t bg-card">
                     <Button variant="outline" onClick={() => setIsViewOpen(false)}>Close</Button>
                 </DialogFooter>
             </DialogContent>
@@ -698,14 +698,14 @@ function SavedRatesList() {
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search products..."
-                            className="pl-8 h-8 text-xs w-[180px] bg-white border-gray-200 shadow-none"
+                            className="pl-8 h-8 text-xs w-[180px] bg-card border-border shadow-none"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
 
                     <Select value={filterPartyId} onValueChange={(v) => { setFilterPartyId(v); setCurrentPage(1); }}>
-                        <SelectTrigger className="h-8 w-[150px] bg-white text-xs border-gray-200 shadow-none">
+                        <SelectTrigger className="h-8 w-[150px] bg-card text-xs border-border shadow-none">
                             <div className="flex items-center gap-2">
                                 <Users className="h-3 w-3 text-muted-foreground" />
                                 <SelectValue placeholder="All Parties" />
@@ -795,7 +795,7 @@ function SavedRatesList() {
                                 setItemsPerPage(parseInt(v));
                                 setCurrentPage(1);
                             }}>
-                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -888,8 +888,8 @@ function SavedRatesList() {
                             <TableBody>
                                 {[...selectedHistory].reverse().map((entry, index) => (
                                     <TableRow key={index} className="h-11 border-b transition-colors hover:bg-muted/10">
-                                        <TableCell className="pl-6 text-gray-500 font-mono">{toNepaliDate(entry.date)}</TableCell>
-                                        <TableCell className="font-black text-gray-900 tabular-nums">Rs. {entry.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell className="pl-6 text-muted-foreground font-mono">{toNepaliDate(entry.date)}</TableCell>
+                                        <TableCell className="font-black text-foreground tabular-nums">Rs. {entry.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                                         <TableCell className="font-bold text-primary uppercase text-[10px]">{entry.setBy}</TableCell>
                                     </TableRow>
                                 ))}
@@ -901,7 +901,7 @@ function SavedRatesList() {
                         </div>
                     )}
                 </ScrollArea>
-                <DialogFooter className="p-6 border-t bg-white shrink-0">
+                <DialogFooter className="p-6 border-t bg-card shrink-0">
                     <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)} className="w-full font-bold uppercase text-[10px]">Close History</Button>
                 </DialogFooter>
             </DialogContent>
@@ -927,7 +927,7 @@ export default function EstimateInvoicePage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Estimate / Pro-Forma Invoice</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Estimate / Pro-Forma Invoice</h1>
         <p className="text-muted-foreground">Create and manage estimate or pro-forma invoices for clients.</p>
       </header>
        <Tabs value={activeTab} onValueChange={setActiveTab}>

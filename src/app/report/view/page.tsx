@@ -117,7 +117,7 @@ function ReportViewContent() {
                 </div>
             </header>
 
-            <div className="printable-area p-12 bg-white text-black border shadow-2xl ring-1 ring-black/5 min-h-[297mm] flex flex-col">
+            <div className="paper printable-area p-12 bg-white text-black border shadow-2xl ring-1 ring-black/5 min-h-[297mm] flex flex-col">
                 <header className="text-center space-y-1 mb-10 border-b-2 border-neutral-900 pb-6">
                     <h1 className="text-2xl font-black uppercase tracking-tight">{companyProfile.nameEn}</h1>
                     <h2 className="text-lg font-semibold">{companyProfile.nameNp}</h2>

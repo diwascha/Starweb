@@ -133,7 +133,7 @@ export default function ReportsListPage() {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">QT Database</h1>
+                        <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">QT Database</h1>
                         <p className="text-muted-foreground text-sm font-medium italic">Complete registry of manufacturing test reports.</p>
                     </div>
                 </div>
@@ -142,7 +142,7 @@ export default function ReportsListPage() {
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder="Filter reports..." 
-                            className="pl-8 w-full md:w-[250px] h-9 bg-white" 
+                            className="pl-8 w-full md:w-[250px] h-9 bg-card" 
                             value={searchQuery} 
                             onChange={e => setSearchQuery(e.target.value)} 
                         />
@@ -155,7 +155,7 @@ export default function ReportsListPage() {
                 </div>
             </header>
 
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-0">
                     <Table className="text-xs">
                         <TableHeader className="bg-muted/50 border-b">
@@ -174,10 +174,10 @@ export default function ReportsListPage() {
                             ) : paginatedReports.map(report => (
                                 <TableRow key={report.id} className="h-14 hover:bg-muted/10 transition-colors group">
                                     <TableCell className="pl-6 font-black text-blue-700 uppercase tabular-nums tracking-tighter">{report.serialNumber}</TableCell>
-                                    <TableCell className="text-gray-500 font-medium">{toNepaliDate(report.date)}</TableCell>
+                                    <TableCell className="text-muted-foreground font-medium">{toNepaliDate(report.date)}</TableCell>
                                     <TableCell>
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-gray-900 uppercase">{report.product?.name || 'Custom Product'}</span>
+                                            <span className="font-bold text-foreground uppercase">{report.product?.name || 'Custom Product'}</span>
                                             <span className="text-[9px] text-muted-foreground uppercase font-black">{report.product?.materialCode || 'No Code'}</span>
                                         </div>
                                     </TableCell>

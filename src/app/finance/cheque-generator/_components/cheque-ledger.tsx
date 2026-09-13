@@ -136,7 +136,7 @@ export function ChequeLedger() {
 
     return (
         <div className="space-y-4">
-            <Card className="border-gray-100 shadow-sm overflow-hidden bg-white">
+            <Card className="border-border shadow-sm overflow-hidden bg-card">
                 <CardHeader className="bg-muted/20 border-b py-4 px-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div>
                         <CardTitle className="text-xl font-bold">Payment Ledger</CardTitle>
@@ -147,13 +147,13 @@ export function ChequeLedger() {
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <Input 
                                 placeholder="Search payments..." 
-                                className="pl-8 h-9 text-xs w-[180px] bg-white border-gray-200"
+                                className="pl-8 h-9 text-xs w-[180px] bg-card border-border"
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                             />
                         </div>
                         <Select value={filterParty} onValueChange={setFilterParty}>
-                            <SelectTrigger className="h-9 w-[150px] text-xs bg-white border-gray-200">
+                            <SelectTrigger className="h-9 w-[150px] text-xs bg-card border-border">
                                 <div className="flex items-center gap-2">
                                     <Users className="h-3 w-3 text-muted-foreground shrink-0" />
                                     <SelectValue placeholder="All parties" />
@@ -165,7 +165,7 @@ export function ChequeLedger() {
                             </SelectContent>
                         </Select>
                         <Select value={filterAccountId} onValueChange={setFilterAccountId}>
-                            <SelectTrigger className="h-9 w-[150px] text-xs bg-white border-gray-200">
+                            <SelectTrigger className="h-9 w-[150px] text-xs bg-card border-border">
                                 <div className="flex items-center gap-2">
                                     <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
                                     <SelectValue placeholder="All banks" />
@@ -179,7 +179,7 @@ export function ChequeLedger() {
                         </Select>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" className={cn("h-9 w-[180px] justify-start text-left font-normal bg-white text-xs px-3 border-gray-200", !dateRange && "text-muted-foreground")}>
+                                <Button variant="outline" className={cn("h-9 w-[180px] justify-start text-left font-normal bg-card text-xs px-3 border-border", !dateRange && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-3.5 w-3.5" />
                                     <span className="truncate">
                                         {dateRange?.from ? (dateRange.to ? `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d')}` : format(dateRange.from, 'MMM d')) : 'Date Range'}
@@ -209,11 +209,11 @@ export function ChequeLedger() {
                                 <TableHead className="text-right pr-6 font-bold uppercase text-[10px]">Amount (NPR)</TableHead>
                             </TableRow>
                         </TableHeader>
-                        <TableBody className="bg-white">
+                        <TableBody className="bg-card">
                             {paginated.map(p => (
                                 <TableRow key={p.id} className="h-12 border-b hover:bg-muted/10 transition-colors">
                                     <TableCell className="pl-6 text-muted-foreground font-mono">{toNepaliDate(p.date)}</TableCell>
-                                    <TableCell className="font-black text-gray-900 uppercase tracking-tight">{p.payeeName}</TableCell>
+                                    <TableCell className="font-black text-foreground uppercase tracking-tight">{p.payeeName}</TableCell>
                                     <TableCell>
                                         <div className="flex flex-col">
                                             <span className="font-bold text-blue-600">Cheque: {p.chequeNumber || 'N/A'}</span>
@@ -225,7 +225,7 @@ export function ChequeLedger() {
                                             <Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/20 border-none">Cash</Badge>
                                         ) : (
                                             <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold text-gray-700">{accounts.find(a => a.id === p.accountId)?.bankName || 'Bank'}</span>
+                                                <span className="text-[10px] font-bold text-foreground">{accounts.find(a => a.id === p.accountId)?.bankName || 'Bank'}</span>
                                                 <span className="text-[9px] text-muted-foreground font-mono">{accounts.find(a => a.id === p.accountId)?.accountNumber}</span>
                                             </div>
                                         )}

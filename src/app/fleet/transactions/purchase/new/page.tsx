@@ -104,7 +104,7 @@ export default function NewPurchaseEntryPage() {
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.back()}>
                             <ArrowLeft className="h-4 w-4" />
                         </Button>
-                        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Purchase Entry</h1>
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Purchase Entry</h1>
                     </div>
                     <p className="text-muted-foreground ml-10">Procure parts, fuel, or stock for the fleet.</p>
                 </div>

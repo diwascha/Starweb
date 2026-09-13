@@ -7,6 +7,7 @@ import { Inter } from 'next/font/google';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UsageTracker } from '@/components/usage-tracker';
 import { SessionManager } from '@/components/session-manager';
+import { ThemeProvider } from '@/components/theme-provider';
 import icon from '@/app/signup/StarSutra.png';
 
 export const metadata: Metadata = {
@@ -31,6 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
       <body className="font-body antialiased bg-background" suppressHydrationWarning>
+        <ThemeProvider>
           <FirebaseClientProvider>
             <AuthProvider>
                 <UsageTracker />
@@ -40,6 +42,7 @@ export default function RootLayout({
                 </AuthAwareLayout>
             </AuthProvider>
           </FirebaseClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

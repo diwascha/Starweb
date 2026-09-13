@@ -131,7 +131,7 @@ const ChequeSplitRow = React.memo(
         );
       }
 
-      if (daysRemaining <= 7) return <Badge className="bg-amber-500 text-black hover:bg-amber-500">Due {daysRemaining}d</Badge>;
+      if (daysRemaining <= 7) return <Badge className="bg-amber-500 text-foreground hover:bg-amber-500">Due {daysRemaining}d</Badge>;
 
       return (
         <Badge variant="outline" className="text-blue-600 border-blue-600">
@@ -143,7 +143,7 @@ const ChequeSplitRow = React.memo(
     return (
       <TableRow className="h-14">
         <TableCell>{toNepaliDate(split.chequeDate.toISOString())}</TableCell>
-        <TableCell className="font-bold text-gray-900">{split.parentCheque.payeeName}</TableCell>
+        <TableCell className="font-bold text-foreground">{split.parentCheque.payeeName}</TableCell>
         <TableCell className="font-mono text-xs text-blue-600 font-bold">{split.chequeNumber || 'N/A'}</TableCell>
         <TableCell className="font-mono text-xs">Rs. {money(Number(split.amount))}</TableCell>
         <TableCell className="font-mono text-xs text-red-600 font-bold">Rs. {money(split.remainingAmount)}</TableCell>
@@ -667,10 +667,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
   return (
     <div className="space-y-4">
-      <Card className="border-gray-100 shadow-sm overflow-hidden bg-white">
+      <Card className="border-border shadow-sm overflow-hidden bg-card">
         <CardHeader className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 py-5 px-6 bg-muted/20 border-b">
           <div>
-            <CardTitle className="text-xl font-bold text-gray-900">Cheque History</CardTitle>
+            <CardTitle className="text-xl font-bold text-foreground">Cheque History</CardTitle>
             <CardDescription className="text-xs text-muted-foreground mt-1">
               View and manage post-dated and issued cheques.
             </CardDescription>
@@ -681,7 +681,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Search payee, cheque no. or voucher..."
-                className="pl-8 h-9 text-xs bg-white border-gray-200 focus-visible:ring-primary shadow-none"
+                className="pl-8 h-9 text-xs bg-card border-border focus-visible:ring-primary shadow-none"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -689,7 +689,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
             <div className="flex items-center gap-2">
               <Select value={filterParty} onValueChange={setFilterParty}>
-                <SelectTrigger className="h-9 w-[160px] text-xs bg-white border-gray-200 shadow-none">
+                <SelectTrigger className="h-9 w-[160px] text-xs bg-card border-border shadow-none">
                   <div className="flex items-center gap-2 overflow-hidden text-left">
                     <Users className="h-3 w-3 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="All parties" />
@@ -706,7 +706,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               </Select>
 
               <Select value={filterAccountId} onValueChange={setFilterAccountId}>
-                <SelectTrigger className="h-9 w-[160px] text-xs bg-white border-gray-200 shadow-none">
+                <SelectTrigger className="h-9 w-[160px] text-xs bg-card border-border shadow-none">
                   <div className="flex items-center gap-2">
                     <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="All banks" />
@@ -720,7 +720,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               </Select>
 
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="h-9 w-[145px] text-xs bg-white border-gray-200 shadow-none">
+                <SelectTrigger className="h-9 w-[145px] text-xs bg-card border-border shadow-none">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-3 w-3 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="Status" />
@@ -755,12 +755,12 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             <Table className="text-[13px]">
               <TableHeader className="bg-muted/50 border-b">
                 <TableRow className="hover:bg-transparent h-11">
-                  <TableHead className="w-[140px] font-bold text-gray-700">{sortButton('chequeDate', 'Date')}</TableHead>
-                  <TableHead className="font-bold text-gray-700">{sortButton('payeeName', 'Payee')}</TableHead>
-                  <TableHead className="font-bold text-gray-700">{sortButton('chequeNumber', 'Cheque #')}</TableHead>
-                  <TableHead className="font-bold text-gray-700">{sortButton('amount', 'Amount')}</TableHead>
+                  <TableHead className="w-[140px] font-bold text-foreground">{sortButton('chequeDate', 'Date')}</TableHead>
+                  <TableHead className="font-bold text-foreground">{sortButton('payeeName', 'Payee')}</TableHead>
+                  <TableHead className="font-bold text-foreground">{sortButton('chequeNumber', 'Cheque #')}</TableHead>
+                  <TableHead className="font-bold text-foreground">{sortButton('amount', 'Amount')}</TableHead>
                   <TableHead className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">Balance</TableHead>
-                  <TableHead className="text-center font-bold text-gray-700">
+                  <TableHead className="text-center font-bold text-foreground">
                     <Button
                       variant="ghost"
                       onClick={() => requestSort('dueStatus')}
@@ -778,7 +778,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 </TableRow>
               </TableHeader>
 
-              <TableBody className="bg-white">
+              <TableBody className="bg-card">
                 {paginatedSplits.map((split) => (
                   <ChequeSplitRow
                     key={`${split.parentCheque.id}-${split.id}`}
@@ -861,7 +861,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     setCurrentPage(1);
                   }}
                 >
-                  <SelectTrigger className="h-8 w-[72px] bg-white border-gray-200">
+                  <SelectTrigger className="h-8 w-[72px] bg-card border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -932,7 +932,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                   <Label className="text-[10px] font-bold uppercase text-muted-foreground">Payment date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal h-9 bg-white text-xs px-3">
+                      <Button variant="outline" className="w-full justify-start text-left font-normal h-9 bg-card text-xs px-3">
                         <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                         {newPaymentDate
                           ? `${toNepaliDate(newPaymentDate.toISOString())} (${format(newPaymentDate, 'PP')})`
@@ -1060,7 +1060,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             </div>
           </div>
 
-          <DialogFooter className="p-6 border-t bg-white shrink-0">
+          <DialogFooter className="p-6 border-t bg-card shrink-0">
             <Button
               variant="outline"
               onClick={() => setIsPaymentDialogOpen(false)}
@@ -1087,7 +1087,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               <Label className="text-[10px] uppercase font-bold text-muted-foreground">Payment date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal h-10 bg-white">
+                  <Button variant="outline" className="w-full justify-start text-left font-normal h-10 bg-card">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {paidDate ? `${toNepaliDate(paidDate.toISOString())} (${format(paidDate, 'PP')})` : 'Pick date'}
                   </Button>
@@ -1195,7 +1195,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
           </DialogHeader>
 
           <ScrollArea className="flex-1 bg-muted/20 p-8">
-            <div ref={printRef} className="mx-auto w-[210mm] shadow-2xl bg-white">
+            <div ref={printRef} className="mx-auto w-[210mm] shadow-2xl bg-card">
               {chequeToPrint && (() => {
                   const party = parties.find(p => p.name === chequeToPrint.payeeName);
                   const allRemarks = Array.from(new Set(chequeToPrint.splits.map(s => s.remarks).filter(Boolean))).join('; ');
@@ -1218,7 +1218,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             <ScrollBar orientation="vertical" />
           </ScrollArea>
 
-          <DialogFooter className="p-6 border-t bg-white">
+          <DialogFooter className="p-6 border-t bg-card">
             <Button variant="outline" onClick={() => setIsPrintPreviewOpen(false)}>
               Close
             </Button>
@@ -1235,8 +1235,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
       {/* ------------------------- Nepal cheque print ------------------------- */}
       <Dialog open={isNepalPrintOpen} onOpenChange={setIsNepalPrintOpen}>
-        <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 border-none shadow-2xl overflow-hidden bg-neutral-100">
-          <DialogHeader className="p-6 border-b bg-white shrink-0">
+        <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 border-none shadow-2xl overflow-hidden bg-muted">
+          <DialogHeader className="p-6 border-b bg-card shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
@@ -1268,7 +1268,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               </div>
 
               {/* Print options */}
-              <div className="w-full max-w-2xl bg-white border rounded-2xl p-6 space-y-6">
+              <div className="w-full max-w-2xl bg-card border rounded-2xl p-6 space-y-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <Label className="text-xs font-black uppercase tracking-widest">Crossing</Label>
@@ -1367,7 +1367,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             <ScrollBar orientation="vertical" />
           </ScrollArea>
 
-          <DialogFooter className="p-6 bg-white border-t shrink-0">
+          <DialogFooter className="p-6 bg-card border-t shrink-0">
             <div className="flex w-full justify-between items-center">
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">
                 Cheque ref: {nepalChequeToPrint?.chequeNumber || 'N/A'}
@@ -1410,7 +1410,7 @@ export default function ChequeGeneratorPage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Cheque Control Center</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Cheque Control Center</h1>
         <p className="text-muted-foreground">Manage payment vouchers and post-dated cheque distribution.</p>
       </header>
 

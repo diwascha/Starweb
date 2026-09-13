@@ -51,7 +51,7 @@ const INITIAL_TDS_RATES: TdsRate[] = [
 
 function TdsVoucherView({ calculation, companyProfile }: { calculation: TdsCalculation, companyProfile: CompanyProfile }) {
     return (
-        <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
+        <div className="printable-area space-y-4 p-4 border rounded-lg bg-card text-foreground">
             <header className="text-center space-y-1 mb-4">
               <h1 className="text-xl font-bold uppercase">{companyProfile.nameEn}</h1>
               <p className="text-sm">{companyProfile.address}</p>
@@ -220,12 +220,12 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
             <Dialog open={isVoucherViewOpen} onOpenChange={setIsVoucherViewOpen}>
                 <DialogContent className="max-w-xl h-[90vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader className="p-6 border-b"><DialogTitle>Voucher Preview</DialogTitle></DialogHeader>
-                    <ScrollArea className="flex-1 bg-gray-100 p-8">
-                        <div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">
+                    <ScrollArea className="flex-1 bg-muted p-8">
+                        <div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-card">
                         {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} companyProfile={companyProfile} />}
                         </div>
                     </ScrollArea>
-                    <DialogFooter className="p-6 border-t bg-white">
+                    <DialogFooter className="p-6 border-t bg-card">
                         <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>Save PDF</Button>
                         <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
                     </DialogFooter>
@@ -369,7 +369,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
             <div><h1 className="text-3xl font-bold tracking-tight">TDS Calculator</h1><p className="text-muted-foreground text-sm italic">Compute and record tax withholdings.</p></div>
             <div className="flex gap-2">
                 <Button onClick={handleSave} className="h-10 px-6 font-black text-xs uppercase shadow-lg"><Save className="mr-2 h-4 w-4"/> {calculationToEdit ? 'Update' : 'Save'}</Button>
-                <Button onClick={() => setIsPreviewOpen(true)} variant="outline" className="h-10 px-6 font-bold text-xs uppercase border-gray-300"><Printer className="mr-2 h-4 w-4" /> Preview</Button>
+                <Button onClick={() => setIsPreviewOpen(true)} variant="outline" className="h-10 px-6 font-bold text-xs uppercase border-border"><Printer className="mr-2 h-4 w-4" /> Preview</Button>
             </div>
         </header>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -447,8 +447,8 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
             <DialogContent className="max-w-xl h-[95vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
                 <DialogHeader className="p-6 border-b bg-muted/5 shrink-0"><DialogTitle className="text-xl font-black uppercase">Document Preview</DialogTitle></DialogHeader>
-                <ScrollArea className="flex-1 bg-gray-100 p-8"><div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-white">{calculationData && <TdsVoucherView calculation={calculationData as any} companyProfile={companyProfile} />}</div></ScrollArea>
-                <DialogFooter className="p-6 border-t bg-white shrink-0"><Button variant="outline" onClick={async () => {
+                <ScrollArea className="flex-1 bg-muted p-8"><div ref={printRef} className="mx-auto w-[148mm] shadow-2xl bg-card">{calculationData && <TdsVoucherView calculation={calculationData as any} companyProfile={companyProfile} />}</div></ScrollArea>
+                <DialogFooter className="p-6 border-t bg-card shrink-0"><Button variant="outline" onClick={async () => {
                     try {
                         await exportTdsVoucherPdf(calculationData as any, companyProfile);
                     } catch (error) {

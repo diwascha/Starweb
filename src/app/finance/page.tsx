@@ -9,7 +9,7 @@ export default function FinanceDashboardPage() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Finance Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Finance Dashboard</h1>
             <p className="text-muted-foreground text-sm font-medium">An overview of your financial tools and records.</p>
         </div>
       </header>

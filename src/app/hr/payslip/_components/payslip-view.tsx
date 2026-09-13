@@ -37,7 +37,7 @@ export function SlipCopy({ label, employee, payroll, bsYear, bsMonthName, compan
   const fmt = fmtAmount;
 
   return (
-    <div className="border-2 border-black text-black text-[11px] px-3 py-2">
+    <div className="paper border-2 border-black text-black text-[11px] px-3 py-2">
       <p className="text-[8px] font-bold text-gray-500 mb-1">[ {label} ]</p>
 
       <header className="text-center space-y-0.5 mb-1 pb-1 border-b border-black">

@@ -123,7 +123,7 @@ export default function GsmCalculatorPage() {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">GSM Logic & Archive</h1>
+                        <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase">GSM Logic & Archive</h1>
                         <p className="text-muted-foreground text-sm font-medium italic">Compute and store paper grammage verification logs.</p>
                     </div>
                 </div>
@@ -166,7 +166,7 @@ export default function GsmCalculatorPage() {
             </Tabs>
 
             <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
-                <DialogContent className="max-w-[240mm] h-[95vh] flex flex-col p-0 border-none shadow-2xl bg-white overflow-hidden">
+                <DialogContent className="max-w-[240mm] h-[95vh] flex flex-col p-0 border-none shadow-2xl bg-card overflow-hidden">
                     <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
                         <div className="flex items-center justify-between">
                             <DialogTitle className="text-xl font-black uppercase tracking-tight">Report Preview</DialogTitle>
@@ -181,7 +181,7 @@ export default function GsmCalculatorPage() {
                         )}
                         <ScrollBar orientation="horizontal" />
                     </ScrollArea>
-                    <DialogFooter className="p-6 border-t bg-white shrink-0">
+                    <DialogFooter className="p-6 border-t bg-card shrink-0">
                         <div className="flex w-full justify-between items-center">
                             <div className="flex gap-2">
                                 <Button variant="outline" onClick={handleExportImage} disabled={isExporting} className="h-10 px-6 font-bold text-[10px] uppercase tracking-widest">

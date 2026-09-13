@@ -403,7 +403,7 @@ export default function TenantsPage() {
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder="Search name or location..." 
-                            className="pl-8 w-full md:w-[300px] h-9 bg-white" 
+                            className="pl-8 w-full md:w-[300px] h-9 bg-card" 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -418,7 +418,7 @@ export default function TenantsPage() {
         </div>
 
         <TabsContent value="records" className="mt-6">
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader className="bg-muted/50">
@@ -447,7 +447,7 @@ export default function TenantsPage() {
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="flex flex-col overflow-hidden">
-                                                <span className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">{tenant.name}</span>
+                                                <span className="font-bold text-foreground group-hover:text-blue-600 transition-colors truncate">{tenant.name}</span>
                                                 <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1 truncate">
                                                     <MapPin className="h-2 w-2"/> {tenant.address || 'No location'}
                                                 </span>
@@ -470,7 +470,7 @@ export default function TenantsPage() {
                                                 Active
                                             </Badge>
                                         ) : (
-                                            <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 text-[9px] uppercase h-5">
+                                            <Badge variant="outline" className="bg-muted text-muted-foreground border-border text-[9px] uppercase h-5">
                                                 Inactive
                                             </Badge>
                                         )}
@@ -481,7 +481,7 @@ export default function TenantsPage() {
                                     )}>
                                         Rs. {tenant.outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </TableCell>
-                                    <TableCell className="text-right font-mono text-xs text-gray-600 tabular-nums">
+                                    <TableCell className="text-right font-mono text-xs text-muted-foreground tabular-nums">
                                         Rs. {tenant.securityDeposit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </TableCell>
                                     <TableCell className="text-right pr-6">
@@ -562,7 +562,7 @@ export default function TenantsPage() {
                                     setItemsPerPage(parseInt(v));
                                     setCurrentPage(1);
                                 }}>
-                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -636,9 +636,9 @@ export default function TenantsPage() {
 
                 {/* Main Form Content */}
                 <div className="flex-1 space-y-6 w-full pb-20">
-                    <Card className="shadow-sm border-gray-100 overflow-hidden">
+                    <Card className="shadow-sm border-border overflow-hidden">
                         <CardHeader className="bg-primary/5 border-b py-4 px-6">
-                            <CardTitle className="text-xl font-black text-gray-900 tracking-tight">
+                            <CardTitle className="text-xl font-black text-foreground tracking-tight">
                                 {editingTenantId ? 'Update Profile' : 'Tenant Registration'}
                             </CardTitle>
                         </CardHeader>
@@ -666,7 +666,7 @@ export default function TenantsPage() {
                                     </div>
                                 </div>
 
-                                <div id="sec-verification" className="p-6 bg-gray-50/30 space-y-6">
+                                <div id="sec-verification" className="p-6 bg-muted/30 space-y-6">
                                     <div className="flex items-center gap-2 text-primary">
                                         <ShieldCheck className="h-4 w-4"/>
                                         <h3 className="text-xs font-black uppercase tracking-wider">Verification</h3>
@@ -675,7 +675,7 @@ export default function TenantsPage() {
                                         <div className="space-y-1.5 col-span-2">
                                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">ID Document Type</Label>
                                             <Select value={tenantForm.identityType} onValueChange={v => setTenantForm({...tenantForm, identityType: v})}>
-                                                <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                                                <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="Citizenship">Citizenship</SelectItem>
                                                     <SelectItem value="NID">National ID (NID)</SelectItem>
@@ -688,13 +688,13 @@ export default function TenantsPage() {
                                         </div>
                                         <div className="space-y-1.5">
                                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Document #</Label>
-                                            <Input value={tenantForm.documentNumber} onChange={e => setTenantForm({...tenantForm, documentNumber: e.target.value})} placeholder="ID serial" className="h-9 bg-white" />
+                                            <Input value={tenantForm.documentNumber} onChange={e => setTenantForm({...tenantForm, documentNumber: e.target.value})} placeholder="ID serial" className="h-9 bg-card" />
                                         </div>
                                         <div className="space-y-1.5">
                                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">ID Expiry (Optional)</Label>
                                             <Popover>
                                                 <PopoverTrigger asChild>
-                                                    <Button variant="outline" className="w-full justify-start h-9 bg-white text-xs px-3">
+                                                    <Button variant="outline" className="w-full justify-start h-9 bg-card text-xs px-3">
                                                         <CalendarIcon className="mr-2 h-3 w-3" />
                                                         {tenantForm.expiryDate ? toNepaliDate(tenantForm.expiryDate) : "Select"}
                                                     </Button>
@@ -766,7 +766,7 @@ export default function TenantsPage() {
                                         <div className="space-y-1.5">
                                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Rent Due Day</Label>
                                             <Select value={tenantForm.dueDay} onValueChange={v => setTenantForm({...tenantForm, dueDay: v})}>
-                                                <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                                                <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                                                 <SelectContent>
                                                     {Array.from({length: 28}, (_, i) => String(i+1)).map(d => <SelectItem key={d} value={d}>{d}th</SelectItem>)}
                                                 </SelectContent>
@@ -775,7 +775,7 @@ export default function TenantsPage() {
                                         <div className="space-y-1.5">
                                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Cycle</Label>
                                             <Select value={tenantForm.billingCycle} onValueChange={v => setTenantForm({...tenantForm, billingCycle: v})}>
-                                                <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                                                <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="Monthly">Monthly</SelectItem>
                                                     <SelectItem value="Quarterly">Quarterly</SelectItem>
@@ -790,15 +790,15 @@ export default function TenantsPage() {
                                         <div className="flex items-center gap-4 px-1">
                                             <div className="p-1.5 bg-emerald-50 rounded-lg"><Scale className="h-4 w-4 text-emerald-600"/></div>
                                             <div>
-                                                <h4 className="text-xs font-bold text-gray-900">Rental Tax Liability</h4>
+                                                <h4 className="text-xs font-bold text-foreground">Rental Tax Liability</h4>
                                                 <p className="text-[10px] text-muted-foreground uppercase font-medium">Withholding tax responsibility</p>
                                             </div>
                                         </div>
-                                        <div className="flex gap-4 items-end bg-white/50 p-3 rounded-xl border border-blue-100">
+                                        <div className="flex gap-4 items-end bg-card/50 p-3 rounded-xl border border-blue-100">
                                             <div className="space-y-1.5 flex-1">
                                                 <Label className="text-[9px] uppercase font-black text-muted-foreground">Tax Responsible</Label>
                                                 <Select value={tenantForm.taxLiability} onValueChange={v => setTenantForm({...tenantForm, taxLiability: v})}>
-                                                    <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
+                                                    <SelectTrigger className="h-8 text-xs bg-card"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="Paid by Tenant">Paid by Tenant</SelectItem>
                                                         <SelectItem value="Paid by Owner">Paid by Owner</SelectItem>
@@ -811,7 +811,7 @@ export default function TenantsPage() {
                                                 <div className="space-y-1.5 w-[80px] animate-in slide-in-from-right-2">
                                                     <Label className="text-[9px] uppercase font-black text-muted-foreground">Rate %</Label>
                                                     <div className="relative">
-                                                        <Input type="number" value={tenantForm.taxRate} onChange={e => setTenantForm({...tenantForm, taxRate: Number(e.target.value)})} className="h-8 text-xs font-black pr-5 bg-white text-center" />
+                                                        <Input type="number" value={tenantForm.taxRate} onChange={e => setTenantForm({...tenantForm, taxRate: Number(e.target.value)})} className="h-8 text-xs font-black pr-5 bg-card text-center" />
                                                         <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-muted-foreground">%</span>
                                                     </div>
                                                 </div>
@@ -824,12 +824,12 @@ export default function TenantsPage() {
                     </Card>
 
                     {/* Rental Obligations Section */}
-                    <Card id="sec-obligations" className="shadow-sm border-gray-100 bg-white">
+                    <Card id="sec-obligations" className="shadow-sm border-border bg-card">
                         <CardHeader className="py-4 px-6 border-b bg-blue-50/10">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-blue-50 rounded-xl"><Wallet className="h-5 w-5 text-blue-600"/></div>
                                 <div>
-                                    <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Monthly Utility & Service Charges</CardTitle>
+                                    <CardTitle className="text-sm font-black uppercase text-foreground tracking-wider">Monthly Utility & Service Charges</CardTitle>
                                     <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Enable utilities and define monthly charges and responsibility.</p>
                                 </div>
                             </div>
@@ -838,12 +838,12 @@ export default function TenantsPage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 {Object.entries(tenantForm.utilities).map(([key, config]) => {
                                     const Icon = ({ electricity: Zap, water: Droplets, waste: Trash, internet: Wifi, parking: Car, maintenance: Wrench, security: ShieldCheck, other: HelpCircle } as any)[key] || HelpCircle;
-                                    const color = ({ electricity: "text-blue-600", water: "text-cyan-600", waste: "text-emerald-600", internet: "text-purple-600", parking: "text-indigo-600", maintenance: "text-orange-600", security: "text-blue-700", other: "text-gray-600" } as any)[key] || "text-gray-600";
+                                    const color = ({ electricity: "text-blue-600", water: "text-cyan-600", waste: "text-emerald-600", internet: "text-purple-600", parking: "text-indigo-600", maintenance: "text-orange-600", security: "text-blue-700", other: "text-muted-foreground" } as any)[key] || "text-muted-foreground";
 
                                     return (
                                         <div key={key} className={cn(
                                             "p-3 rounded-xl border-2 transition-all group",
-                                            config.enabled ? "border-primary/30 bg-primary/[0.02] shadow-sm ring-1 ring-primary/5" : "border-gray-100 bg-gray-50/50 opacity-60"
+                                            config.enabled ? "border-primary/30 bg-primary/[0.02] shadow-sm ring-1 ring-primary/5" : "border-border bg-muted/50 opacity-60"
                                         )}>
                                             <div className="flex items-center justify-between mb-3">
                                                 <div className="flex items-center gap-2">
@@ -854,7 +854,7 @@ export default function TenantsPage() {
                                             </div>
                                             <div className={cn("space-y-3 transition-opacity", !config.enabled && "opacity-0 pointer-events-none")}>
                                                 <Select value={config.responsibleParty} onValueChange={v => updateUtility(key as any, 'responsibleParty', v)}>
-                                                    <SelectTrigger className="h-7 text-[9px] font-bold bg-white px-2 uppercase"><SelectValue /></SelectTrigger>
+                                                    <SelectTrigger className="h-7 text-[9px] font-bold bg-card px-2 uppercase"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="Tenant" className="text-[9px]">By Tenant</SelectItem>
                                                         <SelectItem value="Owner" className="text-[9px]">By Owner</SelectItem>
@@ -868,7 +868,7 @@ export default function TenantsPage() {
                                                             <Label htmlFor={`meter-${key}`} className="text-[8px] font-bold uppercase cursor-pointer">Meter</Label>
                                                         </div>
                                                     </div>
-                                                    <Input type="number" value={config.fixedCharge} onChange={e => updateUtility(key as any, 'fixedCharge', Number(e.target.value))} className="h-7 text-xs font-black bg-white" />
+                                                    <Input type="number" value={config.fixedCharge} onChange={e => updateUtility(key as any, 'fixedCharge', Number(e.target.value))} className="h-7 text-xs font-black bg-card" />
                                                 </div>
                                             </div>
                                         </div>
@@ -881,12 +881,12 @@ export default function TenantsPage() {
                         </CardContent>
                     </Card>
 
-                    <Card id="sec-special" className="shadow-sm border-gray-100 bg-white">
+                    <Card id="sec-special" className="shadow-sm border-border bg-card">
                         <CardHeader className="py-4 px-6 border-b">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-amber-50 rounded-xl"><FileText className="h-5 w-5 text-amber-600"/></div>
                                 <div>
-                                    <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Additional Terms</CardTitle>
+                                    <CardTitle className="text-sm font-black uppercase text-foreground tracking-wider">Additional Terms</CardTitle>
                                     <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Agreement clauses, rules, or special maintenance arrangements.</p>
                                 </div>
                             </div>
@@ -896,7 +896,7 @@ export default function TenantsPage() {
                                 value={tenantForm.specialTerms} 
                                 onChange={e => setTenantForm({...tenantForm, specialTerms: e.target.value})}
                                 placeholder="Pets allowed, No smoking, Maintenance cap of Rs. 2000, Visitor restrictions, etc." 
-                                className="min-h-[100px] text-sm resize-none bg-gray-50/50 shadow-inner p-4 focus-visible:bg-white" 
+                                className="min-h-[100px] text-sm resize-none bg-muted/50 shadow-inner p-4 focus-visible:bg-card" 
                             />
                         </CardContent>
                     </Card>
@@ -916,10 +916,10 @@ export default function TenantsPage() {
                             <AvatarFallback className="text-xl font-bold bg-primary/5 text-primary">{selectedTenant.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div>
-                            <DialogTitle className="text-2xl font-black text-gray-900 leading-tight">{selectedTenant.name}</DialogTitle>
+                            <DialogTitle className="text-2xl font-black text-foreground leading-tight">{selectedTenant.name}</DialogTitle>
                             <DialogDescription className="flex items-center gap-3 mt-1">
-                                <span className="flex items-center gap-1 font-medium text-gray-600"><Phone className="h-3 w-3 text-primary"/> {selectedTenant.panNumber || 'No contact'}</span>
-                                <span className="flex items-center gap-1 font-medium text-gray-600"><MapPin className="h-3 w-3 text-primary"/> {selectedTenant.address || 'Address unassigned'}</span>
+                                <span className="flex items-center gap-1 font-medium text-muted-foreground"><Phone className="h-3 w-3 text-primary"/> {selectedTenant.panNumber || 'No contact'}</span>
+                                <span className="flex items-center gap-1 font-medium text-muted-foreground"><MapPin className="h-3 w-3 text-primary"/> {selectedTenant.address || 'Address unassigned'}</span>
                             </DialogDescription>
                         </div>
                     </div>
@@ -934,7 +934,7 @@ export default function TenantsPage() {
                         </TabsList>
                     </div>
 
-                    <ScrollArea className="flex-1 p-6 bg-gray-50/30">
+                    <ScrollArea className="flex-1 p-6 bg-muted/30">
                         <TabsContent value="overview" className="mt-0 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <Card className="bg-red-50 border-red-100 shadow-none ring-1 ring-red-200/50">
@@ -958,7 +958,7 @@ export default function TenantsPage() {
                                             <ShieldCheck className="h-3 w-3 text-primary"/> Verification & Identity
                                         </h4>
                                     </div>
-                                    <div className="p-4 rounded-xl border bg-white shadow-sm space-y-3">
+                                    <div className="p-4 rounded-xl border bg-card shadow-sm space-y-3">
                                         <div className="flex justify-between items-center text-sm">
                                             <span className="text-muted-foreground">ID Document Type</span>
                                             <Badge variant="outline" className="font-bold">{selectedTenant.identityType || 'Not Provided'}</Badge>
@@ -995,7 +995,7 @@ export default function TenantsPage() {
                                             <Link href="/rental/billing">View All History</Link>
                                         </Button>
                                     </div>
-                                    <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
+                                    <div className="border rounded-lg bg-card shadow-sm overflow-hidden">
                                         <Table className="text-[10px]">
                                             <TableHeader className="bg-muted/30">
                                                 <TableRow className="h-8 hover:bg-transparent">
@@ -1007,7 +1007,7 @@ export default function TenantsPage() {
                                             <TableBody>
                                                 {bills.filter(b => b.tenantId === selectedTenant.id).slice(0, 5).map(bill => (
                                                     <TableRow key={bill.id} className="h-10">
-                                                        <TableCell className="text-gray-500">{new Date(bill.createdAt).toLocaleDateString()}</TableCell>
+                                                        <TableCell className="text-muted-foreground">{new Date(bill.createdAt).toLocaleDateString()}</TableCell>
                                                         <TableCell className="text-right font-mono font-bold">Rs. {bill.amount.toLocaleString()}</TableCell>
                                                         <TableCell className="text-center">
                                                             <Badge variant={bill.status === 'Paid' ? 'default' : 'destructive'} className={cn(
@@ -1031,7 +1031,7 @@ export default function TenantsPage() {
 
                         <TabsContent value="agreement" className="mt-0 space-y-6">
                             {agreements.filter(a => a.tenantId === selectedTenant.id).map(agreement => (
-                                <Card key={agreement.id} className="border-l-4 border-l-blue-600 shadow-sm overflow-hidden bg-white">
+                                <Card key={agreement.id} className="border-l-4 border-l-blue-600 shadow-sm overflow-hidden bg-card">
                                     <CardHeader className="flex flex-row items-center justify-between pb-4">
                                         <div className="space-y-1">
                                             <CardTitle className="text-lg font-black tracking-tight">Unit {agreement.unitNumber} - {agreement.propertyName}</CardTitle>
@@ -1039,16 +1039,16 @@ export default function TenantsPage() {
                                         </div>
                                         <Badge className={cn(
                                             "uppercase font-black text-[10px] px-3",
-                                            agreement.status === 'Active' ? "bg-green-600" : "bg-muted text-gray-500"
+                                            agreement.status === 'Active' ? "bg-green-600" : "bg-muted text-muted-foreground"
                                         )}>{agreement.status}</Badge>
                                     </CardHeader>
-                                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6 py-6 border-y bg-gray-50/50">
-                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Monthly Rent</p><p className="font-black text-lg text-gray-900">Rs. {agreement.monthlyRent.toLocaleString()}</p></div>
-                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Security Deposit</p><p className="font-black text-lg text-gray-900">Rs. {agreement.securityDeposit.toLocaleString()}</p></div>
-                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Billing Cycle</p><p className="font-bold text-gray-900">Every {agreement.billingDate}th</p></div>
-                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Valid Until (BS)</p><p className="font-bold text-gray-900">{toNepaliDate(agreement.endDate)}</p></div>
+                                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6 py-6 border-y bg-muted/50">
+                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Monthly Rent</p><p className="font-black text-lg text-foreground">Rs. {agreement.monthlyRent.toLocaleString()}</p></div>
+                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Security Deposit</p><p className="font-black text-lg text-foreground">Rs. {agreement.securityDeposit.toLocaleString()}</p></div>
+                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Billing Cycle</p><p className="font-bold text-foreground">Every {agreement.billingDate}th</p></div>
+                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Valid Until (BS)</p><p className="font-bold text-foreground">{toNepaliDate(agreement.endDate)}</p></div>
                                     </CardContent>
-                                    <CardFooter className="bg-white p-3 border-t">
+                                    <CardFooter className="bg-card p-3 border-t">
                                         <Button variant="ghost" size="sm" className="w-full text-[10px] font-bold uppercase tracking-widest hover:bg-blue-50 hover:text-blue-700">
                                             <Download className="mr-2 h-3.5 w-3.5"/> Download Contract PDF
                                         </Button>
@@ -1058,7 +1058,7 @@ export default function TenantsPage() {
                         </TabsContent>
 
                         <TabsContent value="ledger" className="mt-0">
-                             <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
+                             <div className="border rounded-lg bg-card shadow-sm overflow-hidden">
                                 <Table className="text-[11px]">
                                     <TableHeader className="bg-muted/30">
                                         <TableRow className="h-10 hover:bg-transparent">
@@ -1071,10 +1071,10 @@ export default function TenantsPage() {
                                     <TableBody>
                                         {transactions.filter(t => t.partyId === selectedTenant.id).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(t => (
                                             <TableRow key={t.id} className="h-12">
-                                                <TableCell className="text-gray-500 whitespace-nowrap">{toNepaliDate(t.date)}</TableCell>
+                                                <TableCell className="text-muted-foreground whitespace-nowrap">{toNepaliDate(t.date)}</TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
-                                                        <span className="font-bold text-gray-900">{t.category || t.type}</span>
+                                                        <span className="font-bold text-foreground">{t.category || t.type}</span>
                                                         <span className="text-[10px] text-muted-foreground italic line-clamp-1">{t.remarks}</span>
                                                     </div>
                                                 </TableCell>
@@ -1094,9 +1094,9 @@ export default function TenantsPage() {
                 </Tabs>
 
                 <DialogFooter className="p-6 border-t bg-muted/10 shrink-0">
-                    <Button variant="outline" onClick={() => setIsDetailOpen(false)} className="h-10 px-6 font-bold text-xs uppercase tracking-widest border-gray-300">Close Profile</Button>
+                    <Button variant="outline" onClick={() => setIsDetailOpen(false)} className="h-10 px-6 font-bold text-xs uppercase tracking-widest border-border">Close Profile</Button>
                     <div className="flex gap-2 ml-auto">
-                        <Button variant="outline" size="icon" className="h-10 w-10 bg-white" onClick={() => window.print()}><Printer className="h-4 w-4"/></Button>
+                        <Button variant="outline" size="icon" className="h-10 w-10 bg-card" onClick={() => window.print()}><Printer className="h-4 w-4"/></Button>
                         <Button asChild className="h-10 px-6 font-bold text-xs uppercase tracking-widest shadow-blue-500/20 shadow-lg">
                             <Link href={`/rental/payments?tenantId=${selectedTenant.id}`}>
                                 <DollarSign className="mr-2 h-4 w-4"/> New Collection

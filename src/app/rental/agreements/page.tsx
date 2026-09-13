@@ -124,7 +124,7 @@ export default function AgreementsPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Lease Ledger</h1>
+                    <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">Lease Ledger</h1>
                     <p className="text-muted-foreground text-sm font-medium italic">Consolidated registry of all rental contracts and tenure metrics.</p>
                 </div>
                 {hasPermission('rental', 'create') && (
@@ -143,7 +143,7 @@ export default function AgreementsPage() {
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder="Filter by tenant, property or unit..." 
-                            className="pl-8 h-9 text-xs bg-white border-gray-200" 
+                            className="pl-8 h-9 text-xs bg-card border-border" 
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                         />
@@ -152,7 +152,7 @@ export default function AgreementsPage() {
                 <div className="space-y-1.5 w-[160px]">
                     <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] px-1">Lease Status</Label>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="h-9 bg-white text-xs font-bold uppercase border-gray-200">
+                        <SelectTrigger className="h-9 bg-card text-xs font-bold uppercase border-border">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -170,7 +170,7 @@ export default function AgreementsPage() {
                 )}
             </div>
 
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader className="bg-muted/50 border-b">
@@ -190,7 +190,7 @@ export default function AgreementsPage() {
                                 <TableRow key={a.id} className="hover:bg-muted/10 h-16 transition-colors border-b last:border-0 group">
                                     <TableCell className="pl-6">
                                         <div className="flex flex-col">
-                                            <span className="font-black text-gray-900 leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{a.tenantName}</span>
+                                            <span className="font-black text-foreground leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{a.tenantName}</span>
                                             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">ID: {a.id.substring(0,8).toUpperCase()}</span>
                                         </div>
                                     </TableCell>
@@ -198,7 +198,7 @@ export default function AgreementsPage() {
                                         <div className="flex items-center gap-2">
                                             <div className="p-1.5 bg-primary/5 rounded-lg"><Home className="h-3.5 w-3.5 text-primary opacity-50"/></div>
                                             <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-gray-700 uppercase">Unit {a.unitNumber}</span>
+                                                <span className="text-xs font-bold text-foreground uppercase">Unit {a.unitNumber}</span>
                                                 <span className="text-[9px] text-muted-foreground uppercase font-black">{a.propertyName}</span>
                                             </div>
                                         </div>
@@ -219,7 +219,7 @@ export default function AgreementsPage() {
                                     <TableCell className="text-right font-black tabular-nums text-blue-700">Rs. {a.monthlyRent.toLocaleString()}</TableCell>
                                     <TableCell className="text-center">
                                         <div className="flex flex-col">
-                                            <span className="font-mono text-[11px] text-gray-900 font-bold">{toNepaliDate(a.startDate)}</span>
+                                            <span className="font-mono text-[11px] text-foreground font-bold">{toNepaliDate(a.startDate)}</span>
                                             <span className="font-mono text-[9px] text-muted-foreground uppercase font-black">UNTIL {toNepaliDate(a.endDate)}</span>
                                         </div>
                                     </TableCell>
@@ -263,7 +263,7 @@ export default function AgreementsPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle className="uppercase tracking-tight font-black">Finalize Termination?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will immediately terminate the lease for <span className="font-bold text-gray-900">{terminatingAgreement?.tenantName}</span>. The associated unit <span className="font-bold text-gray-900">{terminatingAgreement?.unitNumber}</span> will be returned to 'Vacant' status in the inventory.
+                            This will immediately terminate the lease for <span className="font-bold text-foreground">{terminatingAgreement?.tenantName}</span>. The associated unit <span className="font-bold text-foreground">{terminatingAgreement?.unitNumber}</span> will be returned to 'Vacant' status in the inventory.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

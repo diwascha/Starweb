@@ -163,8 +163,8 @@ export function ChequeCalibrationDialog({
 
                         <div className="space-y-2">
                             <div className="text-[11px] font-black uppercase tracking-widest">Preview (actual size)</div>
-                            <div className="overflow-auto border rounded-lg bg-neutral-100 p-4">
-                                <div id="cheque-calibration-preview" className="bg-white shadow-lg inline-block">
+                            <div className="overflow-auto border rounded-lg bg-muted p-4">
+                                <div id="cheque-calibration-preview" className="bg-card shadow-lg inline-block">
                                     <NepalChequeView
                                         payeeName="SAMPLE PAYEE NAME PVT LTD"
                                         amount={123456.78}
@@ -178,7 +178,7 @@ export function ChequeCalibrationDialog({
                     </div>
                 </ScrollArea>
 
-                <DialogFooter className="p-6 border-t bg-white">
+                <DialogFooter className="p-6 border-t bg-card">
                     <Button variant="outline" onClick={() => setDraft(LEGACY_LAYOUT)} className="mr-auto">
                         <RotateCcw className="mr-2 h-4 w-4" /> Reset
                     </Button>

@@ -233,7 +233,7 @@ const CostingTableRow = React.memo(({
                         </DropdownMenu>
                         <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" className="h-8 text-[11px] w-full px-2 justify-between font-normal bg-white">
+                                <Button variant="outline" role="combobox" className="h-8 text-[11px] w-full px-2 justify-between font-normal bg-card">
                                     <span className="truncate">{item.productId ? products.find((p: Product) => p.id === item.productId)?.name : "Select product..."}</span>
                                     <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                                 </Button>
@@ -301,7 +301,7 @@ const CostingTableRow = React.memo(({
                             type="button"
                             onClick={() => onOpenDesigner(index)}
                             title="Mixed flute construction - open the Box Designer to edit each layer"
-                            className="h-8 w-full text-[11px] font-bold rounded border bg-white hover:bg-muted/40"
+                            className="h-8 w-full text-[11px] font-bold rounded border bg-card hover:bg-muted/40"
                         >
                             {fluteSummary(item)}
                         </button>
@@ -390,7 +390,7 @@ const CostingTableRow = React.memo(({
                     <TableRow key={acc.id} className="h-12 bg-muted/10 border-b border-dashed">
                         <TableCell></TableCell>
                         <TableCell className="border-r pr-2 pl-6">
-                            <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-8 text-[10px] w-full bg-white font-semibold" placeholder="Accessory name..." />
+                            <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-8 text-[10px] w-full bg-card font-semibold" placeholder="Accessory name..." />
                         </TableCell>
                         {collapsedGroups.spec ? (
                             <TableCell className="border-x px-2 text-[10px] leading-tight text-center text-muted-foreground">
@@ -529,7 +529,7 @@ const CostingItemCard = React.memo(({
                 <div className="flex items-start justify-between gap-2">
                     <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" role="combobox" className="h-9 text-xs flex-1 justify-between font-normal bg-white min-w-0">
+                            <Button variant="outline" role="combobox" className="h-9 text-xs flex-1 justify-between font-normal bg-card min-w-0">
                                 <span className="truncate">{item.productId ? products.find((p: Product) => p.id === item.productId)?.name : "Select product..."}</span>
                                 <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
                             </Button>
@@ -601,7 +601,7 @@ const CostingItemCard = React.memo(({
                         {hasMixedFlutes(item) ? (
                             <button type="button" onClick={() => onOpenDesigner(index)}
                                 title="Mixed flute construction - edit per layer in the Box Designer"
-                                className="h-9 w-full text-xs font-bold rounded border bg-white">
+                                className="h-9 w-full text-xs font-bold rounded border bg-card">
                                 {fluteSummary(item)}
                             </button>
                         ) : (
@@ -660,7 +660,7 @@ const CostingItemCard = React.memo(({
                         <Label className="text-[9px] text-muted-foreground uppercase">Accessories</Label>
                         {item.accessories.map((acc: any, aIdx: number) => (
                             <div key={acc.id} className="flex items-center gap-2 bg-muted/20 rounded px-2 py-1.5">
-                                <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-7 text-[10px] flex-1 bg-white" placeholder="Accessory name..." />
+                                <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-7 text-[10px] flex-1 bg-card" placeholder="Accessory name..." />
                                 <span className="text-[10px] font-bold shrink-0">Rs. {(acc.calculated?.paperCost || 0).toFixed(0)}</span>
                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 shrink-0" onClick={() => onItemChange(index, 'acc_remove', aIdx)}><X className="h-3 w-3" /></Button>
                             </div>
@@ -1423,7 +1423,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                 <div className="space-y-1 animate-in fade-in slide-in-from-top-1">
                                     <Label className="text-[10px] font-bold flex items-center gap-1.5 text-primary"><Target className="h-3 w-3"/> Link to Opportunity</Label>
                                     <Select value={selectedDealId} onValueChange={setSelectedDealId}>
-                                        <SelectTrigger className="h-8 text-[10px] bg-white border-primary/20"><SelectValue placeholder="Associate with deal..." /></SelectTrigger>
+                                        <SelectTrigger className="h-8 text-[10px] bg-card border-primary/20"><SelectValue placeholder="Associate with deal..." /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="none">Standalone (No Deal)</SelectItem>
                                             {filteredDeals.map(d => (
@@ -1669,14 +1669,14 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                             <TableHeader className="bg-muted/80">
                                 <TableRow>
                                     <th rowSpan={2} className="w-10 px-2"></th>
-                                    <th rowSpan={2} className="min-w-[280px] font-bold text-black border-r">Item Name / Product</th>
+                                    <th rowSpan={2} className="min-w-[280px] font-bold text-foreground border-r">Item Name / Product</th>
 
                                     {/* Specification: size through waste %. Collapsing it swaps
                                         eight input columns for one read-only summary cell. */}
                                     <th
                                         rowSpan={collapsedGroups.spec ? 2 : 1}
                                         colSpan={collapsedGroups.spec ? 1 : 9}
-                                        className={cn('text-center border-x font-bold text-black bg-blue-50/50 p-0', collapsedGroups.spec && 'min-w-[170px]')}
+                                        className={cn('text-center border-x font-bold text-foreground bg-blue-50/50 p-0', collapsedGroups.spec && 'min-w-[170px]')}
                                     >
                                         <GroupToggle label="Specification" collapsed={collapsedGroups.spec} onToggle={() => toggleGroup('spec')} />
                                     </th>
@@ -1685,7 +1685,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                     <th
                                         rowSpan={collapsedGroups.gsm ? 2 : 1}
                                         colSpan={collapsedGroups.gsm ? 1 : maxPly}
-                                        className={cn('text-center border-x font-bold text-black bg-orange-50/50 p-0', collapsedGroups.gsm && 'min-w-[150px]')}
+                                        className={cn('text-center border-x font-bold text-foreground bg-orange-50/50 p-0', collapsedGroups.gsm && 'min-w-[150px]')}
                                     >
                                         <GroupToggle label="GSM Composition" collapsed={collapsedGroups.gsm} onToggle={() => toggleGroup('gsm')} />
                                     </th>
@@ -1694,7 +1694,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                     <th
                                         rowSpan={collapsedGroups.calc ? 2 : 1}
                                         colSpan={collapsedGroups.calc ? 1 : 4}
-                                        className={cn('text-center border-x font-bold text-black bg-primary/5 p-0', collapsedGroups.calc && 'min-w-[150px]')}
+                                        className={cn('text-center border-x font-bold text-foreground bg-primary/5 p-0', collapsedGroups.calc && 'min-w-[150px]')}
                                     >
                                         <GroupToggle label="Costing" collapsed={collapsedGroups.calc} onToggle={() => toggleGroup('calc')} />
                                     </th>

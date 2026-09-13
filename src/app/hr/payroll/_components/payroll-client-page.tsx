@@ -305,7 +305,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
     const hiddenCols = COLUMN_LABELS.filter(c => !exportColumns[c.key]).map(c => c.key);
 
     return (
-        <Card className="shadow-lg border-gray-100 bg-white overflow-hidden">
+        <Card className="shadow-lg border-border bg-card overflow-hidden">
             <CardContent className="pt-6">
                 <div className="mb-4 flex flex-wrap justify-between items-center gap-2 print:hidden">
                     <div className="flex items-center gap-2">
@@ -319,10 +319,10 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                         )}
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openExportDialog('xlsx')} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest border-gray-300">
+                        <Button variant="outline" size="sm" onClick={() => openExportDialog('xlsx')} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest border-border">
                             <Download className="mr-1.5 h-3.5 w-3.5" /> Export XLSX
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => openExportDialog('pdf')} disabled={monthlyPayroll.length === 0 || isExportingPdf} className="h-8 font-black text-[10px] uppercase tracking-widest border-gray-300">
+                        <Button variant="outline" size="sm" onClick={() => openExportDialog('pdf')} disabled={monthlyPayroll.length === 0 || isExportingPdf} className="h-8 font-black text-[10px] uppercase tracking-widest border-border">
                             {isExportingPdf ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileDown className="mr-1.5 h-3.5 w-3.5" />} Export PDF
                         </Button>
                         <GeneratePayslipsButton
@@ -346,11 +346,11 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                         </h2>
                     </header>
 
-                    <ScrollArea className="w-full whitespace-nowrap border rounded-xl overflow-hidden shadow-inner bg-gray-50/20">
+                    <ScrollArea className="w-full whitespace-nowrap border rounded-xl overflow-hidden shadow-inner bg-muted/20">
                         <Table className="text-[11px] border-collapse">
                             <TableHeader>
                                 <TableRow className="bg-muted/50 font-black h-11 border-b-2">
-                                    <SortableTh colKey="employee" label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="sticky left-0 bg-background z-20 border-r min-w-[160px] text-gray-900 uppercase tracking-tighter text-left">
+                                    <SortableTh colKey="employee" label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="sticky left-0 bg-background z-20 border-r min-w-[160px] text-foreground uppercase tracking-tighter text-left">
                                         <MultiSelectFilter label="Employee" options={employeeFilterOptions} selected={filterEmployeeIds} onChange={setFilterEmployeeIds} />
                                     </SortableTh>
                                     <SortableTh colKey="regularHours" label="Regular Hrs" sortKey="regularHours" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
@@ -377,12 +377,12 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                                     <TableRow><TableCell colSpan={16} className="text-center py-20 text-muted-foreground italic">No financial records for this period.</TableCell></TableRow>
                                 ) : monthlyPayroll.map(p => (
                                     <TableRow key={p.id} className="hover:bg-muted/30 h-12 border-b transition-colors group">
-                                        <TableCell data-col="employee" className="font-black sticky left-0 bg-background z-10 border-r text-gray-900 group-hover:text-primary">{p.employeeName}</TableCell>
+                                        <TableCell data-col="employee" className="font-black sticky left-0 bg-background z-10 border-r text-foreground group-hover:text-primary">{p.employeeName}</TableCell>
                                         <TableCell data-col="regularHours" className="text-right tabular-nums px-3">{p.regularHours?.toFixed(1) || '0.0'}</TableCell>
                                         <TableCell data-col="otHours" className="text-right tabular-nums px-3 font-bold text-blue-700">+{p.otHours?.toFixed(1) || '0.0'}</TableCell>
                                         <TableCell data-col="absentDays" className="text-right tabular-nums px-3 text-red-600 font-bold">{p.absentDays || 0}</TableCell>
                                         <TableCell data-col="base" className="text-right tabular-nums px-3 text-muted-foreground font-medium">{p.base || (p.rate || 0).toLocaleString()}</TableCell>
-                                        <TableCell data-col="basicPay" className="text-right tabular-nums px-3 font-bold text-gray-900">{(p.regularPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell data-col="basicPay" className="text-right tabular-nums px-3 font-bold text-foreground">{(p.regularPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="otPay" className="text-right tabular-nums px-3">{(p.otPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="allowance" className="text-right tabular-nums px-3">{(p.allowance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="gross" className="text-right tabular-nums px-3 font-black bg-muted/10">{(p.totalPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -403,7 +403,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                             {totals && monthlyPayroll.length > 0 && (
                                 <TableFooter className="bg-muted/50 font-black h-12 border-t-2">
                                     <TableRow>
-                                        <TableCell data-col="employee" className="sticky left-0 bg-background z-20 border-r text-gray-900 uppercase tracking-tighter">TOTALS</TableCell>
+                                        <TableCell data-col="employee" className="sticky left-0 bg-background z-20 border-r text-foreground uppercase tracking-tighter">TOTALS</TableCell>
                                         <TableCell data-col="regularHours" className="text-right tabular-nums px-3">{totals.regularHours.toFixed(1)}</TableCell>
                                         <TableCell data-col="otHours" className="text-right tabular-nums px-3">{totals.otHours.toFixed(1)}</TableCell>
                                         <TableCell data-col="absentDays" className="text-right tabular-nums px-3">{totals.absentDays}</TableCell>
@@ -430,7 +430,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900">Choose Columns</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground">Choose Columns</DialogTitle>
                         <DialogDescription>
                             Select which columns to include in the {exportMode === 'xlsx' ? 'Excel export' : exportMode === 'pdf' ? 'PDF export' : 'printed sheet'}. This uses the currently filtered and sorted {monthlyPayroll.length} record(s).
                         </DialogDescription>

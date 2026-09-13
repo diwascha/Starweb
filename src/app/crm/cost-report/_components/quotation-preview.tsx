@@ -308,7 +308,7 @@ export function QuotationPreviewDialog({
 
           {/* Preview Area */}
           <ScrollArea className="flex-1 bg-muted/30 p-8">
-            <div ref={printRef} className="w-[210mm] mx-auto bg-white p-12 text-black shadow-lg ring-1 ring-black/5 min-h-[297mm]">
+            <div ref={printRef} className="paper w-[210mm] mx-auto bg-white p-12 text-black shadow-lg ring-1 ring-black/5 min-h-[297mm]">
                <header className="text-center space-y-1 mb-10">
                     <h1 className="text-2xl font-bold uppercase tracking-tight">{companyProfile.nameEn}</h1>
                     <h2 className="text-lg font-semibold">{companyProfile.nameNp}</h2>

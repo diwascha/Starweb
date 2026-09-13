@@ -652,7 +652,7 @@ export default function DashboardPage() {
       {/* ---------------- Header ---------------- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 border-b pb-4 md:pb-6">
         <div className="space-y-1.5 min-w-0">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase leading-none text-gray-900">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase leading-none text-foreground">
             {companyProfile.nameEn}
           </h1>
           <h2 className="text-sm md:text-base font-bold text-muted-foreground truncate">
@@ -886,7 +886,7 @@ export default function DashboardPage() {
                               <div className="mt-3 pt-3 border-t border-destructive/10 space-y-1.5">
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase">Top cases:</p>
                                   {action.items.map((item, idx) => (
-                                      <div key={idx} className="flex items-center justify-between gap-2 text-[10px] font-medium text-gray-700">
+                                      <div key={idx} className="flex items-center justify-between gap-2 text-[10px] font-medium text-foreground">
                                           <div className="flex items-center gap-2 overflow-hidden">
                                             <div className="w-1 h-1 rounded-full bg-destructive/40 shrink-0" />
                                             <span className="truncate">{item.text}</span>

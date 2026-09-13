@@ -366,7 +366,7 @@ function ClientActivityPageContent() {
         <div className="flex flex-col gap-8 pb-20">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Client Activity</h1>
+                    <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">Client Activity</h1>
                     <p className="text-muted-foreground text-sm font-medium">Pipeline, follow-ups, incidents and feedback for existing and prospect clients.</p>
                 </div>
             </header>
@@ -385,13 +385,13 @@ function ClientActivityPageContent() {
                             <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Quick Search</Label>
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input placeholder="Filter by title or client..." className="pl-8 h-9 text-xs bg-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                <Input placeholder="Filter by title or client..." className="pl-8 h-9 text-xs bg-card" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                             </div>
                         </div>
                         <div className="space-y-1.5 w-[160px]">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Pipeline Stage</Label>
                             <Select value={stageFilter} onValueChange={setStageFilter}>
-                                <SelectTrigger className="h-9 bg-white text-xs font-bold uppercase"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="h-9 bg-card text-xs font-bold uppercase"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="All">All Stages</SelectItem>
                                     {STAGES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -408,7 +408,7 @@ function ClientActivityPageContent() {
                         </Button>
                     </div>
 
-                    <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <Card className="shadow-sm border-border bg-card overflow-hidden">
                         <CardContent className="p-0">
                             <Table>
                                 <TableHeader className="bg-muted/50">
@@ -428,14 +428,14 @@ function ClientActivityPageContent() {
                                         <TableRow key={deal.id} className="hover:bg-muted/10 h-14 transition-colors">
                                             <TableCell className="pl-6">
                                                 <div className="flex flex-col">
-                                                    <span className="font-black text-gray-900 leading-tight uppercase tracking-tight">{deal.title}</span>
+                                                    <span className="font-black text-foreground leading-tight uppercase tracking-tight">{deal.title}</span>
                                                     <span className="text-[10px] text-muted-foreground font-bold">{format(new Date(deal.createdAt), "PP")}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Building2 className="h-3 w-3 text-primary opacity-50"/>
-                                                    <span className="text-xs font-bold text-gray-700 uppercase">{deal.partyName || 'Unlinked'}</span>
+                                                    <span className="text-xs font-bold text-foreground uppercase">{deal.partyName || 'Unlinked'}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-center">{getStageBadge(deal.stage)}</TableCell>
@@ -504,7 +504,7 @@ function ClientActivityPageContent() {
                             ))}
                             {categorizedFollowups.upcoming.length === 0 && <EmptyState text="No upcoming tasks" />}
 
-                            <SectionHeader title="Scheduled Later" count={categorizedFollowups.later.length} color="text-gray-500" />
+                            <SectionHeader title="Scheduled Later" count={categorizedFollowups.later.length} color="text-muted-foreground" />
                             {categorizedFollowups.later.map(f => (
                                 <FollowUpCard key={f.id} f={f} onStatus={handleQuickFollowUpStatus} onEdit={handleOpenEditFollowUp} onDelete={handleDeleteFollowUp} />
                             ))}
@@ -530,10 +530,10 @@ function ClientActivityPageContent() {
                                         <TableBody>
                                             {sortedFollowupHistory.map(f => (
                                                 <TableRow key={f.id} className="h-10 hover:bg-transparent">
-                                                    <TableCell className="pl-6 w-8"><Badge variant="outline" className={cn("text-[8px] uppercase font-black px-1.5 h-4", f.status === 'Done' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-50 text-gray-400 border-gray-200")}>{f.status}</Badge></TableCell>
-                                                    <TableCell className="font-bold text-gray-700">{f.action}</TableCell>
+                                                    <TableCell className="pl-6 w-8"><Badge variant="outline" className={cn("text-[8px] uppercase font-black px-1.5 h-4", f.status === 'Done' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-muted text-muted-foreground border-border")}>{f.status}</Badge></TableCell>
+                                                    <TableCell className="font-bold text-foreground">{f.action}</TableCell>
                                                     <TableCell className="text-muted-foreground uppercase">{f.partyName}</TableCell>
-                                                    <TableCell className="text-right pr-6 font-mono text-gray-400">{f.completedAt ? format(new Date(f.completedAt), "PP") : toNepaliDate(f.dueDate)}</TableCell>
+                                                    <TableCell className="text-right pr-6 font-mono text-muted-foreground">{f.completedAt ? format(new Date(f.completedAt), "PP") : toNepaliDate(f.dueDate)}</TableCell>
                                                 </TableRow>
                                             ))}
                                             {sortedFollowupHistory.length === 0 && <TableRow><TableCell className="text-center py-8 italic opacity-40">No historical data.</TableCell></TableRow>}
@@ -551,7 +551,7 @@ function ClientActivityPageContent() {
                         <div className="space-y-1.5 w-[220px]">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Client</Label>
                             <Select value={clientLogFilter} onValueChange={setClientLogFilter}>
-                                <SelectTrigger className="h-9 bg-white text-xs font-bold"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="h-9 bg-card text-xs font-bold"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="All">All Clients</SelectItem>
                                     {parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
@@ -570,22 +570,22 @@ function ClientActivityPageContent() {
 
                     <div className="space-y-3">
                         {incidentsAndFeedback.map(log => (
-                            <Card key={log.id} className={cn("shadow-sm border-gray-100", log.type === 'Incident' ? "border-l-4 border-l-red-500" : "border-l-4 border-l-blue-500")}>
+                            <Card key={log.id} className={cn("shadow-sm border-border", log.type === 'Incident' ? "border-l-4 border-l-red-500" : "border-l-4 border-l-blue-500")}>
                                 <CardContent className="p-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-2">
                                             <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.type === 'Incident' ? "bg-red-600 text-white" : "bg-blue-600 text-white")}>{log.type}</Badge>
                                             {log.type === 'Incident' && log.severity && (
-                                                <Badge variant="outline" className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.severity === 'High' ? "bg-red-50 text-red-700 border-red-200" : log.severity === 'Medium' ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-gray-50 text-gray-600 border-gray-200")}>{log.severity}</Badge>
+                                                <Badge variant="outline" className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.severity === 'High' ? "bg-red-50 text-red-700 border-red-200" : log.severity === 'Medium' ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-muted text-muted-foreground border-border")}>{log.severity}</Badge>
                                             )}
                                             {log.type === 'Feedback' && log.sentiment && (
-                                                <Badge variant="outline" className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.sentiment === 'Positive' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : log.sentiment === 'Negative' ? "bg-red-50 text-red-700 border-red-200" : "bg-gray-50 text-gray-600 border-gray-200")}>{log.sentiment}</Badge>
+                                                <Badge variant="outline" className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.sentiment === 'Positive' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : log.sentiment === 'Negative' ? "bg-red-50 text-red-700 border-red-200" : "bg-muted text-muted-foreground border-border")}>{log.sentiment}</Badge>
                                             )}
-                                            <span className="text-xs font-black text-gray-900">{log.subject}</span>
+                                            <span className="text-xs font-black text-foreground">{log.subject}</span>
                                         </div>
                                         <span className="text-[9px] font-bold text-muted-foreground uppercase">{format(new Date(log.date), "PP")}</span>
                                     </div>
-                                    <p className="text-[11px] text-gray-600 leading-relaxed italic border-l-2 border-primary/20 pl-3">{log.description}</p>
+                                    <p className="text-[11px] text-muted-foreground leading-relaxed italic border-l-2 border-primary/20 pl-3">{log.description}</p>
                                     <div className="mt-2 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
                                         <Building2 className="h-2.5 w-2.5" /> {parties.find(p => p.id === log.partyId)?.name || 'Unknown Client'}
                                     </div>
@@ -603,7 +603,7 @@ function ClientActivityPageContent() {
             <Dialog open={isDealDialogOpen} onOpenChange={setIsDealDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">{editingDeal ? 'Modify Opportunity' : 'New Opportunity'}</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">{editingDeal ? 'Modify Opportunity' : 'New Opportunity'}</DialogTitle>
                         <DialogDescription>Define the scope and financial parameters of this deal.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-5 py-4">
@@ -663,7 +663,7 @@ function ClientActivityPageContent() {
             <Dialog open={isLostDialogOpen} onOpenChange={setIsLostDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                        <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight flex items-center gap-2">
                             <AlertCircle className="h-5 w-5 text-red-600"/> Mark as Lost
                         </DialogTitle>
                         <DialogDescription>Identify why this opportunity failed to convert.</DialogDescription>
@@ -688,7 +688,7 @@ function ClientActivityPageContent() {
             <Dialog open={isFollowUpDialogOpen} onOpenChange={setIsFollowUpDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                        <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">
                             {editingFollowUp ? 'Modify Scheduled Action' : 'Plan Relationship Event'}
                         </DialogTitle>
                         <DialogDescription>Coordinate persistence for client engagement.</DialogDescription>
@@ -757,7 +757,7 @@ function ClientActivityPageContent() {
             <Dialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                        <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">
                             {logForm.type === 'Incident' ? 'Log Incident' : 'Record Feedback'}
                         </DialogTitle>
                         <DialogDescription>{logForm.type === 'Incident' ? 'Track a problem or complaint for this client.' : 'Capture what the client said, good or bad.'}</DialogDescription>
@@ -852,14 +852,14 @@ function EmptyState({ text }: { text: string }) {
 function FollowUpCard({ f, onStatus, onEdit, onDelete, priority }: { f: FollowUp, onStatus: any, onEdit: any, onDelete: any, priority?: 'High' | 'Medium' }) {
     return (
         <Card className={cn(
-            "shadow-sm border-gray-100 hover:shadow-md transition-all group",
+            "shadow-sm border-border hover:shadow-md transition-all group",
             priority === 'High' && "border-l-4 border-l-red-600",
             priority === 'Medium' && "border-l-4 border-l-amber-500"
         )}>
             <CardContent className="p-4 space-y-4">
                 <div className="flex justify-between items-start gap-4">
                     <div className="space-y-1 overflow-hidden">
-                        <h4 className="font-black text-sm text-gray-900 leading-tight">{f.action}</h4>
+                        <h4 className="font-black text-sm text-foreground leading-tight">{f.action}</h4>
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] font-bold text-blue-700 uppercase truncate">{f.partyName}</span>
                             <div className="w-1 h-1 rounded-full bg-gray-300" />

@@ -170,7 +170,7 @@ export default function CrmDashboardPage() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">CRM Intelligence</h1>
+            <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase leading-none">CRM Intelligence</h1>
             <p className="text-muted-foreground text-sm font-medium italic mt-1">Real-time sales funnel and relationship analytics.</p>
         </div>
         <div className="flex gap-2">
@@ -216,7 +216,7 @@ export default function CrmDashboardPage() {
 
        <div className="grid gap-8 lg:grid-cols-2">
             {/* Pipeline Funnel */}
-            <Card className="shadow-sm border-gray-100">
+            <Card className="shadow-sm border-border">
                 <CardHeader className="py-4 border-b bg-muted/5">
                     <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Sales Funnel Analysis</CardTitle>
                     <CardDescription className="text-[10px] uppercase font-bold">Open opportunities by stage and aggregate value.</CardDescription>
@@ -239,7 +239,7 @@ export default function CrmDashboardPage() {
                                         if (active && payload && payload.length) {
                                             const data = payload[0].payload;
                                             return (
-                                                <div className="bg-white p-3 border rounded-lg shadow-xl space-y-1">
+                                                <div className="bg-card p-3 border rounded-lg shadow-xl space-y-1">
                                                     <p className="text-[10px] font-black uppercase text-muted-foreground">{data.name}</p>
                                                     <p className="text-xs font-black">{data.count} Deals</p>
                                                     <p className="text-xs font-black text-primary">Rs. {data.value.toLocaleString('en-IN')}</p>
@@ -262,7 +262,7 @@ export default function CrmDashboardPage() {
 
             {/* Performance & Follow-ups */}
             <div className="space-y-6">
-                <Card className="shadow-sm border-gray-100">
+                <Card className="shadow-sm border-border">
                     <CardHeader className="py-4 border-b bg-muted/5">
                         <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Annual Conversion</CardTitle>
                         <CardDescription className="text-[10px] uppercase font-bold">Closed outcomes for BS {new NepaliDate().getYear()}.</CardDescription>
@@ -290,7 +290,7 @@ export default function CrmDashboardPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="shadow-sm border-gray-100">
+                <Card className="shadow-sm border-border">
                     <CardHeader className="py-4 border-b bg-muted/5">
                         <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Upcoming Agenda</CardTitle>
                         <CardDescription className="text-[10px] uppercase font-bold">Immediate priorities from follow-up registry.</CardDescription>
@@ -300,7 +300,7 @@ export default function CrmDashboardPage() {
                             {upcomingFollowups.map(f => (
                                 <div key={f.id} className="flex items-center justify-between p-4 hover:bg-muted/10 transition-colors">
                                     <div className="space-y-0.5">
-                                        <p className="text-xs font-black text-gray-900 leading-tight">{f.action}</p>
+                                        <p className="text-xs font-black text-foreground leading-tight">{f.action}</p>
                                         <p className="text-[10px] text-muted-foreground uppercase font-bold">{f.partyName}</p>
                                     </div>
                                     <Badge variant="outline" className="text-[9px] font-black tabular-nums h-5">
@@ -324,7 +324,7 @@ export default function CrmDashboardPage() {
 
        <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
-                <Card className="shadow-sm border-gray-100 h-full">
+                <Card className="shadow-sm border-border h-full">
                     <CardHeader className="py-4 border-b bg-red-50/5">
                         <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-red-600 flex items-center gap-2">
                             <Clock className="h-3.5 w-3.5" /> Stale Accounts
@@ -397,7 +397,7 @@ function StatCard({ title, value, icon: Icon, color, desc }: any) {
                     <p className="text-xl font-black leading-none tracking-tight">{value}</p>
                     <p className="text-[8px] font-bold uppercase opacity-50">{desc}</p>
                 </div>
-                <div className="p-2 rounded-xl bg-white shadow-inner shrink-0">
+                <div className="p-2 rounded-xl bg-card shadow-inner shrink-0">
                     <Icon className="h-4 w-4 opacity-80" />
                 </div>
             </CardContent>
@@ -408,14 +408,14 @@ function StatCard({ title, value, icon: Icon, color, desc }: any) {
 function ModuleCard({ href, title, desc, icon: Icon }: any) {
     return (
         <Link href={href}>
-            <Card className="hover:shadow-lg transition-all border-none ring-1 ring-black/5 bg-white group hover:-translate-y-0.5">
+            <Card className="hover:shadow-lg transition-all border-none ring-1 ring-black/5 bg-card group hover:-translate-y-0.5">
                 <CardContent className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
                             <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
                         <div className="space-y-0.5">
-                            <p className="text-[11px] font-black uppercase tracking-wider text-gray-900">{title}</p>
+                            <p className="text-[11px] font-black uppercase tracking-wider text-foreground">{title}</p>
                             <p className="text-[9px] text-muted-foreground uppercase font-medium leading-tight line-clamp-1">{desc}</p>
                         </div>
                     </div>

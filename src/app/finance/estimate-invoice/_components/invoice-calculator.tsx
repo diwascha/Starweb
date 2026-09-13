@@ -354,7 +354,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 </div>
             </div>
 
-            <Card className="p-0 overflow-hidden shadow-sm border-gray-200">
+            <Card className="p-0 overflow-hidden shadow-sm border-border">
                 <ScrollArea className="w-full">
                     <Table className="min-w-[900px]">
                         <TableHeader className="bg-muted/50">
@@ -383,7 +383,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                                     <TableCell>
                                         <Popover>
                                             <PopoverTrigger asChild>
-                                                <Button variant="outline" className="w-full justify-between h-10 text-xs font-normal bg-white">
+                                                <Button variant="outline" className="w-full justify-between h-10 text-xs font-normal bg-card">
                                                     <span className="truncate">{item.productName || "Select product..."}</span>
                                                     <ChevronDown className="h-3 w-3 opacity-50 shrink-0"/>
                                                 </Button>
@@ -479,8 +479,8 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
             <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
                 <DialogContent className="max-w-4xl h-[95vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
                     <DialogHeader className="p-6 pb-2 border-b bg-muted/5 shrink-0"><DialogTitle className="text-xl font-black uppercase">Document Preview</DialogTitle></DialogHeader>
-                    <ScrollArea className="flex-1 bg-muted/20 p-8"><div ref={printRef} className="mx-auto w-[210mm] shadow-2xl bg-white"><InvoiceView {...invoiceData} /></div></ScrollArea>
-                    <DialogFooter className="p-6 border-t bg-white shrink-0"><Button variant="outline" onClick={handleExportPdf} className="h-10 px-6">Save as PDF</Button><Button onClick={() => window.print()} className="h-10 px-10 font-bold">Print Invoice</Button></DialogFooter>
+                    <ScrollArea className="flex-1 bg-muted/20 p-8"><div ref={printRef} className="mx-auto w-[210mm] shadow-2xl bg-card"><InvoiceView {...invoiceData} /></div></ScrollArea>
+                    <DialogFooter className="p-6 border-t bg-card shrink-0"><Button variant="outline" onClick={handleExportPdf} className="h-10 px-6">Save as PDF</Button><Button onClick={() => window.print()} className="h-10 px-10 font-bold">Print Invoice</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
