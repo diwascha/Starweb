@@ -30,7 +30,11 @@ import {
     Lightbulb,
     Edit,
     Briefcase,
-    ArrowRightLeft
+    ArrowRightLeft,
+    ShieldCheck,
+    Fuel,
+    FileText,
+    MoreHorizontal
 } from 'lucide-react';
 import { cn, toNepaliDate, generateNextExpenseNumber } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Destination } from '@/lib/types';
@@ -58,7 +62,11 @@ import {
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
     { type: 'Maintenance', label: 'Maintenance Payment', sub: 'Repair / Service', icon: Wrench, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+    { type: 'Fuel', label: 'Fuel', sub: 'Diesel / Petrol', icon: Fuel, color: 'text-amber-600 bg-amber-50 border-amber-200' },
+    { type: 'Insurance', label: 'Insurance / Membership', sub: 'Policy premium', icon: ShieldCheck, color: 'text-purple-600 bg-purple-50 border-purple-200' },
+    { type: 'Tax/Renewal', label: 'Tax / Renewal', sub: 'Road tax, permit, bluebook', icon: FileText, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
     { type: 'Loan Repayment', label: 'Loan Repayment', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
+    { type: 'Other', label: 'Other', sub: 'Miscellaneous', icon: MoreHorizontal, color: 'text-slate-600 bg-slate-50 border-slate-200' },
 ];
 
 const numFieldProps = {
@@ -71,7 +79,7 @@ const expenseSchema = z.object({
     voucherNo: z.string().min(1, "Voucher No is required."),
     date: z.date(),
     vehicleId: z.string().min(1, "Truck is required."),
-    expenseType: z.enum(['Advance', 'Maintenance', 'Loan Repayment', 'Vendor Purchase']),
+    expenseType: z.enum(['Advance', 'Maintenance', 'Loan Repayment', 'Insurance', 'Fuel', 'Tax/Renewal', 'Other', 'Vendor Purchase']),
     amount: z.number().min(1, "Amount must be positive."),
     extraAmount: z.number().optional().default(0),
     extraRemarks: z.string().optional(),
@@ -273,7 +281,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 {/* 1. Category Selection */}
                 <div className="space-y-4">
                     <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Payment Type <span className="text-destructive">*</span></FormLabel>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {expenseTypes.map((item) => (
                             <button key={item.type} type="button" onClick={() => form.setValue('expenseType', item.type)} className={cn("flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 text-center group", watchedType === item.type ? cn("ring-2 ring-primary border-primary bg-primary/5", item.color.split(' ')[0]) : "border-muted bg-white hover:bg-muted/50 text-muted-foreground")}>
                                 <div className={cn("p-2 rounded-lg", watchedType === item.type ? item.color.split(' ')[1] : "bg-muted/50")}>

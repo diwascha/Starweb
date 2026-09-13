@@ -30,6 +30,16 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const FAILED_ATTEMPTS_KEY = 'starsutra:failedLoginAttempts';
+const LOCKOUT_UNTIL_KEY = 'starsutra:loginLockoutUntil';
+// Friction, not a real security boundary - anyone can clear localStorage.
+// The actual brute-force backstop is Firebase's own server-side throttle,
+// which surfaces below as TOO_MANY_ATTEMPTS_TRY_LATER. This just slows down
+// a script pointed at the login form and gives a human a visible cooldown.
+const LOCKOUT_AFTER_ATTEMPTS = 5;
+const LOCKOUT_STEP_MS = 30_000;
+const LOCKOUT_MAX_MS = 5 * 60_000;
+
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -39,8 +49,50 @@ export default function LoginPage() {
   const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
 
   const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutRemaining, setLockoutRemaining] = useState(0);
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [captchaChallenge, setCaptchaChallenge] = useState({ a: 0, b: 0 });
+
+  useEffect(() => {
+    try {
+      const storedAttempts = Number(localStorage.getItem(FAILED_ATTEMPTS_KEY));
+      if (Number.isFinite(storedAttempts) && storedAttempts > 0) setFailedAttempts(storedAttempts);
+    } catch { /* private window - gate falls back to in-memory */ }
+  }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      let until = 0;
+      try { until = Number(localStorage.getItem(LOCKOUT_UNTIL_KEY)) || 0; } catch {}
+      setLockoutRemaining(Math.max(0, until - Date.now()));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const recordFailedAttempt = () => {
+    setFailedAttempts(prev => {
+      const next = prev + 1;
+      try { localStorage.setItem(FAILED_ATTEMPTS_KEY, String(next)); } catch {}
+      if (next >= LOCKOUT_AFTER_ATTEMPTS) {
+        const steps = next - LOCKOUT_AFTER_ATTEMPTS + 1;
+        const durationMs = Math.min(LOCKOUT_STEP_MS * steps, LOCKOUT_MAX_MS);
+        try { localStorage.setItem(LOCKOUT_UNTIL_KEY, String(Date.now() + durationMs)); } catch {}
+        setLockoutRemaining(durationMs);
+      }
+      return next;
+    });
+  };
+
+  const clearFailedAttempts = () => {
+    setFailedAttempts(0);
+    setLockoutRemaining(0);
+    try {
+      localStorage.removeItem(FAILED_ATTEMPTS_KEY);
+      localStorage.removeItem(LOCKOUT_UNTIL_KEY);
+    } catch {}
+  };
 
   const generateCaptcha = () => {
     setCaptchaChallenge({
@@ -80,18 +132,22 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     if (data.hp_field) return;
 
+    if (lockoutRemaining > 0) return;
+
     setIsSubmitting(true);
-    
+
     if (failedAttempts >= 3) {
       const expected = captchaChallenge.a + captchaChallenge.b;
-      if (parseInt(captchaAnswer) !== expected) {
+      // Strict parse: parseInt('5x') is 5, which let a wrong answer through.
+      const given = /^\s*-?\d+\s*$/.test(captchaAnswer) ? Number(captchaAnswer) : NaN;
+      if (given !== expected) {
         toast({ title: 'Verification Failed', description: 'Incorrect answer. Please try again.', variant: 'destructive' });
         generateCaptcha();
         setIsSubmitting(false);
         return;
       }
     }
-    
+
     try {
       const userCredential = await loginWithUsername(auth, data.loginString, data.password);
       const firebaseUser = userCredential.user;
@@ -131,10 +187,10 @@ export default function LoginPage() {
 
       logAudit(`Successful Login: ${cloudUser.username}`, 'Security');
       toast({ title: 'Welcome', description: `Signed in as ${cloudUser.username}` });
-      setFailedAttempts(0);
-      
+      clearFailedAttempts();
+
     } catch (error: any) {
-      setFailedAttempts(prev => prev + 1);
+      recordFailedAttempt();
       logAudit(`Failed Login: ${data.loginString}`, 'Security', { code: error.code });
       
       let errorMessage = 'Invalid username or password.';
@@ -193,7 +249,15 @@ export default function LoginPage() {
                 {errors.password && <p className="text-[10px] text-destructive font-black uppercase">{errors.password.message}</p>}
               </div>
 
-              {failedAttempts >= 3 && (
+              {lockoutRemaining > 0 && (
+                <div className="p-4 bg-destructive/10 rounded-xl border-2 border-destructive/30 text-center">
+                    <p className="text-xs font-black uppercase tracking-wide text-destructive">
+                        Too many failed attempts. Try again in {Math.ceil(lockoutRemaining / 1000)}s.
+                    </p>
+                </div>
+              )}
+
+              {lockoutRemaining <= 0 && failedAttempts >= 3 && (
                 <div className="space-y-3 p-4 bg-amber-50 rounded-xl border-2 border-amber-200 animate-in slide-in-from-top-2">
                     <div className="flex items-center justify-between">
                         <Label className="text-[10px] font-black uppercase text-amber-800 tracking-widest">Challenge</Label>
@@ -208,8 +272,8 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <Button type="submit" className="w-full h-11 text-sm font-black uppercase tracking-widest shadow-lg shadow-primary/20" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Authorize Login'}
+              <Button type="submit" className="w-full h-11 text-sm font-black uppercase tracking-widest shadow-lg shadow-primary/20" disabled={isSubmitting || lockoutRemaining > 0}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : lockoutRemaining > 0 ? `Locked (${Math.ceil(lockoutRemaining / 1000)}s)` : 'Authorize Login'}
               </Button>
             </form>
           </CardContent>
