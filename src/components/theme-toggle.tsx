@@ -8,7 +8,7 @@
  * choice takes that away.
  */
 
-import { useTheme } from 'next-themes';
+import { useTheme } from '@/components/theme-provider';
 import { useEffect, useState } from 'react';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';

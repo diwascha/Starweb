@@ -7,7 +7,7 @@ import { Inter } from 'next/font/google';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UsageTracker } from '@/components/usage-tracker';
 import { SessionManager } from '@/components/session-manager';
-import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeProvider, themeInitScript } from '@/components/theme-provider';
 import icon from '@/app/signup/StarSutra.png';
 
 export const metadata: Metadata = {
@@ -31,6 +31,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
+      <head>
+        {/* Sets the theme class before the first paint. Without it a dark-mode
+            user sees a white page for a frame on every single navigation. */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="font-body antialiased bg-background" suppressHydrationWarning>
         <ThemeProvider>
           <FirebaseClientProvider>
