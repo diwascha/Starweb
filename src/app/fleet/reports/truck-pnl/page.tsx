@@ -13,6 +13,7 @@ import type { Transaction, Vehicle } from '@/lib/types';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { useAuth } from '@/hooks/use-auth';
 
 interface TruckPnl {
     vehicle: Vehicle;
@@ -29,14 +30,17 @@ export default function TruckPnlPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const { getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('fleet'), [getAllowedOwnerships]);
 
     useEffect(() => {
         let loaded = 0;
         const check = () => { loaded++; if (loaded >= 2) setIsLoading(false); };
-        const unsubTx = onTransactionsUpdate(data => { setTransactions(data); check(); });
-        const unsubVeh = onVehiclesUpdate(data => { setVehicles(data); check(); });
+        const inScope = (ownership: string) => ownership === 'Both' || allowedOwnerships.includes(ownership);
+        const unsubTx = onTransactionsUpdate(data => { setTransactions(data.filter(x => inScope(x.ownership))); check(); });
+        const unsubVeh = onVehiclesUpdate(data => { setVehicles(data.filter(x => inScope(x.ownership))); check(); });
         return () => { unsubTx(); unsubVeh(); };
-    }, []);
+    }, [allowedOwnerships]);
 
     const filteredTransactions = useMemo(() => {
         if (!dateRange?.from) return transactions;

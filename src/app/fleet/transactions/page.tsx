@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party, Account, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -126,6 +126,9 @@ export default function FleetTransactionsPage() {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const router = useRouter();
     const { toast } = useToast();
+    const { getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('fleet'), [getAllowedOwnerships]);
+    const inScope = useCallback((ownership: string) => ownership === 'Both' || allowedOwnerships.includes(ownership), [allowedOwnerships]);
 
     const [filterParties, setFilterParties] = useState<string[]>([]);
     const [filterVehicles, setFilterVehicles] = useState<string[]>([]);
@@ -142,14 +145,14 @@ export default function FleetTransactionsPage() {
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
-            onTransactionsUpdate((t) => { setTransactions(t); setIsLoading(false); }),
-            onVehiclesUpdate(setVehicles),
-            onPartiesUpdate(setParties),
-            onAccountsUpdate(setAccounts),
+            onTransactionsUpdate((t) => { setTransactions(t.filter(x => inScope(x.ownership))); setIsLoading(false); }),
+            onVehiclesUpdate((v) => setVehicles(v.filter(x => inScope(x.ownership)))),
+            onPartiesUpdate((p) => setParties(p.filter(x => inScope(x.ownership)))),
+            onAccountsUpdate((a) => setAccounts(a.filter(x => inScope(x.ownership)))),
             onSettingUpdate('fleetCompanyProfile', (s) => { if (s?.value) setFleetProfile(s.value); }),
         ];
         return () => unsubs.forEach(unsub => unsub());
-    }, []);
+    }, [inScope]);
 
     useEffect(() => {
         setCurrentPage(1);

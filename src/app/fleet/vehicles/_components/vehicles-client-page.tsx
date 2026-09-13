@@ -79,14 +79,15 @@ export default function VehiclesClientPage({
     const [sortConfig, setSortConfig] = useState<{ key: VehicleSortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
 
     const { toast } = useToast();
-    const { hasPermission, user } = useAuth();
-    
+    const { hasPermission, user, getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('fleet'), [getAllowedOwnerships]);
+
     const driversById = useMemo(() => new Map(drivers.map(d => [d.id, d.name])), [drivers]);
 
     useEffect(() => {
         setIsLoading(true);
         const unsubVehicles = onVehiclesUpdate((data) => {
-            setVehicles(data);
+            setVehicles(data.filter(v => v.ownership === 'Both' || allowedOwnerships.includes(v.ownership)));
             setIsLoading(false);
         });
         const unsubDrivers = onDriversUpdate(setDrivers);
@@ -94,7 +95,7 @@ export default function VehiclesClientPage({
             unsubVehicles();
             unsubDrivers();
         };
-    }, []);
+    }, [allowedOwnerships]);
 
     useEffect(() => {
         setCurrentPage(1);

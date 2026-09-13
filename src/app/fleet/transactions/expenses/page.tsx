@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   PlusCircle, 
@@ -131,19 +131,21 @@ export default function ExpenseLogsPage() {
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
 
     const { toast } = useToast();
-    const { hasPermission } = useAuth();
+    const { hasPermission, getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('fleet'), [getAllowedOwnerships]);
+    const inScope = useCallback((ownership: string) => ownership === 'Both' || allowedOwnerships.includes(ownership), [allowedOwnerships]);
     const router = useRouter();
 
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
-            onExpensesUpdate(setExpenses),
-            onVehiclesUpdate(setVehicles),
-            onPartiesUpdate(setParties)
+            onExpensesUpdate((e) => setExpenses(e.filter(x => inScope(x.ownership)))),
+            onVehiclesUpdate((v) => setVehicles(v.filter(x => inScope(x.ownership)))),
+            onPartiesUpdate((p) => setParties(p.filter(x => inScope(x.ownership)))),
         ];
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [inScope]);
 
     useEffect(() => {
         setCurrentPage(1);

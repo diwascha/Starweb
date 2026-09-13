@@ -22,29 +22,31 @@ import { useToast } from '@/hooks/use-toast';
 import { DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 
 export default function FleetDashboardPage() {
-    const { user, hasPermission } = useAuth();
+    const { user, hasPermission, getAllowedOwnerships } = useAuth();
+    const allowedOwnerships = useMemo(() => getAllowedOwnerships('fleet'), [getAllowedOwnerships]);
+    const inScope = (ownership: string) => ownership === 'Both' || allowedOwnerships.includes(ownership);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
-    
+
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
-            onVehiclesUpdate(setVehicles),
+            onVehiclesUpdate((v) => setVehicles(v.filter(x => inScope(x.ownership)))),
             onDriversUpdate(setDrivers),
             onPoliciesUpdate(setPolicies),
-            onTransactionsUpdate(setTransactions),
+            onTransactionsUpdate((t) => setTransactions(t.filter(x => inScope(x.ownership)))),
             onSettingUpdate('fleetCompanyProfile', (s) => {
                 if (s?.value) setCompanyProfile(s.value);
             })
         ];
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [allowedOwnerships]);
     
     const stats = useMemo(() => {
         if (isLoading) return { totalVehicles: 0, totalDrivers: 0, netThisMonth: 0, vehicleStatusData: [] };
