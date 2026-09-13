@@ -544,6 +544,12 @@ export interface Vehicle {
   lastModifiedBy?: string;
   lastModifiedAt?: string; // ISO string
   ownership: string;
+  // Who actually owns this truck and how - distinct from `ownership`, which is
+  // the Sijan/Shivam company-scoping flag. A truck can be company-owned or
+  // run for a third party who's paid out of its earnings (P&L reporting).
+  ownershipType?: 'Own' | 'Third Party' | 'Leased' | 'Retired';
+  ownerName?: string; // required reading when ownershipType is 'Third Party' or 'Leased'
+  monthlyEmi?: number;
 }
 
 export interface Driver {

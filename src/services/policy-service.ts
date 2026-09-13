@@ -15,6 +15,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
     const data = snapshot.data();
     return {
         id: snapshot.id,
+        documentNumber: data.documentNumber || '',
         type: data.type || 'Insurance',
         provider: data.provider || '',
         policyNumber: data.policyNumber || '',
