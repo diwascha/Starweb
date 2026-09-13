@@ -38,7 +38,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format, differenceInDays, startOfToday, addDays, isPast } from 'date-fns';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn, toNepaliDate, generateNextPolicyNumber } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/services/policy-service';
@@ -67,6 +67,7 @@ export default function PoliciesPage() {
     const [editingPolicy, setEditingPolicy] = useState<PolicyOrMembership | null>(null);
     const [isRenewal, setIsRenewal] = useState(false);
     const [formState, setFormState] = useState<Omit<PolicyOrMembership, 'id' | 'createdBy' | 'lastModifiedBy' | 'createdAt' | 'lastModifiedAt'>>({
+        documentNumber: '',
         type: '',
         provider: '',
         policyNumber: '',
@@ -129,6 +130,7 @@ export default function PoliciesPage() {
         setEditingPolicy(null);
         setIsRenewal(false);
         setFormState({
+            documentNumber: '',
             type: '',
             provider: '',
             policyNumber: '',
@@ -142,14 +144,18 @@ export default function PoliciesPage() {
         });
     };
 
-    const handleOpenDialog = (policy: PolicyOrMembership | null = null, renew = false) => {
+    const handleOpenDialog = async (policy: PolicyOrMembership | null = null, renew = false) => {
         setIsRenewal(renew);
         if (policy) {
             if (renew) {
                  setEditingPolicy(null);
                  const startDate = addDays(new Date(policy.endDate), 1).toISOString();
                  const endDate = addDays(new Date(startDate), 365).toISOString();
+                 // A renewal is a new registration, not a continuation - it gets its
+                 // own document number rather than reusing the expiring policy's.
+                 const documentNumber = await generateNextPolicyNumber(policies, startDate);
                 setFormState({
+                    documentNumber,
                     type: policy.type,
                     provider: policy.provider,
                     policyNumber: '',
@@ -164,6 +170,7 @@ export default function PoliciesPage() {
             } else {
                 setEditingPolicy(policy);
                 setFormState({
+                    documentNumber: policy.documentNumber || '',
                     type: policy.type,
                     provider: policy.provider,
                     policyNumber: policy.policyNumber,
@@ -178,6 +185,8 @@ export default function PoliciesPage() {
             }
         } else {
             resetForm();
+            const documentNumber = await generateNextPolicyNumber(policies);
+            setFormState(prev => ({ ...prev, documentNumber }));
         }
         setIsDialogOpen(true);
     };
@@ -437,6 +446,7 @@ export default function PoliciesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead className="text-[11px]">Doc No.</TableHead>
                                 <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="p-0 text-[11px]">Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                 <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')} className="p-0 text-[11px]">Policy # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                 <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')} className="p-0 text-[11px]">For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -453,6 +463,7 @@ export default function PoliciesPage() {
                                     policy.displayStatus === 'Expired' && 'bg-red-50/50 hover:bg-red-100/50',
                                     (policy.displayStatus === 'Active' && policy.daysRemaining <= 15) && 'bg-amber-50/50 hover:bg-amber-100/50'
                                 )}>
+                                    <TableCell className="text-xs font-mono">{policy.documentNumber || '—'}</TableCell>
                                     <TableCell className="font-medium text-xs">{policy.type}</TableCell>
                                     <TableCell className="text-xs">{policy.policyNumber}</TableCell>
                                     <TableCell className="text-xs">{policy.memberName}</TableCell>
@@ -664,6 +675,11 @@ export default function PoliciesPage() {
                         <DialogDescription>{editingPolicy ? (isRenewal ? 'Enter the details for the renewal.' : 'Update the details for this record.') : 'Enter the details for the new policy or membership.'}</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="documentNumber">Document No.</Label>
+                            <Input id="documentNumber" value={formState.documentNumber} readOnly className="bg-muted/50 font-mono text-sm" />
+                            {isRenewal && <p className="text-[10px] text-muted-foreground">A renewal gets its own document number; it does not reuse the expiring record's.</p>}
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div className="space-y-2">
                                 <Label htmlFor="type">Type</Label>

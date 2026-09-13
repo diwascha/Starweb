@@ -16,7 +16,8 @@ import type {
   NumberingRule,
   Cheque,
   GsmReport,
-  PaymentTrackerEntry
+  PaymentTrackerEntry,
+  PolicyOrMembership
 } from './types';
 import type { Expense } from './expense-types';
 import NepaliDate from 'nepali-date-converter';
@@ -173,6 +174,9 @@ export const generateNextSalesNumber = (items: Pick<Trip, 'tripNumber'>[], date?
 
 export const generateNextExpenseNumber = (items: Pick<Expense, 'voucherNo'>[], date?: string) =>
   generateNextNumber(items, 'voucherNo', 'expense', 'EXP-', date);
+
+export const generateNextPolicyNumber = (items: Pick<PolicyOrMembership, 'documentNumber'>[], date?: string) =>
+  generateNextNumber(items.map(i => ({ documentNumber: i.documentNumber })), 'documentNumber', 'policy', 'POL-', date);
 
 export const generateNextGsmNumber = (items: Pick<GsmReport, 'voucherNo'>[], date?: string) =>
   generateNextNumber(items, 'voucherNo', 'gsmVoucher', 'GSM-', date);
