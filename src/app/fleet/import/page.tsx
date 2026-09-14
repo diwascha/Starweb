@@ -17,18 +17,28 @@ import type { Vehicle, Party, Transaction } from '@/lib/types';
 import {
     parsePartyTypeMap,
     parseTripSheet,
+    parsePaymentsSheet,
     candidateSignature,
+    partyPaymentSignature,
     commitTripSheetImport,
     type TripSheetCandidate,
+    type PaymentSheetCandidate,
     type ResolvedCandidate,
+    type ResolvedPaymentCandidate,
 } from '@/services/fleet/trip-sheet-import';
 import { toNepaliDate } from '@/lib/utils';
 
 type PreviewStatus = 'new' | 'duplicate' | 'new-vehicle';
 
-interface PreviewRow extends TripSheetCandidate {
+interface TripPreviewRow extends TripSheetCandidate {
+    source: 'trip';
     status: PreviewStatus;
 }
+interface PaymentPreviewRow extends PaymentSheetCandidate {
+    source: 'payment';
+    status: PreviewStatus;
+}
+type PreviewRow = TripPreviewRow | PaymentPreviewRow;
 
 export default function FleetImportPage() {
     const { user } = useAuth();
@@ -42,7 +52,8 @@ export default function FleetImportPage() {
     const [isParsing, setIsParsing] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [fileName, setFileName] = useState<string | null>(null);
-    const [candidates, setCandidates] = useState<TripSheetCandidate[]>([]);
+    const [tripCandidates, setTripCandidates] = useState<TripSheetCandidate[]>([]);
+    const [paymentCandidates, setPaymentCandidates] = useState<PaymentSheetCandidate[]>([]);
     const [warnings, setWarnings] = useState<string[]>([]);
     const [importResult, setImportResult] = useState<{ created: number; skipped: number } | null>(null);
 
@@ -59,32 +70,44 @@ export default function FleetImportPage() {
     const existingSignatures = useMemo(() => {
         const set = new Set<string>();
         for (const t of transactions) {
-            if (!t.vehicleId) continue;
-            set.add(candidateSignature(t.vehicleId, t.date, t.category || '', t.amount));
+            if (t.vehicleId) set.add(candidateSignature(t.vehicleId, t.date, t.category || '', t.amount));
+            if (t.partyId && (t.type === 'Payment' || t.type === 'Receipt')) set.add(partyPaymentSignature(t.partyId, t.date, t.amount));
         }
         return set;
     }, [transactions]);
 
-    const previewRows = useMemo<PreviewRow[]>(() => {
-        return candidates.map(c => {
+    const tripPreviewRows = useMemo<TripPreviewRow[]>(() => {
+        return tripCandidates.map(c => {
             const vehicleId = vehicleMap.get(c.vehicleText.toLowerCase());
-            if (!vehicleId) return { ...c, status: 'new-vehicle' as const };
+            if (!vehicleId) return { ...c, source: 'trip' as const, status: 'new-vehicle' as const };
             const signature = candidateSignature(vehicleId, c.dateIso, c.category, c.amount);
-            return { ...c, status: existingSignatures.has(signature) ? 'duplicate' as const : 'new' as const };
+            return { ...c, source: 'trip' as const, status: existingSignatures.has(signature) ? 'duplicate' as const : 'new' as const };
         });
-    }, [candidates, vehicleMap, existingSignatures]);
+    }, [tripCandidates, vehicleMap, existingSignatures]);
+
+    const paymentPreviewRows = useMemo<PaymentPreviewRow[]>(() => {
+        return paymentCandidates.map(c => {
+            const partyId = partyMap.get(c.partyName.toLowerCase());
+            if (!partyId) return { ...c, source: 'payment' as const, status: 'new-vehicle' as const }; // reused status: "needs a new record created"
+            const signature = partyPaymentSignature(partyId, c.dateIso, c.amount);
+            return { ...c, source: 'payment' as const, status: existingSignatures.has(signature) ? 'duplicate' as const : 'new' as const };
+        });
+    }, [paymentCandidates, partyMap, existingSignatures]);
+
+    const previewRows = useMemo<PreviewRow[]>(() => [...tripPreviewRows, ...paymentPreviewRows], [tripPreviewRows, paymentPreviewRows]);
 
     const missingVehicles = useMemo(() => {
         const names = new Set<string>();
-        for (const c of candidates) if (!vehicleMap.has(c.vehicleText.toLowerCase())) names.add(c.vehicleText);
+        for (const c of tripCandidates) if (!vehicleMap.has(c.vehicleText.toLowerCase())) names.add(c.vehicleText);
         return Array.from(names);
-    }, [candidates, vehicleMap]);
+    }, [tripCandidates, vehicleMap]);
 
     const missingParties = useMemo(() => {
         const names = new Set<string>();
-        for (const c of candidates) if (c.partyName && !partyMap.has(c.partyName.toLowerCase())) names.add(c.partyName);
+        for (const c of tripCandidates) if (c.partyName && !partyMap.has(c.partyName.toLowerCase())) names.add(c.partyName);
+        for (const c of paymentCandidates) if (!partyMap.has(c.partyName.toLowerCase())) names.add(c.partyName);
         return Array.from(names);
-    }, [candidates, partyMap]);
+    }, [tripCandidates, paymentCandidates, partyMap]);
 
     const summary = useMemo(() => {
         const toImport = previewRows.filter(r => r.status !== 'duplicate');
@@ -95,7 +118,8 @@ export default function FleetImportPage() {
 
     const resetImport = () => {
         setFileName(null);
-        setCandidates([]);
+        setTripCandidates([]);
+        setPaymentCandidates([]);
         setWarnings([]);
         setImportResult(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -118,19 +142,25 @@ export default function FleetImportPage() {
                 return;
             }
             const setupSheetName = workbook.SheetNames.find(n => n.trim().toLowerCase() === 'setup');
+            const paymentsSheetName = workbook.SheetNames.find(n => n.trim().toLowerCase() === 'payments');
 
             const tripGrid = XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[tripSheetName], { header: 1, defval: null });
             const setupGrid = setupSheetName ? XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[setupSheetName], { header: 1, defval: null }) : null;
+            const paymentsGrid = paymentsSheetName ? XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[paymentsSheetName], { header: 1, defval: null }) : null;
 
             const partyTypeMap = parsePartyTypeMap(setupGrid);
-            const { candidates: parsed, warnings: parseWarnings } = parseTripSheet(tripGrid, partyTypeMap);
+            const { candidates: parsedTrips, warnings: tripWarnings } = parseTripSheet(tripGrid, partyTypeMap);
+            const { candidates: parsedPayments, warnings: paymentWarnings } = paymentsGrid
+                ? parsePaymentsSheet(paymentsGrid)
+                : { candidates: [], warnings: paymentsSheetName ? [] : ['No "Payments" tab found - actual settlements were not imported, only the Trip Sheet\'s charged amounts.'] };
 
             setFileName(file.name);
-            setCandidates(parsed);
-            setWarnings(parseWarnings);
+            setTripCandidates(parsedTrips);
+            setPaymentCandidates(parsedPayments);
+            setWarnings([...tripWarnings, ...paymentWarnings]);
 
-            if (parsed.length === 0) {
-                toast({ title: 'Nothing to import', description: 'No trip rows with an amount were found.', variant: 'destructive' });
+            if (parsedTrips.length === 0 && parsedPayments.length === 0) {
+                toast({ title: 'Nothing to import', description: 'No rows with an amount were found.', variant: 'destructive' });
             }
         } catch (error: any) {
             toast({ title: 'Could not read file', description: error.message, variant: 'destructive' });
@@ -161,13 +191,17 @@ export default function FleetImportPage() {
 
             // 2. Resolve every candidate to its final vehicleId/partyId now that
             // anything missing has been created.
-            const resolved: ResolvedCandidate[] = candidates.map(c => ({
+            const resolvedTrips: ResolvedCandidate[] = tripCandidates.map(c => ({
                 ...c,
                 vehicleId: localVehicleMap.get(c.vehicleText.toLowerCase())!,
                 partyId: c.partyName ? localPartyMap.get(c.partyName.toLowerCase()) : undefined,
             }));
+            const resolvedPayments: ResolvedPaymentCandidate[] = paymentCandidates.map(c => ({
+                ...c,
+                partyId: localPartyMap.get(c.partyName.toLowerCase())!,
+            }));
 
-            const result = await commitTripSheetImport(resolved, existingSignatures, user.username);
+            const result = await commitTripSheetImport(resolvedTrips, resolvedPayments, existingSignatures, user.username);
             setImportResult(result);
             toast({ title: 'Import complete', description: `${result.created} record(s) created, ${result.skipped} already on record and skipped.` });
         } catch (error: any) {
@@ -181,7 +215,7 @@ export default function FleetImportPage() {
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-black tracking-tight flex items-center gap-2"><FileSpreadsheet className="h-6 w-6 text-primary" /> Import Fleet Data from Excel</h1>
-                <p className="text-sm text-muted-foreground">Upload the monthly "Trip Sheet" workbook to bring freight income, advances, transport and party expenses straight into the ledger - no manual re-entry.</p>
+                <p className="text-sm text-muted-foreground">Upload the monthly workbook: the Trip Sheet's charges become Purchase (accrued) records per truck, and the Payments sheet's actual settlements become Payment vouchers per party - no manual re-entry.</p>
             </div>
 
             <Card>
@@ -194,7 +228,7 @@ export default function FleetImportPage() {
                                 {fileName ? 'Choose a different file' : 'Choose Excel file (.xlsx / .xlsm)'}
                             </label>
                         </Button>
-                        {fileName && <span className="text-sm text-muted-foreground">{fileName} - {candidates.length} line(s) found</span>}
+                        {fileName && <span className="text-sm text-muted-foreground">{fileName} - {tripCandidates.length + paymentCandidates.length} line(s) found</span>}
                     </div>
                 </CardContent>
             </Card>
@@ -211,7 +245,7 @@ export default function FleetImportPage() {
                 </Alert>
             )}
 
-            {candidates.length > 0 && !importResult && (
+            {previewRows.length > 0 && !importResult && (
                 <>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <Card><CardHeader className="pb-2"><CardDescription>Will Import</CardDescription><CardTitle className="text-2xl text-emerald-600">{summary.toImportCount}</CardTitle></CardHeader></Card>
@@ -235,7 +269,7 @@ export default function FleetImportPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Preview</CardTitle>
-                            <CardDescription>Nothing is written until you confirm. Rows already on record (matching truck, date, category and amount) are skipped automatically.</CardDescription>
+                            <CardDescription>Nothing is written until you confirm. Trip Sheet amounts import as unpaid Purchase charges; Payments-sheet amounts import as settled Payment vouchers. Rows already on record are skipped automatically.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="max-h-[500px] overflow-auto rounded-md border">
@@ -243,7 +277,7 @@ export default function FleetImportPage() {
                                     <TableHeader className="sticky top-0 bg-background">
                                         <TableRow>
                                             <TableHead>Date</TableHead>
-                                            <TableHead>Truck</TableHead>
+                                            <TableHead>Truck / Party</TableHead>
                                             <TableHead>Type</TableHead>
                                             <TableHead>Category</TableHead>
                                             <TableHead className="text-right">Amount</TableHead>
@@ -255,14 +289,18 @@ export default function FleetImportPage() {
                                         {previewRows.map((r, i) => (
                                             <TableRow key={i}>
                                                 <TableCell className="text-xs whitespace-nowrap">{toNepaliDate(r.dateIso)}</TableCell>
-                                                <TableCell className="text-xs">{r.vehicleText}</TableCell>
-                                                <TableCell className="text-xs">{r.kind}</TableCell>
-                                                <TableCell className="text-xs">{r.category}{r.partyName ? ` - ${r.partyName}` : ''}</TableCell>
+                                                <TableCell className="text-xs">{r.source === 'trip' ? r.vehicleText : r.partyName}</TableCell>
+                                                <TableCell className="text-xs">{r.source === 'trip' ? r.kind : 'Payment (settled)'}</TableCell>
+                                                <TableCell className="text-xs">
+                                                    {r.source === 'trip'
+                                                        ? `${r.category}${r.partyName ? ` - ${r.partyName}` : ''}`
+                                                        : `${r.mode}${r.chequeRef ? ` - ${r.chequeRef}` : ''}`}
+                                                </TableCell>
                                                 <TableCell className="text-right text-xs tabular-nums">Rs. {r.amount.toLocaleString()}</TableCell>
                                                 <TableCell>
                                                     {r.status === 'duplicate' && <Badge variant="outline" className="text-[9px]">Already Recorded</Badge>}
                                                     {r.status === 'new' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px]">New</Badge>}
-                                                    {r.status === 'new-vehicle' && <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[9px]">New Truck</Badge>}
+                                                    {r.status === 'new-vehicle' && <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[9px]">{r.source === 'trip' ? 'New Truck' : 'New Party'}</Badge>}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -289,7 +327,7 @@ export default function FleetImportPage() {
                     <AlertTitle className="text-emerald-800">Import complete</AlertTitle>
                     <AlertDescription className="text-emerald-700">
                         {importResult.created} record(s) created, {importResult.skipped} already on record and skipped.
-                        Check the Truck P&amp;L and Expense History pages to see the results, or <button className="underline font-semibold" onClick={resetImport}>import another file</button>.
+                        Check Purchase History (charges) and Payment/Receipt Logs (settlements) to see the results, or <button className="underline font-semibold" onClick={resetImport}>import another file</button>.
                     </AlertDescription>
                 </Alert>
             )}

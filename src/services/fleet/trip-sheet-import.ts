@@ -1,8 +1,21 @@
 /**
- * Parses the "Trip Sheet" tab of the fleet Excel workbook (Vada_*.xlsm /
- * equivalent) into candidate ledger transactions, and commits the resolved
- * result as Transaction documents. Parsing is pure (no Firestore access);
- * the import page resolves vehicle/party names to IDs before committing.
+ * Parses two tabs of the fleet Excel workbook (Vada_*.xlsm / equivalent):
+ *
+ * - "Trip Sheet": one row per trip. Vada/Advance/Transport/party columns are
+ *   amounts CHARGED against that truck for the trip - fuel used, tyres
+ *   fitted, insurance premium apportioned, driver advance given, transport
+ *   fee owed to the truck's owner. None of it is a cash outflow yet; it's a
+ *   liability accrual, same as buying something on credit. These become
+ *   Purchase-type transactions (billingType 'Credit'), never a Payment or an
+ *   Expense - marking them paid before they are would be false.
+ * - "Payments": the actual cash/cheque/bank disbursements against a party's
+ *   running balance, independent of any single trip. These become
+ *   Payment-type transactions with a voucherId, same shape a manually
+ *   entered Payment/Receipt voucher produces, so they show up in Payment/
+ *   Receipt Logs.
+ *
+ * Parsing is pure (no Firestore access); the import page resolves vehicle/
+ * party names to IDs before committing.
  */
 'use client';
 
@@ -16,10 +29,20 @@ export interface TripSheetCandidate {
     dateIso: string;
     vehicleText: string;
     numParties: number;
-    kind: 'Sales' | 'Payment';
+    kind: 'Sales' | 'Purchase';
     category: string;
     partyName?: string;
     amount: number;
+    remarks: string;
+}
+
+export interface PaymentSheetCandidate {
+    rowNumber: number;
+    dateIso: string;
+    partyName: string;
+    amount: number;
+    mode: string;
+    chequeRef: string;
     remarks: string;
 }
 
@@ -43,9 +66,8 @@ function findHeaderRow(grid: any[][], mustContain: string): number {
 
 /**
  * Setup sheet "Type" values (free text, from the company's own workbook) ->
- * the app's fixed ExpenseType enum, so imported costs land in the same
- * categories the Expense form itself offers - and so they can dedupe
- * against, or later be edited as, an ordinary Expense record.
+ * the app's fixed ExpenseType-style categories, so imported costs land in
+ * the same buckets the Expense form itself offers.
  */
 const EXPENSE_TYPE_MAP: Record<string, string> = {
     'fuel': 'Fuel',
@@ -64,6 +86,11 @@ const EXPENSE_TYPE_MAP: Record<string, string> = {
 
 function mapToExpenseType(rawType: string): string {
     return EXPENSE_TYPE_MAP[rawType.trim().toLowerCase()] || 'Other';
+}
+
+/** Cash stays Cash; anything naming a cheque/bank/RTGS/transfer settles via Bank. */
+function mapPaymentMode(mode: string): 'Cash' | 'Bank' {
+    return mode.trim().toLowerCase().includes('cash') ? 'Cash' : 'Bank';
 }
 
 /** Party Name -> Type, read from the Setup sheet's Parties table. */
@@ -149,12 +176,12 @@ export function parseTripSheet(grid: any[][], partyTypeMap: Map<string, string>)
 
         const advance = idxAdvance >= 0 ? Number(row[idxAdvance]) || 0 : 0;
         if (advance > 0) {
-            candidates.push({ rowNumber: r + 1, dateIso, vehicleText: vehicleTextTrimmed, numParties, kind: 'Payment', category: 'Advance', amount: advance, remarks });
+            candidates.push({ rowNumber: r + 1, dateIso, vehicleText: vehicleTextTrimmed, numParties, kind: 'Purchase', category: 'Advance', amount: advance, remarks });
         }
 
         const transport = idxTransport >= 0 ? Number(row[idxTransport]) || 0 : 0;
         if (transport > 0) {
-            candidates.push({ rowNumber: r + 1, dateIso, vehicleText: vehicleTextTrimmed, numParties, kind: 'Payment', category: 'Transport', amount: transport, remarks });
+            candidates.push({ rowNumber: r + 1, dateIso, vehicleText: vehicleTextTrimmed, numParties, kind: 'Purchase', category: 'Transport', amount: transport, remarks });
         }
 
         for (const dc of dynamicCols) {
@@ -162,9 +189,61 @@ export function parseTripSheet(grid: any[][], partyTypeMap: Map<string, string>)
             if (amt !== 0) {
                 const rawType = partyTypeMap.get(dc.name.toLowerCase()) || dc.name;
                 const category = mapToExpenseType(rawType);
-                candidates.push({ rowNumber: r + 1, dateIso, vehicleText: vehicleTextTrimmed, numParties, kind: 'Payment', category, partyName: dc.name, amount: Math.abs(amt), remarks });
+                candidates.push({ rowNumber: r + 1, dateIso, vehicleText: vehicleTextTrimmed, numParties, kind: 'Purchase', category, partyName: dc.name, amount: Math.abs(amt), remarks });
             }
         }
+    }
+
+    return { candidates, warnings };
+}
+
+/** Parses the "Payments" sheet - actual cash/cheque/bank disbursements to a party. */
+export function parsePaymentsSheet(grid: any[][]): { candidates: PaymentSheetCandidate[]; warnings: string[] } {
+    const warnings: string[] = [];
+    const headerRow = findHeaderRow(grid, 'Party');
+    if (headerRow === -1) {
+        return { candidates: [], warnings: ['Could not find the Payments header row (looking for a "Party" column in the first 10 rows).'] };
+    }
+
+    const headers = (grid[headerRow] || []).map(h => (typeof h === 'string' ? h.trim() : h));
+    const col = (name: string) => headers.findIndex(h => h === name);
+
+    const idxDateAD = col('Date (A.D)');
+    const idxParty = col('Party');
+    const idxAmount = col('Amount');
+    const idxMode = col('Mode');
+    const idxRef = col('Cheque / Ref No.');
+    const idxRemarks = col('Remarks');
+
+    for (const [label, idx] of [['Date (A.D)', idxDateAD], ['Party', idxParty], ['Amount', idxAmount]] as const) {
+        if (idx === -1) warnings.push(`Payments sheet: column "${label}" not found - rows will be skipped.`);
+    }
+
+    const candidates: PaymentSheetCandidate[] = [];
+    for (let r = headerRow + 1; r < grid.length; r++) {
+        const row = grid[r];
+        if (!row) continue;
+        const partyName = idxParty >= 0 ? row[idxParty] : null;
+        if (!partyName || typeof partyName !== 'string' || !partyName.trim()) continue;
+
+        const amount = idxAmount >= 0 ? Number(row[idxAmount]) || 0 : 0;
+        if (amount <= 0) continue;
+
+        const dateIso = idxDateAD >= 0 ? toIsoDate(row[idxDateAD]) : null;
+        if (!dateIso) {
+            warnings.push(`Payments row ${r + 1}: missing or unreadable date - skipped.`);
+            continue;
+        }
+
+        candidates.push({
+            rowNumber: r + 1,
+            dateIso,
+            partyName: partyName.trim(),
+            amount,
+            mode: idxMode >= 0 ? String(row[idxMode] || 'Cash') : 'Cash',
+            chequeRef: idxRef >= 0 ? String(row[idxRef] || '') : '',
+            remarks: idxRemarks >= 0 ? String(row[idxRemarks] || '') : '',
+        });
     }
 
     return { candidates, warnings };
@@ -189,9 +268,19 @@ export function candidateSignature(vehicleId: string, dateIso: string, category:
     return `${vehicleId}|${day}|${category.toLowerCase()}|${Math.round(amount)}`;
 }
 
+/** Separate namespace from candidateSignature - these have no vehicle, only a party. */
+export function partyPaymentSignature(partyId: string, dateIso: string, amount: number): string {
+    const day = dateIso.slice(0, 10);
+    return `party-payment|${partyId}|${day}|${Math.round(amount)}`;
+}
+
 export interface ResolvedCandidate extends TripSheetCandidate {
     vehicleId: string;
     partyId?: string | null;
+}
+
+export interface ResolvedPaymentCandidate extends PaymentSheetCandidate {
+    partyId: string;
 }
 
 const BATCH_LIMIT = 400; // stay clear of Firestore's 500-op cap per batch
@@ -199,21 +288,21 @@ const BATCH_LIMIT = 400; // stay clear of Firestore's 500-op cap per batch
 /**
  * Writes resolved candidates at deterministic IDs, so re-running the same
  * import overwrites the same documents instead of duplicating them.
- * `existingSignatures` should already contain every vehicle/date/category/
- * amount combination already on record (manual entries included) - anything
- * matching is skipped rather than written.
+ * `existingSignatures` should already contain every signature already on
+ * record (manual entries included) - anything matching is skipped.
  *
- * Sales rows (trip freight) become Transaction docs directly, same as
- * before - there's no separate "sales" source collection they could belong
- * to without fabricating trip/party detail the import doesn't have.
- *
- * Payment rows (advance, fuel, insurance, etc.) become real Expense docs
- * instead, using the same id/voucher scheme addExpense() uses, plus the
- * matching mirrored ledger Transaction - so they show up in Expense History
- * (not just the raw ledger) and are editable there like any manual entry.
+ * - Sales rows (trip freight) -> Transaction, type 'Sales'.
+ * - Purchase rows (Trip Sheet charges) -> Transaction, type 'Purchase',
+ *   billingType 'Credit' and a purchaseNumber, so they read as an accrued
+ *   liability - not yet paid - and show up in Purchase History.
+ * - Payment rows (the Payments sheet) -> Transaction, type 'Payment', with a
+ *   voucherId so they show up in Payment/Receipt Logs, matching what a
+ *   manually entered voucher produces. No vehicleId: a payment settles a
+ *   party's running balance, not one specific trip.
  */
 export async function commitTripSheetImport(
-    candidates: ResolvedCandidate[],
+    tripCandidates: ResolvedCandidate[],
+    paymentCandidates: ResolvedPaymentCandidate[],
     existingSignatures: Set<string>,
     createdBy: string
 ): Promise<{ created: number; skipped: number }> {
@@ -236,7 +325,7 @@ export async function commitTripSheetImport(
         pending++;
     };
 
-    for (const c of candidates) {
+    for (const c of tripCandidates) {
         const signature = candidateSignature(c.vehicleId, c.dateIso, c.category, c.amount);
         if (seen.has(signature)) {
             skipped++;
@@ -245,11 +334,10 @@ export async function commitTripSheetImport(
         seen.add(signature);
         const hash = stableHash(signature);
         const remarks = `Imported from Trip Sheet row ${c.rowNumber}${c.remarks ? `: ${c.remarks}` : ''}`;
+        const particular = c.partyName ? `${c.category} - ${c.partyName}` : c.category;
 
         if (c.kind === 'Sales') {
-            const particular = c.partyName ? `${c.category} - ${c.partyName}` : c.category;
-            const ref = doc(collection(db, COLLECTIONS.TRANSACTIONS), `imp-${hash}`);
-            stage(ref, {
+            stage(doc(collection(db, COLLECTIONS.TRANSACTIONS), `imp-${hash}`), {
                 date: c.dateIso,
                 type: 'Sales',
                 category: c.category,
@@ -269,66 +357,67 @@ export async function commitTripSheetImport(
                 ownership: 'Sijan',
             });
         } else {
-            const voucherNo = `IMP-${hash}`;
-            const expenseId = `imp-exp-${hash}`;
-            const ledgerId = `ledger-${voucherNo}-cash`;
-
-            stage(doc(collection(db, COLLECTIONS.EXPENSES), expenseId), {
-                voucherNo,
+            const purchaseNumber = `IMP-${hash}`;
+            stage(doc(collection(db, COLLECTIONS.TRANSACTIONS), `imp-${hash}`), {
                 date: c.dateIso,
-                vehicleId: c.vehicleId,
-                expenseType: c.category,
-                partyId: c.partyId || null,
-                accountId: null,
-                itemId: null,
-                destination: null,
-                amount: c.amount,
-                extraAmount: 0,
-                extraRemarks: null,
-                paymentMode: 'Cash',
-                cashAmount: 0,
-                bankAmount: 0,
-                remarks,
-                createdBy,
-                createdAt: now,
-                ownership: 'Sijan',
-            });
-
-            const particular = `${voucherNo}: ${c.category}${c.partyName ? ` - ${c.partyName}` : ''} (Cash)`;
-            stage(doc(collection(db, COLLECTIONS.TRANSACTIONS), ledgerId), {
-                date: c.dateIso,
-                vehicleId: c.vehicleId,
-                type: 'Payment',
-                amount: c.amount,
-                billingType: 'Cash',
-                invoiceType: 'Normal',
+                type: 'Purchase',
                 category: c.category,
+                amount: c.amount,
+                vehicleId: c.vehicleId,
                 partyId: c.partyId || null,
                 accountId: null,
-                remarks,
-                referenceType: 'Expense Entry',
-                referenceId: voucherNo,
-                expenseId,
+                billingType: 'Credit',
+                invoiceType: 'Normal',
+                purchaseNumber,
                 items: [{ particular, quantity: 1, rate: c.amount }],
-                purchaseNumber: null,
-                dueDate: null,
-                invoiceNumber: null,
-                invoiceDate: null,
+                remarks: `${remarks} - charged, not yet paid (see Payments sheet for settlement)`,
+                referenceType: 'Excel Import (Trip Sheet)',
+                referenceId: null,
                 createdBy,
                 createdAt: now,
                 lastModifiedAt: now,
-                chequeNumber: null,
-                chequeDate: null,
-                tripId: null,
-                voucherId: voucherNo,
-                lastModifiedBy: null,
                 ownership: 'Sijan',
             });
         }
         created++;
         if (pending >= BATCH_LIMIT) await flush();
     }
-    await flush();
 
+    for (const p of paymentCandidates) {
+        const signature = partyPaymentSignature(p.partyId, p.dateIso, p.amount);
+        if (seen.has(signature)) {
+            skipped++;
+            continue;
+        }
+        seen.add(signature);
+        const hash = stableHash(signature);
+        const voucherId = `IMP-PMT-${hash}`;
+        const remarks = `Imported from Payments sheet row ${p.rowNumber}${p.remarks ? `: ${p.remarks}` : ''}`;
+
+        stage(doc(collection(db, COLLECTIONS.TRANSACTIONS), `imp-pmt-${hash}`), {
+            date: p.dateIso,
+            type: 'Payment',
+            amount: p.amount,
+            vehicleId: null,
+            partyId: p.partyId,
+            accountId: null,
+            billingType: mapPaymentMode(p.mode),
+            invoiceType: 'Normal',
+            chequeNumber: p.chequeRef || null,
+            items: [{ particular: `Payment to ${p.partyName}`, quantity: 1, rate: p.amount }],
+            remarks,
+            referenceType: 'Excel Import (Payments)',
+            referenceId: null,
+            voucherId,
+            createdBy,
+            createdAt: now,
+            lastModifiedAt: now,
+            ownership: 'Sijan',
+        });
+        created++;
+        if (pending >= BATCH_LIMIT) await flush();
+    }
+
+    await flush();
     return { created, skipped };
 }
