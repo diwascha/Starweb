@@ -66,6 +66,7 @@ const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; 
     { type: 'Insurance', label: 'Insurance / Membership', sub: 'Policy premium', icon: ShieldCheck, color: 'text-purple-600 bg-purple-50 border-purple-200' },
     { type: 'Tax/Renewal', label: 'Tax / Renewal', sub: 'Road tax, permit, bluebook', icon: FileText, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
     { type: 'Loan Repayment', label: 'Loan Repayment', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
+    { type: 'Transport', label: 'Transport Fee', sub: 'Truck hire / owner fee', icon: ArrowRightLeft, color: 'text-teal-600 bg-teal-50 border-teal-200' },
     { type: 'Other', label: 'Other', sub: 'Miscellaneous', icon: MoreHorizontal, color: 'text-slate-600 bg-slate-50 border-slate-200' },
 ];
 
@@ -79,7 +80,7 @@ const expenseSchema = z.object({
     voucherNo: z.string().min(1, "Voucher No is required."),
     date: z.date(),
     vehicleId: z.string().min(1, "Truck is required."),
-    expenseType: z.enum(['Advance', 'Maintenance', 'Loan Repayment', 'Insurance', 'Fuel', 'Tax/Renewal', 'Other', 'Vendor Purchase']),
+    expenseType: z.enum(['Advance', 'Maintenance', 'Loan Repayment', 'Insurance', 'Fuel', 'Tax/Renewal', 'Transport', 'Other', 'Vendor Purchase']),
     amount: z.number().min(1, "Amount must be positive."),
     extraAmount: z.number().optional().default(0),
     extraRemarks: z.string().optional(),

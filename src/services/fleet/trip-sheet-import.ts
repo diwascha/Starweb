@@ -41,6 +41,31 @@ function findHeaderRow(grid: any[][], mustContain: string): number {
     return -1;
 }
 
+/**
+ * Setup sheet "Type" values (free text, from the company's own workbook) ->
+ * the app's fixed ExpenseType enum, so imported costs land in the same
+ * categories the Expense form itself offers - and so they can dedupe
+ * against, or later be edited as, an ordinary Expense record.
+ */
+const EXPENSE_TYPE_MAP: Record<string, string> = {
+    'fuel': 'Fuel',
+    'tyre': 'Maintenance',
+    'tyre resole': 'Maintenance',
+    'spare parts': 'Maintenance',
+    'government': 'Tax/Renewal',
+    'association': 'Tax/Renewal',
+    'vat': 'Tax/Renewal',
+    'advance': 'Advance',
+    'transport': 'Transport',
+    'truck owner': 'Transport',
+    'misc. exp': 'Other',
+    'misc exp': 'Other',
+};
+
+function mapToExpenseType(rawType: string): string {
+    return EXPENSE_TYPE_MAP[rawType.trim().toLowerCase()] || 'Other';
+}
+
 /** Party Name -> Type, read from the Setup sheet's Parties table. */
 export function parsePartyTypeMap(setupGrid: any[][] | undefined | null): Map<string, string> {
     const map = new Map<string, string>();
@@ -135,7 +160,8 @@ export function parseTripSheet(grid: any[][], partyTypeMap: Map<string, string>)
         for (const dc of dynamicCols) {
             const amt = Number(row[dc.index]) || 0;
             if (amt !== 0) {
-                const category = partyTypeMap.get(dc.name.toLowerCase()) || dc.name;
+                const rawType = partyTypeMap.get(dc.name.toLowerCase()) || dc.name;
+                const category = mapToExpenseType(rawType);
                 candidates.push({ rowNumber: r + 1, dateIso, vehicleText: vehicleTextTrimmed, numParties, kind: 'Payment', category, partyName: dc.name, amount: Math.abs(amt), remarks });
             }
         }
@@ -171,11 +197,20 @@ export interface ResolvedCandidate extends TripSheetCandidate {
 const BATCH_LIMIT = 400; // stay clear of Firestore's 500-op cap per batch
 
 /**
- * Writes resolved candidates as Transaction docs at deterministic IDs, so
- * re-running the same import overwrites the same documents instead of
- * duplicating them. `existingSignatures` should already contain every
- * vehicle/date/category/amount combination already on record (manual entries
- * included) - anything matching is skipped rather than written.
+ * Writes resolved candidates at deterministic IDs, so re-running the same
+ * import overwrites the same documents instead of duplicating them.
+ * `existingSignatures` should already contain every vehicle/date/category/
+ * amount combination already on record (manual entries included) - anything
+ * matching is skipped rather than written.
+ *
+ * Sales rows (trip freight) become Transaction docs directly, same as
+ * before - there's no separate "sales" source collection they could belong
+ * to without fabricating trip/party detail the import doesn't have.
+ *
+ * Payment rows (advance, fuel, insurance, etc.) become real Expense docs
+ * instead, using the same id/voucher scheme addExpense() uses, plus the
+ * matching mirrored ledger Transaction - so they show up in Expense History
+ * (not just the raw ledger) and are editable there like any manual entry.
  */
 export async function commitTripSheetImport(
     candidates: ResolvedCandidate[],
@@ -196,6 +231,10 @@ export async function commitTripSheetImport(
         batch = writeBatch(db);
         pending = 0;
     };
+    const stage = (ref: ReturnType<typeof doc>, data: Record<string, unknown>) => {
+        batch.set(ref, data);
+        pending++;
+    };
 
     for (const c of candidates) {
         const signature = candidateSignature(c.vehicleId, c.dateIso, c.category, c.amount);
@@ -204,30 +243,88 @@ export async function commitTripSheetImport(
             continue;
         }
         seen.add(signature);
+        const hash = stableHash(signature);
+        const remarks = `Imported from Trip Sheet row ${c.rowNumber}${c.remarks ? `: ${c.remarks}` : ''}`;
 
-        const id = `imp-${stableHash(signature)}`;
-        const ref = doc(collection(db, COLLECTIONS.TRANSACTIONS), id);
-        const particular = c.partyName ? `${c.category} - ${c.partyName}` : c.category;
-        batch.set(ref, {
-            date: c.dateIso,
-            type: c.kind,
-            category: c.category,
-            amount: c.amount,
-            vehicleId: c.vehicleId,
-            partyId: c.partyId || null,
-            accountId: null,
-            billingType: 'Cash',
-            invoiceType: 'Normal',
-            items: [{ particular, quantity: 1, rate: c.amount }],
-            remarks: `Imported from Trip Sheet row ${c.rowNumber}${c.remarks ? `: ${c.remarks}` : ''}`,
-            referenceType: 'Excel Import (Trip Sheet)',
-            referenceId: null,
-            createdBy,
-            createdAt: now,
-            lastModifiedAt: now,
-            ownership: 'Sijan',
-        });
-        pending++;
+        if (c.kind === 'Sales') {
+            const particular = c.partyName ? `${c.category} - ${c.partyName}` : c.category;
+            const ref = doc(collection(db, COLLECTIONS.TRANSACTIONS), `imp-${hash}`);
+            stage(ref, {
+                date: c.dateIso,
+                type: 'Sales',
+                category: c.category,
+                amount: c.amount,
+                vehicleId: c.vehicleId,
+                partyId: c.partyId || null,
+                accountId: null,
+                billingType: 'Cash',
+                invoiceType: 'Normal',
+                items: [{ particular, quantity: 1, rate: c.amount }],
+                remarks,
+                referenceType: 'Excel Import (Trip Sheet)',
+                referenceId: null,
+                createdBy,
+                createdAt: now,
+                lastModifiedAt: now,
+                ownership: 'Sijan',
+            });
+        } else {
+            const voucherNo = `IMP-${hash}`;
+            const expenseId = `imp-exp-${hash}`;
+            const ledgerId = `ledger-${voucherNo}-cash`;
+
+            stage(doc(collection(db, COLLECTIONS.EXPENSES), expenseId), {
+                voucherNo,
+                date: c.dateIso,
+                vehicleId: c.vehicleId,
+                expenseType: c.category,
+                partyId: c.partyId || null,
+                accountId: null,
+                itemId: null,
+                destination: null,
+                amount: c.amount,
+                extraAmount: 0,
+                extraRemarks: null,
+                paymentMode: 'Cash',
+                cashAmount: 0,
+                bankAmount: 0,
+                remarks,
+                createdBy,
+                createdAt: now,
+                ownership: 'Sijan',
+            });
+
+            const particular = `${voucherNo}: ${c.category}${c.partyName ? ` - ${c.partyName}` : ''} (Cash)`;
+            stage(doc(collection(db, COLLECTIONS.TRANSACTIONS), ledgerId), {
+                date: c.dateIso,
+                vehicleId: c.vehicleId,
+                type: 'Payment',
+                amount: c.amount,
+                billingType: 'Cash',
+                invoiceType: 'Normal',
+                category: c.category,
+                partyId: c.partyId || null,
+                accountId: null,
+                remarks,
+                referenceType: 'Expense Entry',
+                referenceId: voucherNo,
+                expenseId,
+                items: [{ particular, quantity: 1, rate: c.amount }],
+                purchaseNumber: null,
+                dueDate: null,
+                invoiceNumber: null,
+                invoiceDate: null,
+                createdBy,
+                createdAt: now,
+                lastModifiedAt: now,
+                chequeNumber: null,
+                chequeDate: null,
+                tripId: null,
+                voucherId: voucherNo,
+                lastModifiedBy: null,
+                ownership: 'Sijan',
+            });
+        }
         created++;
         if (pending >= BATCH_LIMIT) await flush();
     }
