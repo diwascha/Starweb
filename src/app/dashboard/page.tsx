@@ -18,7 +18,8 @@ import {
   Scale,
   Package,
   MousePointer2,
-  AlertCircle
+  AlertCircle,
+  Building2
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -618,7 +619,8 @@ export default function DashboardPage() {
         prevRevenue: previousRev,
         productCount: products.length,
         costReportCount: costReports.length,
-        gsmReportCount: gsmReports.length
+        gsmReportCount: gsmReports.length,
+        unpaidRentCount: unpaidRentBills.length,
       },
       urgentActions: actions,
     };
@@ -646,6 +648,7 @@ export default function DashboardPage() {
   const canFleet = hasPermission('fleet', 'view');
   const canPO = hasPermission('purchaseOrders', 'view');
   const canCRM = hasPermission('crm', 'view');
+  const canRental = hasPermission('rental', 'view');
 
   const revProgress = useMemo(() => {
     if (stats.prevRevenue.total <= 0) return 0;
@@ -773,7 +776,7 @@ export default function DashboardPage() {
                 />
               ))}
 
-            {canFleet &&
+            {canFleet && isIncluded('fleet') &&
               (alertsLoading ? (
                 <StatCardSkeleton />
               ) : (
@@ -804,7 +807,7 @@ export default function DashboardPage() {
                 />
               ))}
 
-            {canFinance &&
+            {canFinance && isIncluded('finance') &&
               (alertsLoading ? (
                 <StatCardSkeleton />
               ) : (
@@ -835,7 +838,7 @@ export default function DashboardPage() {
                 />
               ))}
 
-            {canCRM && (
+            {canCRM && isIncluded('reports') && (
                <ValueTile
                 href="/crm/pack-spec"
                 accent="border-l-blue-400"
@@ -850,7 +853,7 @@ export default function DashboardPage() {
               />
             )}
 
-            {canPO && (
+            {canPO && isIncluded('purchaseOrders') && (
               <ValueTile
                 href="/purchase-orders/list"
                 accent="border-l-amber-500"
@@ -859,6 +862,18 @@ export default function DashboardPage() {
                 sub="Active Orders"
                 icon={ShoppingCart}
                 iconClass="text-amber-500"
+              />
+            )}
+
+            {canRental && isIncluded('rental') && (
+              <ValueTile
+                href="/rental/billing"
+                accent="border-l-purple-400"
+                label="Rental Collections · Current Month"
+                value={`Rs.${nf(stats.revenue.rental)}`}
+                sub={stats.unpaidRentCount > 0 ? `${stats.unpaidRentCount} unpaid bill(s)` : 'All bills settled'}
+                icon={Building2}
+                iconClass="text-purple-400"
               />
             )}
 

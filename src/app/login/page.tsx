@@ -169,18 +169,26 @@ export default function LoginPage() {
 
       await login(cloudUser, false);
 
-      // Trigger automatic backup download on login
+      // Auto-backup download - at most once per calendar day per user (this
+      // backup is currently ~16MB and was downloading on every single login,
+      // which is both slow and fills the Downloads folder fast).
       try {
-        const backupData = await exportData();
-        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `starsutra-autobackup-${cloudUser.username}-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        const today = new Date().toISOString().split('T')[0];
+        const lastBackupKey = `starsutra:lastAutoBackup:${cloudUser.username}`;
+        const lastBackupDate = localStorage.getItem(lastBackupKey);
+        if (lastBackupDate !== today) {
+          const backupData = await exportData();
+          const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `starsutra-autobackup-${cloudUser.username}-${today}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          localStorage.setItem(lastBackupKey, today);
+        }
       } catch (backupError) {
         console.error("Auto-backup download failed:", backupError);
       }
