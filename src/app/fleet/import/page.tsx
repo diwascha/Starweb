@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Upload, FileSpreadsheet, Loader2, AlertTriangle, CheckCircle2, Truck, Users } from 'lucide-react';
+import { Upload, FileSpreadsheet, Loader2, AlertTriangle, CheckCircle2, Truck, Users, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate, addVehicle } from '@/services/vehicle-service';
@@ -21,12 +21,28 @@ import {
     candidateSignature,
     partyPaymentSignature,
     commitTripSheetImport,
+    deleteImportedTransactions,
+    IMPORT_REFERENCE_TYPES,
     type TripSheetCandidate,
     type PaymentSheetCandidate,
     type ResolvedCandidate,
     type ResolvedPaymentCandidate,
 } from '@/services/fleet/trip-sheet-import';
 import { toNepaliDate } from '@/lib/utils';
+import { NEPALI_MONTHS } from '@/lib/constants';
+import NepaliDate from 'nepali-date-converter';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type PreviewStatus = 'new' | 'duplicate' | 'new-vehicle';
 
@@ -56,6 +72,12 @@ export default function FleetImportPage() {
     const [paymentCandidates, setPaymentCandidates] = useState<PaymentSheetCandidate[]>([]);
     const [warnings, setWarnings] = useState<string[]>([]);
     const [importResult, setImportResult] = useState<{ created: number; skipped: number } | null>(null);
+
+    const currentBs = new NepaliDate();
+    const [clearYear, setClearYear] = useState(String(currentBs.getYear()));
+    const [clearMonth, setClearMonth] = useState(String(currentBs.getMonth()));
+    const [isClearing, setIsClearing] = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
 
     useEffect(() => {
         const unsubV = onVehiclesUpdate(setVehicles);
@@ -115,6 +137,36 @@ export default function FleetImportPage() {
         const totalAmount = toImport.reduce((s, r) => s + r.amount, 0);
         return { toImportCount: toImport.length, duplicateCount: duplicates.length, totalAmount };
     }, [previewRows]);
+
+    const clearYears = useMemo(() => {
+        const thisYear = new NepaliDate().getYear();
+        return Array.from({ length: 6 }, (_, i) => thisYear - i);
+    }, []);
+
+    const importedTransactionsInMonth = useMemo(() => {
+        const year = Number(clearYear);
+        const month = Number(clearMonth);
+        const start = new NepaliDate(year, month, 1).toJsDate();
+        const end = new NepaliDate(month === 11 ? year + 1 : year, month === 11 ? 0 : month + 1, 1).toJsDate();
+        return transactions.filter(t => {
+            if (!t.referenceType || !(IMPORT_REFERENCE_TYPES as readonly string[]).includes(t.referenceType)) return false;
+            const d = new Date(t.date);
+            return d >= start && d < end;
+        });
+    }, [transactions, clearYear, clearMonth]);
+
+    const handleClearMonth = async () => {
+        setIsClearing(true);
+        try {
+            const count = await deleteImportedTransactions(importedTransactionsInMonth.map(t => t.id));
+            toast({ title: 'Cleared', description: `${count} imported record(s) removed for this month. Manual entries were not touched.` });
+            setShowClearConfirm(false);
+        } catch (error: any) {
+            toast({ title: 'Clear failed', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsClearing(false);
+        }
+    };
 
     const resetImport = () => {
         setFileName(null);
@@ -232,6 +284,56 @@ export default function FleetImportPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2"><Trash2 className="h-4 w-4 text-destructive" /> Clear Imported Data</CardTitle>
+                    <CardDescription>Remove a month's imported records if a file was uploaded twice or the wrong file was used. Only removes records tagged as coming from an Excel import - manual entries, expenses, and trips are never touched.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                        <Select value={clearMonth} onValueChange={setClearMonth}>
+                            <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={clearYear} onValueChange={setClearYear}>
+                            <SelectTrigger className="h-9 w-28"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {clearYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <span className="text-sm text-muted-foreground">{importedTransactionsInMonth.length} imported record(s) found for this month</span>
+                        <Button
+                            variant="outline"
+                            className="border-destructive text-destructive hover:bg-destructive/5 sm:ml-auto"
+                            disabled={importedTransactionsInMonth.length === 0}
+                            onClick={() => setShowClearConfirm(true)}
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" /> Clear This Month
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete {importedTransactionsInMonth.length} imported record(s)?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This removes every Excel-imported Purchase/Sales/Payment record dated in {NEPALI_MONTHS.find(m => String(m.value) === clearMonth)?.name} {clearYear}.
+                            Manually entered transactions, expenses, and trips for the same month are not affected. This cannot be undone - re-import the file afterward if needed.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isClearing}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearMonth} disabled={isClearing} className="bg-destructive hover:bg-destructive/90">
+                            {isClearing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Clearing...</> : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {warnings.length > 0 && (
                 <Alert variant="destructive">

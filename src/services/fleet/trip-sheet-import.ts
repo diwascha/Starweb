@@ -209,6 +209,7 @@ export function parsePaymentsSheet(grid: any[][]): { candidates: PaymentSheetCan
     const col = (name: string) => headers.findIndex(h => h === name);
 
     const idxDateAD = col('Date (A.D)');
+    const idxDateBS = col('Date (B.S)');
     const idxParty = col('Party');
     const idxAmount = col('Amount');
     const idxMode = col('Mode');
@@ -229,7 +230,12 @@ export function parsePaymentsSheet(grid: any[][]): { candidates: PaymentSheetCan
         const amount = idxAmount >= 0 ? Number(row[idxAmount]) || 0 : 0;
         if (amount <= 0) continue;
 
-        const dateIso = idxDateAD >= 0 ? toIsoDate(row[idxDateAD]) : null;
+        // This workbook's "Date (A.D)" column is often left blank on the
+        // Payments sheet - only "Date (B.S)" is filled in, and Excel stores
+        // it as a real date serial (just custom-formatted to look like a BS
+        // date), so it parses as a normal JS Date too. Fall back to it.
+        const dateIso = (idxDateAD >= 0 ? toIsoDate(row[idxDateAD]) : null)
+            ?? (idxDateBS >= 0 ? toIsoDate(row[idxDateBS]) : null);
         if (!dateIso) {
             warnings.push(`Payments row ${r + 1}: missing or unreadable date - skipped.`);
             continue;
@@ -420,4 +426,32 @@ export async function commitTripSheetImport(
 
     await flush();
     return { created, skipped };
+}
+
+/** Both referenceType tags this importer ever writes - the only records "Clear Imported Data" is allowed to touch. */
+export const IMPORT_REFERENCE_TYPES = ['Excel Import (Trip Sheet)', 'Excel Import (Payments)'] as const;
+
+/**
+ * Deletes specific transaction docs by id, batched. Used by the "Clear
+ * Imported Data" action - callers must only pass ids of documents already
+ * confirmed to carry one of IMPORT_REFERENCE_TYPES, never arbitrary ids.
+ */
+export async function deleteImportedTransactions(ids: string[]): Promise<number> {
+    const { db } = getFirebase();
+    let batch = writeBatch(db);
+    let pending = 0;
+    let deleted = 0;
+
+    for (const id of ids) {
+        batch.delete(doc(collection(db, COLLECTIONS.TRANSACTIONS), id));
+        pending++;
+        deleted++;
+        if (pending >= BATCH_LIMIT) {
+            await batch.commit();
+            batch = writeBatch(db);
+            pending = 0;
+        }
+    }
+    if (pending > 0) await batch.commit();
+    return deleted;
 }
