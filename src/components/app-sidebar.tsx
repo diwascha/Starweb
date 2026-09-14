@@ -459,15 +459,13 @@ export function AppSidebar() {
                             <SidebarGroupLabel className="px-5 py-2 text-[10px] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
                             <SidebarMenuSub>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/purchase-sales')}><Link href="/fleet/transactions/purchase-sales" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Purchase &amp; Sales</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/expenses', true)}><Link href="/fleet/transactions/expenses" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Expense History</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/list', true)}><Link href="/fleet/transactions/payment-receipt/list" className="flex items-center gap-2"><Receipt className="h-4 w-4" /><span>Payment &amp; Receipts</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/expense-payment')}><Link href="/fleet/transactions/expense-payment/expenses" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Expenses / Payment &amp; Receipts</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions" className="flex items-center gap-2"><CreditCard className="h-4 w-4" /><span>Grand Ledger</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
 
                             <SidebarGroupLabel className="px-5 py-2 text-[10px] uppercase text-muted-foreground font-bold">Reports</SidebarGroupLabel>
                             <SidebarMenuSub>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/reports/truck-pnl')}><Link href="/fleet/reports/truck-pnl" className="flex items-center gap-2"><BarChart2 className="h-4 w-4" /><span>Truck P&amp;L</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/reports/party-dues')}><Link href="/fleet/reports/party-dues" className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Party Dues</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/reports')}><Link href="/fleet/reports/truck-pnl" className="flex items-center gap-2"><BarChart2 className="h-4 w-4" /><span>Truck P&amp;L / Party Dues</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>
                     </SidebarMenuItem>

@@ -6,14 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Truck, TrendingUp, TrendingDown, Search } from 'lucide-react';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import type { Transaction, Vehicle } from '@/lib/types';
-import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
-import type { DateRange } from 'react-day-picker';
-import { isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
+import { NEPALI_MONTHS } from '@/lib/constants';
+import NepaliDate from 'nepali-date-converter';
 
 interface TruckPnl {
     vehicle: Vehicle;
@@ -29,7 +29,9 @@ export default function TruckPnlPage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [filterYear, setFilterYear] = useState('All');
+    const [filterMonth, setFilterMonth] = useState('All');
+    const [filterVehicleId, setFilterVehicleId] = useState('All');
     const { inScope } = useOwnershipScope('fleet');
 
     useEffect(() => {
@@ -40,12 +42,26 @@ export default function TruckPnlPage() {
         return () => { unsubTx(); unsubVeh(); };
     }, [inScope]);
 
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        transactions.forEach(t => { try { years.add(new NepaliDate(new Date(t.date)).getYear()); } catch {} });
+        return Array.from(years).sort((a, b) => b - a);
+    }, [transactions]);
+
     const filteredTransactions = useMemo(() => {
-        if (!dateRange?.from) return transactions;
-        const from = startOfDay(dateRange.from);
-        const to = endOfDay(dateRange.to || dateRange.from);
-        return transactions.filter(t => isWithinInterval(new Date(t.date), { start: from, end: to }));
-    }, [transactions, dateRange]);
+        return transactions.filter(t => {
+            if (filterVehicleId !== 'All' && t.vehicleId !== filterVehicleId) return false;
+            if (filterYear === 'All' && filterMonth === 'All') return true;
+            try {
+                const bs = new NepaliDate(new Date(t.date));
+                if (filterYear !== 'All' && bs.getYear() !== Number(filterYear)) return false;
+                if (filterMonth !== 'All' && bs.getMonth() !== Number(filterMonth)) return false;
+                return true;
+            } catch {
+                return false;
+            }
+        });
+    }, [transactions, filterYear, filterMonth, filterVehicleId]);
 
     const truckPnls = useMemo<TruckPnl[]>(() => {
         return vehicles.map(vehicle => {
@@ -90,12 +106,32 @@ export default function TruckPnlPage() {
 
             <Card>
                 <CardContent className="pt-6 space-y-4">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="relative flex-1 max-w-sm">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                        <div className="relative flex-1 min-w-[180px] max-w-sm">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Search truck..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
                         </div>
-                        <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
+                        <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                            <SelectTrigger className="h-9 w-40"><SelectValue placeholder="All Trucks" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Trucks</SelectItem>
+                                {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={filterMonth} onValueChange={setFilterMonth}>
+                            <SelectTrigger className="h-9 w-36"><SelectValue placeholder="All Months" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Months</SelectItem>
+                                {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={filterYear} onValueChange={setFilterYear}>
+                            <SelectTrigger className="h-9 w-28"><SelectValue placeholder="All Years" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Years</SelectItem>
+                                {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <Table>

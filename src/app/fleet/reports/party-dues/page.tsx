@@ -7,11 +7,14 @@ import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, Search, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import type { Transaction, Party } from '@/lib/types';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
+import { NEPALI_MONTHS } from '@/lib/constants';
+import NepaliDate from 'nepali-date-converter';
 
 interface PartyDue {
     party: Party;
@@ -26,6 +29,9 @@ export default function PartyDuesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [showZero, setShowZero] = useState(false);
+    const [filterYear, setFilterYear] = useState('All');
+    const [filterMonth, setFilterMonth] = useState('All');
+    const [filterPartyId, setFilterPartyId] = useState('All');
     const { inScope } = useOwnershipScope('fleet');
 
     useEffect(() => {
@@ -36,17 +42,39 @@ export default function PartyDuesPage() {
         return () => { unsubTx(); unsubParty(); };
     }, [inScope]);
 
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        transactions.forEach(t => { try { years.add(new NepaliDate(new Date(t.date)).getYear()); } catch {} });
+        return Array.from(years).sort((a, b) => b - a);
+    }, [transactions]);
+
+    const filteredTransactions = useMemo(() => {
+        if (filterYear === 'All' && filterMonth === 'All') return transactions;
+        return transactions.filter(t => {
+            try {
+                const bs = new NepaliDate(new Date(t.date));
+                if (filterYear !== 'All' && bs.getYear() !== Number(filterYear)) return false;
+                if (filterMonth !== 'All' && bs.getMonth() !== Number(filterMonth)) return false;
+                return true;
+            } catch {
+                return false;
+            }
+        });
+    }, [transactions, filterYear, filterMonth]);
+
     const partyDues = useMemo<PartyDue[]>(() => {
-        return parties.map(party => {
-            const partyTxns = transactions.filter(t => t.partyId === party.id);
-            const debit = partyTxns.filter(t => t.type === 'Payment' || t.type === 'Sales').reduce((s, t) => s + t.amount, 0);
-            const credit = partyTxns.filter(t => t.type === 'Purchase' || t.type === 'Receipt').reduce((s, t) => s + t.amount, 0);
-            return { party, debit, credit, balance: debit - credit };
-        })
-        .filter(p => showZero || Math.abs(p.balance) > 0.5)
-        .filter(p => p.party.name.toLowerCase().includes(search.toLowerCase()))
-        .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
-    }, [parties, transactions, search, showZero]);
+        return parties
+            .filter(party => filterPartyId === 'All' || party.id === filterPartyId)
+            .map(party => {
+                const partyTxns = filteredTransactions.filter(t => t.partyId === party.id);
+                const debit = partyTxns.filter(t => t.type === 'Payment' || t.type === 'Sales').reduce((s, t) => s + t.amount, 0);
+                const credit = partyTxns.filter(t => t.type === 'Purchase' || t.type === 'Receipt').reduce((s, t) => s + t.amount, 0);
+                return { party, debit, credit, balance: debit - credit };
+            })
+            .filter(p => showZero || Math.abs(p.balance) > 0.5)
+            .filter(p => p.party.name.toLowerCase().includes(search.toLowerCase()))
+            .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+    }, [parties, filteredTransactions, search, showZero, filterPartyId]);
 
     const totals = useMemo(() => partyDues.reduce((acc, p) => ({
         receivable: acc.receivable + (p.balance > 0 ? p.balance : 0),
@@ -67,12 +95,33 @@ export default function PartyDuesPage() {
 
             <Card>
                 <CardContent className="pt-6 space-y-4">
-                    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                        <div className="relative flex-1 max-w-sm">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-center">
+                        <div className="relative flex-1 min-w-[180px] max-w-sm">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Search party..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
                         </div>
-                        <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setShowZero(v => !v)}>
+                        <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                            <SelectTrigger className="h-9 w-44"><SelectValue placeholder="All Parties" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Parties</SelectItem>
+                                {parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={filterMonth} onValueChange={setFilterMonth}>
+                            <SelectTrigger className="h-9 w-36"><SelectValue placeholder="All Months" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Months</SelectItem>
+                                {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={filterYear} onValueChange={setFilterYear}>
+                            <SelectTrigger className="h-9 w-28"><SelectValue placeholder="All Years" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Years</SelectItem>
+                                {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Button variant="outline" size="sm" className="h-9 text-xs sm:ml-auto" onClick={() => setShowZero(v => !v)}>
                             {showZero ? 'Hide settled parties' : 'Show all parties'}
                         </Button>
                     </div>
