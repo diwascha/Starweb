@@ -161,10 +161,33 @@ export function AppSidebar() {
     const normalizedTarget = getNormalizedPath(path);
 
     if (exact) return normalizedPath === normalizedTarget;
-    return normalizedPath.startsWith(normalizedTarget) && 
+    return normalizedPath.startsWith(normalizedTarget) &&
            (normalizedPath[normalizedTarget.length] === '/' || normalizedPath.length === normalizedTarget.length);
   };
-  
+
+  // Accordion behavior for the module sections below: `defaultOpen` on a
+  // Collapsible only sets its INITIAL state, so navigating from one module to
+  // another (client-side, no remount) used to leave every previously visited
+  // module's section expanded too - the sidebar only ever grew taller.
+  // Tracking one open section here and driving each Collapsible off it keeps
+  // exactly one expanded at a time, matching the current route.
+  const sectionForPath = (): string | null => {
+    if (getIsActive('/finance')) return 'finance';
+    if (getIsActive('/reports') || getIsActive('/report') || getIsActive('/products')) return 'reports';
+    if (getIsActive('/purchase-orders') || getIsActive('/raw-materials')) return 'purchaseOrders';
+    if (getIsActive('/crm')) return 'crm';
+    if (getIsActive('/hr')) return 'hr';
+    if (getIsActive('/fleet')) return 'fleet';
+    if (getIsActive('/rental')) return 'rental';
+    if (getIsActive('/settings')) return 'settings';
+    return null;
+  };
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  useEffect(() => {
+    setOpenSection(sectionForPath());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   if (!user) {
     return null;
   }
@@ -194,7 +217,7 @@ export function AppSidebar() {
         </SidebarMenu>
         
         {hasPermission('finance', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/finance')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'finance'} onOpenChange={(v: boolean) => setOpenSection(v ? 'finance' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -233,7 +256,7 @@ export function AppSidebar() {
         )}
 
         {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
-            <Collapsible asChild defaultOpen={getIsActive('/reports') || getIsActive('/report') || getIsActive('/products')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'reports'} onOpenChange={(v: boolean) => setOpenSection(v ? 'reports' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -272,7 +295,7 @@ export function AppSidebar() {
         )}
         
         {(hasPermission('purchaseOrders', 'view') || hasPermission('rawMaterials', 'view')) && (
-            <Collapsible asChild defaultOpen={getIsActive('/purchase-orders') || getIsActive('/raw-materials')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'purchaseOrders'} onOpenChange={(v: boolean) => setOpenSection(v ? 'purchaseOrders' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -316,7 +339,7 @@ export function AppSidebar() {
         )}
 
         {hasPermission('crm', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/crm')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'crm'} onOpenChange={(v: boolean) => setOpenSection(v ? 'crm' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -358,7 +381,7 @@ export function AppSidebar() {
         )}
     
         {hasPermission('hr', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/hr')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'hr'} onOpenChange={(v: boolean) => setOpenSection(v ? 'hr' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -392,7 +415,7 @@ export function AppSidebar() {
         )}
         
         {hasPermission('fleet', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/fleet')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'fleet'} onOpenChange={(v: boolean) => setOpenSection(v ? 'fleet' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -454,7 +477,7 @@ export function AppSidebar() {
         )}
 
         {hasPermission('rental', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/rental')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'rental'} onOpenChange={(v: boolean) => setOpenSection(v ? 'rental' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -489,7 +512,7 @@ export function AppSidebar() {
             )}
         </SidebarMenu>
 
-        <Collapsible asChild defaultOpen={getIsActive('/settings')} className="group/collapsible">
+        <Collapsible asChild open={openSection === 'settings'} onOpenChange={(v: boolean) => setOpenSection(v ? 'settings' : null)} className="group/collapsible">
             <SidebarMenu>
                 <SidebarSeparator />
                 <SidebarMenuItem>

@@ -68,6 +68,20 @@ import {
 } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { SlidersHorizontal } from 'lucide-react';
+
+/* Which module's data feeds the dashboard's combined stats - lets the user
+ * include/exclude a module's contribution without leaving the page. */
+const DASHBOARD_MODULES = [
+  { key: 'finance', label: 'Finance' },
+  { key: 'fleet', label: 'Fleet' },
+  { key: 'rental', label: 'Rental' },
+  { key: 'purchaseOrders', label: 'Purchase Orders' },
+  { key: 'reports', label: 'Reports / Quotations' },
+] as const;
+type DashboardModuleKey = typeof DASHBOARD_MODULES[number]['key'];
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -342,6 +356,18 @@ export default function DashboardPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
 
+  const [includedModules, setIncludedModules] = useState<Set<DashboardModuleKey>>(
+    () => new Set(DASHBOARD_MODULES.map((m) => m.key))
+  );
+  const isIncluded = useCallback((m: DashboardModuleKey) => includedModules.has(m), [includedModules]);
+  const toggleModule = (m: DashboardModuleKey) => {
+    setIncludedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m); else next.add(m);
+      return next;
+    });
+  };
+
   const [ready, setReady] = useState<Record<string, boolean>>({});
   const markReady = useCallback(
     (key: string) => setReady((r) => (r[key] ? r : { ...r, [key]: true })),
@@ -360,25 +386,25 @@ export default function DashboardPage() {
       };
 
     const unsubs = [
-      onPoliciesUpdate(wrap('policies', (v: PolicyOrMembership[]) => setPolicies(v.filter((p) => inScopeFleet(p.ownership))))),
-      onPurchaseOrdersUpdate(wrap('pos', (v: PurchaseOrder[]) => setPurchaseOrders(v.filter((p) => inScopePO(p.ownership))))),
-      onEstimatedInvoicesUpdate(wrap('invoices', (v: EstimatedInvoice[]) => setInvoices(v.filter((i) => inScopeFinance(i.ownership))))),
+      onPoliciesUpdate(wrap('policies', (v: PolicyOrMembership[]) => setPolicies(isIncluded('fleet') ? v.filter((p) => inScopeFleet(p.ownership)) : []))),
+      onPurchaseOrdersUpdate(wrap('pos', (v: PurchaseOrder[]) => setPurchaseOrders(isIncluded('purchaseOrders') ? v.filter((p) => inScopePO(p.ownership)) : []))),
+      onEstimatedInvoicesUpdate(wrap('invoices', (v: EstimatedInvoice[]) => setInvoices(isIncluded('finance') ? v.filter((i) => inScopeFinance(i.ownership)) : []))),
       onPageVisitsUpdate(wrap('visits', setPageVisits)),
-      onChequesUpdate(wrap('cheques', (v: Cheque[]) => setCheques(v.filter((c) => inScopeFinance(c.ownership))))),
-      onTripsUpdate(wrap('trips', (v: Trip[]) => setTrips(v.filter((t) => inScopeFleet(t.ownership))))),
-      onRentalBillsUpdate(wrap('rental', (v: RentalBill[]) => setRentalBills(v.filter((r) => inScopeRental(r.ownership))))),
-      onProductsUpdate(wrap('products', (v: Product[]) => setProducts(v.filter((p) => inScopeReports(p.ownership))))),
-      onCostReportsUpdate(wrap('costReports', (v: CostReport[]) => setCostReports(v.filter((c) => inScopeReports(c.ownership))))),
-      onGsmReportsUpdate(wrap('gsmReports', (v: GsmReport[]) => setGsmReports(v.filter((g) => inScopeReports(g.ownership))))),
-      onVehiclesUpdate(wrap('vehicles', (v: Vehicle[]) => setVehicles(v.filter((veh) => inScopeFleet(veh.ownership))))),
-      onDriversUpdate(wrap('drivers', (v: Driver[]) => setDrivers(v.filter((d) => inScopeFleet(d.ownership))))),
+      onChequesUpdate(wrap('cheques', (v: Cheque[]) => setCheques(isIncluded('finance') ? v.filter((c) => inScopeFinance(c.ownership)) : []))),
+      onTripsUpdate(wrap('trips', (v: Trip[]) => setTrips(isIncluded('fleet') ? v.filter((t) => inScopeFleet(t.ownership)) : []))),
+      onRentalBillsUpdate(wrap('rental', (v: RentalBill[]) => setRentalBills(isIncluded('rental') ? v.filter((r) => inScopeRental(r.ownership)) : []))),
+      onProductsUpdate(wrap('products', (v: Product[]) => setProducts(isIncluded('reports') ? v.filter((p) => inScopeReports(p.ownership)) : []))),
+      onCostReportsUpdate(wrap('costReports', (v: CostReport[]) => setCostReports(isIncluded('reports') ? v.filter((c) => inScopeReports(c.ownership)) : []))),
+      onGsmReportsUpdate(wrap('gsmReports', (v: GsmReport[]) => setGsmReports(isIncluded('reports') ? v.filter((g) => inScopeReports(g.ownership)) : []))),
+      onVehiclesUpdate(wrap('vehicles', (v: Vehicle[]) => setVehicles(isIncluded('fleet') ? v.filter((veh) => inScopeFleet(veh.ownership)) : []))),
+      onDriversUpdate(wrap('drivers', (v: Driver[]) => setDrivers(isIncluded('fleet') ? v.filter((d) => inScopeFleet(d.ownership)) : []))),
       onSettingUpdate('companyProfile', (s: any) => {
         if (s?.value) setCompanyProfile(s.value);
       }),
     ];
 
     return () => unsubs.forEach((unsub) => unsub?.());
-  }, [markReady, inScopeFinance, inScopeFleet, inScopeRental, inScopePO, inScopeReports]);
+  }, [markReady, inScopeFinance, inScopeFleet, inScopeRental, inScopePO, inScopeReports, isIncluded]);
 
   const { currentMonthStart, currentMonthEnd, lastMonthStart, lastMonthEnd } = useMemo(() => {
     const now = new Date();
@@ -643,6 +669,47 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 w-full md:w-auto md:overflow-visible text-right">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "h-10 shrink-0 text-[11px] font-black uppercase tracking-wider px-4 border shadow-sm",
+                  includedModules.size < DASHBOARD_MODULES.length && "border-primary text-primary"
+                )}
+              >
+                <SlidersHorizontal className="mr-2 h-4 w-4" /> Modules
+                {includedModules.size < DASHBOARD_MODULES.length && (
+                  <span className="ml-1.5 rounded-full bg-primary text-primary-foreground text-[9px] px-1.5 leading-4">
+                    {includedModules.size}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="end">
+              <div className="flex items-center justify-between px-3 py-2 border-b">
+                <span className="text-[10px] font-black uppercase text-muted-foreground">Include in Summary</span>
+                <button
+                  className="text-[9px] font-bold uppercase text-primary hover:underline"
+                  onClick={() => setIncludedModules(new Set(DASHBOARD_MODULES.map((m) => m.key)))}
+                >
+                  Reset
+                </button>
+              </div>
+              <div className="p-2">
+                {DASHBOARD_MODULES.map((m) => (
+                  <label key={m.key} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-xs">
+                    <Checkbox checked={includedModules.has(m.key)} onCheckedChange={() => toggleModule(m.key)} />
+                    {m.label}
+                  </label>
+                ))}
+              </div>
+              <p className="text-[9px] text-muted-foreground px-3 pb-2 leading-snug">
+                Excluded modules are left out of Revenue, Alerts and every other combined figure below - not just hidden visually.
+              </p>
+            </PopoverContent>
+          </Popover>
            {hasPermission('fleet', 'create') && (
             <Button
               asChild
