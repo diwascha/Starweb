@@ -36,7 +36,6 @@ import {
   ArrowRightLeft,
   TrendingUp,
   Notebook,
-  Download,
   Upload,
   Calculator, 
   PanelLeft, 
@@ -58,8 +57,6 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { exportData, compressBackup } from '@/services/backup-service';
-import { Loader2 } from 'lucide-react';
 import { useConnectionStatus } from '@/firebase';
 import { useState, useEffect } from 'react';
 import { getNormalizedPath } from '@/lib/utils';
@@ -118,7 +115,6 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { user, logout, hasPermission } = useAuth();
   const { toast } = useToast();
-  const [isExporting, setIsExporting] = useState(false);
   const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
 
   useEffect(() => {
@@ -127,28 +123,6 @@ export function AppSidebar() {
     });
     return () => unsubBranding();
   }, []);
-  
-  const handleExportData = async () => {
-    setIsExporting(true);
-    try {
-        const data = await exportData();
-        const { blob, gzipped } = await compressBackup(data);
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `starsutra-backup-${new Date().toISOString()}.json${gzipped ? '.gz' : ''}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        toast({ title: 'Export Successful', description: 'Your data has been downloaded.' });
-    } catch (error) {
-        console.error("Export failed:", error);
-        toast({ title: 'Export Failed', description: 'Could not export data.', variant: 'destructive' });
-    } finally {
-        setIsExporting(false);
-    }
-  };
 
   const handleSignOut = async () => {
     try {
@@ -464,9 +438,6 @@ export function AppSidebar() {
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/ledger')}><Link href="/fleet/transactions/ledger" className="flex items-center gap-2"><CreditCard className="h-4 w-4" /><span>Fleet Ledger</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
 
-                            <SidebarGroupLabel className="px-5 py-2 text-[10px] uppercase text-muted-foreground font-bold">Reports</SidebarGroupLabel>
-                            <SidebarMenuSub>
-                            </SidebarMenuSub>
                         </CollapsibleContent>
                     </SidebarMenuItem>
                 </SidebarMenu>

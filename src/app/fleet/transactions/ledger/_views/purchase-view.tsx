@@ -2,51 +2,32 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  PlusCircle, 
-  Search, 
-  ArrowUpDown, 
-  MoreHorizontal, 
-  Trash2, 
-  Edit, 
-  FilterX, 
-  CalendarIcon, 
-  Loader2,
-  Users,
-  Truck,
+import {
+  PlusCircle,
+  MoreHorizontal,
+  Trash2,
   ChevronLeft,
   ChevronRight,
-  HandCoins,
-  History,
-  ShoppingCart,
   Eye,
-  ChevronDown,
-  Check
 } from 'lucide-react';
 import type { Vehicle, Party, Transaction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { toNepaliDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onTransactionsUpdate, deleteTransaction } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import { isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import NepaliDate from 'nepali-date-converter';
-import { NEPALI_MONTHS } from '@/lib/constants';
 
 type SortKey = 'date' | 'purchaseNumber' | 'amount';
 type SortDirection = 'asc' | 'desc';
@@ -66,7 +47,6 @@ export function PurchaseView() {
     const [filterPartyId, setFilterPartyId] = useState('All');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
 
-    const { toast } = useToast();
     const { hasPermission } = useAuth();
     const { inScope } = useOwnershipScope('fleet');
     const router = useRouter();
