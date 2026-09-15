@@ -1,12 +1,5 @@
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    doc, 
-    writeBatch, 
-    getDocs, 
-    query, 
-    where, 
-} from 'firebase/firestore';
+import { doc, writeBatch, getDocs, query, where } from 'firebase/firestore';
 import { startOfDay, isEqual, isWithinInterval, format, getWeek } from 'date-fns';
 import type { AttendanceRecord, HrConfig, HrShift } from '@/lib/types';
 import { getEmployees } from '../employee-service';
@@ -16,8 +9,7 @@ import { createTimestamp } from '@/lib/service-utils';
 import { getSetting } from '../settings-service';
 import { getAttendanceCollection, getRawLogsCollection, fromFirestoreLog, isPeriodLocked } from './data';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-
+import { FirestorePermissionError } from '@/firebase/errors';
 const timeToMinutes = (time: string): number => {
     const [h, m, s] = time.split(':').map(Number);
     return Math.round(((h || 0) * 3600 + (m || 0) * 60 + (s || 0)) / 60);

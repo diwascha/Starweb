@@ -2,23 +2,7 @@
 'use client';
 
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    doc, 
-    setDoc, 
-    onSnapshot, 
-    updateDoc, 
-    deleteDoc, 
-    getDocs, 
-    query, 
-    where, 
-    orderBy,
-    limit,
-    serverTimestamp,
-    DocumentData,
-    QueryDocumentSnapshot,
-    writeBatch
-} from 'firebase/firestore';
+import { collection, doc, setDoc, onSnapshot, updateDoc, deleteDoc, getDocs, query, where, orderBy, DocumentData, QueryDocumentSnapshot, writeBatch } from 'firebase/firestore';
 import type { SessionRecord } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';

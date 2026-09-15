@@ -68,9 +68,5 @@ export const useFirebase = (): FirebaseContextType => {
     return context;
 };
 
-export const useFirebaseApp = () => useFirebase().app;
 export const useAuthService = () => useFirebase().auth;
-export const useFirestore = () => useFirebase().db;
-export const useStorage = () => useFirebase().storage;
-export const useDb = () => useFirebase().rtdb;
 export const useConnectionStatus = () => useFirebase().isConnected;

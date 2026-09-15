@@ -1,12 +1,12 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
-import type { Payroll, Employee, AttendanceRecord, AnalyticsReport, HrConfig, BonusLedgerEntry } from '@/lib/types';
+import { Payroll, Employee, AttendanceRecord, HrConfig, BonusLedgerEntry } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from '../settings-service';
-import { COLLECTIONS, DEFAULT_HR_CONFIG } from '@/lib/constants';
-import { createTimestamp, logServiceError, coerceNumber } from '@/lib/service-utils';
+import { DEFAULT_HR_CONFIG } from '@/lib/constants';
+import { createTimestamp } from '@/lib/service-utils';
 import { getPayrollCollection } from './data';
-import { extractSection, extractPatternInsights, isAnalyticsRow } from './analytics';
+
 import { isPeriodLocked } from '../attendance/data';
 
 /**

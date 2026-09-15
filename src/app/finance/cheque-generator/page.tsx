@@ -6,38 +6,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-  Search,
-  ArrowUpDown,
-  MoreHorizontal,
-  Printer,
-  Trash2,
-  Edit,
-  AlertTriangle,
-  PlusCircle,
-  History,
-  Check,
-  X,
-  Clock,
-  FilterX,
-  Users,
-  ShieldCheck,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Minus,
-  RotateCcw,
-  CalendarIcon,
-  CreditCard,
-  Receipt,
-  Building2,
-  FileDown,
-  Loader2,
-  Eye,
-} from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History, Check, X, Clock, FilterX, Users, ShieldCheck, ChevronLeft, ChevronRight, Plus, Minus, RotateCcw, CalendarIcon, CreditCard, Receipt, Building2, FileDown, Loader2, Ruler } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
+import { onChequesUpdate, deleteCheque, updateChequeSplit } from '@/services/cheque-service';
 import type { Cheque, ChequeSplit, ChequeStatus, PartialPayment, Account, Party } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -62,6 +34,11 @@ import {
 import { format, startOfToday } from 'date-fns';
 import { ChequeView } from './_components/cheque-view';
 import { NepalChequeView } from './_components/nepal-cheque-print';
+import { exportChequeVoucherPdf } from '@/lib/cheque-voucher-pdf';
+import { ChequeCalibrationDialog } from './_components/cheque-calibration-dialog';
+import { CHEQUE_LAYOUT_SETTING_KEY, LEGACY_LAYOUT, resolveChequeLayout, type ChequeLayout } from '@/lib/cheque-layout';
+import { onSettingUpdate } from '@/services/settings-service';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
@@ -154,7 +131,7 @@ const ChequeSplitRow = React.memo(
         );
       }
 
-      if (daysRemaining <= 7) return <Badge className="bg-amber-500 text-black hover:bg-amber-500">Due {daysRemaining}d</Badge>;
+      if (daysRemaining <= 7) return <Badge className="bg-amber-500 text-foreground hover:bg-amber-500">Due {daysRemaining}d</Badge>;
 
       return (
         <Badge variant="outline" className="text-blue-600 border-blue-600">
@@ -166,7 +143,7 @@ const ChequeSplitRow = React.memo(
     return (
       <TableRow className="h-14">
         <TableCell>{toNepaliDate(split.chequeDate.toISOString())}</TableCell>
-        <TableCell className="font-bold text-gray-900">{split.parentCheque.payeeName}</TableCell>
+        <TableCell className="font-bold text-foreground">{split.parentCheque.payeeName}</TableCell>
         <TableCell className="font-mono text-xs text-blue-600 font-bold">{split.chequeNumber || 'N/A'}</TableCell>
         <TableCell className="font-mono text-xs">Rs. {money(Number(split.amount))}</TableCell>
         <TableCell className="font-mono text-xs text-red-600 font-bold">Rs. {money(split.remainingAmount)}</TableCell>
@@ -257,6 +234,11 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   });
 
   const { toast } = useToast();
+  const companyProfile = useBusinessProfile();
+  // Cheque geometry is measured per cheque book, not hardcoded - see
+  // lib/cheque-layout for why.
+  const [chequeLayout, setChequeLayout] = useState<ChequeLayout>(LEGACY_LAYOUT);
+  const [isCalibrationOpen, setIsCalibrationOpen] = useState(false);
   const { user, getAllowedOwnerships } = useAuth();
   const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
 
@@ -431,9 +413,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, remark?: string, customDate?: Date) => {
       if (!user) return;
 
-      const updatedSplits = cheque.splits.map((s) => {
-        if (s.id !== splitId) return s;
-
+      // Runs inside a transaction against freshly read splits, so two people
+      // acting on the same cheque serialise instead of clobbering each other.
+      const mutate = (s: any) => {
         const updated: any = {
           ...s,
           status: newStatus,
@@ -442,7 +424,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
         if (newStatus === 'Paid') {
           const totalAmount = Number(s.amount) || 0;
-          const paid = (s.partialPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+          const paid = (s.partialPayments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
           const remaining = totalAmount - paid;
           if (remaining > EPS) {
             updated.partialPayments = [
@@ -460,10 +442,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         }
 
         return updated;
-      });
+      };
 
       try {
-        await updateCheque(cheque.id, { splits: updatedSplits as any, lastModifiedBy: user.username });
+        await updateChequeSplit(cheque.id, splitId, mutate, user.username);
         toast({ title: 'Status updated', description: `Cheque marked as ${newStatus}.` });
       } catch {
         toast({ title: 'Update failed', description: 'The status could not be saved.', variant: 'destructive' });
@@ -491,32 +473,28 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
     setIsPostingPayment(true);
 
-    const updatedSplits = payingSplit.parentCheque.splits.map((s) => {
-      if (s.id !== payingSplit.id) return s;
-
-      const newPayment: PartialPayment = {
-        id: generateId(),
-        date: newPaymentDate.toISOString(),
-        amount: amt,
-        remarks: newPaymentRemark.trim(),
-      };
-
+    // Built inside the transaction from the split as stored, not from the
+    // snapshot this component is holding - otherwise a payment posted by
+    // someone else a moment ago would be dropped from the array we write.
+    const newPayment: PartialPayment = {
+      id: generateId(),
+      date: newPaymentDate.toISOString(),
+      amount: amt,
+      remarks: newPaymentRemark.trim(),
+    };
+    const mutate = (s: any) => {
       const partialPayments = [...(s.partialPayments || []), newPayment];
-      const totalPaid = partialPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const totalPaid = partialPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
       const chequeAmount = Number(s.amount) || 0;
-
       return {
         ...s,
         partialPayments,
         status: totalPaid + EPS >= chequeAmount ? 'Paid' : 'Partially Paid',
       };
-    });
+    };
 
     try {
-      await updateCheque(payingSplit.parentCheque.id, {
-        splits: updatedSplits as any,
-        lastModifiedBy: user.username,
-      });
+      await updateChequeSplit(payingSplit.parentCheque.id, payingSplit.id, mutate, user.username);
       toast({ title: 'Payment recorded' });
       setNewPaymentAmount('');
       setNewPaymentRemark('');
@@ -532,11 +510,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   const handleDeletePartialPayment = async (paymentId: string) => {
     if (!user || !payingSplit) return;
 
-    const updatedSplits = payingSplit.parentCheque.splits.map((s) => {
-      if (s.id !== payingSplit.id) return s;
-
-      const partialPayments = (s.partialPayments || []).filter((p) => p.id !== paymentId);
-      const totalPaid = partialPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const mutate = (s: any) => {
+      const partialPayments = (s.partialPayments || []).filter((p: any) => p.id !== paymentId);
+      const totalPaid = partialPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
       const chequeAmount = Number(s.amount) || 0;
 
       // Removing one of several payments can still leave the cheque settled,
@@ -545,16 +521,24 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         chequeAmount > 0 && totalPaid + EPS >= chequeAmount ? 'Paid' : totalPaid > 0 ? 'Partially Paid' : 'Due';
 
       return { ...s, partialPayments, status };
-    });
+    };
 
     try {
-      await updateCheque(payingSplit.parentCheque.id, {
-        splits: updatedSplits as any,
-        lastModifiedBy: user.username,
-      });
+      await updateChequeSplit(payingSplit.parentCheque.id, payingSplit.id, mutate, user.username);
       toast({ title: 'Payment removed' });
     } catch {
       toast({ title: 'Delete failed', description: 'The payment is still on the ledger.', variant: 'destructive' });
+    }
+  };
+
+  // Was `(id) => deleteCheque(id)` - not awaited, no error path, so a
+  // rejected delete left the voucher on the ledger without a word.
+  const handleDeleteVoucher = async (id: string) => {
+    try {
+      await deleteCheque(id);
+      toast({ title: 'Voucher deleted', description: 'The cheque voucher has been removed.' });
+    } catch {
+      toast({ title: 'Delete failed', description: 'The voucher is still on the ledger.', variant: 'destructive' });
     }
   };
 
@@ -579,6 +563,21 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
    * no stylesheet and no CDN. Printing is deferred until after load so the
    * layout is settled before the dialog fires.
    */
+  useEffect(() => {
+    const unsub = onSettingUpdate(CHEQUE_LAYOUT_SETTING_KEY, (setting) => {
+      setChequeLayout(resolveChequeLayout(setting?.value));
+    });
+    return () => unsub();
+  }, []);
+
+  // The dialog's nudge controls stay a per-print adjustment; they compose
+  // over whatever offsets the saved layout carries rather than replacing them.
+  const nudgedChequeLayout = useMemo<ChequeLayout>(() => ({
+    ...chequeLayout,
+    offsetXMm: chequeLayout.offsetXMm + offsetX,
+    offsetYMm: chequeLayout.offsetYMm + offsetY,
+  }), [chequeLayout, offsetX, offsetY]);
+
   const printNepalCheque = () => {
     const content = nepalPrintRef.current?.innerHTML;
     if (!content) return;
@@ -592,11 +591,11 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     win.document.write(
       `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Cheque Print</title>` +
         `<style>` +
-        `@page { size: 176mm 88mm; margin: 0; }` +
+        `@page { size: ${nudgedChequeLayout.widthMm}mm ${nudgedChequeLayout.heightMm}mm; margin: 0; }` +
         `html, body { margin: 0; padding: 0; background: #fff; }` +
         `* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }` +
         `</style></head><body>` +
-        `<div style="width:176mm;height:88mm;position:relative;overflow:hidden;">${content}</div>` +
+        `<div style="width:${nudgedChequeLayout.widthMm}mm;height:${nudgedChequeLayout.heightMm}mm;position:relative;overflow:hidden;">${content}</div>` +
         `<scr` +
         `ipt>window.addEventListener('load',function(){setTimeout(function(){window.focus();window.print();window.close();},250);});</scr` +
         `ipt>` +
@@ -636,25 +635,20 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     if (!chequeToPrint) return;
     setIsExporting(true);
     try {
-        const html2canvas = (await import('html2canvas')).default;
-        const { jsPDF } = await import('jspdf');
-        const element = printRef.current;
-        if (!element) return;
-
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff'
-        });
-        
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`Voucher-${chequeToPrint.voucherNo}.pdf`);
+        // Was html2canvas at scale 2 as a JPEG - a ~295 KB picture in which
+        // not one cheque number could be selected or searched.
+        const party = parties.find(p => p.name === chequeToPrint.payeeName);
+        const allRemarks = Array.from(new Set(chequeToPrint.splits.map(s => s.remarks).filter(Boolean))).join('; ');
+        await exportChequeVoucherPdf({
+            voucherNo: chequeToPrint.voucherNo,
+            voucherDate: new Date(chequeToPrint.paymentDate),
+            payeeName: chequeToPrint.payeeName,
+            payeeAddress: party?.address,
+            payeePan: party?.panNumber,
+            remarks: allRemarks,
+            account: accounts.find(a => a.id === chequeToPrint.accountId),
+            splits: chequeToPrint.splits.map(s => ({ ...s, chequeDate: new Date(s.chequeDate) })),
+        }, companyProfile);
         toast({ title: 'Success', description: 'Voucher exported as PDF.' });
     } catch (error) {
         console.error("PDF export failed:", error);
@@ -673,10 +667,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
   return (
     <div className="space-y-4">
-      <Card className="border-gray-100 shadow-sm overflow-hidden bg-white">
+      <Card className="border-border shadow-sm overflow-hidden bg-card">
         <CardHeader className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 py-5 px-6 bg-muted/20 border-b">
           <div>
-            <CardTitle className="text-xl font-bold text-gray-900">Cheque History</CardTitle>
+            <CardTitle className="text-xl font-bold text-foreground">Cheque History</CardTitle>
             <CardDescription className="text-xs text-muted-foreground mt-1">
               View and manage post-dated and issued cheques.
             </CardDescription>
@@ -687,7 +681,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Search payee, cheque no. or voucher..."
-                className="pl-8 h-9 text-xs bg-white border-gray-200 focus-visible:ring-primary shadow-none"
+                className="pl-8 h-9 text-xs bg-card border-border focus-visible:ring-primary shadow-none"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -695,7 +689,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
             <div className="flex items-center gap-2">
               <Select value={filterParty} onValueChange={setFilterParty}>
-                <SelectTrigger className="h-9 w-[160px] text-xs bg-white border-gray-200 shadow-none">
+                <SelectTrigger className="h-9 w-[160px] text-xs bg-card border-border shadow-none">
                   <div className="flex items-center gap-2 overflow-hidden text-left">
                     <Users className="h-3 w-3 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="All parties" />
@@ -712,7 +706,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               </Select>
 
               <Select value={filterAccountId} onValueChange={setFilterAccountId}>
-                <SelectTrigger className="h-9 w-[160px] text-xs bg-white border-gray-200 shadow-none">
+                <SelectTrigger className="h-9 w-[160px] text-xs bg-card border-border shadow-none">
                   <div className="flex items-center gap-2">
                     <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="All banks" />
@@ -726,7 +720,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               </Select>
 
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="h-9 w-[145px] text-xs bg-white border-gray-200 shadow-none">
+                <SelectTrigger className="h-9 w-[145px] text-xs bg-card border-border shadow-none">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-3 w-3 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="Status" />
@@ -761,12 +755,12 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             <Table className="text-[13px]">
               <TableHeader className="bg-muted/50 border-b">
                 <TableRow className="hover:bg-transparent h-11">
-                  <TableHead className="w-[140px] font-bold text-gray-700">{sortButton('chequeDate', 'Date')}</TableHead>
-                  <TableHead className="font-bold text-gray-700">{sortButton('payeeName', 'Payee')}</TableHead>
-                  <TableHead className="font-bold text-gray-700">{sortButton('chequeNumber', 'Cheque #')}</TableHead>
-                  <TableHead className="font-bold text-gray-700">{sortButton('amount', 'Amount')}</TableHead>
+                  <TableHead className="w-[140px] font-bold text-foreground">{sortButton('chequeDate', 'Date')}</TableHead>
+                  <TableHead className="font-bold text-foreground">{sortButton('payeeName', 'Payee')}</TableHead>
+                  <TableHead className="font-bold text-foreground">{sortButton('chequeNumber', 'Cheque #')}</TableHead>
+                  <TableHead className="font-bold text-foreground">{sortButton('amount', 'Amount')}</TableHead>
                   <TableHead className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">Balance</TableHead>
-                  <TableHead className="text-center font-bold text-gray-700">
+                  <TableHead className="text-center font-bold text-foreground">
                     <Button
                       variant="ghost"
                       onClick={() => requestSort('dueStatus')}
@@ -784,7 +778,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 </TableRow>
               </TableHeader>
 
-              <TableBody className="bg-white">
+              <TableBody className="bg-card">
                 {paginatedSplits.map((split) => (
                   <ChequeSplitRow
                     key={`${split.parentCheque.id}-${split.id}`}
@@ -823,7 +817,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                       setSplitToReset(s);
                       setIsResetDialogOpen(true);
                     }}
-                    onDeleteVoucher={(id) => deleteCheque(id)}
+                    onDeleteVoucher={handleDeleteVoucher}
                   />
                 ))}
 
@@ -867,7 +861,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     setCurrentPage(1);
                   }}
                 >
-                  <SelectTrigger className="h-8 w-[72px] bg-white border-gray-200">
+                  <SelectTrigger className="h-8 w-[72px] bg-card border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -938,7 +932,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                   <Label className="text-[10px] font-bold uppercase text-muted-foreground">Payment date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal h-9 bg-white text-xs px-3">
+                      <Button variant="outline" className="w-full justify-start text-left font-normal h-9 bg-card text-xs px-3">
                         <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                         {newPaymentDate
                           ? `${toNepaliDate(newPaymentDate.toISOString())} (${format(newPaymentDate, 'PP')})`
@@ -1066,7 +1060,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             </div>
           </div>
 
-          <DialogFooter className="p-6 border-t bg-white shrink-0">
+          <DialogFooter className="p-6 border-t bg-card shrink-0">
             <Button
               variant="outline"
               onClick={() => setIsPaymentDialogOpen(false)}
@@ -1093,7 +1087,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
               <Label className="text-[10px] uppercase font-bold text-muted-foreground">Payment date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal h-10 bg-white">
+                  <Button variant="outline" className="w-full justify-start text-left font-normal h-10 bg-card">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {paidDate ? `${toNepaliDate(paidDate.toISOString())} (${format(paidDate, 'PP')})` : 'Pick date'}
                   </Button>
@@ -1201,7 +1195,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
           </DialogHeader>
 
           <ScrollArea className="flex-1 bg-muted/20 p-8">
-            <div ref={printRef} className="mx-auto w-[210mm] shadow-2xl bg-white">
+            <div ref={printRef} className="mx-auto w-[210mm] shadow-2xl bg-card">
               {chequeToPrint && (() => {
                   const party = parties.find(p => p.name === chequeToPrint.payeeName);
                   const allRemarks = Array.from(new Set(chequeToPrint.splits.map(s => s.remarks).filter(Boolean))).join('; ');
@@ -1224,7 +1218,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             <ScrollBar orientation="vertical" />
           </ScrollArea>
 
-          <DialogFooter className="p-6 border-t bg-white">
+          <DialogFooter className="p-6 border-t bg-card">
             <Button variant="outline" onClick={() => setIsPrintPreviewOpen(false)}>
               Close
             </Button>
@@ -1241,8 +1235,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
       {/* ------------------------- Nepal cheque print ------------------------- */}
       <Dialog open={isNepalPrintOpen} onOpenChange={setIsNepalPrintOpen}>
-        <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 border-none shadow-2xl overflow-hidden bg-neutral-100">
-          <DialogHeader className="p-6 border-b bg-white shrink-0">
+        <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 border-none shadow-2xl overflow-hidden bg-muted">
+          <DialogHeader className="p-6 border-b bg-card shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
@@ -1267,15 +1261,14 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     payeeName={nepalChequeToPrint.parentCheque.payeeName}
                     amount={Number(nepalChequeToPrint.amount) || 0}
                     date={nepalChequeToPrint.chequeDate.toISOString()}
+                    layout={nudgedChequeLayout}
                     isAcPayee={isAcPayee}
-                    offsetX={offsetX}
-                    offsetY={offsetY}
                   />
                 )}
               </div>
 
               {/* Print options */}
-              <div className="w-full max-w-2xl bg-white border rounded-2xl p-6 space-y-6">
+              <div className="w-full max-w-2xl bg-card border rounded-2xl p-6 space-y-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <Label className="text-xs font-black uppercase tracking-widest">Crossing</Label>
@@ -1301,6 +1294,18 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                       Bearer
                     </Button>
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-widest">Leaf layout</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {chequeLayout.label} &middot; {chequeLayout.widthMm} × {chequeLayout.heightMm} mm
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setIsCalibrationOpen(true)} className="shrink-0 h-9 font-bold text-[10px] uppercase tracking-widest">
+                    <Ruler className="mr-2 h-3.5 w-3.5" /> Calibrate
+                  </Button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1362,7 +1367,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             <ScrollBar orientation="vertical" />
           </ScrollArea>
 
-          <DialogFooter className="p-6 bg-white border-t shrink-0">
+          <DialogFooter className="p-6 bg-card border-t shrink-0">
             <div className="flex w-full justify-between items-center">
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">
                 Cheque ref: {nepalChequeToPrint?.chequeNumber || 'N/A'}
@@ -1387,6 +1392,13 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ChequeCalibrationDialog
+        open={isCalibrationOpen}
+        onOpenChange={setIsCalibrationOpen}
+        layout={chequeLayout}
+        onSaved={setChequeLayout}
+      />
     </div>
   );
 }
@@ -1398,7 +1410,7 @@ export default function ChequeGeneratorPage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Cheque Control Center</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Cheque Control Center</h1>
         <p className="text-muted-foreground">Manage payment vouchers and post-dated cheque distribution.</p>
       </header>
 

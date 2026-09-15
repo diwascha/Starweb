@@ -1,13 +1,13 @@
 'use client';
 
-import type { Party, EstimateInvoiceItem, CompanyProfile } from '@/lib/types';
+import { Party, EstimateInvoiceItem } from '@/lib/types';
 import { toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { useState, useEffect } from 'react';
-import { onSettingUpdate } from '@/services/settings-service';
-import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
+
+import { useBusinessProfile } from '@/hooks/use-business-profile';
+
 
 interface InvoiceViewProps {
   invoiceNumber: string;
@@ -30,12 +30,7 @@ export function InvoiceView({
   netTotal,
   amountInWords,
 }: InvoiceViewProps) {
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
-  
-  useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
-    return () => unsub();
-  }, []);
+  const companyProfile = useBusinessProfile();
 
   const nepaliDate = toNepaliDate(date);
   const adDate = format(new Date(date), 'yyyy-MM-dd');

@@ -1,43 +1,35 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { format } from 'date-fns';
+
 import { 
     Building2, 
     Users, 
-    History, 
     MoreHorizontal, 
     MapPin, 
     Plus,
     Search,
-    ShieldCheck,
-    Clock,
     Loader2,
-    Eye,
-    User,
     ChevronRight,
-    Target,
     Edit,
-    Bell,
-    Check,
-    TrendingUp,
-    Receipt,
-    Wallet,
-    CheckCircle2,
     Trash2,
     GitMerge,
-    ChevronDown
+    ChevronDown,
+    FileSpreadsheet,
+    Mail,
+    Phone,
+    Download,
+    Upload
 } from 'lucide-react';
-import type { Party, CRMContact, InteractionLog, CustomerClassification, FollowUp, Transaction } from '@/lib/types';
-import { onPartiesUpdate, updateParty, deleteParty, mergeParties } from '@/services/party-service';
-import { onContactsUpdate, onInteractionsUpdate, addInteraction, updateInteraction, onFollowUpsUpdate, addFollowUp } from '@/services/crm-service';
-import { getTransactionsByParty } from '@/services/transaction-service';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import type { Party, CRMContact, CustomerClassification } from '@/lib/types';
+import { onPartiesUpdate, updateParty, deleteParty, mergeParties, addParty } from '@/services/party-service';
+import { getCostReports } from '@/services/cost-report-service';
+import { onContactsUpdate, addContact, updateContact, deleteContact } from '@/services/crm-service';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
     AlertDialog,
@@ -51,7 +43,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+
 import { 
     DropdownMenu, 
     DropdownMenuContent, 
@@ -71,8 +64,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
+
 import NepaliDate from 'nepali-date-converter';
+import { readUploadedWorkbook } from '@/lib/workbook-import';
 
 export default function CompaniesManagementPage() {
     const { user } = useAuth();
@@ -81,40 +75,39 @@ export default function CompaniesManagementPage() {
     
     const [companies, setCompanies] = useState<Party[]>([]);
     const [contacts, setContacts] = useState<CRMContact[]>([]);
-    const [interactions, setInteractions] = useState<InteractionLog[]>([]);
-    const [followups, setFollowups] = useState<FollowUp[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     
     const [selectedCompany, setSelectedCompany] = useState<Party | null>(null);
-    const [isDetailOpen, setIsDetailOpen] = useState(false);
+    // Which company is expanded to show its people. One at a time keeps the
+    // list scannable - a company usually has several contacts, and the row
+    // itself could only ever show the primary one.
+    const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
     
-    const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
-    const [logForm, setLogForm] = useState({ 
-        type: 'Call' as any, 
-        subject: '', 
-        description: '', 
-        contactId: '', 
-        assignee: '', 
-        taskDueDateBS: '' 
-    });
-
     const [isAttributesDialogOpen, setIsAttributesDialogOpen] = useState(false);
     const [attributesForm, setAttributesForm] = useState({ clientScore: '', successFactor: '', accountMgr: '' });
 
-    const [isFollowUpDialogOpen, setIsFollowUpDialogOpen] = useState(false);
-    const [followUpForm, setFollowUpForm] = useState({ action: '', dueDateBS: '' });
-
     const [deletingCompany, setDeletingCompany] = useState<Party | null>(null);
-    
+    // Deleting a party only removes the party doc (party-service.ts
+    // deleteParty), leaving any contacts/quotations that reference this
+    // partyId orphaned - unlike Merge, which reassigns them. Surface what
+    // would be left behind before letting the delete go through.
+    const [deleteQuotationCount, setDeleteQuotationCount] = useState<number | null>(null);
+
+    // Contact CRUD (folded in from the old standalone /crm/contacts page -
+    // a company's contacts are now managed directly on its own record).
+    const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+    const [editingContact, setEditingContact] = useState<CRMContact | null>(null);
+    const [deletingContact, setDeletingContact] = useState<CRMContact | null>(null);
+    const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', designation: '', isPrimary: false });
+    const contactsFileInputRef = useRef<HTMLInputElement>(null);
+    const [isImportingContacts, setIsImportingContacts] = useState(false);
+
     const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
     const [mergeSourceId, setMergeSourceId] = useState('');
     const [mergeDestId, setMergeDestId] = useState('');
     const [isMerging, setIsMerging] = useState(false);
 
-    // Financial cache per partyId
-    const [partyTransactions, setPartyTransactions] = useState<Record<string, Transaction[]>>({});
-    const [isLoadingFinancials, setIsLoadingFinancials] = useState(false);
 
     useEffect(() => {
         setIsLoading(true);
@@ -122,21 +115,13 @@ export default function CompaniesManagementPage() {
             onPartiesUpdate((data) => {
                 setCompanies(data.filter(p => (p.type === 'Customer' || p.type === 'Both') && inScope(p.ownership)));
             }),
-            onContactsUpdate(setContacts),
-            onInteractionsUpdate((data) => {
-                setInteractions(data);
-            }),
-            onFollowUpsUpdate((data) => {
-                setFollowups(data);
+            onContactsUpdate((data) => {
+                setContacts(data);
                 setIsLoading(false);
             })
         ];
         return () => unsubs.forEach(u => u());
     }, [inScope]);
-
-    const sortedInteractions = useMemo(() => {
-        return [...interactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [interactions]);
 
     const filteredCompanies = useMemo(() => {
         return companies.filter(c => 
@@ -145,149 +130,156 @@ export default function CompaniesManagementPage() {
         ).sort((a, b) => a.name.localeCompare(b.name));
     }, [companies, searchQuery]);
 
-    const nextFollowUp = useMemo(() => {
-        if (!selectedCompany) return null;
-        return followups
-            .filter(f => f.partyId === selectedCompany.id && f.status === 'Pending')
-            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
-    }, [selectedCompany, followups]);
-
-    const handleOpenDetail = async (company: Party) => {
-        setSelectedCompany(company);
-        setIsDetailOpen(true);
-        
-        // Fetch financial data if not in cache
-        if (!partyTransactions[company.id]) {
-            setIsLoadingFinancials(true);
-            try {
-                const txns = await getTransactionsByParty(company.id);
-                setPartyTransactions(prev => ({ ...prev, [company.id]: txns }));
-            } catch (err) {
-                console.error("Financial fetch failed", err);
-            } finally {
-                setIsLoadingFinancials(false);
-            }
-        }
+    const openAddContact = () => {
+        setEditingContact(null);
+        setContactForm({ name: '', email: '', phone: '', designation: '', isPrimary: false });
+        setIsContactDialogOpen(true);
     };
 
-    const financialData = useMemo(() => {
-        if (!selectedCompany || !partyTransactions[selectedCompany.id]) return null;
-        
-        const txns = partyTransactions[selectedCompany.id];
-        const today = new Date();
-        const todayBS = new NepaliDate(today);
-        // Fiscal Year starts at Shrawan (Month 3 in 0-indexed)
-        const currentFiscalYear = todayBS.getMonth() >= 3 ? todayBS.getYear() : todayBS.getYear() - 1;
-
-        let fiscalYearSales = 0;
-        let totalSales = 0;
-        let totalReceipts = 0;
-
-        txns.forEach(t => {
-            const tDate = new Date(t.date);
-            const tBS = new NepaliDate(tDate);
-            const tFiscalYear = tBS.getMonth() >= 3 ? tBS.getYear() : tBS.getYear() - 1;
-
-            if (t.type === 'Sales') {
-                totalSales += t.amount;
-                if (tFiscalYear === currentFiscalYear) {
-                    fiscalYearSales += t.amount;
-                }
-            } else if (t.type === 'Receipt') {
-                totalReceipts += t.amount;
-            }
+    const openEditContact = (c: CRMContact) => {
+        setEditingContact(c);
+        setContactForm({
+            name: c.name || '',
+            email: c.email || '',
+            phone: c.phone || '',
+            designation: c.designation || '',
+            isPrimary: !!c.isPrimary
         });
+        setIsContactDialogOpen(true);
+    };
 
-        const last5 = txns.slice(0, 5);
-
-        return {
-            fiscalYearSales,
-            indicativeBalance: totalSales - totalReceipts,
-            last5,
-            hasData: txns.length > 0
-        };
-    }, [selectedCompany, partyTransactions]);
-
-    const handleSaveLog = async () => {
-        if (!user || !selectedCompany || !logForm.subject) return;
-        
-        let taskDueDate = '';
-        if (logForm.type === 'Task' && logForm.taskDueDateBS) {
-            try {
-                const parts = logForm.taskDueDateBS.split('/');
-                if (parts.length !== 3) throw new Error();
-                const nd = new NepaliDate(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                taskDueDate = nd.toJsDate().toISOString();
-            } catch {
-                toast({ title: 'Invalid Due Date', description: 'Use YYYY/MM/DD format.', variant: 'destructive' });
-                return;
+    const handleSaveContact = async () => {
+        if (!user || !selectedCompany || !contactForm.name) return;
+        try {
+            if (editingContact) {
+                await updateContact(editingContact.id, { ...contactForm, lastModifiedBy: user.username });
+                toast({ title: 'Contact Updated' });
+            } else {
+                await addContact({
+                    ...contactForm,
+                    partyId: selectedCompany.id,
+                    createdBy: user.username,
+                    createdAt: new Date().toISOString()
+                });
+                toast({ title: 'Contact Added' });
             }
-        }
-
-        try {
-            await addInteraction({
-                type: logForm.type,
-                subject: logForm.subject,
-                description: logForm.description,
-                contactId: logForm.contactId || undefined,
-                date: new Date().toISOString(),
-                performer: user.username,
-                partyId: selectedCompany.id,
-                taskStatus: logForm.type === 'Task' ? 'Pending' : undefined,
-                taskDueDateBS: logForm.type === 'Task' ? logForm.taskDueDateBS : undefined,
-                taskDueDate: logForm.type === 'Task' ? taskDueDate : undefined,
-                assignee: logForm.type === 'Task' ? logForm.assignee : undefined,
-                createdAt: new Date().toISOString()
-            });
-            toast({ title: 'Activity Logged' });
-            setIsLogDialogOpen(false);
-            setLogForm({ type: 'Call', subject: '', description: '', contactId: '', assignee: '', taskDueDateBS: '' });
+            setIsContactDialogOpen(false);
         } catch {
-            toast({ title: 'Error logging activity', variant: 'destructive' });
+            toast({ title: 'Error saving contact', variant: 'destructive' });
         }
     };
 
-    const handleMarkTaskDone = async (e: React.MouseEvent, id: string) => {
-        e.stopPropagation();
-        if (!user) return;
+    const handleConfirmDeleteContact = async () => {
+        if (!deletingContact) return;
         try {
-            await updateInteraction(id, { taskStatus: 'Done' });
-            toast({ title: 'Task Completed' });
+            await deleteContact(deletingContact.id);
+            toast({ title: 'Contact Removed' });
         } catch {
-            toast({ title: 'Error updating task', variant: 'destructive' });
+            toast({ title: 'Error', variant: 'destructive' });
+        } finally {
+            setDeletingContact(null);
         }
     };
 
-    const handleSaveFollowUp = async () => {
-        if (!user || !selectedCompany || !followUpForm.action || !followUpForm.dueDateBS) return;
-        
-        let adDateISO = '';
+    const handleExportContactsExcel = async () => {
         try {
-            const parts = followUpForm.dueDateBS.split('/');
-            if (parts.length !== 3) throw new Error();
-            const nd = new NepaliDate(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-            adDateISO = nd.toJsDate().toISOString();
+            const XLSX = await import('xlsx');
+            const data = contacts.map(c => ({
+                'Contact Name': c.name,
+                'Company': companies.find(p => p.id === c.partyId)?.name || 'Unlinked',
+                'Designation': c.designation || '',
+                'Email': c.email || '',
+                'Phone': c.phone || '',
+                'Is Primary': c.isPrimary ? 'Yes' : 'No'
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Contacts");
+            XLSX.writeFile(workbook, `CRM_Contacts_${new Date().toISOString().split('T')[0]}.xlsx`);
+            toast({ title: 'Export Successful' });
         } catch {
-            toast({ title: 'Invalid Date', description: 'Use YYYY/MM/DD format.', variant: 'destructive' });
-            return;
+            toast({ title: 'Export Failed', variant: 'destructive' });
         }
+    };
 
+    const handleImportContactsExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !user) return;
+        setIsImportingContacts(true);
         try {
-            await addFollowUp({
-                partyId: selectedCompany.id,
-                partyName: selectedCompany.name,
-                action: followUpForm.action,
-                dueDateBS: followUpForm.dueDateBS,
-                dueDate: adDateISO,
-                status: 'Pending',
-                createdBy: user.username,
-            });
-            toast({ title: 'Follow-up Scheduled' });
-            setIsFollowUpDialogOpen(false);
-            setFollowUpForm({ action: '', dueDateBS: '' });
+            const XLSX = await import('xlsx');
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                    const workbook = await readUploadedWorkbook(data);
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json<any>(sheet);
+                    const localCompanies = [...companies];
+
+                    let count = 0, duplicates = 0, companiesCreated = 0, skippedNoCompany = 0;
+
+                    for (const row of json) {
+                        const name = String(row['Contact Name'] || row['Name'] || '').trim();
+                        const companyName = String(row['Company'] || row['Organization'] || '').trim();
+                        if (!name) continue;
+
+                        let targetPartyId = '';
+                        if (companyName) {
+                            const matchedCompany = localCompanies.find(c => c.name.toLowerCase().trim() === companyName.toLowerCase().trim());
+                            if (matchedCompany) {
+                                targetPartyId = matchedCompany.id;
+                            } else {
+                                targetPartyId = await addParty({
+                                    name: companyName,
+                                    type: "Customer",
+                                    ownership: "Both",
+                                    address: "Auto-created via Contact Import",
+                                    createdBy: user.username
+                                } as any);
+                                localCompanies.push({ id: targetPartyId, name: companyName } as Party);
+                                companiesCreated++;
+                            }
+                        } else {
+                            skippedNoCompany++;
+                            continue;
+                        }
+
+                        const isDuplicate = contacts.some(c =>
+                            c.name.toLowerCase().trim() === name.toLowerCase() &&
+                            c.partyId === targetPartyId
+                        );
+                        if (isDuplicate) { duplicates++; continue; }
+
+                        await addContact({
+                            name,
+                            partyId: targetPartyId,
+                            email: String(row['Email'] || ''),
+                            phone: String(row['Phone'] || row['Mobile'] || ''),
+                            designation: String(row['Designation'] || 'Staff'),
+                            isPrimary: String(row['Is Primary'] || '').toLowerCase() === 'yes',
+                            createdBy: user.username,
+                            createdAt: new Date().toISOString()
+                        });
+                        count++;
+                    }
+
+                    toast({
+                        title: 'Import Successful',
+                        description: `Processed ${count} new contacts. Found ${duplicates} duplicates. Created ${companiesCreated} new companies. Skipped ${skippedNoCompany} rows with missing company names.`
+                    });
+                } catch {
+                    toast({ title: 'Import Failed', description: 'Failed to parse Excel data.', variant: 'destructive' });
+                } finally {
+                    setIsImportingContacts(false);
+                }
+            };
+            reader.readAsArrayBuffer(file);
         } catch {
-            toast({ title: 'Error scheduling reminder', variant: 'destructive' });
+            setIsImportingContacts(false);
+            toast({ title: 'Error', description: 'Failed to process file.', variant: 'destructive' });
         }
+        if (contactsFileInputRef.current) contactsFileInputRef.current.value = '';
     };
 
     const handleSaveAttributes = async () => {
@@ -351,6 +343,21 @@ export default function CompaniesManagementPage() {
         }
     };
 
+    const contactsByParty = (partyId: string) =>
+        contacts
+            .filter(c => c.partyId === partyId)
+            // Primary first, then alphabetical - the person you most likely want is on top.
+            .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) || a.name.localeCompare(b.name));
+
+    const openAttributes = (c: Party) => {
+        setAttributesForm({
+            clientScore: c.customFields?.clientScore || '',
+            successFactor: c.customFields?.successFactor || '',
+            accountMgr: c.customFields?.accountMgr || '',
+        });
+        setIsAttributesDialogOpen(true);
+    };
+
     const getPrimaryContact = (partyId: string) => {
         return contacts.find(c => c.partyId === partyId && c.isPrimary) || contacts.find(c => c.partyId === partyId);
     };
@@ -361,7 +368,7 @@ export default function CompaniesManagementPage() {
             'Prospect': 'bg-blue-50 text-blue-700 border-blue-100',
             'Negotiation': 'bg-amber-50 text-amber-700 border-amber-100',
             'Customer': 'bg-emerald-50 text-emerald-700 border-emerald-100',
-            'Past Client': 'bg-gray-50 text-gray-700 border-gray-100'
+            'Past Client': 'bg-muted text-foreground border-border'
         };
         return (
             <Badge variant="outline" className={cn("text-[8px] font-black uppercase tracking-widest px-1.5 h-4 shadow-none", variants[classification])}>
@@ -374,19 +381,41 @@ export default function CompaniesManagementPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Account Intelligence</h1>
-                    <p className="text-muted-foreground text-sm font-medium">Complete profiles and hierarchical relationship management.</p>
+                    <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">Companies &amp; Contacts</h1>
+                    <p className="text-muted-foreground text-sm font-medium">Account profiles with their people, activity, and quotation history in one place.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="relative">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Filter accounts..." 
-                            className="pl-8 w-64 bg-white h-10 border-gray-300 shadow-sm" 
+                        <Input
+                            placeholder="Filter accounts..."
+                            className="pl-8 w-64 bg-card h-10 border-border shadow-sm"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                         />
                     </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="h-10 font-bold text-xs uppercase tracking-widest gap-2">
+                                <FileSpreadsheet className="h-4 w-4" /> Contacts <ChevronDown className="h-3 w-3 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExportContactsExcel}>
+                                <Download className="mr-2 h-4 w-4" /> Export Contacts to Excel
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => contactsFileInputRef.current?.click()}>
+                                <Upload className="mr-2 h-4 w-4" /> Import Contacts from Excel
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <input
+                        type="file"
+                        ref={contactsFileInputRef}
+                        onChange={handleImportContactsExcel}
+                        accept=".xlsx,.xls"
+                        className="hidden"
+                    />
                     <Button variant="outline" onClick={() => setIsMergeDialogOpen(true)} className="h-10 font-bold text-xs uppercase tracking-widest gap-2">
                         <GitMerge className="h-4 w-4" /> Merge
                     </Button>
@@ -396,39 +425,53 @@ export default function CompaniesManagementPage() {
                 </div>
             </header>
 
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            {isImportingContacts && (
+                <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg flex items-center gap-3 animate-pulse">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-sm font-bold uppercase tracking-widest text-primary">Synchronizing Contacts...</span>
+                </div>
+            )}
+
+            <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow className="hover:bg-transparent">
-                                <TableHead className="pl-6 font-black uppercase text-[10px] tracking-widest h-11">Company Name</TableHead>
+                                <TableHead className="w-10 pl-4"></TableHead>
+                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Company</TableHead>
                                 <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Primary Contact</TableHead>
+                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11 text-center">People</TableHead>
                                 <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Classification</TableHead>
                                 <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Ownership</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Last Activity</TableHead>
                                 <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest h-11">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-20">
+                                    <TableCell colSpan={7} className="text-center py-20">
                                         <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20"/>
                                     </TableCell>
                                 </TableRow>
                             ) : filteredCompanies.map(c => {
+                                const companyContacts = contactsByParty(c.id);
                                 const primary = getPrimaryContact(c.id);
-                                const lastInteraction = sortedInteractions.find(i => i.partyId === c.id);
+                                const isExpanded = expandedCompanyId === c.id;
 
                                 return (
-                                    <TableRow 
-                                        key={c.id} 
-                                        className="hover:bg-muted/30 cursor-pointer h-16 group transition-colors" 
-                                        onClick={() => handleOpenDetail(c)}
+                                    <React.Fragment key={c.id}>
+                                    <TableRow
+                                        className={cn("hover:bg-muted/30 cursor-pointer h-16 group transition-colors", isExpanded && "bg-muted/20")}
+                                        onClick={() => setExpandedCompanyId(isExpanded ? null : c.id)}
                                     >
-                                        <TableCell className="pl-6">
+                                        <TableCell className="pl-4">
+                                            {isExpanded
+                                                ? <ChevronDown className="h-4 w-4 text-primary" />
+                                                : <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />}
+                                        </TableCell>
+                                        <TableCell>
                                             <div className="flex flex-col">
-                                                <span className="font-black text-gray-900 leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{c.name}</span>
+                                                <span className="font-black text-foreground leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{c.name}</span>
                                                 <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
                                                     <MapPin className="h-2.5 w-2.5 text-primary opacity-50"/> {c.address || 'Location unassigned'}
                                                 </span>
@@ -440,14 +483,19 @@ export default function CompaniesManagementPage() {
                                                     <div className="h-8 w-8 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center font-black text-xs text-primary shadow-inner">
                                                         {primary.name.charAt(0)}
                                                     </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-black text-gray-800 uppercase tracking-tighter">{primary.name}</span>
-                                                        <span className="text-[9px] uppercase font-bold text-muted-foreground">{primary.designation || 'Staff'}</span>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-xs font-black text-foreground uppercase tracking-tighter truncate">{primary.name}</span>
+                                                        <span className="text-[9px] uppercase font-bold text-muted-foreground truncate">{primary.phone || primary.designation || 'Staff'}</span>
                                                     </div>
                                                 </div>
                                             ) : (
                                                 <span className="text-[10px] text-muted-foreground italic font-medium uppercase opacity-50">No contacts defined</span>
                                             )}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Badge variant="outline" className="text-[9px] font-black tabular-nums h-5 px-2">
+                                                {companyContacts.length}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>
                                             {getClassificationBadge(c.classification) || (
@@ -459,45 +507,133 @@ export default function CompaniesManagementPage() {
                                                 {c.ownership}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>
-                                            {lastInteraction ? (
-                                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-tight">
-                                                    <History className="h-3 w-3" /> {format(new Date(lastInteraction.date), "PP")}
-                                                </div>
-                                            ) : (
-                                                <span className="text-[10px] text-muted-foreground opacity-30 uppercase font-black">—</span>
-                                            )}
-                                        </TableCell>
                                         <TableCell className="text-right pr-6" onClick={e => e.stopPropagation()}>
                                             <div className="flex items-center justify-end gap-1">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 text-[9px] font-black uppercase tracking-widest"
+                                                    onClick={() => { setSelectedCompany(c); openAddContact(); }}
+                                                >
+                                                    <Plus className="mr-1 h-3.5 w-3.5" /> Contact
+                                                </Button>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
                                                             <MoreHorizontal className="h-4 w-4"/>
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
-                                                        <DropdownMenuItem onSelect={() => handleOpenDetail(c)}>
-                                                            <Eye className="mr-2 h-4 w-4"/> Full Profile
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onSelect={() => { setSelectedCompany(c); setIsLogDialogOpen(true); }}>
-                                                            <Clock className="mr-2 h-4 w-4"/> Log Activity
+                                                        <DropdownMenuItem onSelect={() => { setSelectedCompany(c); openAttributes(c); }}>
+                                                            <Edit className="mr-2 h-4 w-4"/> Account Details
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem className="text-destructive" onSelect={() => setDeletingCompany(c)}>
+                                                        <DropdownMenuItem className="text-destructive" onSelect={() => {
+                                                            setDeletingCompany(c);
+                                                            setDeleteQuotationCount(null);
+                                                            getCostReports().then(reports => {
+                                                                setDeleteQuotationCount(reports.filter(r => r.partyId === c.id).length);
+                                                            }).catch(() => setDeleteQuotationCount(null));
+                                                        }}>
                                                             <Trash2 className="mr-2 h-4 w-4"/> Delete Account
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
-                                                <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
                                             </div>
                                         </TableCell>
                                     </TableRow>
+
+                                    {/* Expanded: the company's own details, then every person at
+                                        it. One company routinely has several people, and the row
+                                        could only ever show the primary one. */}
+                                    {isExpanded && (
+                                        <TableRow className="hover:bg-transparent bg-muted/10 border-b-2">
+                                            <TableCell colSpan={7} className="p-0">
+                                                <div className="px-6 py-4 space-y-4">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
+                                                        {[
+                                                            { label: 'Address', value: c.address },
+                                                            { label: 'PAN / VAT', value: c.panNumber },
+                                                            { label: 'Account Manager', value: c.customFields?.accountMgr },
+                                                            { label: 'Client Score', value: c.customFields?.clientScore },
+                                                        ].map(f => (
+                                                            <div key={f.label}>
+                                                                <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{f.label}</div>
+                                                                <div className="text-xs font-bold text-foreground break-words">{f.value || <span className="opacity-30">—</span>}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <div>
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                                                                <Users className="h-3.5 w-3.5 text-primary" /> Contacts ({companyContacts.length})
+                                                            </h4>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="h-7 text-[9px] font-black uppercase tracking-widest"
+                                                                onClick={() => { setSelectedCompany(c); openAddContact(); }}
+                                                            >
+                                                                <Plus className="mr-1 h-3 w-3" /> Add Person
+                                                            </Button>
+                                                        </div>
+
+                                                        {companyContacts.length === 0 ? (
+                                                            <div className="border border-dashed rounded-lg py-6 text-center">
+                                                                <p className="text-[10px] text-muted-foreground italic font-medium uppercase tracking-widest">No people recorded for this company.</p>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="border rounded-lg divide-y bg-card overflow-hidden">
+                                                                {companyContacts.map((ct: CRMContact) => (
+                                                                    <div key={ct.id} className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 py-2 hover:bg-muted/20 transition-colors">
+                                                                        <div className="flex items-center gap-2 min-w-0 sm:w-56 shrink-0">
+                                                                            <div className="h-7 w-7 rounded-lg bg-primary/5 border border-primary/10 flex items-center justify-center font-black text-[10px] text-primary shrink-0">
+                                                                                {ct.name.charAt(0)}
+                                                                            </div>
+                                                                            <div className="min-w-0">
+                                                                                <div className="text-xs font-black text-foreground uppercase tracking-tight truncate flex items-center gap-1.5">
+                                                                                    {ct.name}
+                                                                                    {ct.isPrimary && <Badge variant="outline" className="text-[7px] h-3.5 px-1 font-black uppercase bg-primary/5 border-primary/20 text-primary">Primary</Badge>}
+                                                                                </div>
+                                                                                <div className="text-[9px] uppercase font-bold text-muted-foreground truncate">{ct.designation || 'Staff'}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 min-w-0">
+                                                                            <div className="text-[11px] text-foreground truncate flex items-center gap-1.5">
+                                                                                <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                                                {ct.phone ? <a href={`tel:${ct.phone}`} className="hover:underline">{ct.phone}</a> : <span className="opacity-30">—</span>}
+                                                                            </div>
+                                                                            <div className="text-[11px] text-foreground truncate flex items-center gap-1.5">
+                                                                                <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                                                {ct.email ? <a href={`mailto:${ct.email}`} className="hover:underline truncate">{ct.email}</a> : <span className="opacity-30">—</span>}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1 shrink-0">
+                                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit contact"
+                                                                                onClick={() => { setSelectedCompany(c); openEditContact(ct); }}>
+                                                                                <Edit className="h-3.5 w-3.5" />
+                                                                            </Button>
+                                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="Remove contact"
+                                                                                onClick={() => setDeletingContact(ct)}>
+                                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                    </React.Fragment>
                                 );
                             })}
                             {!isLoading && filteredCompanies.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-60 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={7} className="h-60 text-center text-muted-foreground italic">
                                         <Building2 className="h-10 w-10 mx-auto opacity-10 mb-3"/>
                                         <p className="text-sm font-medium uppercase tracking-widest">No accounts found in registry.</p>
                                     </TableCell>
@@ -513,7 +649,19 @@ export default function CompaniesManagementPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle className="uppercase tracking-tight">Delete Account?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently remove <span className="font-bold text-gray-900">{deletingCompany?.name}</span> from the registry. This action cannot be undone.
+                            This will permanently remove <span className="font-bold text-foreground">{deletingCompany?.name}</span> from the registry. This action cannot be undone.
+                            {(() => {
+                                const contactCount = deletingCompany ? contacts.filter(c => c.partyId === deletingCompany.id).length : 0;
+                                if (contactCount === 0 && !deleteQuotationCount) return null;
+                                return (
+                                    <span className="block mt-2 font-bold text-destructive">
+                                        {contactCount > 0 && `${contactCount} contact${contactCount > 1 ? 's' : ''}`}
+                                        {contactCount > 0 && !!deleteQuotationCount && ' and '}
+                                        {!!deleteQuotationCount && `${deleteQuotationCount} saved quotation${deleteQuotationCount > 1 ? 's' : ''}`}
+                                        {' '}will be left pointing at a deleted account instead of being removed or reassigned. Use Merge instead if you want them moved to another account first.
+                                    </span>
+                                );
+                            })()}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -528,14 +676,14 @@ export default function CompaniesManagementPage() {
             <Dialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Merge Accounts</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">Merge Accounts</DialogTitle>
                         <DialogDescription>Consolidate duplicate records. Data from the source will be moved to the destination, and the source will be deleted.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-6 py-4">
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground">Source Account (TO BE DELETED)</Label>
                             <Select value={mergeSourceId} onValueChange={setMergeSourceId}>
-                                <SelectTrigger className="h-10 bg-white">
+                                <SelectTrigger className="h-10 bg-card">
                                     <SelectValue placeholder="Select account to remove..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -553,7 +701,7 @@ export default function CompaniesManagementPage() {
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground">Destination Account (TO KEEP)</Label>
                             <Select value={mergeDestId} onValueChange={setMergeDestId}>
-                                <SelectTrigger className="h-10 bg-white">
+                                <SelectTrigger className="h-10 bg-card">
                                     <SelectValue placeholder="Select account to keep..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -578,353 +726,17 @@ export default function CompaniesManagementPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Profile Detail Dialog */}
-            {selectedCompany && (
-                <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                    <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 border-none shadow-2xl overflow-hidden">
-                        <DialogHeader className="p-8 border-b bg-primary/5 shrink-0">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                <div className="space-y-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">Company Record</Badge>
-                                        {getClassificationBadge(selectedCompany.classification)}
-                                    </div>
-                                    <DialogTitle className="text-3xl font-black text-gray-900 tracking-tighter uppercase">{selectedCompany.name}</DialogTitle>
-                                    <DialogDescription className="flex items-center gap-3 font-medium">
-                                        <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-primary"/> {selectedCompany.address}</span>
-                                        <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-primary"/> PAN: {selectedCompany.panNumber || 'N/A'}</span>
-                                    </DialogDescription>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button onClick={() => setIsLogDialogOpen(true)} className="h-11 px-8 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20"><Plus className="mr-2 h-4 w-4"/> Log Interaction</Button>
-                                </div>
-                            </div>
-                        </DialogHeader>
-
-                        <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-3">
-                            {/* Left Side: Information */}
-                            <div className="lg:col-span-2 overflow-y-auto bg-gray-50/30 p-8 space-y-8 border-r">
-                                <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                        <Users className="h-3.5 w-3.5" /> Personnel Hierarchy
-                                    </h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {contacts.filter(c => c.partyId === selectedCompany.id).map(contact => (
-                                            <Card key={contact.id} className="shadow-sm ring-1 ring-black/5 border-none">
-                                                <CardContent className="p-4 flex items-center gap-4">
-                                                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center font-black text-sm transition-all shadow-inner", contact.isPrimary ? "bg-blue-600 text-white" : "bg-muted/50 text-muted-foreground")}>
-                                                        {contact.name.charAt(0)}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between">
-                                                            <p className="font-bold text-gray-900 truncate">{contact.name}</p>
-                                                            {contact.isPrimary && <Badge className="text-[7px] uppercase h-3.5 px-1 bg-blue-600">Primary</Badge>}
-                                                        </div>
-                                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">{contact.designation || 'Staff'}</p>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
-                                        {contacts.filter(c => c.partyId === selectedCompany.id).length === 0 && (
-                                            <div className="col-span-2 py-10 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                                                <Users className="h-6 w-6 opacity-20"/>
-                                                <p className="text-xs font-bold uppercase tracking-widest">No Contacts Linked</p>
-                                                <Button variant="ghost" size="sm" asChild className="text-[10px] font-black underline"><Link href="/crm/contacts">Go to Directory</Link></Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </section>
-
-                                <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                        <History className="h-3.5 w-3.5" /> Interaction History
-                                    </h4>
-                                    <div className="space-y-3">
-                                        {sortedInteractions.filter(i => i.partyId === selectedCompany.id).map(log => {
-                                            const linkedContact = contacts.find(c => c.id === log.contactId);
-                                            return (
-                                                <div key={log.id} className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm relative group">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge variant="outline" className={cn("text-[8px] uppercase font-black px-1.5 h-4", log.type === 'Task' && log.taskStatus === 'Pending' ? "bg-amber-50 text-amber-700 border-amber-200" : "")}>{log.type}</Badge>
-                                                            <span className="text-xs font-black text-gray-900">{log.subject}</span>
-                                                            {log.type === 'Task' && (
-                                                                <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.taskStatus === 'Done' ? "bg-gray-100 text-gray-500" : "bg-primary text-white")}>
-                                                                    {log.taskStatus || 'Pending'}
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            {log.type === 'Task' && log.taskStatus === 'Pending' && (
-                                                                <Button variant="outline" size="sm" onClick={(e) => handleMarkTaskDone(e, log.id)} className="h-6 text-[8px] font-black uppercase tracking-tighter border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-                                                                    <CheckCircle2 className="mr-1 h-2.5 w-2.5" /> Mark Done
-                                                                </Button>
-                                                            )}
-                                                            <span className="text-[9px] font-bold text-muted-foreground uppercase">{format(new Date(log.date), "PP")}</span>
-                                                        </div>
-                                                    </div>
-                                                    <p className="text-[11px] text-gray-600 leading-relaxed italic border-l-2 border-primary/20 pl-3">{log.description}</p>
-                                                    {log.type === 'Task' && log.taskDueDateBS && (
-                                                        <p className="mt-2 text-[9px] font-bold text-destructive flex items-center gap-1 uppercase">
-                                                            <Clock className="h-2.5 w-2.5" /> Target: {log.taskDueDateBS} {log.assignee ? `(For ${log.assignee})` : ''}
-                                                        </p>
-                                                    )}
-                                                    <div className="mt-3 text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1">
-                                                        <User className="h-2 w-2"/> Processed by {log.performer} {linkedContact ? `with ${linkedContact.name}` : ''}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                        {sortedInteractions.filter(i => i.partyId === selectedCompany.id).length === 0 && (
-                                            <div className="py-20 text-center opacity-40 italic text-xs uppercase font-black">No interaction logs found.</div>
-                                        )}
-                                    </div>
-                                </section>
-                            </div>
-
-                            {/* Right Side: Quick Stats & Metadata */}
-                            <div className="lg:col-span-1 p-8 space-y-8 bg-white overflow-y-auto">
-                                <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                        <Bell className="h-3.5 w-3.5 text-primary" /> Next Follow-up
-                                    </h4>
-                                    {nextFollowUp ? (
-                                        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-3">
-                                            <div className="flex justify-between items-start">
-                                                <span className="text-[10px] font-black uppercase text-amber-700">{nextFollowUp.dueDateBS}</span>
-                                                <Clock className="h-3 w-3 text-amber-600" />
-                                            </div>
-                                            <p className="text-xs font-black text-gray-900 leading-tight">{nextFollowUp.action}</p>
-                                            <Button variant="link" asChild className="h-auto p-0 text-[10px] font-black uppercase underline text-amber-700">
-                                                <Link href="/crm/followups">Manage Reminders</Link>
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <div className="p-4 rounded-xl border border-dashed text-center space-y-3">
-                                            <p className="text-[10px] text-muted-foreground italic font-medium">No scheduled actions.</p>
-                                            <Button size="sm" variant="outline" onClick={() => setIsFollowUpDialogOpen(true)} className="h-8 font-black text-[9px] uppercase tracking-widest">
-                                                <Plus className="mr-1.5 h-3.5 w-3.5" /> Schedule New
-                                            </Button>
-                                        </div>
-                                    )}
-                                </section>
-
-                                <Separator />
-
-                                {/* NEW: Financial Snapshot Section */}
-                                <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                        <TrendingUp className="h-3.5 w-3.5 text-primary" /> Financial Snapshot
-                                    </h4>
-                                    {isLoadingFinancials ? (
-                                        <div className="py-10 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto opacity-20"/></div>
-                                    ) : financialData?.hasData ? (
-                                        <div className="space-y-4">
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100">
-                                                    <p className="text-[8px] font-black uppercase text-blue-600 mb-1">Fiscal Year Sales</p>
-                                                    <p className="text-xs font-black text-gray-900 tabular-nums">Rs. {financialData.fiscalYearSales.toLocaleString('en-IN')}</p>
-                                                </div>
-                                                <div className={cn(
-                                                    "p-3 rounded-xl border",
-                                                    financialData.indicativeBalance > 0 ? "bg-red-50/50 border-red-100" : "bg-emerald-50/50 border-emerald-100"
-                                                )}>
-                                                    <p className={cn("text-[8px] font-black uppercase mb-1", financialData.indicativeBalance > 0 ? "text-red-600" : "text-emerald-600")}>Indicative Balance</p>
-                                                    <p className={cn("text-xs font-black tabular-nums", financialData.indicativeBalance > 0 ? "text-red-700" : "text-emerald-700")}>
-                                                        Rs. {Math.abs(financialData.indicativeBalance).toLocaleString('en-IN')}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <p className="text-[9px] font-black uppercase text-muted-foreground px-1">Recent Transactions</p>
-                                                <div className="divide-y border rounded-xl bg-gray-50/50">
-                                                    {financialData.last5.map(t => (
-                                                        <div key={t.id} className="p-2 flex items-center justify-between">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[9px] font-bold text-gray-500 uppercase">{format(new Date(t.date), "MMM d, yyyy")}</span>
-                                                                <Badge variant="outline" className="text-[7px] h-3 px-1 w-fit uppercase font-black bg-white">{t.type}</Badge>
-                                                            </div>
-                                                            <span className={cn("text-[10px] font-black tabular-nums", t.type === 'Sales' ? "text-blue-700" : "text-emerald-700")}>
-                                                                {t.type === 'Sales' ? '+' : '-'} {t.amount.toLocaleString('en-IN')}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="p-6 rounded-xl border border-dashed text-center">
-                                            <p className="text-[10px] text-muted-foreground italic font-medium">No financial records.</p>
-                                        </div>
-                                    )}
-                                </section>
-
-                                <Separator />
-
-                                <section className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                        <Target className="h-3 w-3"/> Lifecycle Classification
-                                    </h4>
-                                    <div className="flex flex-col gap-2">
-                                        {(['Prospect', 'Negotiation', 'Customer', 'Past Client'] as CustomerClassification[]).map((stage) => (
-                                            <Button
-                                                key={stage}
-                                                variant={selectedCompany.classification === stage ? "default" : "outline"}
-                                                size="sm"
-                                                className="justify-start h-9 text-[10px] font-black uppercase tracking-widest group"
-                                                onClick={() => handleUpdateClassification(stage)}
-                                            >
-                                                <div className={cn(
-                                                    "w-2 h-2 rounded-full mr-3 border shadow-sm transition-transform group-hover:scale-125",
-                                                    selectedCompany.classification === stage ? "bg-white border-white" : 
-                                                    stage === 'Prospect' ? "bg-blue-400 border-blue-200" :
-                                                    stage === 'Negotiation' ? "bg-amber-400 border-amber-200" :
-                                                    stage === 'Customer' ? "bg-emerald-500 border-emerald-200" : "bg-gray-400 border-gray-200"
-                                                )} />
-                                                {stage}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </section>
-
-                                <Separator />
-
-                                <section className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Custom Attributes</h4>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                                            setAttributesForm({
-                                                clientScore: selectedCompany.customFields?.clientScore || '',
-                                                successFactor: selectedCompany.customFields?.successFactor || '',
-                                                accountMgr: selectedCompany.customFields?.accountMgr || ''
-                                            });
-                                            setIsAttributesDialogOpen(true);
-                                        }}>
-                                            <Edit className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <div className="space-y-1">
-                                            <Label className="text-[9px] uppercase font-bold opacity-50">Client Score</Label>
-                                            <p className="text-xs font-black">{selectedCompany.customFields?.clientScore || 'Not Assigned'}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-[9px] uppercase font-bold opacity-50">Key Success Factor</Label>
-                                            <p className="text-xs font-black">{selectedCompany.customFields?.successFactor || 'Not Defined'}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-[9px] uppercase font-bold opacity-50">Assigned Account Mgr</Label>
-                                            <p className="text-xs font-black uppercase text-primary underline">{selectedCompany.customFields?.accountMgr || 'None'}</p>
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                        </div>
-
-                        <DialogFooter className="p-6 border-t bg-white shrink-0">
-                            <Button variant="outline" onClick={() => setIsDetailOpen(false)} className="font-bold text-xs uppercase h-11 px-8">Close Account</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            )}
-
-            <Dialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Log Relationship Event</DialogTitle>
-                        <DialogDescription>Track important communications with this account.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-5 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Log Category</Label>
-                                <Select value={logForm.type} onValueChange={v => setLogForm({...logForm, type: v})}>
-                                    <SelectTrigger className="h-10 bg-white"><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Call">Call</SelectItem>
-                                        <SelectItem value="Email">Email</SelectItem>
-                                        <SelectItem value="Meeting">Meeting</SelectItem>
-                                        <SelectItem value="Note">Internal Note</SelectItem>
-                                        <SelectItem value="Task">Action Item (Task)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Contact Person (Optional)</Label>
-                                <Select value={logForm.contactId} onValueChange={v => setLogForm({...logForm, contactId: v})}>
-                                    <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="Internal Staff" /></SelectTrigger>
-                                    <SelectContent>
-                                        {contacts.filter(c => c.partyId === selectedCompany?.id).map(c => (
-                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Subject / Purpose</Label>
-                            <Input value={logForm.subject} onChange={e => setLogForm({...logForm, subject: e.target.value})} placeholder="Main topic" className="h-10 font-bold" />
-                        </div>
-
-                        {logForm.type === 'Task' && (
-                            <div className="grid grid-cols-2 gap-4 p-3 bg-primary/5 rounded-xl border border-primary/10 animate-in zoom-in-95">
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase text-primary">Task Due Date (BS)</Label>
-                                    <Input value={logForm.taskDueDateBS} onChange={e => setLogForm({...logForm, taskDueDateBS: e.target.value})} placeholder="YYYY/MM/DD" className="h-9 font-mono" />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase text-primary">Assignee</Label>
-                                    <Input value={logForm.assignee} onChange={e => setLogForm({...logForm, assignee: e.target.value})} placeholder="Name" className="h-9" />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Narrative Details</Label>
-                            <Textarea value={logForm.description} onChange={e => setLogForm({...logForm, description: e.target.value})} placeholder="Detailed conversation points..." className="min-h-[120px] text-sm resize-none" />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsLogDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
-                        <Button onClick={handleSaveLog} className="font-black text-xs uppercase h-11 px-10 shadow-lg shadow-primary/20">Commit Log</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isFollowUpDialogOpen} onOpenChange={setIsFollowUpDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Schedule Persistence</DialogTitle>
-                        <DialogDescription>Plan a future action for {selectedCompany?.name}.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-5 py-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Target Date (BS)</Label>
-                            <Input value={followUpForm.dueDateBS} onChange={e => setFollowUpForm({...followUpForm, dueDateBS: e.target.value})} placeholder="YYYY/MM/DD" className="h-10 font-mono" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Action Required</Label>
-                            <Input value={followUpForm.action} onChange={e => setFollowUpForm({...followUpForm, action: e.target.value})} placeholder="e.g. Call regarding bulk contract" className="h-10 font-bold" />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsLogDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
-                        <Button onClick={handleSaveFollowUp} className="font-black text-xs uppercase h-11 px-10 shadow-lg shadow-primary/20">Schedule Action</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
             <Dialog open={isAttributesDialogOpen} onOpenChange={setIsAttributesDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">Edit Custom Attributes</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">Edit Custom Attributes</DialogTitle>
                         <DialogDescription>Define strategic metadata for this client account.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Client Score</Label>
                             <Select value={attributesForm.clientScore} onValueChange={v => setAttributesForm({...attributesForm, clientScore: v})}>
-                                <SelectTrigger className="h-10 bg-white">
+                                <SelectTrigger className="h-10 bg-card">
                                     <SelectValue placeholder="Select score category..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -950,6 +762,65 @@ export default function CompaniesManagementPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Add/Edit Contact Dialog */}
+            <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">{editingContact ? 'Edit Contact' : 'Add Contact'}</DialogTitle>
+                        <DialogDescription>{editingContact ? 'Update this person\'s details.' : `Add a person at ${selectedCompany?.name || 'this account'}.`}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Full Name</Label>
+                            <Input value={contactForm.name} onChange={e => setContactForm({...contactForm, name: e.target.value})} className="h-10 font-bold" placeholder="e.g. John Doe" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Designation</Label>
+                                <Input value={contactForm.designation} onChange={e => setContactForm({...contactForm, designation: e.target.value})} placeholder="e.g. Purchase Head" className="h-9" />
+                            </div>
+                            <div className="space-y-1.5 flex flex-col justify-end">
+                                <div className="flex items-center space-x-2 h-9">
+                                    <Checkbox id="contact-primary" checked={contactForm.isPrimary} onCheckedChange={v => setContactForm({...contactForm, isPrimary: !!v})} />
+                                    <Label htmlFor="contact-primary" className="text-xs font-bold uppercase cursor-pointer">Primary Contact</Label>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 pt-2">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Email Address</Label>
+                                <Input value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} placeholder="office@client.com" className="h-9" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Direct Line</Label>
+                                <Input value={contactForm.phone} onChange={e => setContactForm({...contactForm, phone: e.target.value})} placeholder="+977-..." className="h-9" />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsContactDialogOpen(false)} className="font-bold text-xs uppercase h-11">Cancel</Button>
+                        <Button onClick={handleSaveContact} disabled={!contactForm.name} className="font-black text-xs uppercase h-11 px-8 shadow-lg shadow-primary/20">{editingContact ? 'Save Changes' : 'Add Contact'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={!!deletingContact} onOpenChange={(open) => !open && setDeletingContact(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="uppercase tracking-tight">Delete Contact?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently remove <span className="font-bold text-foreground">{deletingContact?.name}</span> from the directory. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="font-bold text-xs uppercase">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDeleteContact} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black text-xs uppercase">
+                            Delete Permanently
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

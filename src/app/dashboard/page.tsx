@@ -12,17 +12,14 @@ import {
   Clock,
   Calendar as CalendarIcon,
   ChevronRight,
-  ChevronDown,
   FileText,
-  Briefcase,
-  Scale,
   Package,
   MousePointer2,
-  AlertCircle,
-  Building2
+  Building2,
+  LayoutDashboard
 } from 'lucide-react';
 
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -56,17 +53,7 @@ import type {
   Vehicle,
   Driver
 } from '@/lib/types';
-import {
-  differenceInDays,
-  startOfToday,
-  format,
-  subDays,
-  isValid,
-  startOfMonth,
-  endOfMonth,
-  subMonths,
-  endOfDay
-} from 'date-fns';
+import { differenceInDays, startOfToday, format, isValid, endOfDay } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -237,6 +224,29 @@ function TileShell({
   );
 }
 
+/** The manufacturing / transport / rent contributions behind one total. */
+function RevenueSplit({ revenue }: { revenue: { mfg: number; fleet: number; rental: number } }) {
+  const parts = [
+    { label: 'Mfg', value: revenue.mfg },
+    { label: 'Transport', value: revenue.fleet },
+    { label: 'Rent', value: revenue.rental },
+  ].filter(p => p.value > 0);
+
+  // One stream means the headline number already says everything.
+  if (parts.length < 2) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+      {parts.map(p => (
+        <span key={p.label} className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+          {p.label}{' '}
+          <span className="tabular-nums text-foreground/70">Rs.{nf(p.value)}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ValueTile({
   href,
   accent,
@@ -386,26 +396,49 @@ export default function DashboardPage() {
         markReady(key);
       };
 
+    // The dashboard aggregates across every module, and the security rules now
+    // enforce the per-module permissions rather than letting any approved user
+    // read everything. So it must only subscribe to what this user may read:
+    // an ungated listener would be denied at the rules layer and surface as an
+    // error, breaking the whole page for a restricted user.
+    //
+    // The panels below were already gated by these same checks - this makes the
+    // data fetching agree with the display, and stops the dashboard paying for
+    // reads it will never show.
+    const when = (allowed: boolean, subscribe: () => () => void, key: string) => {
+      if (allowed) return subscribe();
+      markReady(key);            // nothing to wait for
+      return () => {};
+    };
+
+    const canFinanceView = hasPermission('finance', 'view');
+    const canFleetView = hasPermission('fleet', 'view');
+    const canPOView = hasPermission('purchaseOrders', 'view');
+    const canCRMView = hasPermission('crm', 'view');
+    const canRentalView = hasPermission('rental', 'view');
+    const canReportsView = hasPermission('reports', 'view');
+    const canSettingsView = hasPermission('settings', 'view');
+
     const unsubs = [
-      onPoliciesUpdate(wrap('policies', (v: PolicyOrMembership[]) => setPolicies(isIncluded('fleet') ? v.filter((p) => inScopeFleet(p.ownership)) : []))),
-      onPurchaseOrdersUpdate(wrap('pos', (v: PurchaseOrder[]) => setPurchaseOrders(isIncluded('purchaseOrders') ? v.filter((p) => inScopePO(p.ownership)) : []))),
-      onEstimatedInvoicesUpdate(wrap('invoices', (v: EstimatedInvoice[]) => setInvoices(isIncluded('finance') ? v.filter((i) => inScopeFinance(i.ownership)) : []))),
-      onPageVisitsUpdate(wrap('visits', setPageVisits)),
-      onChequesUpdate(wrap('cheques', (v: Cheque[]) => setCheques(isIncluded('finance') ? v.filter((c) => inScopeFinance(c.ownership)) : []))),
-      onTripsUpdate(wrap('trips', (v: Trip[]) => setTrips(isIncluded('fleet') ? v.filter((t) => inScopeFleet(t.ownership)) : []))),
-      onRentalBillsUpdate(wrap('rental', (v: RentalBill[]) => setRentalBills(isIncluded('rental') ? v.filter((r) => inScopeRental(r.ownership)) : []))),
-      onProductsUpdate(wrap('products', (v: Product[]) => setProducts(isIncluded('reports') ? v.filter((p) => inScopeReports(p.ownership)) : []))),
-      onCostReportsUpdate(wrap('costReports', (v: CostReport[]) => setCostReports(isIncluded('reports') ? v.filter((c) => inScopeReports(c.ownership)) : []))),
-      onGsmReportsUpdate(wrap('gsmReports', (v: GsmReport[]) => setGsmReports(isIncluded('reports') ? v.filter((g) => inScopeReports(g.ownership)) : []))),
-      onVehiclesUpdate(wrap('vehicles', (v: Vehicle[]) => setVehicles(isIncluded('fleet') ? v.filter((veh) => inScopeFleet(veh.ownership)) : []))),
-      onDriversUpdate(wrap('drivers', (v: Driver[]) => setDrivers(isIncluded('fleet') ? v.filter((d) => inScopeFleet(d.ownership)) : []))),
+      when(canFleetView,   () => onPoliciesUpdate(wrap('policies', (v: PolicyOrMembership[]) => setPolicies(isIncluded('fleet') ? v.filter((p) => inScopeFleet(p.ownership)) : []))), 'policies'),
+      when(canPOView,      () => onPurchaseOrdersUpdate(wrap('pos', (v: PurchaseOrder[]) => setPurchaseOrders(isIncluded('purchaseOrders') ? v.filter((p) => inScopePO(p.ownership)) : []))), 'pos'),
+      when(canFinanceView, () => onEstimatedInvoicesUpdate(wrap('invoices', (v: EstimatedInvoice[]) => setInvoices(isIncluded('finance') ? v.filter((i) => inScopeFinance(i.ownership)) : []))), 'invoices'),
+      when(canSettingsView,() => onPageVisitsUpdate(wrap('visits', setPageVisits)), 'visits'),
+      when(canFinanceView, () => onChequesUpdate(wrap('cheques', (v: Cheque[]) => setCheques(isIncluded('finance') ? v.filter((c) => inScopeFinance(c.ownership)) : []))), 'cheques'),
+      when(canFleetView,   () => onTripsUpdate(wrap('trips', (v: Trip[]) => setTrips(isIncluded('fleet') ? v.filter((t) => inScopeFleet(t.ownership)) : []))), 'trips'),
+      when(canRentalView,  () => onRentalBillsUpdate(wrap('rental', (v: RentalBill[]) => setRentalBills(isIncluded('rental') ? v.filter((r) => inScopeRental(r.ownership)) : []))), 'rental'),
+      when(canReportsView, () => onProductsUpdate(wrap('products', (v: Product[]) => setProducts(isIncluded('reports') ? v.filter((p) => inScopeReports(p.ownership)) : []))), 'products'),
+      when(canCRMView,     () => onCostReportsUpdate(wrap('costReports', (v: CostReport[]) => setCostReports(isIncluded('reports') ? v.filter((c) => inScopeReports(c.ownership)) : []))), 'costReports'),
+      when(canFinanceView, () => onGsmReportsUpdate(wrap('gsmReports', (v: GsmReport[]) => setGsmReports(isIncluded('reports') ? v.filter((g) => inScopeReports(g.ownership)) : []))), 'gsmReports'),
+      when(canFleetView,   () => onVehiclesUpdate(wrap('vehicles', (v: Vehicle[]) => setVehicles(isIncluded('fleet') ? v.filter((veh) => inScopeFleet(veh.ownership)) : []))), 'vehicles'),
+      when(canFleetView,   () => onDriversUpdate(wrap('drivers', (v: Driver[]) => setDrivers(isIncluded('fleet') ? v.filter((d) => inScopeFleet(d.ownership)) : []))), 'drivers'),
       onSettingUpdate('companyProfile', (s: any) => {
         if (s?.value) setCompanyProfile(s.value);
       }),
     ];
 
     return () => unsubs.forEach((unsub) => unsub?.());
-  }, [markReady, inScopeFinance, inScopeFleet, inScopeRental, inScopePO, inScopeReports, isIncluded]);
+  }, [markReady, hasPermission, inScopeFinance, inScopeFleet, inScopeRental, inScopePO, inScopeReports, isIncluded]);
 
   const { currentMonthStart, currentMonthEnd, lastMonthStart, lastMonthEnd } = useMemo(() => {
     const now = new Date();
@@ -649,6 +682,14 @@ export default function DashboardPage() {
   const canPO = hasPermission('purchaseOrders', 'view');
   const canCRM = hasPermission('crm', 'view');
   const canRental = hasPermission('rental', 'view');
+  const canSettings = hasPermission('settings', 'view');
+
+  // Someone whose work is entirely in HR, rental or notes can see none of the
+  // tiles below. That used to leave a header over blank space, which reads as a
+  // broken page rather than as "this is not for you".
+  const visibleTileCount =
+    (canFinance ? 2 : 0) + (canFleet ? 1 : 0) + (canCRM ? 1 : 0) +
+    (canPO ? 1 : 0) + (canSettings ? 1 : 0);
 
   const revProgress = useMemo(() => {
     if (stats.prevRevenue.total <= 0) return 0;
@@ -660,7 +701,7 @@ export default function DashboardPage() {
       {/* ---------------- Header ---------------- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 border-b pb-4 md:pb-6">
         <div className="space-y-1.5 min-w-0">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase leading-none text-gray-900">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase leading-none text-foreground">
             {companyProfile.nameEn}
           </h1>
           <h2 className="text-sm md:text-base font-bold text-muted-foreground truncate">
@@ -771,7 +812,16 @@ export default function DashboardPage() {
                   iconClass="text-emerald-600"
                   progress={revProgress}
                   footer={
-                    <DeltaBadge current={stats.revenue.total} previous={stats.prevRevenue.total} />
+                    <div className="space-y-1.5">
+                      <DeltaBadge current={stats.revenue.total} previous={stats.prevRevenue.total} />
+                      {/* This total sums three separate businesses -
+                          manufacturing invoices, transport trips and rent - and
+                          which of them contribute depends on what the signed-in
+                          user may read. Showing the split is the difference
+                          between a number you can act on and one you have to
+                          go and reconstruct. */}
+                      <RevenueSplit revenue={stats.revenue} />
+                    </div>
                   }
                 />
               ))}
@@ -877,15 +927,37 @@ export default function DashboardPage() {
               />
             )}
 
-            <ValueTile
-              href="/settings/system?tab=usage"
-              accent="border-l-indigo-400"
-              label="System Engagement"
-              value={stats.totalVisits.toLocaleString()}
-              sub="Views"
-              icon={MousePointer2}
-              iconClass="text-indigo-400"
-            />
+            {/* Page-visit data only loads for users with settings access, and
+                the page this links to is administrator-only. Ungated, it showed
+                everyone else a permanent zero pointing at a door they cannot
+                open. */}
+            {canSettings && (
+              <ValueTile
+                href="/settings/system?tab=usage"
+                accent="border-l-indigo-400"
+                label="System Engagement"
+                value={stats.totalVisits.toLocaleString()}
+                sub="Views"
+                icon={MousePointer2}
+                iconClass="text-indigo-400"
+              />
+            )}
+
+            {visibleTileCount === 0 && (
+              <div className="sm:col-span-2 xl:col-span-3">
+                <Card className="border-2 border-dashed shadow-none">
+                  <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+                    <LayoutDashboard className="h-7 w-7 text-muted-foreground/50" />
+                    <p className="text-sm font-bold">Nothing to summarise here yet</p>
+                    <p className="max-w-sm text-xs text-muted-foreground">
+                      This dashboard reports on finance, fleet, purchasing and CRM.
+                      Your account does not have access to those, so use the sidebar
+                      to reach the modules you do work in.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
 
           {/* Attention Required section */}
@@ -916,7 +988,7 @@ export default function DashboardPage() {
                               <div className="mt-3 pt-3 border-t border-destructive/10 space-y-1.5">
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase">Top cases:</p>
                                   {action.items.map((item, idx) => (
-                                      <div key={idx} className="flex items-center justify-between gap-2 text-[10px] font-medium text-gray-700">
+                                      <div key={idx} className="flex items-center justify-between gap-2 text-[10px] font-medium text-foreground">
                                           <div className="flex items-center gap-2 overflow-hidden">
                                             <div className="w-1 h-1 rounded-full bg-destructive/40 shrink-0" />
                                             <span className="truncate">{item.text}</span>

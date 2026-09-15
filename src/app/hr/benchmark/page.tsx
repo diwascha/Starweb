@@ -16,21 +16,16 @@ import { cn } from '@/lib/utils';
 import type { Employee, AttendanceRecord, Payroll } from '@/lib/types';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { onAttendanceUpdate } from '@/services/attendance-service';
+import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
 import { onPayrollUpdate } from '@/services/payroll-service';
 import NepaliDate from 'nepali-date-converter';
 import {
     getFiscalYearStart,
-    getAvailableFiscalYears,
+    getFiscalYearsForBsYears,
+    getFiscalYearBsYears,
     formatFiscalYear,
 } from '@/lib/fiscal-year';
-import {
-    aggregatePerformanceMetricsWithTrend,
-    getBenchmarkPeriodGroups,
-    type BenchmarkPeriodType,
-    type PeriodPerformanceMetrics,
-} from '@/lib/performance-metrics';
-
+import { aggregatePerformanceMetricsWithTrend, getBenchmarkPeriodGroups, type BenchmarkPeriodType, type PeriodPerformanceMetrics } from '@/lib/performance-metrics';
 type SortKey = 'employeeName' | 'attendanceRate' | 'absentDays' | 'lateArrivals' | 'overtimeHours' | 'totalNet' | 'bonusAccrued';
 
 const PERIOD_TYPES: { value: BenchmarkPeriodType; label: string }[] = [
@@ -74,27 +69,41 @@ export default function EmployeePerformanceBenchmarkPage() {
     const [filterPositions, setFilterPositions] = useState<string[]>([]);
 
     useEffect(() => {
-        setIsLoading(true);
         const unsubEmp = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
-        const unsubAtt = onAttendanceUpdate((data) => {
-            setAttendance(data);
-            setIsLoading(false);
-        });
         const unsubPay = onPayrollUpdate((data) => setPayroll(data.filter(p => inScope(p.ownership))));
         return () => {
             unsubEmp();
-            unsubAtt();
             unsubPay();
         };
     }, [inScope]);
 
+    // Which BS years hold data, from a bounded probe rather than by reading
+    // every attendance row. Drives the picker below.
+    const [dataBsYears, setDataBsYears] = useState<number[]>([]);
+    useEffect(() => {
+        let cancelled = false;
+        getAttendanceYears().then(years => { if (!cancelled) setDataBsYears(years); });
+        return () => { cancelled = true; };
+    }, []);
+
     const availableFiscalYears = useMemo(() => {
-        const years = getAvailableFiscalYears(attendance.map(r => ({ bsYear: r.bsYear, bsMonth: r.bsMonth })));
+        const years = getFiscalYearsForBsYears(dataBsYears);
         const current = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
         return years.includes(current) ? years : [current, ...years].sort((a, b) => b - a);
-    }, [attendance]);
+    }, [dataBsYears]);
 
     const fyStart = parseInt(selectedFiscalYear);
+
+    // Benchmarking compares months WITHIN one fiscal year, so that year is the
+    // whole working set - no reason to stream the rest of history for it.
+    useEffect(() => {
+        setIsLoading(true);
+        const unsubAtt = onAttendanceUpdate({ bsYears: getFiscalYearBsYears(fyStart) }, (data) => {
+            setAttendance(data);
+            setIsLoading(false);
+        });
+        return () => unsubAtt();
+    }, [fyStart]);
 
     const periodGroups = useMemo(() => getBenchmarkPeriodGroups(fyStart, periodType, 0), [fyStart, periodType]);
 
@@ -228,24 +237,24 @@ export default function EmployeePerformanceBenchmarkPage() {
             <header className="flex items-center gap-3">
                 <div className="p-2 bg-primary/10 rounded-xl"><TrendingUp className="h-6 w-6 text-primary" /></div>
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Employee Performance Benchmark</h1>
+                    <h1 className="text-3xl font-black tracking-tight text-foreground uppercase">Employee Performance Benchmark</h1>
                     <p className="text-muted-foreground text-sm font-medium italic">Compare employees and track performance trends over monthly, quarterly, six-month, and yearly periods.</p>
                 </div>
             </header>
 
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-4 flex flex-col sm:flex-row flex-wrap gap-4 items-end">
                     <div className="space-y-1.5 w-[110px]">
                         <Label className="text-[10px] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
                         <Select value={selectedFiscalYear} onValueChange={setSelectedFiscalYear} disabled={isLoading}>
-                            <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                             <SelectContent>{availableFiscalYears.map(y => <SelectItem key={`bench-fy-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}</SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-1.5 w-[150px]">
                         <Label className="text-[10px] uppercase font-bold text-muted-foreground">Period Type</Label>
                         <Select value={periodType} onValueChange={(v) => setPeriodType(v as BenchmarkPeriodType)} disabled={isLoading}>
-                            <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                             <SelectContent>{PERIOD_TYPES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
                         </Select>
                     </div>
@@ -253,7 +262,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                         <div className="space-y-1.5 w-[190px]">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">Period</Label>
                             <Select value={periodIndex} onValueChange={setPeriodIndex} disabled={isLoading}>
-                                <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {periodGroups.map((g, i) => (
                                         <SelectItem key={`period-${i}`} value={String(i)}>
@@ -268,7 +277,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                         <Label className="text-[10px] uppercase font-bold text-muted-foreground">Compare Employees</Label>
                         <Popover open={comparePickerOpen} onOpenChange={setComparePickerOpen}>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" className="h-9 bg-white font-bold text-xs justify-start min-w-[200px]">
+                                <Button variant="outline" className="h-9 bg-card font-bold text-xs justify-start min-w-[200px]">
                                     <Users className="mr-2 h-3.5 w-3.5" />
                                     {compareIds.length === 0 ? 'Select 2+ employees...' : `${compareIds.length} employee(s) selected`}
                                 </Button>
@@ -305,7 +314,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                 </CardContent>
             </Card>
 
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardHeader className="bg-muted/10 border-b py-4 px-6">
                     <CardTitle className="text-sm font-black uppercase tracking-tight">
                         Comparison{selectedGroup ? ` - ${selectedGroup.label || monthLabel(selectedGroup.months[0]?.bsMonth ?? 0)}, FY ${formatFiscalYear(fyStart)}` : ''}
@@ -344,7 +353,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                                     <TableRow><TableCell colSpan={11} className="text-center py-20 text-muted-foreground italic">No calculated attendance found for this period.</TableCell></TableRow>
                                 ) : comparisonRows.map(r => (
                                     <TableRow key={r.employeeId} className={cn("hover:bg-muted/20 h-12 border-b", compareIds.includes(r.employeeId) && "bg-primary/5")}>
-                                        <TableCell className="sticky left-0 bg-background z-10 border-r pl-6 font-black text-gray-900 uppercase tracking-tighter">{r.employeeName}</TableCell>
+                                        <TableCell className="sticky left-0 bg-background z-10 border-r pl-6 font-black text-foreground uppercase tracking-tighter">{r.employeeName}</TableCell>
                                         <TableCell className="text-center tabular-nums px-3">{r.monthsWithData}</TableCell>
                                         <TableCell className={cn("text-center tabular-nums px-3 font-bold", r.flags.includes('Attendance well below peers') ? 'text-red-600' : 'text-blue-700')}>{r.attendanceRate.toFixed(1)}%</TableCell>
                                         <TableCell className="text-center px-3"><TrendBadge trend={r.trend} /></TableCell>
@@ -368,7 +377,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                             {totals && (
                                 <TableFooter className="bg-muted/50 font-black h-12 border-t-2">
                                     <TableRow>
-                                        <TableCell className="sticky left-0 bg-background z-20 border-r pl-6 text-gray-900 uppercase tracking-tighter">Total / Avg ({comparisonRows.length})</TableCell>
+                                        <TableCell className="sticky left-0 bg-background z-20 border-r pl-6 text-foreground uppercase tracking-tighter">Total / Avg ({comparisonRows.length})</TableCell>
                                         <TableCell></TableCell>
                                         <TableCell className="text-center tabular-nums px-3">{totals.avgAttendance.toFixed(1)}%</TableCell>
                                         <TableCell colSpan={2}></TableCell>
@@ -388,7 +397,7 @@ export default function EmployeePerformanceBenchmarkPage() {
             </Card>
 
             {compareEmployees.length >= 2 && (
-                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="text-sm font-black uppercase tracking-tight">Head-to-Head: {compareEmployees.map(e => e.name).join(' vs ')}</CardTitle>
@@ -405,9 +414,9 @@ export default function EmployeePerformanceBenchmarkPage() {
                             <Table className="text-[11px] border-collapse">
                                 <TableHeader className="bg-muted/30">
                                     <TableRow className="h-9">
-                                        <TableHead rowSpan={2} className="align-bottom pl-6 font-black uppercase text-gray-900 border-r">Period</TableHead>
+                                        <TableHead rowSpan={2} className="align-bottom pl-6 font-black uppercase text-foreground border-r">Period</TableHead>
                                         {compareEmployees.map(e => (
-                                            <TableHead key={e.id} colSpan={3} className="text-center font-black uppercase text-gray-900 border-r border-l">{e.name}</TableHead>
+                                            <TableHead key={e.id} colSpan={3} className="text-center font-black uppercase text-foreground border-r border-l">{e.name}</TableHead>
                                         ))}
                                     </TableRow>
                                     <TableRow className="h-9">
@@ -423,7 +432,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                                 <TableBody>
                                     {allPeriodsThisType.map((period, i) => (
                                         <TableRow key={`hth-${i}`} className="h-11 border-b hover:bg-muted/20">
-                                            <TableCell className="pl-6 font-bold text-gray-900 border-r">{period.label}</TableCell>
+                                            <TableCell className="pl-6 font-bold text-foreground border-r">{period.label}</TableCell>
                                             {compareEmployees.map(e => {
                                                 const row = period.rows.find(r => r.employeeId === e.id);
                                                 const hasData = (row?.workdays || 0) + (row?.absentDays || 0) > 0;
@@ -462,7 +471,7 @@ function TrendBadge({ trend }: { trend: PeriodPerformanceMetrics['trend'] }) {
     const config = {
         Improving: { icon: TrendingUp, cls: 'border-emerald-200 text-emerald-700' },
         Declining: { icon: TrendingDown, cls: 'border-red-200 text-red-700' },
-        Stable: { icon: Minus, cls: 'border-gray-200 text-muted-foreground' },
+        Stable: { icon: Minus, cls: 'border-border text-muted-foreground' },
     }[trend];
     const Icon = config.icon;
     return (
@@ -507,7 +516,7 @@ function FilterDropdown({ label, options, selected, onChange }: {
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("h-9 bg-white font-bold text-xs justify-start min-w-[150px]", selected.length > 0 && "border-primary text-primary")}>
+                <Button variant="outline" className={cn("h-9 bg-card font-bold text-xs justify-start min-w-[150px]", selected.length > 0 && "border-primary text-primary")}>
                     {selected.length === 0 ? `All ${label}s` : `${selected.length} selected`}
                 </Button>
             </PopoverTrigger>

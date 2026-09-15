@@ -11,7 +11,7 @@ import { getTransactions } from '@/services/transaction-service';
 import type { Vehicle, Party, Account, CompanyProfile, Transaction } from '@/lib/types';
 import type { Expense } from '@/lib/expense-types';
 import { Button } from '@/components/ui/button';
-import { Printer, Loader2, ArrowLeft, Edit, Save } from 'lucide-react';
+import { Printer, Loader2, ArrowLeft, Edit } from 'lucide-react';
 import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';

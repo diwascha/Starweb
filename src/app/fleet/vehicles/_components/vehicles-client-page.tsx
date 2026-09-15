@@ -38,8 +38,6 @@ import { onDriversUpdate } from '@/services/driver-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-
 
 const vehicleStatuses: VehicleStatus[] = ['Active', 'In Maintenance', 'Decommissioned'];
 
@@ -226,7 +224,7 @@ export default function VehiclesClientPage({
     const renderStatusBadge = (status: VehicleStatus) => {
         switch (status) {
           case 'Active': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>;
-          case 'In Maintenance': return <Badge variant="default" className="bg-amber-500 text-black hover:bg-amber-600">In Maintenance</Badge>;
+          case 'In Maintenance': return <Badge variant="default" className="bg-amber-500 text-foreground hover:bg-amber-600">In Maintenance</Badge>;
           case 'Decommissioned': return <Badge variant="destructive">Decommissioned</Badge>;
           default: return <Badge variant="secondary">{status}</Badge>;
         }
@@ -345,7 +343,7 @@ export default function VehiclesClientPage({
                                     setItemsPerPage(parseInt(v));
                                     setCurrentPage(1);
                                 }}>
-                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>

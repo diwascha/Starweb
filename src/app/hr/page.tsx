@@ -2,19 +2,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import {
-    Users,
-    Calendar,
-    FileText,
-    Award,
-    Wallet,
-    BarChart2,
-    CalendarCheck,
-    Settings2,
-    Upload,
-    Calculator,
-    TrendingUp
-} from 'lucide-react';
+import { Users, Calendar, FileText, Settings2, Upload, TrendingUp } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import HrDashboardClient from './_components/hr-dashboard-client';
@@ -47,7 +35,7 @@ export default function HRPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">HR Intelligence</h1>
+                    <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase">HR Intelligence</h1>
                     <p className="text-muted-foreground text-sm font-medium">Workforce management and operational overview.</p>
                 </div>
             </header>
@@ -64,9 +52,9 @@ export default function HRPage() {
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {hrModules.map((module) => (
                             <Link href={module.href} key={module.name}>
-                                <Card className="h-full transition-all hover:shadow-lg border-none ring-1 ring-black/5 bg-white group">
+                                <Card className="h-full transition-all hover:shadow-lg border-none ring-1 ring-black/5 bg-card group">
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-black uppercase tracking-wider text-gray-900 group-hover:text-primary transition-colors">{module.name}</CardTitle>
+                                        <CardTitle className="text-sm font-black uppercase tracking-wider text-foreground group-hover:text-primary transition-colors">{module.name}</CardTitle>
                                         <module.icon className="h-5 w-5 text-muted-foreground group-hover:scale-110 transition-transform" />
                                     </CardHeader>
                                     <CardContent>

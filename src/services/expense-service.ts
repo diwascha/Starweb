@@ -5,22 +5,7 @@
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    onSnapshot, 
-    DocumentData, 
-    QueryDocumentSnapshot, 
-    doc, 
-    query, 
-    orderBy, 
-    getDocs, 
-    getDoc, 
-    writeBatch, 
-    setDoc,
-    deleteDoc,
-    where,
-    limit
-} from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, query, orderBy, getDocs, getDoc, writeBatch, where, limit } from 'firebase/firestore';
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
 import type { Transaction, TransactionItem } from '@/lib/types';

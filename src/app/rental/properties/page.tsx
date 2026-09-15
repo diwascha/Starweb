@@ -2,28 +2,9 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { 
-    Building2, 
-    Plus, 
-    Search, 
-    MoreHorizontal, 
-    Edit, 
-    Trash2, 
-    Home, 
-    MapPin, 
-    Eye, 
-    UserPlus, 
-    Receipt, 
-    Filter,
-    LayoutGrid,
-    List,
-    Loader2,
-    X,
-    ChevronLeft,
-    ChevronRight
-} from 'lucide-react';
+import { Building2, Plus, Search, MoreHorizontal, Edit, Trash2, Home, MapPin, UserPlus, Receipt, Filter, Loader2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RentalProperty, RentalUnit } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -202,7 +183,7 @@ function AssetRegistryContent() {
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder={activeTab === 'properties' ? "Search properties..." : "Search units..."} 
-                            className="pl-8 w-[250px] bg-white h-10 border-gray-300 shadow-sm" 
+                            className="pl-8 w-[250px] bg-card h-10 border-border shadow-sm" 
                             value={searchQuery} 
                             onChange={e => setSearchQuery(e.target.value)} 
                         />
@@ -242,7 +223,7 @@ function AssetRegistryContent() {
                 <TabsContent value="properties" className="space-y-6 pt-4 animate-in fade-in slide-in-from-left-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {paginatedProperties.map(p => (
-                            <Card key={p.id} className="hover:shadow-md transition-all border-gray-100 group">
+                            <Card key={p.id} className="hover:shadow-md transition-all border-border group">
                                 <CardHeader className="pb-2">
                                     <div className="flex justify-between items-start">
                                         <Badge variant="secondary" className="mb-2 uppercase text-[10px] tracking-widest bg-blue-50 text-blue-700 border-blue-100">{p.unitCount} Units</Badge>
@@ -259,7 +240,7 @@ function AssetRegistryContent() {
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
-                                    <CardTitle className="text-xl font-bold text-gray-900">{p.name}</CardTitle>
+                                    <CardTitle className="text-xl font-bold text-foreground">{p.name}</CardTitle>
                                     <CardDescription className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-primary" /> {p.address}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4 pt-4">
@@ -275,9 +256,9 @@ function AssetRegistryContent() {
                                     </div>
                                     <div className="flex justify-between items-center pt-2 border-t border-dashed text-sm font-medium">
                                         <span className="text-muted-foreground">Exp. Monthly Income</span>
-                                        <span className="font-bold text-gray-900">Rs. {p.monthlyIncome.toLocaleString()}</span>
+                                        <span className="font-bold text-foreground">Rs. {p.monthlyIncome.toLocaleString()}</span>
                                     </div>
-                                    <Button onClick={() => handleOpenUnitTab(p.id)} variant="outline" className="w-full h-10 font-bold text-xs uppercase tracking-widest border-gray-300">
+                                    <Button onClick={() => handleOpenUnitTab(p.id)} variant="outline" className="w-full h-10 font-bold text-xs uppercase tracking-widest border-border">
                                         <Home className="mr-2 h-4 w-4" /> Manage Units
                                     </Button>
                                 </CardContent>
@@ -299,7 +280,7 @@ function AssetRegistryContent() {
                         </div>
                     )}
 
-                    <Card className="shadow-sm border-gray-100 bg-white">
+                    <Card className="shadow-sm border-border bg-card">
                         <CardContent className="p-0">
                             <Table>
                                 <TableHeader className="bg-muted/50">
@@ -316,7 +297,7 @@ function AssetRegistryContent() {
                                 <TableBody>
                                     {paginatedUnits.map(u => (
                                         <TableRow key={u.id} className="h-14 hover:bg-muted/30">
-                                            <TableCell className="font-black text-gray-900 pl-6">{u.unitNumber}</TableCell>
+                                            <TableCell className="font-black text-foreground pl-6">{u.unitNumber}</TableCell>
                                             {!propIdFilter && <TableCell className="text-sm font-medium text-blue-800">{u.propertyName}</TableCell>}
                                             <TableCell className="text-xs text-muted-foreground uppercase font-bold">{u.type} • {u.floor}</TableCell>
                                             <TableCell className="font-mono font-bold text-xs">Rs. {u.monthlyRent.toLocaleString()}</TableCell>
@@ -324,12 +305,12 @@ function AssetRegistryContent() {
                                                 <Badge variant="outline" className={cn(
                                                     "uppercase text-[9px] font-black h-5 shadow-sm px-2",
                                                     u.status === 'Occupied' ? "bg-green-50 text-green-700 border-green-200" :
-                                                    u.status === 'Vacant' ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-gray-50 text-gray-600"
+                                                    u.status === 'Vacant' ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-muted text-muted-foreground"
                                                 )}>
                                                     {u.status}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-xs font-semibold text-gray-700">
+                                            <TableCell className="text-xs font-semibold text-foreground">
                                                 {u.tenantName ? (
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
@@ -400,7 +381,7 @@ function AssetRegistryContent() {
                                     setItemsPerPage(parseInt(v));
                                     setCurrentPage(1);
                                 }}>
-                                    <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                    <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -443,7 +424,7 @@ function AssetRegistryContent() {
             <Dialog open={isPropDialogOpen} onOpenChange={setIsPropDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900">{editingProperty ? 'Modify Property' : 'Add Property Asset'}</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground">{editingProperty ? 'Modify Property' : 'Add Property Asset'}</DialogTitle>
                         <DialogDescription>Define a new rental asset in your portfolio.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-5 py-4">
@@ -466,7 +447,7 @@ function AssetRegistryContent() {
             <Dialog open={isUnitDialogOpen} onOpenChange={setIsUnitDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900">{editingUnit ? 'Modify Unit' : 'New Unit Entry'}</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground">{editingUnit ? 'Modify Unit' : 'New Unit Entry'}</DialogTitle>
                         <DialogDescription>Configure details for an individual rental space.</DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-2 gap-5 py-4">

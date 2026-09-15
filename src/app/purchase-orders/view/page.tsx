@@ -1,5 +1,5 @@
 'use client';
-import PurchaseOrderView from '../[id]/_components/purchase-order-view';
+import PurchaseOrderView from '../_components/purchase-order-view';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
 import { useEffect, useState, Suspense } from 'react';
 import type { PurchaseOrder } from '@/lib/types';

@@ -1,29 +1,15 @@
 'use client';
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
+import { printElement } from '@/lib/print-window';
+import { drawPdfLetterhead } from '@/lib/pdf-letterhead';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { InvoiceCalculator } from './_components/invoice-calculator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Search, 
-  ArrowUpDown, 
-  MoreHorizontal, 
-  View, 
-  Edit, 
-  Trash2, 
-  History, 
-  Printer, 
-  Save, 
-  Image as ImageIcon, 
-  Loader2, 
-  ChevronLeft, 
-  ChevronRight,
-  FilterX,
-  Users,
-  CalendarIcon
-} from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, History, Printer, Save, Image as ImageIcon, ChevronLeft, ChevronRight, FilterX, Users, CalendarIcon } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
@@ -88,6 +74,10 @@ type SortKey = 'invoiceNumber' | 'date' | 'partyName' | 'netTotal';
 type SortDirection = 'asc' | 'desc';
 
 function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => void }) {
+    // Finance belongs to the packaging company. The PDF used to hardcode the
+    // name and address while the on-screen invoice read them from settings,
+    // so changing the company in Settings updated one and not the other.
+    const companyProfile = useBusinessProfile();
     const [invoices, setInvoices] = useState<EstimatedInvoice[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterParty, setFilterParty] = useState('All');
@@ -197,23 +187,17 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     
     const handlePrint = (invoice: EstimatedInvoice) => {
         setSelectedInvoice(invoice);
+        // Waits a tick for the hidden printable area to render the selection.
         setTimeout(() => {
-            const printableArea = printRef.current;
-            if (!printableArea) return;
-            
-            const printWindow = window.open('', '', 'height=800,width=800');
-            printWindow?.document.write('<html><head><title>Print Invoice</title>');
-            printWindow?.document.write('<style>@media print{@page{size: A4;margin: 0;}body{margin: 1.6cm;}}body{font-family:sans-serif;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;}.text-right{text-align:right;}.font-bold{font-bold:bold;}</style>');
-            printWindow?.document.write('</head><body>');
-            printWindow?.document.write(printableArea.innerHTML);
-            printWindow?.document.write('</body></html>');
-            printWindow?.document.close();
-            printWindow?.focus();
-            setTimeout(() => {
-                printWindow?.print();
-                printWindow?.close();
-                setSelectedInvoice(null);
-            }, 250);
+            // Was a hand-written <style> of about eight rules, which dropped
+            // the entire layout, and one of the rules was `font-bold: bold` -
+            // not a CSS property, so bold text printed non-bold. The shared
+            // helper copies the real stylesheets instead.
+            const opened = printElement(printRef.current, { title: `Estimate ${invoice.invoiceNumber}` });
+            if (!opened) {
+                toast({ title: 'Could not open the print window', description: 'Allow pop-ups for this site and try again.', variant: 'destructive' });
+            }
+            setSelectedInvoice(null);
         }, 100);
     };
 
@@ -231,20 +215,18 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
         try {
             const { jsPDF } = await import('jspdf');
             const { default: autoTable } = await import('jspdf-autotable');
-            const doc = new jsPDF();
-            
-            // Header
-            doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(16);
-            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+            // compress: true because the shared letterhead carries the Nepali
+            // name as an image (see lib/devanagari-pdf).
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
 
-            doc.setFont('Helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+            const headEnd = drawPdfLetterhead(doc, companyProfile, {
+                x: doc.internal.pageSize.getWidth() / 2, y: 15, align: 'center',
+                nameSize: 14, detailSize: 9, showPan: false,
+            });
 
-            doc.setFont('Helvetica', 'bold');
+            doc.setFont('helvetica', 'bold');
             doc.setFontSize(14);
-            doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' });
+            doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, headEnd + 8, { align: 'center' });
 
             // Info
             doc.setFontSize(10);
@@ -354,14 +336,14 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         <Input
                             placeholder="Search..."
-                            className="pl-8 h-8 text-xs w-[180px] bg-white border-gray-200 shadow-none"
+                            className="pl-8 h-8 text-xs w-[180px] bg-card border-border shadow-none"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
 
                     <Select value={filterParty} onValueChange={(v) => { setFilterParty(v); setCurrentPage(1); }}>
-                        <SelectTrigger className="h-8 w-[150px] bg-white text-xs border-gray-200 shadow-none">
+                        <SelectTrigger className="h-8 w-[150px] bg-card text-xs border-border shadow-none">
                             <div className="flex items-center gap-2">
                                 <Users className="h-3 w-3 text-muted-foreground" />
                                 <SelectValue placeholder="All Parties" />
@@ -375,7 +357,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("h-8 w-[180px] justify-start text-left font-normal bg-white text-xs px-2 border-gray-200", !dateRange && "text-muted-foreground")}>
+                            <Button variant="outline" className={cn("h-8 w-[180px] justify-start text-left font-normal bg-card text-xs px-2 border-border", !dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-1.5 h-3 w-3" />
                                 <span className="truncate">
                                     {dateRange?.from ? (
@@ -477,7 +459,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                                 setItemsPerPage(parseInt(v));
                                 setCurrentPage(1);
                             }}>
-                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -523,7 +505,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                     <DialogDescription>Review and print your estimate invoice.</DialogDescription>
                  </DialogHeader>
                 <ScrollArea className="flex-1 bg-muted/20 p-8">
-                    <div className="mx-auto w-[210mm] shadow-2xl bg-white p-4">
+                    <div className="mx-auto w-[210mm] shadow-2xl bg-card p-4">
                         {selectedInvoice && (
                             <InvoiceView 
                                 invoiceNumber={selectedInvoice.invoiceNumber}
@@ -538,7 +520,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                         )}
                     </div>
                 </ScrollArea>
-                <DialogFooter className="p-6 border-t bg-white">
+                <DialogFooter className="p-6 border-t bg-card">
                     <Button variant="outline" onClick={() => setIsViewOpen(false)}>Close</Button>
                 </DialogFooter>
             </DialogContent>
@@ -716,14 +698,14 @@ function SavedRatesList() {
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search products..."
-                            className="pl-8 h-8 text-xs w-[180px] bg-white border-gray-200 shadow-none"
+                            className="pl-8 h-8 text-xs w-[180px] bg-card border-border shadow-none"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
 
                     <Select value={filterPartyId} onValueChange={(v) => { setFilterPartyId(v); setCurrentPage(1); }}>
-                        <SelectTrigger className="h-8 w-[150px] bg-white text-xs border-gray-200 shadow-none">
+                        <SelectTrigger className="h-8 w-[150px] bg-card text-xs border-border shadow-none">
                             <div className="flex items-center gap-2">
                                 <Users className="h-3 w-3 text-muted-foreground" />
                                 <SelectValue placeholder="All Parties" />
@@ -813,7 +795,7 @@ function SavedRatesList() {
                                 setItemsPerPage(parseInt(v));
                                 setCurrentPage(1);
                             }}>
-                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -906,8 +888,8 @@ function SavedRatesList() {
                             <TableBody>
                                 {[...selectedHistory].reverse().map((entry, index) => (
                                     <TableRow key={index} className="h-11 border-b transition-colors hover:bg-muted/10">
-                                        <TableCell className="pl-6 text-gray-500 font-mono">{toNepaliDate(entry.date)}</TableCell>
-                                        <TableCell className="font-black text-gray-900 tabular-nums">Rs. {entry.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell className="pl-6 text-muted-foreground font-mono">{toNepaliDate(entry.date)}</TableCell>
+                                        <TableCell className="font-black text-foreground tabular-nums">Rs. {entry.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                                         <TableCell className="font-bold text-primary uppercase text-[10px]">{entry.setBy}</TableCell>
                                     </TableRow>
                                 ))}
@@ -919,7 +901,7 @@ function SavedRatesList() {
                         </div>
                     )}
                 </ScrollArea>
-                <DialogFooter className="p-6 border-t bg-white shrink-0">
+                <DialogFooter className="p-6 border-t bg-card shrink-0">
                     <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)} className="w-full font-bold uppercase text-[10px]">Close History</Button>
                 </DialogFooter>
             </DialogContent>
@@ -945,7 +927,7 @@ export default function EstimateInvoicePage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Estimate / Pro-Forma Invoice</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Estimate / Pro-Forma Invoice</h1>
         <p className="text-muted-foreground">Create and manage estimate or pro-forma invoices for clients.</p>
       </header>
        <Tabs value={activeTab} onValueChange={setActiveTab}>

@@ -1,8 +1,9 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, orderBy, writeBatch } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, query, orderBy, setDoc } from 'firebase/firestore';
 import type { RentalBill, RentalAgreement, Transaction } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
-import { createTimestamp, logServiceError } from '@/lib/service-utils';
+import { createTimestamp } from '@/lib/service-utils';
 import { addTransaction } from './transaction-service';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -103,28 +104,14 @@ export const generateRentBill = async (agreement: RentalAgreement, month: number
         createdAt: now,
     };
 
-    const docRef = await addDoc(getCollection(), payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.RENTAL_BILLS,
-                operation: 'create',
-                requestResourceData: payload,
-            }));
-        }
-        throw err;
-    });
+    // doc() mints the id locally; setDoc then writes without
+    // blocking on the server, so this works offline too.
+    const docRef = doc(getCollection());
+    reportWriteFailure(
+        setDoc(docRef, payload),
+    { path: COLLECTIONS.RENTAL_BILLS, operation: 'create', requestResourceData: payload }
+    );
 
     return docRef.id;
 };
 
-export const deleteRentalBill = async (id: string): Promise<void> => {
-    const docRef = doc(getCollection(), id);
-    deleteDoc(docRef).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'delete',
-            }));
-        }
-    });
-};

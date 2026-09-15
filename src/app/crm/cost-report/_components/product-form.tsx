@@ -11,9 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeBF } from '@/lib/utils';
+import { calculateItemCost } from '@/lib/cost-calculator';
 import { PLY_OPTIONS, BF_OPTIONS } from '@/lib/constants';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Calculator } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 interface ProductFormProps {
@@ -100,12 +101,28 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
 
     const pValue = parseInt(form.specification.ply, 10);
 
+    // Derives box weight from dimensions + GSM composition using the same
+    // formula the Quotation Engine uses, so a user doesn't have to weigh a
+    // sample box or do the math by hand just to fill in this field.
+    const handleCalculateWeight = () => {
+        const calc = calculateItemCost(
+            { ...form.specification, l: dim.l, b: dim.b, h: dim.h, noOfPcs: '1' },
+            {}, 0, 0, 0, 'Per Consignment'
+        );
+        if (!calc.paperWeight) {
+            toast({ title: 'Missing inputs', description: 'Fill in dimensions and GSM composition first.', variant: 'destructive' });
+            return;
+        }
+        updateSpec('weightOfBox', String(Math.round(calc.paperWeight)));
+    };
+
     return (
         <div className="space-y-6 pt-2 pb-8 overflow-y-auto max-h-[75vh]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">General Info</h3>
                     <div className="space-y-2"><Label>Product Name</Label><Input value={form.name ?? ''} onChange={e => setForm({...form, name: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Material Code</Label><Input value={form.materialCode ?? ''} onChange={e => setForm({...form, materialCode: e.target.value})} placeholder="e.g. BX-1042" /></div>
                     <div className="space-y-2">
                         <Label>Party (Customer)</Label>
                         <div className="flex gap-2">
@@ -125,7 +142,13 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
                         <div><Label className="text-[10px]">H</Label><Input type="number" value={dim.h ?? ''} onChange={e => setDim({...dim, h: e.target.value})} /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-2">
-                        <div><Label className="text-[10px]">Weight (g)</Label><Input value={form.specification.weightOfBox ?? ''} onChange={e => updateSpec('weightOfBox', e.target.value)} /></div>
+                        <div>
+                            <Label className="text-[10px]">Weight (g)</Label>
+                            <div className="flex gap-1">
+                                <Input value={form.specification.weightOfBox ?? ''} onChange={e => updateSpec('weightOfBox', e.target.value)} />
+                                <Button type="button" variant="outline" size="icon" className="shrink-0" title="Calculate from dimensions & GSM" onClick={handleCalculateWeight}><Calculator className="h-4 w-4" /></Button>
+                            </div>
+                        </div>
                         <div><Label className="text-[10px]">Load (KGF)</Label><Input value={form.specification.load ?? ''} onChange={e => updateSpec('load', e.target.value)} /></div>
                     </div>
                 </div>

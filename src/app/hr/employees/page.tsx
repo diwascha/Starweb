@@ -1,37 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-    Plus, 
-    Edit, 
-    Trash2, 
-    MoreHorizontal, 
-    ArrowUpDown, 
-    Search, 
-    User, 
-    CalendarIcon, 
-    Image as ImageIcon, 
-    X, 
-    Phone, 
-    ShieldCheck, 
-    FileText, 
-    Upload, 
-    Download, 
-    Loader2, 
-    Building2, 
-    DollarSign,
-    CheckSquare,
-    Square,
-    AlertTriangle,
-    RefreshCw,
-    UserCheck,
-    UserX,
-    ChevronLeft,
-    ChevronRight
-} from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus, Department, Position, BloodGroup, EmployeeDocument } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,15 +12,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,12 +32,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { onEmployeesUpdate, addEmployee, updateEmployee, deleteEmployee } from '@/services/employee-service';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { format } from 'date-fns';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DualCalendar } from '@/components/ui/dual-calendar';
-import { cn, toNepaliDate, generateId } from '@/lib/utils';
-import { uploadFile, deleteFile } from '@/services/storage-service';
+
+import { cn, toNepaliDate } from '@/lib/utils';
+import { uploadFile } from '@/services/storage-service';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -302,9 +264,19 @@ export default function EmployeesPage() {
 
     try {
       let photoURL = editingEmployee?.photoURL || '';
+      let photoWarning: string | null = null;
       if (photoFile) {
-        const filePath = `employee-photos/${user.username}-${Date.now()}-${photoFile.name}`;
-        photoURL = await uploadFile(photoFile, filePath);
+        // A failed photo upload used to abort the whole save, so the employee
+        // was never created and the form's contents were lost behind a generic
+        // "Action failed." Photo storage needs the Blaze plan and is simply
+        // unavailable on the free one, which made that a guaranteed dead end.
+        // The record is the point; the picture is decoration.
+        try {
+          const filePath = `employee-photos/${user.username}-${Date.now()}-${photoFile.name}`;
+          photoURL = await uploadFile(photoFile, filePath);
+        } catch (uploadError: any) {
+          photoWarning = uploadError?.message || 'The photo could not be uploaded.';
+        }
       } else if (formState.photoURL === '') {
         photoURL = '';
       }
@@ -320,10 +292,12 @@ export default function EmployeesPage() {
 
       if (editingEmployee) {
         await updateEmployee(editingEmployee.id, { ...employeeData, lastModifiedBy: user.username } as any);
-        toast({ title: 'Employee Updated' });
+        toast({ title: 'Employee Updated', description: photoWarning ?? undefined,
+                variant: photoWarning ? 'destructive' : undefined });
       } else {
         await addEmployee({ ...employeeData, createdBy: user.username, createdAt: new Date().toISOString() } as any);
-        toast({ title: 'New Employee Added' });
+        toast({ title: 'New Employee Added', description: photoWarning ?? undefined,
+                variant: photoWarning ? 'destructive' : undefined });
       }
       setIsEmployeeDialogOpen(false);
     } catch {
@@ -335,7 +309,7 @@ export default function EmployeesPage() {
     const s = status || 'Working';
     switch (s) {
       case 'Working': return <Badge variant="default" className="bg-green-600">Working</Badge>;
-      case 'Long Leave': return <Badge variant="default" className="bg-amber-500 text-black">Long Leave</Badge>;
+      case 'Long Leave': return <Badge variant="default" className="bg-amber-500 text-foreground">Long Leave</Badge>;
       case 'Resigned': return <Badge variant="outline">Resigned</Badge>;
       case 'Dismissed': return <Badge variant="destructive">Dismissed</Badge>;
       default: return <Badge variant="secondary">{s}</Badge>;
@@ -345,8 +319,8 @@ export default function EmployeesPage() {
   const statusSelectClassName = (status?: EmployeeStatus) => {
     switch (status || 'Working') {
       case 'Working': return 'bg-green-600 text-white border-green-600 hover:bg-green-700';
-      case 'Long Leave': return 'bg-amber-500 text-black border-amber-500 hover:bg-amber-600';
-      case 'Resigned': return 'bg-white text-gray-700 border-gray-300';
+      case 'Long Leave': return 'bg-amber-500 text-foreground border-amber-500 hover:bg-amber-600';
+      case 'Resigned': return 'bg-card text-foreground border-border';
       case 'Dismissed': return 'bg-destructive text-white border-destructive hover:bg-destructive/90';
       default: return '';
     }
@@ -371,7 +345,7 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">Digital Workforce</h1>
+          <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase">Digital Workforce</h1>
           <p className="text-muted-foreground text-sm font-medium italic">Employee lifecycle and master records.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -399,14 +373,14 @@ export default function EmployeesPage() {
             </div>
           )}
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="h-10 w-[150px] bg-white"><SelectValue placeholder="All Status" /></SelectTrigger>
+            <SelectTrigger className="h-10 w-[150px] bg-card"><SelectValue placeholder="All Status" /></SelectTrigger>
             <SelectContent>
                 <SelectItem value="All">All Status</SelectItem>
                 {employeeStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterWageBasis} onValueChange={setFilterWageBasis}>
-            <SelectTrigger className="h-10 w-[150px] bg-white"><SelectValue placeholder="All Wage Basis" /></SelectTrigger>
+            <SelectTrigger className="h-10 w-[150px] bg-card"><SelectValue placeholder="All Wage Basis" /></SelectTrigger>
             <SelectContent>
                 <SelectItem value="All">All Wage Basis</SelectItem>
                 <SelectItem value="Monthly">Monthly Salary</SelectItem>
@@ -415,7 +389,7 @@ export default function EmployeesPage() {
           </Select>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="search" placeholder="Search..." className="pl-8 w-64 bg-white" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <Input type="search" placeholder="Search..." className="pl-8 w-64 bg-card" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
           {(searchQuery || filterStatus !== 'All' || filterWageBasis !== 'All') && (
             <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-10 text-muted-foreground hover:text-foreground font-bold uppercase text-[10px]">
@@ -430,7 +404,7 @@ export default function EmployeesPage() {
         </div>
       </header>
 
-      <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+      <Card className="shadow-sm border-border bg-card overflow-hidden">
           <Table>
             <TableHeader className="bg-muted/30">
                 <TableRow className="hover:bg-transparent">
@@ -463,7 +437,7 @@ export default function EmployeesPage() {
                                 <AvatarFallback className="bg-primary/10 text-primary font-black">{employee.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div className="flex flex-col">
-                                <span className="font-black text-gray-900 leading-tight uppercase tracking-tight">{employee.name}</span>
+                                <span className="font-black text-foreground leading-tight uppercase tracking-tight">{employee.name}</span>
                                 <span className="text-[10px] text-muted-foreground font-bold">{employee.mobileNumber}</span>
                             </div>
                         </div>
@@ -480,14 +454,14 @@ export default function EmployeesPage() {
                     </TableCell>
                     <TableCell>
                         <div className="flex flex-col">
-                            <span className="text-xs font-bold text-gray-700">{employee.department}</span>
+                            <span className="text-xs font-bold text-foreground">{employee.department}</span>
                             <span className="text-[10px] text-muted-foreground uppercase font-medium">{employee.position}</span>
                         </div>
                     </TableCell>
                     <TableCell className="text-xs font-medium font-mono text-blue-900">{employee.joiningDate ? toNepaliDate(employee.joiningDate) : '—'}</TableCell>
                     <TableCell className="text-right">
                         <div className="flex flex-col">
-                            <span className="font-black text-xs text-gray-900">Rs. {(employee.wageAmount || 0).toLocaleString()}</span>
+                            <span className="font-black text-xs text-foreground">Rs. {(employee.wageAmount || 0).toLocaleString()}</span>
                             <span className="text-[9px] text-muted-foreground uppercase tracking-tighter font-black">{employee.wageBasis}</span>
                         </div>
                     </TableCell>
@@ -535,7 +509,7 @@ export default function EmployeesPage() {
                             setItemsPerPage(parseInt(v));
                             setCurrentPage(1);
                         }}>
-                            <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                            <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -577,7 +551,7 @@ export default function EmployeesPage() {
       <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
         <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
             <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
-                <DialogTitle className="text-2xl font-black text-gray-900 uppercase tracking-tight">{editingEmployee ? 'Update Profile' : 'Onboard Employee'}</DialogTitle>
+                <DialogTitle className="text-2xl font-black text-foreground uppercase tracking-tight">{editingEmployee ? 'Update Profile' : 'Onboard Employee'}</DialogTitle>
                 <DialogDescription className="text-xs uppercase font-bold tracking-widest text-muted-foreground">Master Data Entry</DialogDescription>
             </DialogHeader>
 
@@ -586,7 +560,7 @@ export default function EmployeesPage() {
                     <div className="space-y-6">
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Full Legal Name</Label>
-                            <Input name="name" value={formState.name} onChange={handleFormChange} className="h-11 text-lg font-black bg-gray-50 border-gray-300" />
+                            <Input name="name" value={formState.name} onChange={handleFormChange} className="h-11 text-lg font-black bg-muted border-border" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -677,13 +651,13 @@ export default function EmployeesPage() {
                                 <div className="space-y-1.5">
                                     <Label className="text-[10px] font-bold text-blue-800 uppercase">Wage Basis</Label>
                                     <Select value={formState.wageBasis} onValueChange={v => setFormState(p => ({...p, wageBasis: v as any}))}>
-                                        <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                                        <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                                         <SelectContent><SelectItem value="Monthly">Monthly Salary</SelectItem><SelectItem value="Hourly">Hourly Rate</SelectItem></SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label className="text-[10px] font-bold text-blue-800 uppercase">Amount (NPR)</Label>
-                                    <Input type="number" name="wageAmount" value={formState.wageAmount} onChange={handleFormChange} className="h-10 bg-white font-black text-lg text-blue-900" />
+                                    <Input type="number" name="wageAmount" value={formState.wageAmount} onChange={handleFormChange} className="h-10 bg-card font-black text-lg text-blue-900" />
                                 </div>
                             </div>
                         </div>
@@ -695,7 +669,7 @@ export default function EmployeesPage() {
                 </div>
             </ScrollArea>
 
-            <DialogFooter className="p-6 border-t bg-white shrink-0">
+            <DialogFooter className="p-6 border-t bg-card shrink-0">
                 <Button variant="outline" onClick={() => setIsEmployeeDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest h-11 px-8">Cancel</Button>
                 <Button onClick={handleEmployeeSubmit} className="font-black uppercase text-[10px] tracking-widest h-11 px-12 shadow-xl shadow-primary/20">Commit Entry</Button>
             </DialogFooter>

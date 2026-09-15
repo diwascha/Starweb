@@ -5,9 +5,9 @@ import type { GsmReport } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Printer, Trash2, Eye, Search, FilterX, ChevronLeft, ChevronRight, User, Edit } from 'lucide-react';
-import { toNepaliDate, generateId } from '@/lib/utils';
-import { format } from 'date-fns';
+import { MoreHorizontal, Printer, Trash2, Search, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
+import { toNepaliDate } from '@/lib/utils';
+
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -23,6 +23,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { deleteGsmReport } from '@/services/gsm-service';
+import { useToast } from '@/hooks/use-toast';
 
 interface GsmReportsListProps {
     reports: GsmReport[];
@@ -31,6 +32,20 @@ interface GsmReportsListProps {
 }
 
 export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps) {
+    const { toast } = useToast();
+
+    // Was `onClick={() => deleteGsmReport(r.id)}` - fired and forgotten, with
+    // no await and no error path, so a rejected delete left the row on screen
+    // and said nothing at all.
+    const handleDelete = async (id: string, voucherNo: string) => {
+        try {
+            await deleteGsmReport(id);
+            toast({ title: 'Report deleted', description: `${voucherNo} has been removed.` });
+        } catch {
+            toast({ title: 'Delete failed', description: `${voucherNo} is still on the ledger.`, variant: 'destructive' });
+        }
+    };
+
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 15;
@@ -48,7 +63,7 @@ export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
     return (
-        <Card className="shadow-sm border-gray-100 bg-white">
+        <Card className="shadow-sm border-border bg-card">
             <CardHeader className="py-4 border-b bg-muted/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <CardTitle className="text-sm font-black uppercase">Report History</CardTitle>
@@ -58,7 +73,7 @@ export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                     <Input 
                         placeholder="Search logs..." 
-                        className="pl-8 h-8 text-xs bg-white" 
+                        className="pl-8 h-8 text-xs bg-card" 
                         value={searchQuery} 
                         onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} 
                     />
@@ -81,9 +96,9 @@ export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps
                             <TableRow key={r.id} className="h-12 border-b hover:bg-muted/10">
                                 <TableCell className="pl-6 font-mono">{toNepaliDate(r.date)}</TableCell>
                                 <TableCell className="font-bold text-blue-700">{r.voucherNo}</TableCell>
-                                <TableCell className="font-black text-gray-900 uppercase tracking-tighter">{r.vendorName}</TableCell>
+                                <TableCell className="font-black text-foreground uppercase tracking-tighter">{r.vendorName}</TableCell>
                                 <TableCell className="text-center font-bold text-muted-foreground">{(r.entries || []).length} Reels</TableCell>
-                                <TableCell className="text-right"><Badge variant="outline" className="font-black tabular-nums bg-gray-50">{r.avgGsm.toFixed(2)}</Badge></TableCell>
+                                <TableCell className="text-right"><Badge variant="outline" className="font-black tabular-nums bg-muted">{r.avgGsm.toFixed(2)}</Badge></TableCell>
                                 <TableCell className="text-right pr-6">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
@@ -97,7 +112,7 @@ export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader><AlertDialogTitle>Delete this report?</AlertDialogTitle><AlertDialogDescription>This action is permanent and will remove the verification log for {r.voucherNo}.</AlertDialogDescription></AlertDialogHeader>
-                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteGsmReport(r.id)} className="bg-destructive text-white">Delete Permanent</AlertDialogAction></AlertDialogFooter>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(r.id, r.voucherNo)} className="bg-destructive text-white">Delete Permanent</AlertDialogAction></AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                         </DropdownMenuContent>

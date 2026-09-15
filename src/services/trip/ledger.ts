@@ -1,5 +1,5 @@
 import { getFirebase } from '@/lib/firebase';
-import { doc, writeBatch, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, writeBatch, getDoc } from 'firebase/firestore';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 import { getTripsCollection } from './data';

@@ -1,62 +1,26 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { AttendanceRecord, Employee, AttendanceStatus, PublicHoliday, LeaveRequest, HrShift, RawMachineLog } from '@/lib/types';
+import { AttendanceRecord, Employee, PublicHoliday, LeaveRequest, HrShift, RawMachineLog } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { 
-    Search, 
-    ArrowUpDown, 
-    Edit, 
-    MoreHorizontal, 
-    Trash2, 
-    Loader2, 
-    Calculator,
-    HardDrive,
-    FilterX,
-    ClipboardList,
-    Plus,
-    UserCheck,
-    AlertCircle,
-    ChevronLeft,
-    ChevronRight,
-    Lock,
-    LockOpen,
-    CalendarClock,
-    LogIn,
-    LogOut,
-    Users
-} from 'lucide-react';
+import { Search, Edit, Trash2, Loader2, Calculator, HardDrive, FilterX, UserCheck, AlertCircle, ChevronLeft, ChevronRight, Lock, LockOpen, CalendarClock, LogIn, LogOut, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Badge } from '@/components/ui/badge';
 import { onEmployeesUpdate, updateEmployee } from '@/services/employee-service';
-import {
-    updateAttendanceRecord,
-    deleteAttendanceRecord,
-    deleteAttendanceForMonth,
-    deleteAttendanceAndPayrollForFiscalYear,
-    getAttendanceForMonth,
-    onAttendanceUpdate,
-    deleteAllAttendance,
-    runHourlyCalculation,
-    onAttendancePeriodLocksUpdate,
-    bulkClockInOut,
-    onRawLogsUpdate,
-    updateRawLog,
-    type AttendancePeriodLock
-} from '@/services/attendance-service';
+import { getAttendanceYears, updateAttendanceRecord, deleteAttendanceForMonth, deleteAttendanceAndPayrollForFiscalYear, onAttendanceUpdate, runHourlyCalculation, onAttendancePeriodLocksUpdate, bulkClockInOut, onRawLogsUpdate, updateRawLog, type AttendancePeriodLock } from '@/services/attendance-service';
 import { setFiscalYearPeriodLock, setCombinedPeriodLock } from '@/services/period-lock';
 import { onHolidaysUpdate, onLeaveRequestsUpdate, onShiftsUpdate } from '@/services/hr-admin-service';
-import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate, getAttendanceRowHighlight } from '@/lib/utils';
+import { cn, formatTimeForDisplay, getAttendanceRowHighlight } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { SortableHead } from '@/components/ui/sortable-head';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { Columns3 } from 'lucide-react';
@@ -64,10 +28,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import NepaliDate from 'nepali-date-converter';
 import { format as formatDate, startOfDay, isEqual, isWithinInterval } from 'date-fns';
-import { NEPALI_MONTHS } from '@/lib/constants';
+
 import Link from 'next/link';
 import LedgerImportButton from './_components/ledger-import-button';
-import { getFiscalYearStart, getFiscalYearMonths, getAvailableFiscalYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
+import { getFiscalYearStart, getFiscalYearMonths, getFiscalYearsForBsYears, getFiscalYearBsYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
 
 type SortKey = 'date' | 'dateBS' | 'employeeName' | 'status' | 'clockIn' | 'clockOut' | 'gTime' | 'breakHours' | 'gHours' | 'grossHours' | 'regularHours' | 'overtimeHours' | 'remarks';
 type SortDirection = 'asc' | 'desc';
@@ -169,26 +133,37 @@ export default function AttendanceRegistryPage() {
   // COLUMN_LABELS can be toggled off.
   const visibleColCount = 4 + Object.values(visibleColumns).filter(Boolean).length;
 
+  // Reference data: small, bounded collections that every fiscal year needs.
   useEffect(() => {
     onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
     const unsubHolidays = onHolidaysUpdate(setHolidays);
     const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
     const unsubLocks = onAttendancePeriodLocksUpdate(setPeriodLocks);
     const unsubShifts = onShiftsUpdate(setShifts);
-    const unsubRawLogs = onRawLogsUpdate(setRawLogs);
-    const unsubAttendance = onAttendanceUpdate((data) => {
-        setAttendance(data);
-        setIsDataLoading(false);
-    });
     return () => {
         unsubLocks();
         unsubHolidays();
         unsubLeaves();
         unsubShifts();
+    };
+  }, []);
+
+  // Attendance and raw logs grow forever, so they are scoped to the selected
+  // fiscal year and re-subscribed when it changes. The month filter below
+  // narrows further, client-side, from this much smaller set.
+  useEffect(() => {
+    const scope = { bsYears: getFiscalYearBsYears(fyStart) };
+    setIsDataLoading(true);
+    const unsubRawLogs = onRawLogsUpdate(scope, setRawLogs);
+    const unsubAttendance = onAttendanceUpdate(scope, (data) => {
+        setAttendance(data);
+        setIsDataLoading(false);
+    });
+    return () => {
         unsubRawLogs();
         unsubAttendance();
     };
-  }, [inScope]);
+  }, [fyStart]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -200,11 +175,22 @@ export default function AttendanceRegistryPage() {
     filterRegularHours, filterRemarks,
   ]);
 
+  // Loaded once from a bounded probe of which BS years hold data. It must NOT
+  // be derived from `attendance`: that is now scoped to the selected fiscal
+  // year, so deriving from it would leave the picker showing only the year
+  // already chosen, with no way back to any other.
+  const [dataBsYears, setDataBsYears] = useState<number[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    getAttendanceYears().then(years => { if (!cancelled) setDataBsYears(years); });
+    return () => { cancelled = true; };
+  }, []);
+
   const availableFiscalYears = useMemo(() => {
-    const years = getAvailableFiscalYears(attendance.map(r => ({ bsYear: r.bsYear, bsMonth: r.bsMonth })));
+    const years = getFiscalYearsForBsYears(dataBsYears);
     const current = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
     return years.includes(current) ? years : [current, ...years].sort((a, b) => b - a);
-  }, [attendance]);
+  }, [dataBsYears]);
 
   const requestSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -686,7 +672,7 @@ export default function AttendanceRegistryPage() {
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary/10 rounded-xl"><UserCheck className="h-6 w-6 text-primary"/></div>
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Attendance Logs</h1>
+                    <h1 className="text-3xl font-black tracking-tight text-foreground uppercase">Attendance Logs</h1>
                     <p className="text-muted-foreground text-sm font-medium italic">Validated labor metrics and work-hour records.</p>
                 </div>
             </div>
@@ -698,13 +684,13 @@ export default function AttendanceRegistryPage() {
                 <Button
                     variant="outline"
                     onClick={() => { setBulkClockSelectedIds([]); setBulkClockActionType('IN'); setBulkClockTime('08:00'); setIsBulkClockOpen(true); }}
-                    className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200"
+                    className="h-10 uppercase text-[10px] font-black tracking-widest border-border"
                 >
                     <Users className="mr-2 h-3.5 w-3.5"/> Bulk Clock In/Out
                 </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200">
+                        <Button variant="outline" className="h-10 uppercase text-[10px] font-black tracking-widest border-border">
                             <Columns3 className="mr-2 h-3.5 w-3.5"/> Columns
                         </Button>
                     </DropdownMenuTrigger>
@@ -729,7 +715,7 @@ export default function AttendanceRegistryPage() {
                     onClick={() => setBulkLockConfirm('lock')}
                     disabled={isTogglingLock}
                     title={`Lock Attendance and Payroll for every month of FY ${formatFiscalYear(fyStart)}.`}
-                    className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200 text-amber-700 hover:bg-amber-50"
+                    className="h-10 uppercase text-[10px] font-black tracking-widest border-border text-amber-700 hover:bg-amber-50"
                 >
                     {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Lock className="mr-2 h-3.5 w-3.5" />}
                     Lock All
@@ -739,7 +725,7 @@ export default function AttendanceRegistryPage() {
                     onClick={() => setBulkLockConfirm('unlock')}
                     disabled={isTogglingLock}
                     title={`Unlock Attendance and Payroll for every month of FY ${formatFiscalYear(fyStart)}.`}
-                    className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200 text-muted-foreground hover:text-primary"
+                    className="h-10 uppercase text-[10px] font-black tracking-widest border-border text-muted-foreground hover:text-primary"
                 >
                     {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
                     Unlock All
@@ -765,14 +751,14 @@ export default function AttendanceRegistryPage() {
             <div className="space-y-1.5 w-[110px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
                 <Select value={selectedFiscalYear} onValueChange={setSelectedFiscalYear}>
-                    <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                     <SelectContent>{availableFiscalYears.map(y => <SelectItem key={`fy-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}</SelectContent>
                 </Select>
             </div>
             <div className="space-y-1.5 w-[150px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month</Label>
                 <Select value={selectedFyMonthIndex} onValueChange={setSelectedFyMonthIndex}>
-                    <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="All">All Months</SelectItem>
                         {Array.from({ length: 12 }, (_, i) => i).map(i => <SelectItem key={`fym-${i}`} value={String(i)}>{fiscalMonthName(i)}</SelectItem>)}
@@ -782,7 +768,7 @@ export default function AttendanceRegistryPage() {
             <div className="space-y-1.5 w-[180px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employee</Label>
                 <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}>
-                    <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Employees" /></SelectTrigger>
+                    <SelectTrigger className="h-9 bg-card"><SelectValue placeholder="All Employees" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="All">All Employees</SelectItem>
                         {sortedEmployeesForFilter.map(e => <SelectItem key={`filter-emp-${e.id}`} value={e.name}>{e.name}</SelectItem>)}
@@ -792,7 +778,7 @@ export default function AttendanceRegistryPage() {
             <div className="space-y-1.5 w-[150px]">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Status</Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Status" /></SelectTrigger>
+                    <SelectTrigger className="h-9 bg-card"><SelectValue placeholder="All Status" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="All">All Status</SelectItem>
                         <SelectItem value="Present">Present</SelectItem>
@@ -810,7 +796,7 @@ export default function AttendanceRegistryPage() {
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Quick Search</Label>
                 <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search employee..." className="pl-8 h-9 text-xs bg-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                    <Input placeholder="Search employee..." className="pl-8 h-9 text-xs bg-card" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
             </div>
             
@@ -892,7 +878,7 @@ export default function AttendanceRegistryPage() {
             </AlertDialogContent>
         </AlertDialog>
 
-        <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+        <Card className="shadow-sm border-border bg-card overflow-hidden">
             <CardContent className="p-0">
                 <ScrollArea className="w-full">
                     <Table>
@@ -985,9 +971,9 @@ export default function AttendanceRegistryPage() {
                                 const highlight = getAttendanceRowHighlight(r);
                                 return (
                                 <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors" style={highlight ? { backgroundColor: highlight } : undefined}>
-                                    <TableCell className="pl-6 font-mono text-gray-400 text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
+                                    <TableCell className="pl-6 font-mono text-muted-foreground text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
                                     {isColVisible('bsDate') && <TableCell className="font-mono font-bold text-blue-900">{r.dateBS}</TableCell>}
-                                    <TableCell className="font-black text-gray-900">{r.employeeName}</TableCell>
+                                    <TableCell className="font-black text-foreground">{r.employeeName}</TableCell>
                                     {isColVisible('shift') && (
                                         <TableCell>
                                             {(() => {
@@ -1045,9 +1031,9 @@ export default function AttendanceRegistryPage() {
                                     {isColVisible('gTime') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.gTime != null ? r.gTime.toFixed(2) : '—'}</TableCell>}
                                     {isColVisible('breakHours') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.breakHours != null ? r.breakHours.toFixed(2) : '—'}</TableCell>}
                                     {isColVisible('gHours') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.gHours != null ? r.gHours.toFixed(2) : '—'}</TableCell>}
-                                    <TableCell className="text-right font-bold text-gray-900">{r.grossHours.toFixed(1)}</TableCell>
+                                    <TableCell className="text-right font-bold text-foreground">{r.grossHours.toFixed(1)}</TableCell>
                                     {isColVisible('overtime') && <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>}
-                                    {isColVisible('regularHours') && <TableCell className="text-right font-black text-gray-700">{r.regularHours.toFixed(1)}</TableCell>}
+                                    {isColVisible('regularHours') && <TableCell className="text-right font-black text-foreground">{r.regularHours.toFixed(1)}</TableCell>}
                                     {isColVisible('remarks') && (
                                         <TableCell className="max-w-[200px] truncate text-[10px] text-muted-foreground italic" title={getDisplayRemark(r)}>
                                             {getDisplayRemark(r)}
@@ -1092,7 +1078,7 @@ export default function AttendanceRegistryPage() {
                                 setItemsPerPage(parseInt(v));
                                 setCurrentPage(1);
                             }}>
-                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1135,7 +1121,7 @@ export default function AttendanceRegistryPage() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black text-gray-900">Manual Tweak</DialogTitle>
+                    <DialogTitle className="text-xl font-black text-foreground">Manual Tweak</DialogTitle>
                     <DialogDescription>Adjust work hours for {editingRecord?.employeeName}.</DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-5 py-4">
@@ -1155,14 +1141,14 @@ export default function AttendanceRegistryPage() {
                 {calcStep === 'confirm' ? (
                     <>
                         <DialogHeader>
-                            <DialogTitle className="text-xl font-black text-gray-900">Run Attendance Processor</DialogTitle>
+                            <DialogTitle className="text-xl font-black text-foreground">Run Attendance Processor</DialogTitle>
                             <DialogDescription>
                                 You are about to recalculate <span className="font-bold text-foreground">{calcTargetMonth ? `${fiscalMonthName(parseInt(selectedFyMonthIndex))}, ${calcTargetMonth.bsYear}` : 'the selected month'}</span> — the month currently shown on this page. No other month is affected.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-2 py-2">
                             <p className="text-[10px] font-black uppercase text-muted-foreground">This will:</p>
-                            <ul className="text-[11px] text-gray-700 space-y-1.5 list-disc pl-4">
+                            <ul className="text-[11px] text-foreground space-y-1.5 list-disc pl-4">
                                 <li>Delete and regenerate every processed attendance record for this month from the raw machine logs.</li>
                                 <li>Apply each employee's assigned shift, break window, and the HR Operational Rules configured under HR Setting.</li>
                                 <li>Overwrite any manual tweaks made to this month's attendance records.</li>
@@ -1185,7 +1171,7 @@ export default function AttendanceRegistryPage() {
                 ) : (
                     <>
                         <DialogHeader>
-                            <DialogTitle className="text-xl font-black text-gray-900">Calculation Complete</DialogTitle>
+                            <DialogTitle className="text-xl font-black text-foreground">Calculation Complete</DialogTitle>
                             <DialogDescription>
                                 {calcTargetMonth ? `${fiscalMonthName(parseInt(selectedFyMonthIndex))}, ${calcTargetMonth.bsYear}` : 'This period'} has been recalculated.
                             </DialogDescription>
@@ -1211,7 +1197,7 @@ export default function AttendanceRegistryPage() {
         <Dialog open={isShiftAssignOpen} onOpenChange={setIsShiftAssignOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black text-gray-900">Reschedule Shift</DialogTitle>
+                    <DialogTitle className="text-xl font-black text-foreground">Reschedule Shift</DialogTitle>
                     <DialogDescription>
                         {employeeMap.get(shiftAssignEmployeeId)?.name || 'Employee'} — assigning a shift only changes how future calculations read this employee's break window and default duty times. Existing clock-in/out records are never touched.
                     </DialogDescription>
@@ -1246,7 +1232,7 @@ export default function AttendanceRegistryPage() {
         <Dialog open={isBulkClockOpen} onOpenChange={setIsBulkClockOpen}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black text-gray-900">Bulk Clock In / Clock Out</DialogTitle>
+                    <DialogTitle className="text-xl font-black text-foreground">Bulk Clock In / Clock Out</DialogTitle>
                     <DialogDescription>Stamp a single clock time for multiple employees on one date. Only the selected side (In or Out) is written — the other punch and any existing record are preserved.</DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-3 gap-4 py-2">

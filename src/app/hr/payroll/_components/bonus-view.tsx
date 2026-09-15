@@ -98,7 +98,7 @@ export default function BonusView({ selectedBsYear, selectedBsMonth }: BonusView
                     {annualSummary.length > 0 ? annualSummary.map(s => (
                         <div key={`summary-${s.id}`} className="p-4 space-y-1">
                             <div className="flex justify-between items-baseline">
-                                <span className="font-black text-[11px] text-gray-900 uppercase tracking-tighter">{s.employeeName}</span>
+                                <span className="font-black text-[11px] text-foreground uppercase tracking-tighter">{s.employeeName}</span>
                                 <span className="font-black text-sm text-emerald-700">Rs. {s.accruedYTD?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                             <p className="text-[10px] text-muted-foreground">
@@ -113,7 +113,7 @@ export default function BonusView({ selectedBsYear, selectedBsMonth }: BonusView
                 </CardContent>
             </Card>
 
-            <Card className="lg:col-span-2 shadow-sm border-gray-100 bg-white overflow-hidden">
+            <Card className="lg:col-span-2 shadow-sm border-border bg-card overflow-hidden">
                 <CardHeader className="py-4 border-b bg-muted/5 flex flex-row items-center justify-between">
                     <div>
                         <CardTitle className="text-xs uppercase font-black tracking-widest">Monthly Bonus Ledger</CardTitle>
@@ -121,7 +121,7 @@ export default function BonusView({ selectedBsYear, selectedBsMonth }: BonusView
                             Accruals for the selected period, from master ledger.
                         </CardDescription>
                     </div>
-                    <Badge variant="outline" className="bg-white px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">
+                    <Badge variant="outline" className="bg-card px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">
                         <ShieldCheck className="mr-1 h-3 w-3" /> Cloud Verified
                     </Badge>
                 </CardHeader>
@@ -142,7 +142,7 @@ export default function BonusView({ selectedBsYear, selectedBsMonth }: BonusView
                                 <TableRow><TableCell colSpan={6} className="h-40 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto opacity-30" /></TableCell></TableRow>
                             ) : monthlyLedger.length > 0 ? monthlyLedger.map(item => (
                                 <TableRow key={item.id} className="h-12 border-b hover:bg-muted/10 transition-colors">
-                                    <TableCell className="pl-6 font-black text-gray-900 uppercase tracking-tight">{item.employeeName}</TableCell>
+                                    <TableCell className="pl-6 font-black text-foreground uppercase tracking-tight">{item.employeeName}</TableCell>
                                     <TableCell className="text-center">{item.basis}</TableCell>
                                     <TableCell className="text-center font-bold tabular-nums text-blue-900">{item.attendancePct?.toFixed(1)}%</TableCell>
                                     <TableCell className="text-center">
@@ -151,7 +151,7 @@ export default function BonusView({ selectedBsYear, selectedBsMonth }: BonusView
                                             <Badge variant="outline" className="text-red-400 border-red-100 font-black uppercase text-[8px] h-4">NO</Badge>
                                         }
                                     </TableCell>
-                                    <TableCell className="text-right font-black text-gray-900 tabular-nums">
+                                    <TableCell className="text-right font-black text-foreground tabular-nums">
                                         {item.accrual ? `Rs. ${item.accrual.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}
                                     </TableCell>
                                     <TableCell className="pr-6 text-[10px] text-muted-foreground italic truncate max-w-[220px]">{item.note}</TableCell>

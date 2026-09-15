@@ -1,5 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, query, orderBy, setDoc } from 'firebase/firestore';
 import type { RentalProperty } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
@@ -38,34 +39,19 @@ export const onPropertiesUpdate = (callback: (properties: RentalProperty[]) => v
     });
 };
 
-export const getProperties = async (): Promise<RentalProperty[]> => {
-    const q = query(getCollection(), orderBy('createdAt', 'desc'));
-    try {
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(fromFirestore);
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.RENTAL_PROPERTIES,
-            operation: 'list',
-        }));
-        throw error;
-    }
-};
-
 export const addProperty = async (property: Omit<RentalProperty, 'id' | 'createdAt'>): Promise<string> => {
     const now = createTimestamp();
     const payload = {
         ...property,
         createdAt: now,
     };
-    const docRef = await addDoc(getCollection(), payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.RENTAL_PROPERTIES,
-            operation: 'create',
-            requestResourceData: payload,
-        }));
-        throw err;
-    });
+    // doc() mints the id locally; setDoc then writes without
+    // blocking on the server, so this works offline too.
+    const docRef = doc(getCollection());
+    reportWriteFailure(
+        setDoc(docRef, payload),
+    { path: COLLECTIONS.RENTAL_PROPERTIES, operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
@@ -75,21 +61,16 @@ export const updateProperty = async (id: string, updates: Partial<RentalProperty
         ...updates,
         lastModifiedAt: createTimestamp(),
     };
-    updateDoc(docRef, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
-    });
+    reportWriteFailure(
+        updateDoc(docRef, payload),
+        { path: docRef.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteProperty = async (id: string): Promise<void> => {
     const docRef = doc(getCollection(), id);
-    deleteDoc(docRef).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'delete',
-        }));
-    });
+    reportWriteFailure(
+        deleteDoc(docRef),
+        { path: docRef.path, operation: 'delete' }
+    );
 };

@@ -1,5 +1,5 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, onSnapshot, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, doc, onSnapshot, getDoc, orderBy, query } from 'firebase/firestore';
 import type { Trip } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';

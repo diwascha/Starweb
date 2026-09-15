@@ -3,7 +3,6 @@
  */
 import { getFirebase } from './firebase';
 import { writeBatch, type DocumentReference } from 'firebase/firestore';
-
 export const createTimestamp = () => new Date().toISOString();
 
 /**

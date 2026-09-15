@@ -3,10 +3,13 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 
 /**
  * Uploads a file to Firebase Storage.
- * Note: If you encounter CORS errors or "Access Denied", ensure you have:
- * 1. Enabled Firebase Storage in the Console.
- * 2. Set the bucket rules to allow reads/writes.
- * 3. Configured CORS for your domain using gsutil or Google Cloud Shell.
+ *
+ * IMPORTANT: Firebase Storage requires the Blaze (pay-as-you-go) plan for
+ * projects created since late 2024. On the free Spark plan there is no bucket,
+ * so every call here fails and the file screen cannot work at all. The error
+ * mapping below says that in plain words rather than surfacing a raw SDK code,
+ * because "storage/unknown" sends people hunting for a bug that is really a
+ * billing setting.
  */
 export const uploadFile = async (file: File, path: string): Promise<string> => {
     const { storage } = getFirebase();
@@ -29,7 +32,17 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
         if (error.status === 403) {
             throw new Error(`Access Forbidden: Ensure your Firebase project is not over its daily free-tier limit or has Storage enabled.`);
         }
-        
+        // No bucket at all - the usual cause is the project still being on the
+        // free plan, where Storage is not provisioned.
+        if (error.code === 'storage/unknown' || error.code === 'storage/bucket-not-found'
+            || error.code === 'storage/project-not-found') {
+            throw new Error(
+                'File storage is not enabled for this project. Firebase Storage needs the ' +
+                'Blaze plan; on the free plan there is no bucket to upload to. Everything ' +
+                'else in the app is unaffected.'
+            );
+        }
+
         throw new Error(error.message || "Failed to communicate with Cloud Storage.");
     }
 };

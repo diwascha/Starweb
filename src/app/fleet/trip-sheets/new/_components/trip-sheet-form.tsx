@@ -4,18 +4,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { Vehicle, Party, Trip, Destination, PartyType, AccountOwnership, ReturnTrip, ExtraExpense, FuelEntry } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, PlusCircle, Trash2, ChevronsUpDown, Check, Plus, X } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format, differenceInDays } from 'date-fns';
 import { cn, toNepaliDate, generateNextSalesNumber } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -203,13 +204,21 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
 
     // Reactive Trip Number Generation based on Date and Registry
     const watchedDate = form.watch('date');
+    // Suggested once per date, from a ref. This used to depend on the live
+    // trip registry, so anyone else saving a trip sheet rewrote the number in
+    // your open form mid-entry.
+    const tripsRef = useRef(trips);
+    tripsRef.current = trips;
+    const suggestedForDate = useRef<string | null>(null);
+
     useEffect(() => {
-        if (!tripToEdit && watchedDate) {
-            generateNextSalesNumber(trips, watchedDate.toISOString()).then(num => {
-                form.setValue('tripNumber', num);
-            });
-        }
-    }, [trips, tripToEdit, form, watchedDate]);
+        if (tripToEdit || !watchedDate) return;
+        const key = watchedDate.toISOString().slice(0, 10);
+        if (suggestedForDate.current === key) return;
+        suggestedForDate.current = key;
+        generateNextSalesNumber(tripsRef.current, watchedDate.toISOString())
+            .then(num => form.setValue('tripNumber', num));
+    }, [tripToEdit, form, watchedDate]);
 
     useEffect(() => {
         if (tripToEdit) {
@@ -415,8 +424,11 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 toast({ title: 'Success', description: 'Sales - Trip Sheet updated successfully.' });
                 router.push('/fleet/trip-sheets');
             } else {
-                await addTrip(tripDataForDb);
-                toast({ title: 'Success', description: 'Sales - Trip Sheet created and transaction recorded.' });
+                const reserved = await reserveNumberFor(
+                    'sales', 'SALE-', trips.map(t => t.tripNumber), values.date.toISOString(),
+                );
+                await addTrip({ ...tripDataForDb, tripNumber: reserved });
+                toast({ title: 'Success', description: `Sales - Trip Sheet ${reserved} created and transaction recorded.` });
                 router.push('/fleet/transactions/ledger?view=grand');
             }
 

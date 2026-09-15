@@ -5,25 +5,14 @@ import type { CostReport, Party, QuotationStatus } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { 
-    MoreHorizontal, 
-    Eye, 
-    Edit, 
-    Trash2, 
-    ChevronLeft, 
-    ChevronRight, 
-    Search, 
-    FilterX, 
-    Users, 
-    CalendarIcon 
-} from 'lucide-react';
+import { MoreHorizontal, Eye, Edit, Trash2, ChevronLeft, ChevronRight, Search, FilterX, CalendarIcon } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { onCostReportsUpdate, updateQuotationStatus, deleteCostReport } from '@/services/cost-report-service';
+import { onCostReportsUpdate, updateQuotationStatus } from '@/services/cost-report-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
@@ -107,7 +96,7 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
 
     const getStatusBadge = (status: QuotationStatus) => {
         const variants: Record<QuotationStatus, string> = {
-            'Draft': 'bg-gray-100 text-gray-700 border-gray-200',
+            'Draft': 'bg-muted text-foreground border-border',
             'Sent': 'bg-blue-50 text-blue-700 border-blue-200',
             'Accepted': 'bg-emerald-50 text-emerald-700 border-emerald-200',
             'Rejected': 'bg-red-50 text-red-700 border-red-200',
@@ -134,14 +123,14 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <Input
                                 placeholder="Search ref or client..."
-                                className="pl-8 h-8 text-xs w-[180px] bg-white border-gray-200"
+                                className="pl-8 h-8 text-xs w-[180px] bg-card border-border"
                                 value={searchQuery}
                                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                             />
                         </div>
 
                         <Select value={filterPartyId} onValueChange={(v) => { setFilterPartyId(v); setCurrentPage(1); }}>
-                            <SelectTrigger className="h-8 w-[150px] bg-white text-xs border-gray-200">
+                            <SelectTrigger className="h-8 w-[150px] bg-card text-xs border-border">
                                 <SelectValue placeholder="All Clients" />
                             </SelectTrigger>
                             <SelectContent>
@@ -151,7 +140,7 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
                         </Select>
 
                         <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setCurrentPage(1); }}>
-                            <SelectTrigger className="h-8 w-[120px] bg-white text-xs border-gray-200">
+                            <SelectTrigger className="h-8 w-[120px] bg-card text-xs border-border">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
                             <SelectContent>
@@ -166,7 +155,7 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
 
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" className={cn("h-8 w-[180px] justify-start text-left font-normal bg-white text-xs px-2 border-gray-200", !dateRange && "text-muted-foreground")}>
+                                <Button variant="outline" className={cn("h-8 w-[180px] justify-start text-left font-normal bg-card text-xs px-2 border-border", !dateRange && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-1.5 h-3 w-3" />
                                     <span className="truncate">
                                         {dateRange?.from ? (
@@ -208,8 +197,8 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
                         {paginated.map(r => (
                             <TableRow key={r.id} className="h-14 hover:bg-muted/30 transition-colors">
                                 <TableCell className="font-mono pl-6 text-blue-700 font-bold">{r.reportNumber}</TableCell>
-                                <TableCell className="text-xs text-gray-500">{toNepaliDate(r.reportDate)}</TableCell>
-                                <TableCell className="font-bold text-gray-900">{r.partyName}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{toNepaliDate(r.reportDate)}</TableCell>
+                                <TableCell className="font-bold text-foreground">{r.partyName}</TableCell>
                                 <TableCell className="text-center">{getStatusBadge(r.status || 'Draft')}</TableCell>
                                 <TableCell className="text-right pr-6">
                                     <DropdownMenu>
@@ -269,7 +258,7 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
                                 setItemsPerPage(parseInt(v));
                                 setCurrentPage(1);
                             }}>
-                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>

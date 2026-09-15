@@ -1,5 +1,6 @@
 
 import { getFirebase } from '@/lib/firebase';
+import { reportWriteFailure } from '@/lib/write-reporting';
 import { 
     collection, 
     doc, 
@@ -58,11 +59,52 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | any): Use
  * Validates password strength and requirements.
  * Used during user creation and password updates.
  */
-export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean; error?: string } => {
+/** Minimum password length for a new account. */
+export const MIN_PASSWORD_LENGTH = 10;
+
+/** Choices that pass a naive length test but should not be accepted. */
+const WEAK_PASSWORD_SUBSTRINGS = [
+    'password', 'passw0rd', '12345', 'qwerty', 'abc123',
+    'admin', 'shivam', 'sijan', 'starsutra', 'letmein',
+];
+
+/**
+ * Password rules for account creation and password changes.
+ *
+ * The floor was six characters - Firebase's own default. For a system
+ * holding payroll, PAN numbers, bank details and the cheque ledger that is
+ * not a meaningful barrier, and because the app is a static export an
+ * attacker who guesses a password gets everything that account can reach,
+ * with the Firestore rules as the only remaining check.
+ *
+ * Deliberately a predictable floor rather than a strength meter: rules
+ * people can read are easier to satisfy than a bar that moves.
+ */
+export const validatePassword = (
+    password: string,
+    isRequired: boolean = true,
+    username: string = ''
+): { isValid: boolean; error?: string } => {
     if (!isRequired && !password) return { isValid: true };
     if (isRequired && !password) return { isValid: false, error: "Password is required." };
-    if (password && password.length < 6) return { isValid: false, error: "Password must be at least 6 characters." };
-    return { isValid: true };
+
+    const problems: string[] = [];
+    if (password.length < MIN_PASSWORD_LENGTH) problems.push(`at least ${MIN_PASSWORD_LENGTH} characters`);
+    if (!/[a-z]/.test(password)) problems.push('a lowercase letter');
+    if (!/[A-Z]/.test(password)) problems.push('an uppercase letter');
+    if (!/[0-9]/.test(password)) problems.push('a number');
+
+    const lower = password.toLowerCase();
+    if (WEAK_PASSWORD_SUBSTRINGS.some(bad => lower.includes(bad))) {
+        problems.push('something less guessable - it contains a common word');
+    }
+    if (username && username.length >= 3 && lower.includes(username.toLowerCase())) {
+        problems.push('no part of the username');
+    }
+
+    return problems.length
+        ? { isValid: false, error: `Password needs ${problems.join(', ')}.` }
+        : { isValid: true };
 };
 
 export const onUsersUpdate = (callback: (users: User[]) => void) => {
@@ -100,62 +142,55 @@ export const deleteUsernameRecord = async (username: string) => {
     return deleteDoc(usernameRef);
 };
 
-export const restoreAdminProfile = async (uid: string, email: string, username: string) => {
-    const { db } = getFirebase();
-    const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, uid);
-    const login = (username || 'staradmin').toLowerCase().trim();
-    const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
-    const now = new Date().toISOString();
 
-    const payload = {
-        username: login,
-        email: email.toLowerCase().trim(),
-        isApproved: true,
-        isAdmin: true,
-        permissions: {},
-        updatedAt: serverTimestamp(),
-        createdAt: now
-    };
-
-    try {
-        await setDoc(userRef, payload, { merge: true });
-        await setDoc(usernameRef, { 
-            email: email.toLowerCase().trim(), 
-            username: login 
-        }, { merge: true });
-        logAudit(`Administrative Profile Restored: ${login}`, 'Security', { uid });
-    } catch (e) {
-        console.error("Critical: Failed to restore admin profile", e);
-    }
-};
-
+/**
+ * Create or update a user's profile.
+ *
+ * This one AWAITS the server, unlike almost every other write in the app.
+ * Those are deliberately fire-and-forget because an offline write pends
+ * rather than failing, and a spinning save button on a dropped connection is
+ * worse than a queued record. Account provisioning is the opposite case:
+ *
+ *   - It cannot work offline anyway - the Firebase Auth account it pairs with
+ *     is created over the network moments earlier.
+ *   - Reporting success wrongly is expensive. The admin closes the dialog
+ *     believing the account exists, and the new user is left with an Auth
+ *     login that resolves to no profile and can never sign in.
+ *
+ * So the caller gets a real result and can show a real error.
+ */
 export const saveUser = async (user: User) => {
     const { db } = getFirebase();
     if (!user?.id) throw new Error("Invalid user ID.");
 
     const userRef = doc(db, COLLECTIONS.SYSTEM_USERS, user.id);
     const payload = { ...user, updatedAt: serverTimestamp() };
-    
-    setDoc(userRef, payload, { merge: true }).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: userRef.path,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
+
+    try {
+        await setDoc(userRef, payload, { merge: true });
+    } catch (err: any) {
+        if (err?.code === 'permission-denied') {
+            throw new Error(
+                'You do not have permission to save this account. Only an administrator can create or change user accounts.'
+            );
         }
-    });
+        throw new Error(`Could not save the account: ${err?.message || err}`);
+    }
 
     if (user.username && user.email) {
         const usernameRef = doc(db, COLLECTIONS.USERNAMES, user.username.toLowerCase().trim());
-        setDoc(usernameRef, { 
-            email: user.email.toLowerCase().trim(), 
-            username: user.username.toLowerCase().trim() 
-        }, { merge: true }).catch(async (err: any) => {
-             if (err.code === 'permission-denied') {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: usernameRef.path, operation: 'write' }));
-             }
-        });
+        // `uid` is what ties this public lookup document to an account. The
+        // rules require it to match the caller (or the caller to be an admin),
+        // which is what stops a signed-in user squatting someone else's name.
+        const usernamePayload = {
+            uid: user.id,
+            email: user.email.toLowerCase().trim(),
+            username: user.username.toLowerCase().trim(),
+        };
+        reportWriteFailure(
+            setDoc(usernameRef, usernamePayload, { merge: true }),
+            { path: usernameRef.path, operation: 'write', requestResourceData: usernamePayload }
+        );
     }
 };
 
@@ -199,6 +234,13 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     
     try {
         const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email.toLowerCase().trim(), password);
+
+        // The username had to be reserved before the account existed, so it
+        // could not carry a uid. Attach it now: `uid` is what ties this
+        // publicly-readable lookup document to an account, and the rules use
+        // it to stop a signed-in user squatting someone else's name.
+        await setDoc(usernameRef, { uid: userCredential.user.uid }, { merge: true });
+
         await deleteApp(secondaryApp);
         logAudit(`New User Created: ${login}`, 'Security');
         return userCredential.user;
@@ -223,10 +265,21 @@ export const loginWithUsername = async (auth: Auth, loginString: string, passwor
         if (snap.exists()) {
             email = snap.data()?.email || login;
         } else {
-            const q = query(collection(db, COLLECTIONS.SYSTEM_USERS), where("username", "==", login), limit(1));
-            const userSnap = await getDocs(q);
-            if (!userSnap.empty) {
-                email = userSnap.docs[0].data().email;
+            // Legacy fallback for accounts created before the `usernames`
+            // collection existed. It cannot succeed for an anonymous caller -
+            // this runs BEFORE sign-in, and listing system_users is admin-only -
+            // so a denial here is expected, not exceptional. Swallow it and let
+            // the sign-in below fail with the normal generic credential error;
+            // throwing instead would both break login and, by failing
+            // differently for a known username, leak which accounts exist.
+            try {
+                const q = query(collection(db, COLLECTIONS.SYSTEM_USERS), where("username", "==", login), limit(1));
+                const userSnap = await getDocs(q);
+                if (!userSnap.empty) {
+                    email = userSnap.docs[0].data().email;
+                }
+            } catch {
+                /* resolve as the raw login and let Firebase Auth reject it */
             }
         }
     }
@@ -269,15 +322,3 @@ export const deleteUser = async (userId: string, username?: string) => {
     }
 };
 
-export const getUsers = async (): Promise<User[]> => {
-    const { db } = getFirebase();
-    try {
-        const snap = await getDocs(collection(db, COLLECTIONS.SYSTEM_USERS));
-        return snap.docs.map(fromFirestore);
-    } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.SYSTEM_USERS, operation: 'list' }));
-        }
-        throw error;
-    }
-};

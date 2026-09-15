@@ -26,7 +26,7 @@ import { findPayrollBlockStart, importLegacyPayrollSheet } from '../payroll/lega
 import { importConsolidatedLedger } from '../vba-import-service';
 import { setFiscalYearPeriodLock } from '../period-lock';
 
-export const CONSOLIDATED_LEDGER_SUMMARY_SHEET = 'consolidated ledger';
+const CONSOLIDATED_LEDGER_SUMMARY_SHEET = 'consolidated ledger';
 // Sheets that are never a month's attendance/payroll data, regardless of name.
 export const NON_DATA_SHEETS = new Set(['dashboard', 'log', 'rates']);
 
@@ -80,7 +80,7 @@ export interface CalculatedAttendanceImportResult {
  * @param sourceSheet - Sheet name, stored for audit/debug.
  * @param importedBy - Operator username.
  */
-export const importCalculatedAttendanceSheet = async (
+const importCalculatedAttendanceSheet = async (
     grid: any[][],
     sourceSheet: string,
     importedBy: string

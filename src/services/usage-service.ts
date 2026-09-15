@@ -1,6 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, setDoc, onSnapshot, increment, serverTimestamp, query, orderBy, getDocs, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, doc, setDoc, onSnapshot, increment, serverTimestamp, query, orderBy, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { PageVisit } from '@/lib/types';
 import { getNormalizedPath } from '@/lib/utils';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -37,13 +38,10 @@ export const trackPageVisit = async (path: string) => {
         lastVisited: serverTimestamp()
     };
 
-    setDoc(docRef, payload, { merge: true }).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.PAGE_VISITS,
-            operation: 'write',
-            requestResourceData: payload
-        }));
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload, { merge: true }),
+        { path: COLLECTIONS.PAGE_VISITS, operation: 'write' }
+    );
 };
 
 export const onPageVisitsUpdate = (callback: (visits: PageVisit[]) => void): () => void => {
@@ -58,16 +56,3 @@ export const onPageVisitsUpdate = (callback: (visits: PageVisit[]) => void): () 
     });
 };
 
-export const getPageVisits = async (): Promise<PageVisit[]> => {
-    const q = query(getUsageCollection(), orderBy('count', 'desc'));
-    try {
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(fromFirestore);
-    } catch (err) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.PAGE_VISITS,
-            operation: 'list'
-        }));
-        throw err;
-    }
-};

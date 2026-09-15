@@ -1,7 +1,7 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Calculator, FileText, Receipt, Scale, Wallet } from 'lucide-react';
+import { Calculator, FileText, Receipt, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function FinanceDashboardPage() {
@@ -9,7 +9,7 @@ export default function FinanceDashboardPage() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Finance Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Finance Dashboard</h1>
             <p className="text-muted-foreground text-sm font-medium">An overview of your financial tools and records.</p>
         </div>
       </header>

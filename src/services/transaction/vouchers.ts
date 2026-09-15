@@ -58,12 +58,18 @@ export const saveVoucher = async (data: any, createdBy: string) => {
         });
     });
 
-    batch.commit().catch(async (err) => {
+    // Awaited and rethrown: this was fire-and-forget, so the caller's await
+    // resolved before the write landed and it toasted "Voucher Saved" whether
+    // or not anything was written. It matters more now that the voucher number
+    // is reserved before this call - a swallowed failure would consume a
+    // number and save nothing under it.
+    await batch.commit().catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: COLLECTIONS.TRANSACTIONS,
             operation: 'write',
             requestResourceData: data,
         }));
+        throw err;
     });
 };
 
@@ -71,7 +77,7 @@ export const deleteVoucher = async (voucherId: string) => {
     const { db } = getFirebase();
     const q = query(transactionsCollection(), where("voucherId", "==", voucherId));
     
-    getDocs(q).then(async (txnsSnap) => {
+    await getDocs(q).then(async (txnsSnap) => {
         if (txnsSnap.empty) return;
         const batch = writeBatch(db);
         txnsSnap.docs.forEach(t => batch.delete(t.ref));
@@ -81,6 +87,7 @@ export const deleteVoucher = async (voucherId: string) => {
             path: COLLECTIONS.TRANSACTIONS,
             operation: 'write',
         }));
+        throw err;
     });
 };
 
@@ -88,7 +95,7 @@ export const updateVoucher = async (voucherId: string, data: any, modifiedBy: st
     const { db } = getFirebase();
     const q = query(transactionsCollection(), where("voucherId", "==", voucherId));
     
-    getDocs(q).then(async (txnsSnap) => {
+    await getDocs(q).then(async (txnsSnap) => {
         const batch = writeBatch(db);
         const now = createTimestamp();
 
@@ -134,5 +141,6 @@ export const updateVoucher = async (voucherId: string, data: any, modifiedBy: st
             path: COLLECTIONS.TRANSACTIONS,
             operation: 'write',
         }));
+        throw err;
     });
 };

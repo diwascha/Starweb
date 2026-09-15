@@ -1,4 +1,6 @@
 
+import type { BoxLayer } from './box-engine/types';
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -23,11 +25,6 @@ export interface ProductSpecification {
   topGsm?: string;
   flute1Gsm?: string;
   middleGsm?: string;
-  view?: string;
-  edit?: string;
-  delete?: string;
-  add?: string;
-  all?: string;
   flute2Gsm?: string;
   bottomGsm?: string;
   liner2Gsm?: string;
@@ -74,6 +71,12 @@ export interface Product {
   rate?: number;
   rateHistory?: RateHistoryEntry[];
   specification: Partial<ProductSpecification>;
+  /** Layer-by-layer construction. Deliberately a sibling of `specification`
+   *  rather than a field inside it: several screens render every spec entry
+   *  as a text row, and an array of objects in there would show up as
+   *  "[object Object]". The flat GSM fields inside `specification` are kept
+   *  in sync with these layers, so those screens keep reading correctly. */
+  layers?: BoxLayer[];
   accessories?: ProductAccessory[]; // Added to store default accessories
   createdBy: string;
   createdAt: string; // ISO string
@@ -194,7 +197,6 @@ export type EmployeeStatus = 'Working' | 'Long Leave' | 'Resigned' | 'Dismissed'
 // Freeform, but 'Production' | 'Admin' / the roles below are offered as quick-pick defaults in the UI.
 export type Department = string;
 export type Position = string;
-export type PositionStatus = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers' | 'Staff';
 export type BloodGroup = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
 
 export interface EmployeeDocument {
@@ -501,33 +503,6 @@ export interface BehaviorAnalyticsEntry {
     source?: 'excel-import' | 'generated'; // Provenance: pulled from the source workbook's own ledger vs computed here from attendance.
 }
 
-export interface AnalyticsData {
-    punctuality: any[];
-    behavior: any[];
-    workforce: any[];
-    patterns: any[];
-    highestAbsenteeism: { day: string; count: number };
-    highestLateArrivals: { day: string; count: number };
-    lateHotspots: { date: string; count: number }[];
-    saturdayUtilization: number;
-    mostPunctualWeekday: { day: string; rate: number };
-    worstShiftStart: { time: string; rate: number };
-    importedReport?: AnalyticsReport | null;
-}
-
-export interface AnalyticsReport {
-    id: string; // bsYear-bsMonth
-    bsYear: number;
-    bsMonth: number;
-    behavioralPatterns: any[];
-    enhancedInsights: any[];
-    patternInsights: string[];
-    dayOfWeekPatterns: any[];
-    monthToMonthComparison: any[];
-    importedAt: string;
-    importedBy: string;
-}
-
 export type VehicleStatus = 'Active' | 'In Maintenance' | 'Decommissioned';
 
 export interface Vehicle {
@@ -646,26 +621,10 @@ export interface Deal {
   lastModifiedAt?: string;
 }
 
+// Real quotation records live on CostReport (cost-report-service.ts /
+// costReports collection) - the calculator IS the quotation generator.
+// This status type is kept for CostReport.status.
 export type QuotationStatus = 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired';
-export interface QuotationItem { id: string; productName: string; quantity: number; rate: number; amount: number; }
-export interface Quotation {
-  id: string;
-  quotationNumber: string;
-  date: string; // AD ISO
-  dateBS: string; // "YYYY/MM/DD"
-  partyId: string;
-  partyName?: string;
-  dealId?: string; // optional link
-  items: QuotationItem[];
-  total: number;
-  status: QuotationStatus;
-  validUntilBS?: string;
-  remarks?: string;
-  createdBy: string;
-  createdAt: string;
-  lastModifiedBy?: string;
-  lastModifiedAt?: string;
-}
 
 export interface Party {
     id: string;
@@ -747,7 +706,7 @@ export interface Transaction {
 
 export interface InteractionLog {
     id: string;
-    type: 'Call' | 'Email' | 'Meeting' | 'Note' | 'Task';
+    type: 'Call' | 'Email' | 'Meeting' | 'Note' | 'Task' | 'Incident' | 'Feedback';
     subject: string;
     description: string;
     date: string; // ISO
@@ -759,6 +718,10 @@ export interface InteractionLog {
     taskDueDateBS?: string;
     taskDueDate?: string;
     assignee?: string;
+    // Set only when type === 'Incident'
+    severity?: 'Low' | 'Medium' | 'High';
+    // Set only when type === 'Feedback'
+    sentiment?: 'Positive' | 'Neutral' | 'Negative';
 }
 
 export interface CRMContact {
@@ -1117,6 +1080,12 @@ export interface CalculatedValues {
     paperRate: number;
     paperCost: number;
     transportCost: number;
+    // True when the row's paper rate resolved to 0 because no matching
+    // global rate (kraft BF rate, or virgin rate) was configured - as
+    // opposed to a legitimate 0 the user entered. Surfaced as a warning in
+    // the UI, and used to skip syncing a bogus rate back into the product
+    // catalog on save.
+    rateMissing?: boolean;
 }
 
 export interface CostReportItem {
@@ -1145,6 +1114,24 @@ export interface CostReportItem {
   wastagePercent: string;
   accessories?: Accessory[];
   calculated: CalculatedValues;
+
+  // --- Layer-based construction (see src/lib/box-engine) ---
+  // When absent, the flat GSM fields above plus the single paperType/paperBf
+  // are expanded into an equivalent uniform stack, so every record saved
+  // before this existed keeps calculating exactly as it did. When present,
+  // `layers` is authoritative and every layer may carry its own material -
+  // the flat fields are kept written in sync purely so the quotation
+  // preview, PDF export and product catalog need no changes.
+  layers?: BoxLayer[];
+  /** Customer's stated load requirement, kg per box. */
+  requiredLoadKg?: string;
+  /** Service conditions that derate the lab compression figure. */
+  storageDuration?: 'short' | 'medium' | 'long';
+  humidity?: 'low' | 'normal' | 'high';
+  stacking?: 'aligned' | 'interlocked' | 'overhang';
+  /** Measured board ECT in kN/m, when a lab report is available. Turns the
+   *  strength estimate into a real calculation. */
+  measuredEct?: string;
 }
 
 export interface CostReportTerm {
@@ -1162,6 +1149,14 @@ export interface CostReport {
   virginPaperCost: number;
   conversionCost: number;
   accessoryConversionCost: number;
+  /** NPR/kg for papers outside the kraft-by-BF table and the single virgin
+   *  rate (Duplex, White Top, ...), keyed by material. Needed now that each
+   *  layer of a board can be a different material. */
+  otherPaperCosts?: Record<string, number>;
+  /** Flute take-up factors this quotation was costed with, keyed by profile.
+   *  Snapshotted like the paper rates so revising the factors later never
+   *  silently reprices a quotation that was already sent to a customer. */
+  fluteTakeUps?: Record<string, number>;
   transportCost: number;
   transportCostType: 'Per Piece' | 'Per Consignment';
   items: Omit<CostReportItem, 'calculated'>[]; // We only store the inputs, not the calculated values
@@ -1189,6 +1184,8 @@ export interface CostSetting {
     virginPaperCost: number;
     conversionCost: number;
     accessoryConversionCost: number; // Added
+    otherPaperCosts?: Record<string, number>;
+    fluteTakeUps?: Record<string, number>;
     termsAndConditions?: CostReportTerm[];
     history: CostSettingHistoryEntry[];
     createdBy?: string;
@@ -1322,6 +1319,3 @@ export interface SessionRecord {
   isStale?: boolean; // client-side derived or cleanup-flagged
 }
 
-export interface SessionConfig {
-  inactivityThresholdMinutes: number;
-}

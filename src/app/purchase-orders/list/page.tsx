@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { deleteField } from 'firebase/firestore';
 import Link from 'next/link';
 import { 
   PlusCircle, 
@@ -21,14 +22,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Truck,
-  FileText,
-  Save,
-  Loader2,
   RefreshCcw
 } from 'lucide-react';
 import type { PurchaseOrder, PurchaseOrderStatus, Amendment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,7 +61,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { onPurchaseOrdersUpdate, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
@@ -105,7 +103,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
             <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
+                    <Button variant="outline" className="w-full justify-between h-9 bg-card border-border shadow-none font-normal text-xs px-3 text-left">
                         <div className="flex items-center gap-2 overflow-hidden text-left">
                             {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                             <span className="truncate text-left">{displayText}</span>
@@ -203,13 +201,14 @@ export default function PurchaseOrdersListPage() {
   const handleDeletePurchaseOrder = async (id: string) => {
     try {
       await deletePurchaseOrder(id);
+      // deletePurchaseOrder now rejects on failure, so this catch is real.
       toast({ title: 'Purchase Order Deleted', description: 'The purchase order has been successfully deleted.' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete purchase order.', variant: 'destructive' });
     }
   };
   
-  const updatePurchaseOrderStatus = (id: string, status: PurchaseOrderStatus, dateISO?: string, remarks?: string) => {
+  const updatePurchaseOrderStatus = async (id: string, status: PurchaseOrderStatus, dateISO?: string, remarks?: string) => {
     const po = purchaseOrders.find(p => p.id === id);
     if (!po) return;
 
@@ -237,19 +236,24 @@ export default function PurchaseOrdersListPage() {
       }
       
       // If reverting to Ordered, clear out dispatch and delivery dates
+      // Reverting to Ordered clears the dispatch/delivery dates. Firestore's
+      // deleteField() removes them outright; writing null left the fields
+      // present as null against a `string | undefined` type.
       if (status === 'Ordered') {
-          updateData.shippedDate = null;
-          updateData.deliveryDate = null;
+          updateData.shippedDate = deleteField();
+          updateData.deliveryDate = deleteField();
       }
 
-      updatePurchaseOrder(id, updateData);
+      // Awaited: the previous version fired this off and toasted success
+      // immediately, so a rejected write still reported "Status Updated".
+      await updatePurchaseOrder(id, updateData);
       toast({
         title: 'Status Updated',
         description: `Purchase Order status has been updated to ${status}.`,
       });
     } catch (error) {
        console.error("Failed to update status:", error);
-       toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+       toast({ title: 'Error', description: 'Failed to update status. The order was not changed.', variant: 'destructive' });
     }
   };
 
@@ -267,9 +271,9 @@ export default function PurchaseOrdersListPage() {
     setStatusDialogOpen(true);
   };
   
-  const handleConfirmStatusUpdate = () => {
+  const handleConfirmStatusUpdate = async () => {
     if (purchaseOrderToUpdate && targetStatus) {
-      updatePurchaseOrderStatus(
+      await updatePurchaseOrderStatus(
           purchaseOrderToUpdate.id, 
           targetStatus, 
           statusDate?.toISOString(), 
@@ -387,7 +391,7 @@ export default function PurchaseOrdersListPage() {
   const renderStatusBadge = (status: PurchaseOrderStatus) => {
     switch (status) {
       case 'Ordered': return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Ordered</Badge>;
-      case 'Amended': return <Badge variant="default" className="bg-amber-500 text-black hover:bg-amber-600">Amended</Badge>;
+      case 'Amended': return <Badge variant="default" className="bg-amber-500 text-foreground hover:bg-amber-600">Amended</Badge>;
       case 'Shipped': return <Badge variant="default" className="bg-purple-600 hover:bg-purple-700">Shipped</Badge>;
       case 'Delivered': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Delivered</Badge>;
       case 'Canceled': return <Badge variant="destructive">Canceled</Badge>;
@@ -619,7 +623,7 @@ export default function PurchaseOrdersListPage() {
                                 setItemsPerPage(parseInt(v));
                                 setCurrentPage(1);
                             }}>
-                                <SelectTrigger className="h-8 w-[70px] bg-white border-gray-200">
+                                <SelectTrigger className="h-8 w-[70px] bg-card border-border">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>

@@ -6,8 +6,8 @@ import {
   persistentMultipleTabManager, 
   Firestore 
 } from "firebase/firestore";
-import { getStorage, FirebaseStorage } from "firebase/storage";
-import { getAuth, Auth } from 'firebase/auth';
+import { getStorage } from "firebase/storage";
+import { getAuth } from 'firebase/auth';
 import { getDatabase, Database } from 'firebase/database';
 import { firebaseConfig } from "@/firebase/config";
 

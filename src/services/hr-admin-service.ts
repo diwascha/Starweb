@@ -5,7 +5,7 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import type { HrShift, PublicHoliday, LeaveRequest } from '@/lib/types';
-import { COLLECTIONS } from '@/lib/constants';
+
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';

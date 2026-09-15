@@ -1,21 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  Loader2,
-  Check,
-  ChevronDown,
-  MoreHorizontal,
-  PlusCircle,
-  FilterX,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+
+import { Plus, Search, Edit, Trash2, Loader2, MoreHorizontal, FilterX, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { 
   onRawMaterialsUpdate, 
@@ -24,7 +11,7 @@ import {
   deleteRawMaterial 
 } from '@/services/raw-material-service';
 import { onUomsUpdate } from '@/services/uom-service';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -61,7 +48,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { cn, normalizeBF } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
@@ -172,7 +158,7 @@ export default function RawMaterialsPage() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Raw Materials</h1>
+          <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">Raw Materials</h1>
           <p className="text-muted-foreground text-sm font-medium italic">Inventory catalog for manufacturing components.</p>
         </div>
         <div className="flex items-center gap-3">
@@ -180,7 +166,7 @@ export default function RawMaterialsPage() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
                 placeholder="Search catalog..." 
-                className="pl-8 w-64 bg-white h-10 border-gray-300 shadow-sm text-sm" 
+                className="pl-8 w-64 bg-card h-10 border-border shadow-sm text-sm" 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
             />
@@ -197,7 +183,7 @@ export default function RawMaterialsPage() {
           <div className="space-y-1.5 w-[200px]">
               <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Filter Category</Label>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="h-9 bg-white text-xs font-bold uppercase"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 bg-card text-xs font-bold uppercase"><SelectValue /></SelectTrigger>
                   <SelectContent>
                       <SelectItem value="All">All Categories</SelectItem>
                       {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -211,7 +197,7 @@ export default function RawMaterialsPage() {
           )}
       </div>
 
-      <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+      <Card className="shadow-sm border-border bg-card overflow-hidden">
           <CardContent className="p-0">
               <Table>
                   <TableHeader className="bg-muted/50 border-b">
@@ -230,7 +216,7 @@ export default function RawMaterialsPage() {
                           <TableRow key={m.id} className="hover:bg-muted/10 h-16 transition-colors border-b group">
                               <TableCell className="pl-6">
                                   <div className="flex flex-col">
-                                      <span className="font-black text-gray-900 leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{m.name}</span>
+                                      <span className="font-black text-foreground leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{m.name}</span>
                                       <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">ID: {m.id.substring(0,8).toUpperCase()}</span>
                                   </div>
                               </TableCell>
@@ -239,7 +225,7 @@ export default function RawMaterialsPage() {
                               </TableCell>
                               <TableCell className="text-center">
                                   {paperTypes.includes(m.type) ? (
-                                      <div className="flex items-center justify-center gap-2 font-mono text-[11px] text-gray-600 font-bold">
+                                      <div className="flex items-center justify-center gap-2 font-mono text-[11px] text-muted-foreground font-bold">
                                           <span>{m.size || '—'}"</span>
                                           <span className="text-muted-foreground opacity-30 font-normal">/</span>
                                           <span>{m.gsm || '—'}g</span>
@@ -306,7 +292,7 @@ export default function RawMaterialsPage() {
                             setItemsPerPage(parseInt(v));
                             setCurrentPage(1);
                         }}>
-                            <SelectTrigger className="h-8 w-[72px] bg-white border-gray-200 text-xs font-bold">
+                            <SelectTrigger className="h-8 w-[72px] bg-card border-border text-xs font-bold">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -348,7 +334,7 @@ export default function RawMaterialsPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                  <DialogTitle className="text-xl font-black text-gray-900 uppercase tracking-tight">{editingMaterial ? 'Modify Material' : 'New Material Registry'}</DialogTitle>
+                  <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">{editingMaterial ? 'Modify Material' : 'New Material Registry'}</DialogTitle>
                   <DialogDescription className="text-xs uppercase font-bold text-muted-foreground tracking-widest">Define a manufacturing component and its specifications.</DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-4">
@@ -372,16 +358,16 @@ export default function RawMaterialsPage() {
                       <div className="grid grid-cols-3 gap-4 p-4 bg-primary/5 rounded-xl border-2 border-primary/20 animate-in zoom-in-95">
                           <div className="space-y-1.5">
                               <Label className="text-[10px] font-black uppercase text-primary tracking-widest">Size (In)</Label>
-                              <Input value={form.size} onChange={e => setForm({...form, size: e.target.value})} className="h-9 font-black text-center bg-white" placeholder="0.00" />
+                              <Input value={form.size} onChange={e => setForm({...form, size: e.target.value})} className="h-9 font-black text-center bg-card" placeholder="0.00" />
                           </div>
                           <div className="space-y-1.5">
                               <Label className="text-[10px] font-black uppercase text-primary tracking-widest">GSM</Label>
-                              <Input value={form.gsm} onChange={e => setForm({...form, gsm: e.target.value})} className="h-9 font-black text-center bg-white" placeholder="0" />
+                              <Input value={form.gsm} onChange={e => setForm({...form, gsm: e.target.value})} className="h-9 font-black text-center bg-card" placeholder="0" />
                           </div>
                           <div className="space-y-1.5">
                               <Label className="text-[10px] font-black uppercase text-primary tracking-widest">BF</Label>
                               <Select value={form.bf} onValueChange={v => setForm({...form, bf: v})}>
-                                  <SelectTrigger className="h-9 bg-white font-black text-xs"><SelectValue/></SelectTrigger>
+                                  <SelectTrigger className="h-9 bg-card font-black text-xs"><SelectValue/></SelectTrigger>
                                   <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b} className="text-xs font-bold">{b}</SelectItem>)}</SelectContent>
                               </Select>
                           </div>
@@ -390,7 +376,7 @@ export default function RawMaterialsPage() {
 
                   <div className="space-y-1.5">
                       <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Authorized Units</Label>
-                      <div className="flex flex-wrap gap-2 p-3 border-2 rounded-xl bg-gray-50/50">
+                      <div className="flex flex-wrap gap-2 p-3 border-2 rounded-xl bg-muted/50">
                           {['Kg', 'Ton', 'Piece', 'Roll', 'Packet', 'Set', 'Ltr'].map(u => (
                               <button
                                   key={u}
@@ -398,7 +384,7 @@ export default function RawMaterialsPage() {
                                   onClick={() => setForm(p => ({...p, units: p.units.includes(u) ? p.units.filter(x => x !== u) : [...p.units, u]}))}
                                   className={cn(
                                       "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight transition-all border-2",
-                                      form.units.includes(u) ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" : "bg-white text-muted-foreground border-gray-100 hover:border-primary/30"
+                                      form.units.includes(u) ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" : "bg-card text-muted-foreground border-border hover:border-primary/30"
                                   )}
                               >
                                   {u}

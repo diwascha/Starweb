@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
+import { printElement } from '@/lib/print-window';
+import { exportGsmReportPdf } from '@/lib/gsm-report-pdf';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { 
     ArrowLeft, 
     Calculator, 
     History as HistoryIcon, 
+    Layers,
     Printer, 
     X, 
     Loader2,
@@ -16,6 +20,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { GsmGeneratorForm } from './_components/gsm-form';
 import { GsmReportsList } from './_components/gsm-list';
+import { BoardStrengthTester } from './_components/strength-tester';
 import { onGsmReportsUpdate } from '@/services/gsm-service';
 import type { GsmReport } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -28,6 +33,7 @@ export default function GsmCalculatorPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { inScope } = useOwnershipScope('finance');
+    const companyProfile = useBusinessProfile();
     const [activeTab, setActiveTab] = useState('calculator');
     const [reports, setReports] = useState<GsmReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -61,42 +67,20 @@ export default function GsmCalculatorPage() {
     };
 
     const executePrint = () => {
-        const win = window.open('', '', 'height=800,width=900');
-        if (!win) return;
-        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-            .map(s => s.outerHTML).join('');
-        
-        win.document.write(`<html><head><title>GSM Report</title>${styles}</head><body>`);
-        win.document.write(document.querySelector('.gsm-voucher')?.outerHTML || '');
-        win.document.write('</body></html>');
-        win.document.close();
-        win.focus();
-        setTimeout(() => { win.print(); win.close(); }, 500);
+        const voucher = document.querySelector('.gsm-voucher') as HTMLElement | null;
+        if (!printElement(voucher, { title: 'GSM Report', delayMs: 500 })) {
+            toast({ title: 'Could not open the print window', description: 'Allow pop-ups for this site and try again.', variant: 'destructive' });
+        }
     };
 
     const handleExportPdf = async () => {
         if (!selectedReport) return;
         setIsExporting(true);
         try {
-            const element = document.querySelector('.gsm-voucher') as HTMLElement;
-            if (!element) return;
-
-            const html2canvas = (await import('html2canvas')).default;
-            const { jsPDF } = await import('jspdf');
-
-            const canvas = await html2canvas(element, { 
-                scale: 2,
-                useCORS: true,
-                backgroundColor: '#ffffff'
-            });
-            
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            
-            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`GSM-Report-${selectedReport.voucherNo}.pdf`);
+            // Was html2canvas at scale 2 embedded as a JPEG - a ~295 KB
+            // picture of the report, with no selectable figures. Drawn as
+            // real text and a real table it is around 20 KB.
+            await exportGsmReportPdf(selectedReport, companyProfile);
             toast({ title: 'PDF Export Successful' });
         } catch (error) {
             console.error(error);
@@ -141,7 +125,7 @@ export default function GsmCalculatorPage() {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">GSM Logic & Archive</h1>
+                        <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase">GSM Logic & Archive</h1>
                         <p className="text-muted-foreground text-sm font-medium italic">Compute and store paper grammage verification logs.</p>
                     </div>
                 </div>
@@ -156,6 +140,10 @@ export default function GsmCalculatorPage() {
                     <TabsTrigger value="history" className="gap-2 px-8 py-2 font-bold text-[10px] uppercase tracking-widest">
                         <HistoryIcon className="h-3.5 w-3.5"/>
                         Archived Logs
+                    </TabsTrigger>
+                    <TabsTrigger value="strength" className="gap-2 px-8 py-2 font-bold text-[10px] uppercase tracking-widest">
+                        <Layers className="h-3.5 w-3.5"/>
+                        Board Strength
                     </TabsTrigger>
                 </TabsList>
 
@@ -173,10 +161,14 @@ export default function GsmCalculatorPage() {
                         onEdit={handleEdit}
                     />
                 </TabsContent>
+
+                <TabsContent value="strength" className="animate-in fade-in slide-in-from-right-2 duration-300">
+                    <BoardStrengthTester />
+                </TabsContent>
             </Tabs>
 
             <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
-                <DialogContent className="max-w-[240mm] h-[95vh] flex flex-col p-0 border-none shadow-2xl bg-white overflow-hidden">
+                <DialogContent className="max-w-[240mm] h-[95vh] flex flex-col p-0 border-none shadow-2xl bg-card overflow-hidden">
                     <DialogHeader className="p-6 border-b bg-muted/5 shrink-0">
                         <div className="flex items-center justify-between">
                             <DialogTitle className="text-xl font-black uppercase tracking-tight">Report Preview</DialogTitle>
@@ -191,7 +183,7 @@ export default function GsmCalculatorPage() {
                         )}
                         <ScrollBar orientation="horizontal" />
                     </ScrollArea>
-                    <DialogFooter className="p-6 border-t bg-white shrink-0">
+                    <DialogFooter className="p-6 border-t bg-card shrink-0">
                         <div className="flex w-full justify-between items-center">
                             <div className="flex gap-2">
                                 <Button variant="outline" onClick={handleExportImage} disabled={isExporting} className="h-10 px-6 font-bold text-[10px] uppercase tracking-widest">

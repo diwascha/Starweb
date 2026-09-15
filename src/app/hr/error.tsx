@@ -27,7 +27,7 @@ export default function HrError({ error, reset }: { error: Error, reset: () => v
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="flex gap-2 p-3 bg-white border border-amber-200 rounded text-xs">
+                <div className="flex gap-2 p-3 bg-card border border-amber-200 rounded text-xs">
                     <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                     <p>An unexpected error occurred in the personnel management module. The crash report has been sent to the system administrator.</p>
                 </div>

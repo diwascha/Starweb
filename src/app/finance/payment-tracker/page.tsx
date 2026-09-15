@@ -2,31 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-    Plus, 
-    Search, 
-    Edit, 
-    Trash2, 
-    FileText,
-    FilterX, 
-    Loader2, 
-    Calendar as CalendarIconLucide, 
-    X,
-    Printer,
-    FileDown,
-    Image as ImageIcon,
-    Save,
-    History,
-    ChevronLeft,
-    ChevronRight,
-    Calculator,
-    PlusCircle,
-    Hash,
-    ArrowDownCircle,
-    ArrowUpCircle,
-    Eye
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Search, Edit, Trash2, FileText, FilterX, Loader2, Calendar as CalendarIconLucide, X, Printer, FileDown, Image as ImageIcon, Save, History, Calculator, PlusCircle, Hash, ArrowDownCircle, ArrowUpCircle, Eye } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -46,6 +23,8 @@ import {
 import { onSettingUpdate } from '@/services/settings-service';
 import type { PaymentTrackerEntry, CompanyProfile } from '@/lib/types';
 import { cn, toNepaliDate, generateId, generateNextPaymentTrackerNumber } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
+import { printElement } from '@/lib/print-window';
 import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
@@ -70,7 +49,7 @@ import {
     DialogFooter, 
     DialogDescription 
 } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 
 interface DraftEntry {
@@ -109,7 +88,7 @@ function VoucherReportView({
     const netBalance = totalReceived - totalOutflow;
 
     return (
-        <div className="po-report bg-white text-black p-10 font-sans min-h-[297mm] flex flex-col border">
+        <div className="po-report bg-card text-foreground p-10 font-sans min-h-[297mm] flex flex-col border">
             <header className="text-center border-b-2 border-black pb-4 mb-8">
                 <h1 className="text-2xl font-black uppercase tracking-tight">{companyProfile.nameEn}</h1>
                 {companyProfile.nameNp && <h2 className="text-lg font-semibold">{companyProfile.nameNp}</h2>}
@@ -136,10 +115,10 @@ function VoucherReportView({
                     <Table className="border border-black/10">
                         <TableHeader className="bg-muted/10 border-b border-black/10">
                             <TableRow className="hover:bg-transparent h-8">
-                                <TableHead className="text-[10px] font-bold uppercase text-black w-10 text-center">S.N.</TableHead>
-                                <TableHead className="text-[10px] font-bold uppercase text-black">Source / Party Name</TableHead>
-                                <TableHead className="text-[10px] font-bold uppercase text-black">Narration</TableHead>
-                                <TableHead className="text-[10px] font-bold uppercase text-black text-right pr-4">Amount (रु)</TableHead>
+                                <TableHead className="text-[10px] font-bold uppercase text-foreground w-10 text-center">S.N.</TableHead>
+                                <TableHead className="text-[10px] font-bold uppercase text-foreground">Source / Party Name</TableHead>
+                                <TableHead className="text-[10px] font-bold uppercase text-foreground">Narration</TableHead>
+                                <TableHead className="text-[10px] font-bold uppercase text-foreground text-right pr-4">Amount (रु)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -169,10 +148,10 @@ function VoucherReportView({
                     <Table className="border border-black/10">
                         <TableHeader className="bg-muted/10 border-b border-black/10">
                             <TableRow className="hover:bg-transparent h-8">
-                                <TableHead className="text-[10px] font-bold uppercase text-black w-10 text-center">S.N.</TableHead>
-                                <TableHead className="text-[10px] font-bold uppercase text-black">Beneficiary / Party Name</TableHead>
-                                <TableHead className="text-[10px] font-bold uppercase text-black">Narration</TableHead>
-                                <TableHead className="text-[10px] font-bold uppercase text-black text-right pr-4">Amount (रु)</TableHead>
+                                <TableHead className="text-[10px] font-bold uppercase text-foreground w-10 text-center">S.N.</TableHead>
+                                <TableHead className="text-[10px] font-bold uppercase text-foreground">Beneficiary / Party Name</TableHead>
+                                <TableHead className="text-[10px] font-bold uppercase text-foreground">Narration</TableHead>
+                                <TableHead className="text-[10px] font-bold uppercase text-foreground text-right pr-4">Amount (रु)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -207,7 +186,7 @@ function VoucherReportView({
                 </div>
             </div>
 
-            <footer className="mt-20 pt-8 border-t border-dashed border-gray-200 text-center space-y-2">
+            <footer className="mt-20 pt-8 border-t border-dashed border-border text-center space-y-2">
                 <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground">End of Record &bull; Verified via StarSutra Intelligence</p>
                 <p className="text-[8px] italic text-muted-foreground">Computer-generated report for {companyProfile.nameEn}. Valid without manual signature.</p>
             </footer>
@@ -309,8 +288,16 @@ export default function PaymentTrackerPage() {
 
         setIsSaving(true);
         try {
+            // An edit keeps the voucher number it was filed under. A new
+            // voucher takes its number now, atomically - the one on screen is
+            // only a preview and two people finalizing at once would otherwise
+            // both file under it.
+            const finalVoucherNo = isEditing && editingSourceVoucherNo
+                ? voucherNo
+                : await reserveNumberFor('paymentTracker', 'PT-', savedEntries.map(e => e.voucherNo), entryDate.toISOString());
+
             const payload = {
-                voucherNo,
+                voucherNo: finalVoucherNo,
                 date: entryDate.toISOString(),
                 entries: validEntries.map(e => ({
                     type: e.type,
@@ -328,7 +315,7 @@ export default function PaymentTrackerPage() {
                 await savePaymentVoucher(payload);
             }
 
-            toast({ title: isEditing ? 'Voucher Updated' : 'Voucher Saved', description: `Voucher ${voucherNo} archived.` });
+            toast({ title: isEditing ? 'Voucher Updated' : 'Voucher Saved', description: `Voucher ${finalVoucherNo} archived.` });
             
             resetDraft();
             setActiveTab('history');
@@ -485,29 +472,14 @@ export default function PaymentTrackerPage() {
     };
 
     const executePrintVoucher = () => {
-        const win = window.open('', '', 'height=800,width=1000');
-        if (!win) {
+        const opened = printElement(reportRef.current, {
+            title: 'Print Ledger',
+            delayMs: 500,
+            extraCss: '@page { size: A4; margin: 0; } body { padding: 0; } .po-report { border: none !important; box-shadow: none !important; }',
+        });
+        if (!opened) {
             toast({ title: 'Popup Blocked', description: 'Allow popups for this site to print.', variant: 'destructive' });
-            return;
         }
-        
-        const styleTags = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-            .map(node => node.outerHTML)
-            .join('\n');
-
-        win.document.write(`<!DOCTYPE html><html><head><title>Print Ledger</title>${styleTags}
-            <style>
-                @page { size: A4; margin: 0; }
-                body { margin: 0; padding: 0; background: #fff; }
-                .po-report { border: none !important; box-shadow: none !important; }
-            </style>
-        </head><body>${reportRef.current?.innerHTML}</body></html>`);
-        win.document.close();
-        win.focus();
-        setTimeout(() => {
-            win.print();
-            win.close();
-        }, 500);
     };
 
     const receivedDrafts = draftEntries.filter(e => e.type === 'Received');
@@ -517,30 +489,30 @@ export default function PaymentTrackerPage() {
         <div className="flex flex-col gap-6">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 print:hidden">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Payment Tracker</h1>
+                    <h1 className="text-2xl font-bold text-foreground tracking-tight">Payment Tracker</h1>
                     <p className="text-muted-foreground text-sm">Daily cash flow and voucher archiving</p>
                 </div>
             </header>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="bg-muted/50 p-1 mb-4 h-10 border">
-                    <TabsTrigger value="tracker" className="gap-2 px-6 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    <TabsTrigger value="tracker" className="gap-2 px-6 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
                         <Calculator className="h-4 w-4" />
-                        Workspace {isEditing && <Badge className="ml-1 bg-amber-500 text-black border-none text-[9px] h-4">Editing</Badge>}
+                        Workspace {isEditing && <Badge className="ml-1 bg-amber-500 text-foreground border-none text-[9px] h-4">Editing</Badge>}
                     </TabsTrigger>
-                    <TabsTrigger value="history" className="gap-2 px-6 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    <TabsTrigger value="history" className="gap-2 px-6 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
                         <History className="h-4 w-4" />
                         History
                     </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="tracker" className="space-y-6 animate-in fade-in duration-300">
-                    <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col md:flex-row gap-4 md:gap-6 md:items-center">
+                    <div className="bg-card p-4 rounded-xl border shadow-sm flex flex-col md:flex-row gap-4 md:gap-6 md:items-center">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-muted/50 rounded-lg"><Hash className="h-4 w-4 text-primary"/></div>
                             <div className="space-y-0.5">
                                 <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Voucher No.</Label>
-                                <p className="font-black text-[14px] text-gray-900 font-mono leading-none">{voucherNo}</p>
+                                <p className="font-black text-[14px] text-foreground font-mono leading-none">{voucherNo}</p>
                             </div>
                         </div>
                         <Separator orientation="vertical" className="h-10 hidden md:block" />
@@ -549,7 +521,7 @@ export default function PaymentTrackerPage() {
                                 <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Date (BS)</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-[180px] justify-start text-left font-normal bg-white h-9">
+                                        <Button variant="outline" className="w-[180px] justify-start text-left font-normal bg-card h-9">
                                             <CalendarIconLucide className="mr-2 h-4 w-4 opacity-50 text-primary" />
                                             <span className="font-black text-[14px] truncate leading-none">
                                                 {toNepaliDate(entryDate.toISOString())}
@@ -568,7 +540,7 @@ export default function PaymentTrackerPage() {
                                     Discard Changes
                                 </Button>
                             )}
-                            <Button variant="outline" size="sm" onClick={() => { setReportingVoucherNo(voucherNo); setIsReportDialogOpen(true); }} className="h-9 px-4 text-[10px] font-black uppercase tracking-widest border-gray-300">
+                            <Button variant="outline" size="sm" onClick={() => { setReportingVoucherNo(voucherNo); setIsReportDialogOpen(true); }} className="h-9 px-4 text-[10px] font-black uppercase tracking-widest border-border">
                                 <Eye className="h-4 w-4 mr-2 text-primary" /> Preview
                             </Button>
                             <Button onClick={handleFinalizeVoucher} disabled={isSaving} className="h-9 px-6 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20">
@@ -577,7 +549,7 @@ export default function PaymentTrackerPage() {
                         </div>
                     </div>
 
-                    <Card className="shadow-sm border-gray-200 bg-white overflow-hidden">
+                    <Card className="shadow-sm border-border bg-card overflow-hidden">
                         <CardContent className="p-0">
                             <ScrollArea className="w-full">
                                 <Table className="border-collapse table-fixed w-full min-w-[800px]">
@@ -618,7 +590,7 @@ export default function PaymentTrackerPage() {
                                                     <Input 
                                                         value={e.description} 
                                                         onChange={v => handleUpdateLine(e.id, 'description', v.target.value)} 
-                                                        className="h-full border-none rounded-none text-[14px] px-3 text-gray-600 bg-transparent focus-visible:bg-emerald-50/30 focus-visible:ring-0 leading-none" 
+                                                        className="h-full border-none rounded-none text-[14px] px-3 text-muted-foreground bg-transparent focus-visible:bg-emerald-50/30 focus-visible:ring-0 leading-none" 
                                                         placeholder="..."
                                                     />
                                                 </TableCell>
@@ -640,7 +612,7 @@ export default function PaymentTrackerPage() {
                                         ))}
                                         <TableRow className="bg-muted/10 h-[22px] border-b">
                                             <TableCell className="border-r px-2"></TableCell>
-                                            <TableCell colSpan={2} className="text-[10px] font-black uppercase text-gray-500 border-r px-4 text-right align-middle leading-none">Subtotal Inflow</TableCell>
+                                            <TableCell colSpan={2} className="text-[10px] font-black uppercase text-muted-foreground border-r px-4 text-right align-middle leading-none">Subtotal Inflow</TableCell>
                                             <TableCell className="text-right tabular-nums text-[14px] font-black px-4 border-r align-middle text-emerald-700 leading-none">Rs. {totals.rec.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell />
                                         </TableRow>
@@ -684,7 +656,7 @@ export default function PaymentTrackerPage() {
                                                     <Input 
                                                         value={e.description} 
                                                         onChange={v => handleUpdateLine(e.id, 'description', v.target.value)} 
-                                                        className="h-full border-none rounded-none text-[14px] px-3 text-gray-600 bg-transparent focus-visible:bg-red-50/30 focus-visible:ring-0 leading-none" 
+                                                        className="h-full border-none rounded-none text-[14px] px-3 text-muted-foreground bg-transparent focus-visible:bg-red-50/30 focus-visible:ring-0 leading-none" 
                                                         placeholder="..."
                                                     />
                                                 </TableCell>
@@ -706,7 +678,7 @@ export default function PaymentTrackerPage() {
                                         ))}
                                         <TableRow className="bg-muted/10 h-[22px] border-b">
                                             <TableCell className="border-r px-2"></TableCell>
-                                            <TableCell colSpan={2} className="text-[10px] font-black uppercase text-gray-500 border-r px-4 text-right align-middle leading-none">Subtotal Outflow</TableCell>
+                                            <TableCell colSpan={2} className="text-[10px] font-black uppercase text-muted-foreground border-r px-4 text-right align-middle leading-none">Subtotal Outflow</TableCell>
                                             <TableCell className="text-right tabular-nums text-[14px] font-black px-4 border-r align-middle text-red-700 leading-none">Rs. {totals.pay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell />
                                         </TableRow>
@@ -740,12 +712,12 @@ export default function PaymentTrackerPage() {
                 </TabsContent>
 
                 <TabsContent value="history" className="animate-in fade-in duration-300">
-                    <div className="bg-white p-4 rounded-xl border shadow-sm mb-4 flex flex-col md:flex-row gap-4 md:gap-6 md:items-center">
+                    <div className="bg-card p-4 rounded-xl border shadow-sm mb-4 flex flex-col md:flex-row gap-4 md:gap-6 md:items-center">
                         <div className="flex items-center gap-3">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">Audit Period</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-[240px] justify-start text-left font-normal bg-white h-9">
+                                    <Button variant="outline" className="w-[240px] justify-start text-left font-normal bg-card h-9">
                                         <CalendarIconLucide className="mr-2 h-4 w-4 opacity-50 text-primary" />
                                         <span className="font-black text-[12px] truncate uppercase leading-none">
                                             {historyDateRange?.from ? `${toNepaliDate(historyDateRange.from.toISOString())} - ${historyDateRange.to ? toNepaliDate(historyDateRange.to.toISOString()) : '...'}` : 'Select Range'}
@@ -762,7 +734,7 @@ export default function PaymentTrackerPage() {
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input 
                                     placeholder="Search voucher, party or note..." 
-                                    className="pl-9 h-9 bg-white text-[12px] border-gray-200" 
+                                    className="pl-9 h-9 bg-card text-[12px] border-border" 
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                 />
@@ -775,7 +747,7 @@ export default function PaymentTrackerPage() {
                         )}
                     </div>
 
-                    <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <Card className="shadow-sm border-border bg-card overflow-hidden">
                         <CardContent className="p-0">
                             <Table className="table-fixed w-full">
                                 <TableHeader className="bg-muted/30 border-b">
@@ -791,7 +763,7 @@ export default function PaymentTrackerPage() {
                                         <TableRow><TableCell colSpan={4} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20" /></TableCell></TableRow>
                                     ) : summarizedHistory.map(v => (
                                         <TableRow key={v.voucherNo} className="h-[22px] border-b hover:bg-muted/10 transition-colors group">
-                                            <TableCell className="pl-6 text-gray-500 font-mono text-[12px] font-bold">{toNepaliDate(v.date)}</TableCell>
+                                            <TableCell className="pl-6 text-muted-foreground font-mono text-[12px] font-bold">{toNepaliDate(v.date)}</TableCell>
                                             <TableCell className="font-black text-primary text-[14px] tracking-tight">{v.voucherNo}</TableCell>
                                             <TableCell className="text-right tabular-nums text-red-700 font-black text-[14px]">
                                                 Rs. {v.totalPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -826,7 +798,7 @@ export default function PaymentTrackerPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle className="font-black uppercase tracking-tight">Delete Voucher?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently remove voucher <span className="font-bold text-gray-900">{deletingVoucherNo}</span> and every associated transaction. This action cannot be undone.
+                            This will permanently remove voucher <span className="font-bold text-foreground">{deletingVoucherNo}</span> and every associated transaction. This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -843,7 +815,7 @@ export default function PaymentTrackerPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle className="font-black uppercase tracking-tight">Discard Current Workspace?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            You are already editing <span className="font-bold text-gray-900">{editingSourceVoucherNo}</span> with unsaved changes. Loading <span className="font-bold text-gray-900">{pendingEditVoucherNo}</span> will discard your current draft.
+                            You are already editing <span className="font-bold text-foreground">{editingSourceVoucherNo}</span> with unsaved changes. Loading <span className="font-bold text-foreground">{pendingEditVoucherNo}</span> will discard your current draft.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -859,8 +831,8 @@ export default function PaymentTrackerPage() {
             </AlertDialog>
 
             <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
-                <DialogContent className="max-w-[240mm] h-[95vh] flex flex-col p-0 border-none shadow-2xl overflow-hidden bg-neutral-100">
-                    <DialogHeader className="p-6 border-b bg-white shrink-0">
+                <DialogContent className="max-w-[240mm] h-[95vh] flex flex-col p-0 border-none shadow-2xl overflow-hidden bg-muted">
+                    <DialogHeader className="p-6 border-b bg-card shrink-0">
                         <div className="flex items-center justify-between">
                             <div>
                                 <DialogTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
@@ -876,7 +848,7 @@ export default function PaymentTrackerPage() {
                     </DialogHeader>
 
                     <ScrollArea className="flex-1 p-10">
-                        <div ref={reportRef} className="mx-auto shadow-[0_20px_50px_rgba(0,0,0,0.2)] ring-1 ring-black/10 bg-white">
+                        <div ref={reportRef} className="mx-auto shadow-[0_20px_50px_rgba(0,0,0,0.2)] ring-1 ring-black/10 bg-card">
                             {reportingVoucherNo && (
                                 <VoucherReportView 
                                     voucherNo={reportingVoucherNo}
@@ -893,14 +865,14 @@ export default function PaymentTrackerPage() {
                         <ScrollBar orientation="vertical" />
                     </ScrollArea>
 
-                    <DialogFooter className="p-6 bg-white border-t shrink-0">
+                    <DialogFooter className="p-6 bg-card border-t shrink-0">
                         <div className="flex w-full justify-between items-center flex-wrap gap-3">
                             <div className="flex gap-2">
-                                <Button variant="outline" onClick={handleExportVoucherImage} disabled={isExporting} className="h-10 px-6 font-black text-[10px] uppercase tracking-widest border-gray-300">
+                                <Button variant="outline" onClick={handleExportVoucherImage} disabled={isExporting} className="h-10 px-6 font-black text-[10px] uppercase tracking-widest border-border">
                                     {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4 text-blue-600"/>}
                                     Save Image
                                 </Button>
-                                <Button variant="outline" onClick={handleExportVoucherPdf} disabled={isExporting} className="h-10 px-6 font-black text-[10px] uppercase tracking-widest border-gray-300">
+                                <Button variant="outline" onClick={handleExportVoucherPdf} disabled={isExporting} className="h-10 px-6 font-black text-[10px] uppercase tracking-widest border-border">
                                     {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4 text-red-600"/>}
                                     Save PDF
                                 </Button>

@@ -2,28 +2,16 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-    FileText, 
-    FileSpreadsheet, 
-    PlusCircle, 
-    Package, 
-    TrendingUp, 
-    CheckCircle2, 
-    Clock, 
-    AlertCircle,
-    ChevronRight,
-    Loader2
-} from 'lucide-react';
+import { FileText, FileSpreadsheet, PlusCircle, Package, TrendingUp, CheckCircle2, AlertCircle, ChevronRight, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { onReportsUpdate } from '@/services/report-service';
 import { onProductsUpdate } from '@/services/product-service';
 import type { Report, Product } from '@/lib/types';
 import { cn, toNepaliDate } from '@/lib/utils';
-import { format, subDays, startOfMonth } from 'date-fns';
+import { startOfMonth } from 'date-fns';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
-
 export default function ReportsDashboardPage() {
     const [reports, setReports] = useState<Report[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
@@ -70,7 +58,7 @@ export default function ReportsDashboardPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">QT Intelligence</h1>
+                    <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase leading-none">QT Intelligence</h1>
                     <p className="text-muted-foreground text-sm font-medium italic mt-1">Quality Test monitoring and technical data logs.</p>
                 </div>
                 <div className="flex gap-2">
@@ -91,7 +79,7 @@ export default function ReportsDashboardPage() {
             </div>
 
             <div className="grid gap-8 lg:grid-cols-3">
-                <Card className="lg:col-span-2 shadow-sm border-gray-100">
+                <Card className="lg:col-span-2 shadow-sm border-border">
                     <CardHeader className="py-4 border-b bg-muted/5">
                         <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Recent Test Logs</CardTitle>
                         <CardDescription className="text-[10px] uppercase font-bold">Latest quality verifications committed to cloud.</CardDescription>
@@ -109,13 +97,13 @@ export default function ReportsDashboardPage() {
                                             <FileText className="h-4 w-4 text-primary" />
                                         </div>
                                         <div className="space-y-0.5">
-                                            <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{report.product?.name || 'Custom Product'}</p>
+                                            <p className="text-xs font-black text-foreground uppercase tracking-tight">{report.product?.name || 'Custom Product'}</p>
                                             <p className="text-[10px] text-muted-foreground font-bold">Ref: {report.serialNumber} &bull; {toNepaliDate(report.date)} BS</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <div className="text-right hidden sm:block">
-                                            <p className="text-[10px] font-black text-gray-700">QTY: {report.quantity}</p>
+                                            <p className="text-[10px] font-black text-foreground">QTY: {report.quantity}</p>
                                             <p className="text-[8px] text-muted-foreground uppercase">By {report.createdBy}</p>
                                         </div>
                                         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-30 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
@@ -176,7 +164,7 @@ function StatCard({ title, value, icon: Icon, color, desc }: any) {
                     <p className="text-xl font-black leading-none tracking-tight">{value}</p>
                     <p className="text-[8px] font-bold uppercase opacity-50">{desc}</p>
                 </div>
-                <div className="p-2 rounded-xl bg-white shadow-inner shrink-0">
+                <div className="p-2 rounded-xl bg-card shadow-inner shrink-0">
                     <Icon className="h-4 w-4 opacity-80" />
                 </div>
             </CardContent>
@@ -187,14 +175,14 @@ function StatCard({ title, value, icon: Icon, color, desc }: any) {
 function ModuleCard({ href, title, desc, icon: Icon }: any) {
     return (
         <Link href={href}>
-            <Card className="hover:shadow-lg transition-all border-none ring-1 ring-black/5 bg-white group hover:-translate-y-0.5">
+            <Card className="hover:shadow-lg transition-all border-none ring-1 ring-black/5 bg-card group hover:-translate-y-0.5">
                 <CardContent className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
                             <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
                         <div className="space-y-0.5">
-                            <p className="text-[11px] font-black uppercase tracking-wider text-gray-900">{title}</p>
+                            <p className="text-[11px] font-black uppercase tracking-wider text-foreground">{title}</p>
                             <p className="text-[9px] text-muted-foreground uppercase font-medium leading-tight line-clamp-1">{desc}</p>
                         </div>
                     </div>

@@ -5,6 +5,7 @@
  */
 
 import { getFirebase } from '@/lib/firebase';
+import { reportWriteFailure } from '@/lib/write-reporting';
 import { 
     collection, 
     onSnapshot, 
@@ -123,15 +124,12 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
         createdAt: now,
     });
 
-    setDoc(docRef, payload).then(() => {
+    reportWriteFailure(
+        setDoc(docRef, payload).then(() => {
         logAudit(`New Employee Onboarded: ${employee.name}`, 'HR', { id });
-    }).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'create',
-            requestResourceData: payload,
-        }));
-    });
+    }),
+        { path: docRef.path, operation: 'create', requestResourceData: payload }
+    );
 
     return id;
 };
@@ -157,13 +155,10 @@ export const updateEmployee = async (id: string, employee: Partial<Omit<Employee
         lastModifiedAt: new Date().toISOString(),
     });
 
-    updateDoc(employeeDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: employeeDoc.path,
-            operation: 'update',
-            requestResourceData: payload,
-        }));
-    });
+    reportWriteFailure(
+        updateDoc(employeeDoc, payload),
+        { path: employeeDoc.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteEmployee = async (id: string, photoURL?: string): Promise<void> => {
@@ -177,7 +172,8 @@ export const deleteEmployee = async (id: string, photoURL?: string): Promise<voi
         }
     }
 
-    deleteDoc(employeeDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: employeeDoc.path, operation: 'delete' }));
-    });
+    reportWriteFailure(
+        deleteDoc(employeeDoc),
+        { path: employeeDoc.path, operation: 'delete' }
+    );
 };

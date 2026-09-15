@@ -1,5 +1,6 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
+import { reportWriteFailure } from '@/lib/write-reporting';
 import { 
     collection, 
     onSnapshot, 
@@ -10,9 +11,8 @@ import {
     deleteDoc, 
     getDoc, 
     getDocs, 
-    query, 
-    where, 
-    limit, 
+    query,
+    where,
     setDoc,
     writeBatch
 } from 'firebase/firestore';
@@ -20,7 +20,6 @@ import type { Party, PartyType, AccountOwnership, CustomerClassification } from 
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-
 const getPartiesCollection = () => {
     const { db } = getFirebase();
     return collection(db, COLLECTIONS.PARTIES || 'parties');
@@ -64,21 +63,6 @@ export const getParties = async (useCache = false): Promise<Party[]> => {
     }
 };
 
-export const getParty = async (id: string): Promise<Party | null> => {
-    if (!id || typeof id !== 'string' || id.includes('/')) return null;
-    const docRef = doc(getPartiesCollection(), id);
-    try {
-        const snap = await getDoc(docRef);
-        return snap.exists() ? fromFirestore(snap) : null;
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'get',
-        } satisfies SecurityRuleContext));
-        return null;
-    }
-}
-
 export const addParty = async (party: Omit<Party, 'id' | 'createdAt'>): Promise<string> => {
     const docRef = doc(getPartiesCollection());
     const id = docRef.id;
@@ -89,13 +73,10 @@ export const addParty = async (party: Omit<Party, 'id' | 'createdAt'>): Promise<
         createdAt: now,
     };
 
-    setDoc(docRef, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'create',
-            requestResourceData: payload,
-        } satisfies SecurityRuleContext));
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: docRef.path, operation: 'create', requestResourceData: payload }
+    );
 
     return id;
 };
@@ -122,24 +103,19 @@ export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>)
         lastModifiedAt: new Date().toISOString(),
     };
 
-    updateDoc(partyDoc, payload).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: partyDoc.path,
-            operation: 'update',
-            requestResourceData: payload,
-        } satisfies SecurityRuleContext));
-    });
+    reportWriteFailure(
+        updateDoc(partyDoc, payload),
+        { path: partyDoc.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteParty = async (id: string): Promise<void> => {
     if (!id) return;
     const partyDoc = doc(getPartiesCollection(), id);
-    deleteDoc(partyDoc).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ 
-            path: partyDoc.path, 
-            operation: 'delete' 
-        } satisfies SecurityRuleContext));
-    });
+    reportWriteFailure(
+        deleteDoc(partyDoc),
+        { path: partyDoc.path, operation: 'delete' }
+    );
 };
 
 /**

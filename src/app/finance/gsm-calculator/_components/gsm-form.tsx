@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -24,13 +24,13 @@ import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onGsmReportsUpdate, addGsmReport, updateGsmReport } from '@/services/gsm-service';
 import { generateNextGsmNumber, toNepaliDate, cn, generateId } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import type { Party, GsmReport, GsmEntry } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+
 
 const numFieldProps = {
     type: 'number' as const,
@@ -97,12 +97,23 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
         }
     }, [reportToEdit, parties, vendor]);
 
-    // 3. Voucher number generation for NEW reports
+    // 3. Voucher number preview for NEW reports.
+    //    Held in a ref and suggested once per date: this used to depend on the
+    //    live report list, so every time anyone else saved a GSM report the
+    //    effect re-ran and overwrote the number in your open form - including
+    //    one you had typed by hand. (`allReports.length >= 0` was also always
+    //    true, so the guard did nothing.)
+    const allReportsRef = useRef(allReports);
+    allReportsRef.current = allReports;
+    const suggestedForDate = useRef<string | null>(null);
+
     useEffect(() => {
-        if (!reportToEdit && allReports.length >= 0) {
-            generateNextGsmNumber(allReports, date.toISOString()).then(setVoucherNo);
-        }
-    }, [reportToEdit, allReports, date]);
+        if (reportToEdit) return;
+        const key = date.toISOString().slice(0, 10);
+        if (suggestedForDate.current === key) return;
+        suggestedForDate.current = key;
+        generateNextGsmNumber(allReportsRef.current, date.toISOString()).then(setVoucherNo);
+    }, [reportToEdit, date]);
 
     const calculateGsm = useCallback((weight: any, length: any, width: any, unitType: 'cm' | 'in' | 'mm') => {
         const w = parseFloat(weight);
@@ -197,8 +208,11 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                 await updateGsmReport(reportToEdit.id, { ...reportData, lastModifiedBy: user.username });
                 toast({ title: 'Report Updated', description: `Voucher ${voucherNo} modified.` });
             } else {
-                await addGsmReport(reportData);
-                toast({ title: 'Report Saved', description: `Voucher ${voucherNo} archived.` });
+                const reserved = await reserveNumberFor(
+                    'gsmVoucher', 'GSM-', allReports.map(r => r.voucherNo), date.toISOString(),
+                );
+                await addGsmReport({ ...reportData, voucherNo: reserved });
+                toast({ title: 'Report Saved', description: `Voucher ${reserved} archived.` });
             }
             
             setEntries([{ id: generateId(), reelNumber: '', weight: '', length: '', width: '', gsm: 0 }]);
@@ -213,7 +227,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 shadow-sm border-gray-100">
+                <Card className="lg:col-span-2 shadow-sm border-border">
                     <CardHeader className="bg-muted/10 border-b py-4 px-6">
                         <CardTitle className="text-sm font-black uppercase flex items-center gap-2">
                             <HistoryIcon className="h-4 w-4 text-primary" />
@@ -269,7 +283,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                     </CardContent>
                 </Card>
 
-                <Card className="shadow-sm border-gray-100 h-fit">
+                <Card className="shadow-sm border-border h-fit">
                     <CardHeader className="py-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black">Dimension System</CardTitle></CardHeader>
                     <CardContent className="p-4">
                         <RadioGroup value={unit} onValueChange={(v: any) => setUnit(v)} className="flex flex-col gap-2 p-2 bg-muted/30 rounded-lg border border-dashed">
@@ -290,7 +304,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                         </CardTitle>
                         <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground mt-1">Multi-reel grammage verification grid.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleAddRow} className="h-8 font-black text-[10px] uppercase tracking-widest bg-white border-primary/20 text-primary hover:bg-primary/5">
+                    <Button variant="outline" size="sm" onClick={handleAddRow} className="h-8 font-black text-[10px] uppercase tracking-widest bg-card border-primary/20 text-primary hover:bg-primary/5">
                         <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Reel Row
                     </Button>
                 </CardHeader>
@@ -306,7 +320,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                                 <TableHead className="w-10 pr-6"></TableHead>
                             </TableRow>
                         </TableHeader>
-                        <TableBody className="bg-white">
+                        <TableBody className="bg-card">
                             {entries.map((entry) => (
                                 <TableRow key={entry.id} className="h-14 border-b group hover:bg-muted/5 transition-colors">
                                     <TableCell className="pl-6 py-2">

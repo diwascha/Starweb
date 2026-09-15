@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format } from 'date-fns';
+
 import { 
     Wallet, 
     Wrench, 
@@ -37,6 +37,7 @@ import {
     MoreHorizontal
 } from 'lucide-react';
 import { cn, toNepaliDate, generateNextExpenseNumber } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Destination } from '@/lib/types';
 import type { Expense, ExpenseType } from '@/lib/expense-types';
 import { addExpense, updateExpense, onExpensesUpdate } from '@/services/expense-service';
@@ -219,8 +220,13 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 await updateExpense(expenseToEdit.id, payload as any, user.username);
                 toast({ title: 'Success', description: 'Payment record updated.' });
             } else {
-                await addExpense({ ...payload as any, createdBy: user.username });
-                toast({ title: 'Success', description: 'Payment recorded.' });
+                // Reserved atomically at save; the number in the form is a
+                // preview computed from this client's list.
+                const reserved = await reserveNumberFor(
+                    'expense', 'EXP-', allExpenses.map(e => e.voucherNo), values.date.toISOString(),
+                );
+                await addExpense({ ...payload as any, voucherNo: reserved, createdBy: user.username });
+                toast({ title: 'Success', description: `Payment recorded as ${reserved}.` });
             }
             router.push('/fleet/transactions/expenses');
         } catch (error: any) {
@@ -284,7 +290,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Payment Type <span className="text-destructive">*</span></FormLabel>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {expenseTypes.map((item) => (
-                            <button key={item.type} type="button" onClick={() => form.setValue('expenseType', item.type)} className={cn("flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 text-center group", watchedType === item.type ? cn("ring-2 ring-primary border-primary bg-primary/5", item.color.split(' ')[0]) : "border-muted bg-white hover:bg-muted/50 text-muted-foreground")}>
+                            <button key={item.type} type="button" onClick={() => form.setValue('expenseType', item.type)} className={cn("flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 text-center group", watchedType === item.type ? cn("ring-2 ring-primary border-primary bg-primary/5", item.color.split(' ')[0]) : "border-muted bg-card hover:bg-muted/50 text-muted-foreground")}>
                                 <div className={cn("p-2 rounded-lg", watchedType === item.type ? item.color.split(' ')[1] : "bg-muted/50")}>
                                     <item.icon className={cn("h-5 w-5", watchedType === item.type ? item.color.split(' ')[0] : "text-muted-foreground")} />
                                 </div>
@@ -442,21 +448,21 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 {watchedMode === 'Mixed' && (
                     <div className="grid grid-cols-2 gap-6 p-4 rounded-xl border-2 border-dashed border-primary/10 animate-in fade-in zoom-in-95">
                         <FormField control={form.control} name="cashAmount" render={({ field }) => (
-                            <FormItem><FormLabel className="text-xs">Cash Portion</FormLabel><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-emerald-100 bg-white" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('bankAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel className="text-xs">Cash Portion</FormLabel><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-emerald-100 bg-card" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('bankAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="bankAmount" render={({ field }) => (
-                            <FormItem><FormLabel className="text-xs">Bank Portion</FormLabel><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-blue-100 bg-white" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('cashAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel className="text-xs">Bank Portion</FormLabel><FormControl><Input {...numFieldProps} {...field} value={field.value || ''} className="h-10 font-bold border-blue-100 bg-card" onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); const total = (watchedAmount || 0) + (watchedExtraAmount || 0); form.setValue('cashAmount', Math.max(0, total - val)); }} /></FormControl><FormMessage /></FormItem>
                         )} />
                     </div>
                 )}
 
                 <div className="p-4 bg-primary/5 rounded-xl border border-primary/20 flex justify-between items-center">
                     <div><p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Net Outflow</p><h3 className="text-xl font-black tabular-nums">Rs. {totalSettlement.toLocaleString(undefined, {minimumFractionDigits: 2})}</h3></div>
-                    <Badge variant="outline" className="h-fit bg-white px-3 py-1 font-mono text-[10px] uppercase border-none">{watchedMode}</Badge>
+                    <Badge variant="outline" className="h-fit bg-card px-3 py-1 font-mono text-[10px] uppercase border-none">{watchedMode}</Badge>
                 </div>
 
                 <FormField control={form.control} name="remarks" render={({ field }) => (
-                    <FormItem><FormLabel>Internal Narration</FormLabel><FormControl><Textarea placeholder="Additional details..." className="min-h-[80px] text-sm resize-none bg-white" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Internal Narration</FormLabel><FormControl><Textarea placeholder="Additional details..." className="min-h-[80px] text-sm resize-none bg-card" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
 
                 <div className="sticky bottom-0 z-20 flex items-center gap-3 border-t bg-background/95 backdrop-blur py-3">

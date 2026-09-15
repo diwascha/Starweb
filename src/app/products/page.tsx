@@ -2,24 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-    Package, 
-    Plus, 
-    Search, 
-    MoreHorizontal, 
-    Edit, 
-    Trash2, 
-    Layers, 
-    ShieldCheck, 
-    Loader2, 
-    FilterX,
-    ChevronLeft,
-    ChevronRight,
-    ArrowLeft
-} from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Loader2, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import type { Product } from '@/lib/types';
 import { onProductsUpdate, deleteProduct } from '@/services/product-service';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -45,7 +31,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
-import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
 export default function ProductsPage() {
@@ -110,7 +95,7 @@ export default function ProductsPage() {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">QT Catalog</h1>
+                        <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">QT Catalog</h1>
                         <p className="text-muted-foreground text-sm font-medium italic">Technical standards for manufactured product variants.</p>
                     </div>
                 </div>
@@ -119,7 +104,7 @@ export default function ProductsPage() {
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder="Search catalog..." 
-                            className="pl-8 w-full md:w-[250px] h-9 bg-white" 
+                            className="pl-8 w-full md:w-[250px] h-9 bg-card" 
                             value={searchQuery} 
                             onChange={e => setSearchQuery(e.target.value)} 
                         />
@@ -132,7 +117,7 @@ export default function ProductsPage() {
                 </div>
             </header>
 
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-0">
                     <Table className="text-xs">
                         <TableHeader className="bg-muted/50 border-b">
@@ -152,18 +137,18 @@ export default function ProductsPage() {
                                 <TableRow key={product.id} className="h-14 hover:bg-muted/10 transition-colors border-b last:border-0 group">
                                     <TableCell className="pl-6">
                                         <div className="flex flex-col">
-                                            <span className="font-black text-gray-900 leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{product.name}</span>
+                                            <span className="font-black text-foreground leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{product.name}</span>
                                             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Code: {product.materialCode || 'N/A'}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-mono text-gray-600 font-bold">{product.specification?.dimension || '—'}</TableCell>
+                                    <TableCell className="font-mono text-muted-foreground font-bold">{product.specification?.dimension || '—'}</TableCell>
                                     <TableCell>
                                         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[9px] font-black uppercase h-5 px-2">
                                             {product.specification?.ply} Ply
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-muted-foreground font-mono text-[10px]">{getGsmDisplay(product.specification)}</TableCell>
-                                    <TableCell className="text-[10px] font-bold text-gray-700 uppercase">{product.partyName || '—'}</TableCell>
+                                    <TableCell className="text-[10px] font-bold text-foreground uppercase">{product.partyName || '—'}</TableCell>
                                     <TableCell className="text-right pr-6">
                                         <div className="flex justify-end gap-1">
                                             <Button variant="ghost" size="icon" asChild className="h-8 w-8">

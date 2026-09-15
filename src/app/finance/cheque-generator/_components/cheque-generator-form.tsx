@@ -18,6 +18,7 @@ import {
   Scale,
 } from 'lucide-react';
 import { cn, toWords, generateNextVoucherNumber, toNepaliDate, generateId } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
@@ -414,8 +415,9 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         await updateCheque(chequeToEdit.id, { ...(chequeData as any), lastModifiedBy: user.username });
         toast({ title: 'Voucher updated' });
       } else {
-        await addCheque(chequeData);
-        toast({ title: 'Voucher saved' });
+        const reserved = await reserveNumberFor('chequeVoucher', 'PDC-', cheques.map(c => c.voucherNo));
+        await addCheque({ ...chequeData, voucherNo: reserved });
+        toast({ title: `Voucher ${reserved} saved` });
       }
       onSaveSuccess();
     } catch {

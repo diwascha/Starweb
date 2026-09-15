@@ -15,20 +15,19 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
-import { 
-  FileText, 
-  LayoutDashboard, 
-  Package, 
-  FileSpreadsheet, 
-  ShoppingCart, 
-  Wrench, 
-  LogOut, 
-  Settings, 
-  Users, 
-  Calendar, 
-  Award, 
-  Wallet, 
-  Building2, 
+import {
+  FileText,
+  LayoutDashboard,
+  Package,
+  FileSpreadsheet,
+  ShoppingCart,
+  Wrench,
+  LogOut,
+  Settings,
+  Users,
+  Calendar,
+  Wallet,
+  Building2,
   PlusCircle,
   Truck,
   CreditCard,
@@ -36,20 +35,16 @@ import {
   TrendingUp,
   Notebook,
   Upload,
-  Calculator, 
-  PanelLeft, 
-  PanelRight, 
-  Receipt, 
+  Calculator,
+  PanelLeft,
+  PanelRight,
+  Receipt,
   Briefcase,
   ChevronRight,
   Home,
   Settings2,
-  Terminal,
   ShieldAlert,
-  Server,
-  Scale,
-  Bell,
-  Target
+  Scale
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -59,6 +54,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useConnectionStatus } from '@/firebase';
 import { useState, useEffect } from 'react';
 import { getNormalizedPath } from '@/lib/utils';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
@@ -172,8 +168,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2.5 px-2 py-2">
-            <img src={logo.src} width="28" height="28" alt="Logo" className="rounded-md group-data-[collapsible=icon]:mx-auto object-contain bg-white" />
-            <h1 className="text-lg font-black tracking-tighter group-data-[collapsible=icon]:hidden truncate text-gray-900">
+            <img src={logo.src} width="28" height="28" alt="Logo" className="rounded-md group-data-[collapsible=icon]:mx-auto object-contain bg-card" />
+            <h1 className="text-lg font-black tracking-tighter group-data-[collapsible=icon]:hidden truncate text-foreground">
                 {appBranding.appName}
             </h1>
         </div>
@@ -332,16 +328,10 @@ export function AppSidebar() {
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm', true)}><Link href="/crm" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/companies')}><Link href="/crm/companies" className="flex items-center gap-2"><Building2 className="h-4 w-4" /><span>Companies</span></Link></SidebarMenuSubButton>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/companies')}><Link href="/crm/companies" className="flex items-center gap-2"><Building2 className="h-4 w-4" /><span>Companies &amp; Contacts</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/contacts')}><Link href="/crm/contacts" className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Contacts</span></Link></SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                                <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/deals')}><Link href="/crm/deals" className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /><span>Deals Pipeline</span></Link></SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                                <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/followups')}><Link href="/crm/followups" className="flex items-center gap-2"><Bell className="h-4 w-4" /><span>Follow-ups</span></Link></SidebarMenuSubButton>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/deals')}><Link href="/crm/deals" className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /><span>Client Activity</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report" className="flex items-center gap-2"><Receipt className="h-4 w-4" /><span>Quotation Engine</span></Link></SidebarMenuSubButton>
@@ -478,6 +468,11 @@ export function AppSidebar() {
             )}
         </SidebarMenu>
 
+        {/* Every other section is permission-gated; Settings was not, so a user
+            with no settings access still saw General, Finance and System in the
+            nav. System is an administrator screen - it creates accounts and
+            grants admin rights - so it is gated separately below. */}
+        {hasPermission('settings', 'view') && (
         <Collapsible asChild open={openSection === 'settings'} onOpenChange={(v: boolean) => setOpenSection(v ? 'settings' : null)} className="group/collapsible">
             <SidebarMenu>
                 <SidebarSeparator />
@@ -501,6 +496,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
             </SidebarMenu>
         </Collapsible>
+        )}
       </SidebarContent>
        <SidebarFooter>
         <SidebarMenu>
@@ -518,6 +514,11 @@ export function AppSidebar() {
                <SidebarMenuButton className="hidden group-data-[collapsible=icon]:flex" tooltip="Sign Out" onClick={handleSignOut}>
                   <LogOut />
                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+               <div className="px-2 pb-1 group-data-[collapsible=icon]:hidden">
+                  <ThemeToggle className="w-full justify-center" />
+               </div>
             </SidebarMenuItem>
             <SidebarMenuItem>
                 <SidebarCollapseButton />

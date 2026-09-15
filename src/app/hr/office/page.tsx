@@ -1,29 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, type ReactNode } from 'react';
-import { 
-    Timer, 
-    Plus, 
-    Trash2, 
-    Edit, 
-    Settings2,
-    Clock,
-    CalendarIcon,
-    X,
-    CheckCircle2,
-    Save,
-    Loader2,
-    ArrowRight,
-    RefreshCcw,
-    CalendarCheck,
-    Briefcase,
-    Check,
-    ChevronDown,
-    Search,
-    Layers,
-    ListTree
-} from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { useState, useEffect, type ReactNode } from 'react';
+import { Plus, Trash2, Edit, Settings2, CalendarIcon, X, Save, Loader2, RefreshCcw, Check, Search } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -43,14 +22,13 @@ import { DEFAULT_HR_CONFIG } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format, differenceInDays } from 'date-fns';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { differenceInDays } from 'date-fns';
 
 const INITIAL_HR_CONFIG: HrConfig = DEFAULT_HR_CONFIG;
 
@@ -73,7 +51,7 @@ function SettingsTable({ rows }: { rows: SettingRowSpec[] }) {
                 {rows.map((row, i) => (
                     <TableRow key={i} className="hover:bg-muted/10">
                         <TableCell className="pl-4 py-2.5 align-top w-1/2">
-                            <div className="font-bold text-gray-900">{row.label}</div>
+                            <div className="font-bold text-foreground">{row.label}</div>
                             {row.description && <div className="text-[9px] text-muted-foreground font-normal leading-snug mt-0.5">{row.description}</div>}
                         </TableCell>
                         <TableCell className="py-2 pr-4 align-middle">{row.control}</TableCell>
@@ -239,7 +217,7 @@ export default function HrOfficePage() {
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-xl"><Settings2 className="h-6 w-6 text-primary"/></div>
                     <div>
-                        <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">HR Office Hub</h1>
+                        <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase">HR Office Hub</h1>
                         <p className="text-muted-foreground text-sm font-medium">Administrative control center for workforce operations.</p>
                     </div>
                 </div>
@@ -260,10 +238,10 @@ export default function HrOfficePage() {
                 </TabsList>
 
                 <TabsContent value="operations" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                    <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <Card className="shadow-sm border-border bg-card overflow-hidden">
                         <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
                             <div>
-                                <CardTitle className="text-sm font-black uppercase text-gray-900">Shift Pattern Registry</CardTitle>
+                                <CardTitle className="text-sm font-black uppercase text-foreground">Shift Pattern Registry</CardTitle>
                                 <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Pre-defined schedules for the attendance processor.</CardDescription>
                             </div>
                             <div className="flex gap-2">
@@ -282,9 +260,9 @@ export default function HrOfficePage() {
                                 <TableBody>
                                     {shifts.map(s => (
                                         <TableRow key={s.id} className="h-12 hover:bg-muted/10">
-                                            <TableCell className="pl-6 font-black text-gray-900 uppercase tracking-tighter">{s.name} {s.isDefault && <Badge variant="secondary" className="ml-2 text-[8px] uppercase">Master Default</Badge>}</TableCell>
-                                            <TableCell className="font-mono text-gray-600 text-center">{s.onDuty} — {s.offDuty}</TableCell>
-                                            <TableCell className="font-mono text-gray-600 text-center">{s.breakStart || '—'} — {s.breakEnd || '—'}</TableCell>
+                                            <TableCell className="pl-6 font-black text-foreground uppercase tracking-tighter">{s.name} {s.isDefault && <Badge variant="secondary" className="ml-2 text-[8px] uppercase">Master Default</Badge>}</TableCell>
+                                            <TableCell className="font-mono text-muted-foreground text-center">{s.onDuty} — {s.offDuty}</TableCell>
+                                            <TableCell className="font-mono text-muted-foreground text-center">{s.breakStart || '—'} — {s.breakEnd || '—'}</TableCell>
                                             <TableCell className="text-right pr-6 space-x-1">
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => { setEditingShift(s); setShiftForm({ name: s.name, onDuty: s.onDuty, offDuty: s.offDuty, breakStart: s.breakStart || '12:00', breakEnd: s.breakEnd || '13:00', isDefault: s.isDefault }); setIsShiftDialogOpen(true); }}><Edit className="h-3.5 w-3.5"/></Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteShift(s.id)}><Trash2 className="h-3.5 w-3.5"/></Button>
@@ -298,7 +276,7 @@ export default function HrOfficePage() {
                     </Card>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <Card className="shadow-sm border-gray-100 overflow-hidden">
+                        <Card className="shadow-sm border-border overflow-hidden">
                             <CardHeader className="py-3 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black text-muted-foreground">Precision Controls</CardTitle></CardHeader>
                             <CardContent className="p-0">
                                 <SettingsTable rows={[
@@ -310,7 +288,7 @@ export default function HrOfficePage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-sm border-gray-100 overflow-hidden">
+                        <Card className="shadow-sm border-border overflow-hidden">
                             <CardHeader className="py-3 border-b bg-muted/5"><CardTitle className="text-xs uppercase font-black text-muted-foreground">Break & Oversight</CardTitle></CardHeader>
                             <CardContent className="p-0">
                                 <SettingsTable rows={[
@@ -335,7 +313,7 @@ export default function HrOfficePage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-sm border-gray-100 overflow-hidden">
+                        <Card className="shadow-sm border-border overflow-hidden">
                             <CardHeader className="py-3 border-b bg-muted/5">
                                 <CardTitle className="text-xs uppercase font-black text-muted-foreground">Payroll Calculation</CardTitle>
                                 <CardDescription className="text-[9px] uppercase font-bold text-muted-foreground">Rates, tax, and workday assumptions used by Recalculate.</CardDescription>
@@ -351,7 +329,7 @@ export default function HrOfficePage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-sm border-gray-100 overflow-hidden">
+                        <Card className="shadow-sm border-border overflow-hidden">
                             <CardHeader className="py-3 border-b bg-muted/5">
                                 <CardTitle className="text-xs uppercase font-black text-muted-foreground">Bonus Rules</CardTitle>
                                 <CardDescription className="text-[9px] uppercase font-bold text-muted-foreground">Monthly bonus accrual eligibility.</CardDescription>
@@ -364,7 +342,7 @@ export default function HrOfficePage() {
                         </Card>
                     </div>
 
-                    <Card className="shadow-sm border-gray-100 bg-blue-50/20">
+                    <Card className="shadow-sm border-border bg-blue-50/20">
                         <CardContent className="p-4 text-[11px] text-blue-900 leading-relaxed">
                             Company letterhead details (name, address, PAN) used on payslips are managed under <span className="font-bold">Settings → General → Company Profile</span>, not here.
                         </CardContent>
@@ -372,9 +350,9 @@ export default function HrOfficePage() {
                 </TabsContent>
 
                 <TabsContent value="payroll-rules" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                    <Card className="shadow-sm border-gray-100 overflow-hidden max-w-2xl">
+                    <Card className="shadow-sm border-border overflow-hidden max-w-2xl">
                         <CardHeader className="py-4 border-b bg-muted/5">
-                            <CardTitle className="text-sm font-black uppercase text-gray-900">Behavior Report Alert Bands</CardTitle>
+                            <CardTitle className="text-sm font-black uppercase text-foreground">Behavior Report Alert Bands</CardTitle>
                             <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Color-coding thresholds for the Analytics tab's behavioral scoreboard.</CardDescription>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -393,10 +371,10 @@ export default function HrOfficePage() {
                 </TabsContent>
 
                 <TabsContent value="holidays" className="animate-in fade-in slide-in-from-bottom-2">
-                    <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <Card className="shadow-sm border-border bg-card overflow-hidden">
                         <CardHeader className="bg-amber-50/20 border-b py-4 px-6 flex flex-row items-center justify-between">
                             <div>
-                                <CardTitle className="text-sm font-black uppercase text-gray-900">Corporate Holidays</CardTitle>
+                                <CardTitle className="text-sm font-black uppercase text-foreground">Corporate Holidays</CardTitle>
                                 <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Managed list of non-working days for payroll exemption.</CardDescription>
                             </div>
                             <Button size="sm" onClick={() => { setHolidayForm({ name: '', date: new Date().toISOString(), isRecurring: true }); setIsHolidayDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-amber-600 hover:bg-amber-700 text-white border-none shadow-sm">
@@ -409,7 +387,7 @@ export default function HrOfficePage() {
                                 <TableBody>
                                     {holidays.map(h => (
                                         <TableRow key={h.id} className="h-12 hover:bg-muted/10">
-                                            <TableCell className="pl-6 font-bold text-gray-900">{h.name}</TableCell>
+                                            <TableCell className="pl-6 font-bold text-foreground">{h.name}</TableCell>
                                             <TableCell className="font-mono text-center text-amber-800 font-bold">{toNepaliDate(h.date)}</TableCell>
                                             <TableCell className="text-center">{h.isRecurring ? <Badge variant="outline" className="text-[8px] uppercase bg-amber-50 border-amber-200">Annual</Badge> : <Badge variant="outline" className="text-[8px] uppercase">One-time</Badge>}</TableCell>
                                             <TableCell className="text-right pr-6">
@@ -425,10 +403,10 @@ export default function HrOfficePage() {
                 </TabsContent>
 
                 <TabsContent value="leaves" className="animate-in fade-in slide-in-from-bottom-2">
-                    <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <Card className="shadow-sm border-border bg-card overflow-hidden">
                         <CardHeader className="bg-blue-50/20 border-b py-4 px-6 flex flex-row items-center justify-between">
                             <div>
-                                <CardTitle className="text-sm font-black uppercase text-gray-900">Leave Administration</CardTitle>
+                                <CardTitle className="text-sm font-black uppercase text-foreground">Leave Administration</CardTitle>
                                 <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Review, approve, or reject employee leave requests.</CardDescription>
                             </div>
                             <Button size="sm" onClick={() => { setEditingLeave(null); setLeaveForm({ employeeId: '', leaveType: 'Paid', startDate: new Date().toISOString(), endDate: new Date().toISOString(), reason: '' }); setIsLeaveDialogOpen(true); }} className="h-8 text-[10px] uppercase font-black tracking-widest bg-blue-600 hover:bg-blue-700 text-white border-none shadow-sm">
@@ -449,7 +427,7 @@ export default function HrOfficePage() {
                                 <TableBody>
                                     {leaveRequests.map(r => (
                                         <TableRow key={r.id} className="h-14 hover:bg-muted/10 border-b">
-                                            <TableCell className="pl-6 font-black text-gray-900">{r.employeeName}</TableCell>
+                                            <TableCell className="pl-6 font-black text-foreground">{r.employeeName}</TableCell>
                                             <TableCell className="text-[10px]">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-blue-900">{toNepaliDate(r.startDate)} — {toNepaliDate(r.endDate)}</span>
@@ -460,7 +438,7 @@ export default function HrOfficePage() {
                                             <TableCell className="text-center">
                                                 <Badge className={cn(
                                                     "text-[8px] font-black uppercase h-4 px-2 shadow-sm",
-                                                    r.status === 'Approved' ? "bg-green-600 hover:bg-green-600" : r.status === 'Rejected' ? "bg-red-600 hover:bg-red-600" : "bg-amber-400 text-black hover:bg-amber-400"
+                                                    r.status === 'Approved' ? "bg-green-600 hover:bg-green-600" : r.status === 'Rejected' ? "bg-red-600 hover:bg-red-600" : "bg-amber-400 text-foreground hover:bg-amber-400"
                                                 )}>{r.status}</Badge>
                                             </TableCell>
                                             <TableCell className="text-right pr-6 space-x-1">
@@ -485,7 +463,7 @@ export default function HrOfficePage() {
 
             <Dialog open={isShiftDialogOpen} onOpenChange={setIsShiftDialogOpen}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">Define Shift Pattern</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle className="text-xl font-black text-foreground uppercase">Define Shift Pattern</DialogTitle></DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Pattern Label</Label><Input value={shiftForm.name} onChange={e => setShiftForm({...shiftForm, name: e.target.value})} placeholder="e.g. Production Day" className="h-10" /></div>
                         <div className="grid grid-cols-2 gap-4">
@@ -493,8 +471,8 @@ export default function HrOfficePage() {
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Off Duty (Out)</Label><Input type="time" value={shiftForm.offDuty} onChange={e => setShiftForm({...shiftForm, offDuty: e.target.value})} className="h-10" /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-muted/30 border border-dashed">
-                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Break Start</Label><Input type="time" value={shiftForm.breakStart} onChange={e => setShiftForm({...shiftForm, breakStart: e.target.value})} className="h-10 bg-white" /></div>
-                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Break End</Label><Input type="time" value={shiftForm.breakEnd} onChange={e => setShiftForm({...shiftForm, breakEnd: e.target.value})} className="h-10 bg-white" /></div>
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Break Start</Label><Input type="time" value={shiftForm.breakStart} onChange={e => setShiftForm({...shiftForm, breakStart: e.target.value})} className="h-10 bg-card" /></div>
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Break End</Label><Input type="time" value={shiftForm.breakEnd} onChange={e => setShiftForm({...shiftForm, breakEnd: e.target.value})} className="h-10 bg-card" /></div>
                         </div>
                         <div className="flex items-center space-x-2 pt-2"><Checkbox id="sh-def" checked={shiftForm.isDefault} onCheckedChange={(v) => setShiftForm({...shiftForm, isDefault: !!v})} /><Label htmlFor="sh-def" className="text-xs font-bold uppercase cursor-pointer">Make system default</Label></div>
                     </div>
@@ -504,12 +482,12 @@ export default function HrOfficePage() {
 
             <Dialog open={isHolidayDialogOpen} onOpenChange={setIsHolidayDialogOpen}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">Log Calendar Holiday</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle className="text-xl font-black text-foreground uppercase">Log Calendar Holiday</DialogTitle></DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Public Event Name</Label><Input value={holidayForm.name} onChange={e => setHolidayForm({...holidayForm, name: e.target.value})} placeholder="e.g. Republic Day" className="h-10" /></div>
                         <div className="space-y-1.5">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">Target Date</Label>
-                            <Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start h-10 bg-white font-bold text-xs"><CalendarIcon className="mr-2 h-4 w-4" /> {holidayForm.date ? toNepaliDate(holidayForm.date) : "Select"}</Button></PopoverTrigger>
+                            <Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start h-10 bg-card font-bold text-xs"><CalendarIcon className="mr-2 h-4 w-4" /> {holidayForm.date ? toNepaliDate(holidayForm.date) : "Select"}</Button></PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start"><DualCalendar selected={new Date(holidayForm.date)} onSelect={(d) => setHolidayForm({...holidayForm, date: d?.toISOString() || new Date().toISOString()})} /></PopoverContent></Popover>
                         </div>
                     </div>
@@ -519,7 +497,7 @@ export default function HrOfficePage() {
 
             <Dialog open={isLeaveDialogOpen} onOpenChange={(open) => { setIsLeaveDialogOpen(open); if (!open) setEditingLeave(null); }}>
                 <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader><DialogTitle className="text-xl font-black text-gray-900 uppercase">{editingLeave ? 'Edit Leave Request' : 'Record Authorized Leave'}</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle className="text-xl font-black text-foreground uppercase">{editingLeave ? 'Edit Leave Request' : 'Record Authorized Leave'}</DialogTitle></DialogHeader>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-4">
                         <div className="space-y-1.5 md:col-span-2">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">Target Employee</Label>

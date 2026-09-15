@@ -12,7 +12,8 @@ import { onAccountsUpdate } from '@/services/account-service';
 import { onTransactionsUpdate, saveVoucher } from '@/services/transaction-service';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, History } from 'lucide-react';
-import { generateNextVoucherNumber } from '@/lib/utils';
+import { generateNextVoucherNumber, extractNumbers } from '@/lib/utils';
+import { reserveNumberFor } from '@/services/number-reservation-service';
 
 const PaymentReceiptForm = dynamic(() => import('../../_components/payment-receipt-form').then(mod => mod.PaymentReceiptForm), {
   ssr: false,
@@ -55,8 +56,18 @@ export default function NewPaymentReceiptPage() {
             return;
         }
         try {
-            await saveVoucher(values, user.username);
-            toast({ title: "Voucher Saved", description: "The voucher has been successfully recorded." });
+            // The number shown while filling the form is a preview. Claim the
+            // real one here so two people saving at once get consecutive
+            // vouchers instead of the same one.
+            const pmtRcdTxns = transactions.filter(t => t.type === 'Payment' || t.type === 'Receipt');
+            const reserved = await reserveNumberFor(
+                'paymentReceipt',
+                'PRV-',
+                extractNumbers(pmtRcdTxns, 'voucherNo', 'paymentReceipt'),
+                (values.date instanceof Date ? values.date : new Date(values.date)).toISOString()
+            );
+            await saveVoucher({ ...values, voucherNo: reserved }, user.username);
+            toast({ title: "Voucher Saved", description: `Voucher ${reserved} has been successfully recorded.` });
             router.push('/fleet/transactions/payment-receipt/list'); // Return to voucher logs
         } catch (error) {
             console.error("Failed to save voucher:", error);

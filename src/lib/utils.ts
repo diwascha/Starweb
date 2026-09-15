@@ -1,18 +1,17 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { 
-  Report, 
-  PurchaseOrder, 
-  PurchaseOrderStatus, 
-  AttendanceStatus, 
-  User, 
-  Transaction, 
-  DocumentPrefixes, 
-  Trip, 
-  TdsCalculation, 
-  EstimatedInvoice, 
-  DocumentType, 
+import type {
+  Report,
+  PurchaseOrder,
+  PurchaseOrderStatus,
+  AttendanceStatus,
+  Transaction,
+  DocumentPrefixes,
+  Trip,
+  TdsCalculation,
+  EstimatedInvoice,
+  DocumentType,
   NumberingRule,
   Cheque,
   GsmReport,
@@ -29,25 +28,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const createTimestamp = () => new Date().toISOString();
-
-export const getDirectImageUrl = (url: string | undefined | null): string => {
-    if (!url) return '';
-    
-    let processed = url.trim();
-
-    if (processed.includes('drive.google.com')) {
-        const match = processed.match(/\/d\/(.+?)\/(view|edit|preview)/) || processed.match(/id=(.+?)(&|$)/);
-        if (match && match[1]) {
-            return `https://drive.google.com/uc?export=view&id=${match[1]}`;
-        }
-    }
-
-    if (processed.includes('dropbox.com')) {
-        return processed.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace(/\?dl=0$/, '');
-    }
-
-    return processed;
-};
 
 export const generateId = (): string => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
@@ -111,21 +91,25 @@ export const calculateNextSequence = (
 /**
  * Standard rule-based numbering logic for ALL document types.
  */
-export const generateNextNumber = async (
-  items: any[],
-  fieldName: string,
+/**
+ * Which prefix and starting number apply to a document of this type on this
+ * date. Split out so the on-screen preview and the atomic reservation at save
+ * time resolve the SAME rule - otherwise a document could be previewed under
+ * one fiscal year's prefix and reserved under another's.
+ */
+export const resolveNumberingRule = async (
   settingKey: DocumentType,
   defaultPrefix: string,
   documentDate?: string
-): Promise<string> => {
+): Promise<{ prefix: string; startNum: number }> => {
   const numberingSetting = await getSetting('documentPrefixes');
   const numberingConfig = (numberingSetting?.value as DocumentPrefixes) || {};
   const rawRules = numberingConfig[settingKey];
-  
+
   const rules = Array.isArray(rawRules) ? rawRules : [];
-  
+
   let matchedRule: NumberingRule | undefined;
-  
+
   if (documentDate) {
     const docDate = new Date(documentDate);
     matchedRule = rules.find(r => {
@@ -139,22 +123,58 @@ export const generateNextNumber = async (
   if (!matchedRule) {
     matchedRule = rules.find(r => r.status === 'Active');
   }
-  
-  const prefix = matchedRule?.prefix || (typeof rawRules === 'string' ? rawRules : defaultPrefix);
-  const startNum = matchedRule?.startingNumber || 1;
-  
-  const numberStrings = items.map(item => {
-      // Handle complex items like Transactions which store the ID in specific fields or narratives
-      if (settingKey === 'paymentReceipt' || settingKey === 'tdsVoucher' || settingKey === 'chequeVoucher' || settingKey === 'gsmVoucher' || settingKey === 'paymentTracker') {
-          if ('voucherNo' in item) return item.voucherNo;
-          if ('referenceId' in item) return item.referenceId;
-          // For generic transactions, extract from particular narrative
-          return (item as Transaction).items?.[0]?.particular?.replace(/ .*/, '');
-      }
-      return item[fieldName];
+
+  return {
+    prefix: matchedRule?.prefix || (typeof rawRules === 'string' ? rawRules : defaultPrefix),
+    startNum: matchedRule?.startingNumber || 1,
+  };
+};
+
+/**
+ * Pull the document numbers out of a list of records.
+ *
+ * Voucher-style documents don't all keep their number in the same place -
+ * fleet transactions in particular carry it as a referenceId, or only inside
+ * the first line's narration. Both the preview (generateNextNumber) and the
+ * atomic reservation must read them the same way, or the reservation would be
+ * floored against an empty list and reissue a number that is already in use.
+ */
+export const extractNumbers = (
+  items: any[],
+  fieldName: string,
+  settingKey: DocumentType
+): (string | undefined | null)[] => {
+  const isVoucherStyle = settingKey === 'paymentReceipt' || settingKey === 'tdsVoucher'
+    || settingKey === 'chequeVoucher' || settingKey === 'gsmVoucher' || settingKey === 'paymentTracker';
+
+  return items.map(item => {
+    if (isVoucherStyle) {
+      if ('voucherNo' in item) return item.voucherNo;
+      if ('referenceId' in item) return item.referenceId;
+      return (item as Transaction).items?.[0]?.particular?.replace(/ .*/, '');
+    }
+    return item[fieldName];
   });
-  
-  return calculateNextSequence(numberStrings, prefix, startNum);
+};
+
+/**
+ * The number a form SHOWS while it is being filled in.
+ *
+ * This is a preview, not a reservation - it is computed from the caller's
+ * local list and two people can see the same suggestion at once. The number
+ * that actually goes on the document is reserved atomically at save time via
+ * reserveNextNumber (services/number-reservation-service).
+ */
+export const generateNextNumber = async (
+  items: any[],
+  fieldName: string,
+  settingKey: DocumentType,
+  defaultPrefix: string,
+  documentDate?: string
+): Promise<string> => {
+  const { prefix, startNum } = await resolveNumberingRule(settingKey, defaultPrefix, documentDate);
+
+  return calculateNextSequence(extractNumbers(items, fieldName, settingKey), prefix, startNum);
 };
 
 export const generateNextSerialNumber = (reports: Pick<Report, 'serialNumber'>[], date?: string) =>
@@ -227,17 +247,6 @@ export const getAttendanceRowHighlight = (record: { date: string; status: string
     return null;
 };
 
-export const getAttendanceBadgeVariant = (status: AttendanceStatus) => {
-    switch (status) {
-        case 'Present': return 'outline';
-        case 'Absent': return 'destructive';
-        case 'C/I Miss': return 'secondary';
-        case 'C/O Miss': return 'secondary';
-        case 'Saturday': return 'default';
-        case 'Public Holiday': return 'default';
-        default: return 'secondary';
-    }
-};
 
 export const toNepaliDate = (isoDate: string): string => {
     try {
@@ -266,40 +275,60 @@ export const formatTimeForDisplay = (timeString: string | null | undefined): str
     return timeString;
 };
 
+/**
+ * An amount in words, in the Nepali/Indian numbering system.
+ *
+ * This is not a cosmetic field. It is printed on the cheque leaf itself, on
+ * cheque and TDS vouchers, and on estimate invoices - and on a cheque the words
+ * govern over the figures. Two defects here were writing the wrong amount:
+ *
+ *   - The thousands branch recursed on `n % 100` instead of `n % 1000`, which
+ *     silently dropped the hundreds digit. Rs 1,500 printed as "One Thousand
+ *     Only"; Rs 1,234 as "One Thousand Thirty Four Only".
+ *   - A non-finite input matched none of the range comparisons (every
+ *     comparison against NaN is false), fell through to the crore branch and
+ *     recursed on NaN forever, taking the tab down with a stack overflow
+ *     instead of printing a voucher.
+ *
+ * Amounts are resolved in paisa to keep the rounding honest: 99.999 has to
+ * carry into "One Hundred", not produce "Ninety Nine and One Hundred Paisa".
+ */
 export const toWords = (num: number): string => {
-    if (num === 0) return 'Zero Only.';
-    
+    if (!Number.isFinite(num)) return '';
+
     const a = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
     const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-    
+
     const inWords = (n: number): string => {
-        if (n === 0) return '';
+        // Guard the recursion itself, not just the entry point.
+        if (!Number.isFinite(n) || n <= 0) return '';
+        n = Math.floor(n);
         if (n < 20) return a[n];
-        if (n < 100) {
-            return `${b[Math.floor(n/10)]} ${a[n % 10]}`.trim();
-        }
-        if (n < 1000) {
-            return `${a[Math.floor(n/100)]} hundred ${inWords(n % 100)}`.trim();
-        }
-        if (n < 100000) {
-            return `${inWords(Math.floor(n/1000))} thousand ${inWords(n % 100)}`.trim();
-        }
-        if (n < 10000000) {
-            return `${inWords(Math.floor(n/100000))} lakh ${inWords(n % 100000)}`.trim();
-        }
-        return `${inWords(Math.floor(n/10000000))} crore ${inWords(n % 10000000)}`.trim();
-    }
-    
-    const whole = Math.floor(Math.abs(num));
-    const decimal = Math.round((Math.abs(num) - whole) * 100);
-    
+        if (n < 100) return `${b[Math.floor(n / 10)]} ${a[n % 10]}`.trim();
+        if (n < 1000) return `${a[Math.floor(n / 100)]} hundred ${inWords(n % 100)}`.trim();
+        if (n < 100000) return `${inWords(Math.floor(n / 1000))} thousand ${inWords(n % 1000)}`.trim();
+        if (n < 10000000) return `${inWords(Math.floor(n / 100000))} lakh ${inWords(n % 100000)}`.trim();
+        return `${inWords(Math.floor(n / 10000000))} crore ${inWords(n % 10000000)}`.trim();
+    };
+
+    // Work in paisa so the rupee/paisa split cannot disagree after rounding.
+    const totalPaisa = Math.round(Math.abs(num) * 100);
+    const whole = Math.floor(totalPaisa / 100);
+    const paisa = totalPaisa % 100;
+
+    if (totalPaisa === 0) return 'Zero Only.';
+
     let str = inWords(whole);
-    if (decimal > 0) {
+    if (paisa > 0) {
         if (str) str += ' and ';
-        str += inWords(decimal) + ' paisa';
+        str += `${inWords(paisa)} paisa`;
     }
-    
     if (!str) return 'Zero Only.';
 
-    return str.split(' ').filter(s => s !== '').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') + ' Only.';
+    const words = str.split(' ').filter(Boolean)
+        .map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+
+    // A negative amount is a correction or reversal; saying so beats printing
+    // the absolute value as though it were a payment.
+    return `${num < 0 ? 'Minus ' : ''}${words} Only.`;
 };

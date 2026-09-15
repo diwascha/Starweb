@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { drawPdfLetterhead } from '@/lib/pdf-letterhead';
+import { useToast } from '@/hooks/use-toast';
+import { useBusinessProfile } from '@/hooks/use-business-profile';
 import type { Payroll, Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -67,6 +70,8 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         () => Object.fromEntries(COLUMN_LABELS.map(c => [c.key, true])) as Record<ColumnKey, boolean>
     );
     const [isExportingPdf, setIsExportingPdf] = useState(false);
+    const { toast } = useToast();
+    const companyProfile = useBusinessProfile();
     const printableRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -172,9 +177,9 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         setExportMode(null);
     };
 
-    const handleExportXlsx = async () => {
-        const XLSX = (await import('xlsx'));
-        const fieldMap: Record<ColumnKey, (p: Payroll) => any> = {
+    // Shared by both exports so the PDF and the spreadsheet can never disagree
+    // about which columns are included or what a column contains.
+    const fieldMap: Record<ColumnKey, (p: Payroll) => any> = {
             employee: p => p.employeeName,
             regularHours: p => p.regularHours,
             otHours: p => p.otHours,
@@ -190,7 +195,10 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             net: p => p.netPayment,
             roundedNet: p => p.roundedNet ?? p.netPayment,
             remarks: p => p.remark,
-        };
+    };
+
+    const handleExportXlsx = async () => {
+        const XLSX = (await import('xlsx'));
         const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key]);
         const payrollExport = monthlyPayroll.map(p => {
             const row: Record<string, any> = {};
@@ -204,44 +212,90 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         XLSX.writeFile(workbook, `Payroll-${selectedBsYear}-${NEPALI_MONTHS[parseInt(selectedBsMonth)].name}.xlsx`);
     };
 
+    /**
+     * Pure vector PDF - a real table, not a screenshot of one.
+     *
+     * The old version rasterised the whole registry with html2canvas and then,
+     * to paginate, re-added THE SAME full-height image once per page at a
+     * different offset - so a five-page registry embedded the entire bitmap
+     * five times. autoTable paginates natively, repeats the header row on each
+     * page, and keeps every figure as selectable, searchable text.
+     *
+     * Columns come from the same fieldMap and exportColumns the spreadsheet
+     * export uses, so the two always agree.
+     */
     const handleExportPdf = async () => {
-        const node = printableRef.current;
-        if (!node) return;
         setIsExportingPdf(true);
-        node.classList.add('pdf-export-mode');
         try {
-            const jsPDF = (await import('jspdf')).default;
-            const html2canvas = (await import('html2canvas')).default;
-            await new Promise(resolve => setTimeout(resolve, 50));
-            // scale 1.5 (not 2) plus JPEG instead of PNG keeps this legible at
-            // print size while cutting the embedded image from tens of MB
-            // (a lossless PNG of a full data table) down to a few MB.
-            const canvas = await html2canvas(node, { scale: 1.5 });
-            const imgData = canvas.toDataURL('image/jpeg', 0.85);
+            const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+                import('jspdf'),
+                import('jspdf-autotable'),
+            ]);
+            const monthName = NEPALI_MONTHS[parseInt(selectedBsMonth)].name;
+            const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key]);
+
             const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4', compress: true });
             const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const imgWidth = pageWidth;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-            // A long table renders taller than one page - slice it across as
-            // many pages as needed instead of silently cropping everything
-            // past the first page (which the previous single addImage did).
-            let heightLeft = imgHeight;
-            let position = 0;
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-            heightLeft -= pageHeight;
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-                heightLeft -= pageHeight;
-            }
+            // Landscape registry: the address and PAN belong on the payslip,
+            // not here, but the company's own name should read the same on
+            // both scripts as it does everywhere else.
+            const headEnd = drawPdfLetterhead(pdf, companyProfile, {
+                x: pageWidth / 2, y: 12, align: 'center',
+                nameSize: 13, showAddress: false, showPan: false,
+            });
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(10);
+            pdf.text('PAYROLL REGISTRY', pageWidth / 2, headEnd + 5.5, { align: 'center' });
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9);
+            pdf.text(`${monthName} ${selectedBsYear} (BS)`, pageWidth / 2, headEnd + 10.5, { align: 'center' });
+
+            const isNumericCol = (key: ColumnKey) => key !== 'employee' && key !== 'remarks';
+            const cell = (p: Payroll, key: ColumnKey) => {
+                const v = fieldMap[key](p);
+                if (v === undefined || v === null || v === '') return '';
+                return isNumericCol(key) && typeof v === 'number'
+                    ? v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : String(v);
+            };
+
+            autoTable(pdf, {
+                startY: 27,
+                head: [selectedCols.map(c => c.label)],
+                body: monthlyPayroll.map(p => selectedCols.map(c => cell(p, c.key))),
+                // A totals row matching the on-screen footer, so the printed
+                // registry reconciles without re-adding the column by hand.
+                foot: [selectedCols.map(c => (
+                    c.key === 'employee' ? 'TOTAL'
+                    : isNumericCol(c.key)
+                        ? (monthlyPayroll.reduce((sum, p) => sum + (Number(fieldMap[c.key](p)) || 0), 0))
+                            .toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : ''
+                ))],
+                theme: 'grid',
+                styles: { fontSize: 6.5, cellPadding: 1, lineColor: [200, 200, 200], lineWidth: 0.1, overflow: 'linebreak' },
+                headStyles: { fillColor: [235, 235, 235], textColor: 20, fontStyle: 'bold', fontSize: 6.5 },
+                footStyles: { fillColor: [245, 245, 245], textColor: 20, fontStyle: 'bold', fontSize: 6.5 },
+                columnStyles: Object.fromEntries(selectedCols.map((c, i) => [
+                    i, isNumericCol(c.key) ? { halign: 'right' } : { halign: 'left' },
+                ])) as any,
+                margin: { left: 8, right: 8 },
+                didDrawPage: (data: any) => {
+                    const h = pdf.internal.pageSize.getHeight();
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(7);
+                    pdf.setTextColor(130);
+                    pdf.text(`Page ${data.pageNumber}`, pageWidth - 10, h - 5, { align: 'right' });
+                    pdf.setTextColor(0);
+                },
+            });
+
             pdf.save(`Payroll-${selectedBsYear}-${NEPALI_MONTHS[parseInt(selectedBsMonth)].name}.pdf`);
         } catch (error) {
             console.error('PDF export failed', error);
+            toast({ title: 'PDF Export Failed', variant: 'destructive' });
         } finally {
-            node.classList.remove('pdf-export-mode');
             setIsExportingPdf(false);
         }
     };
@@ -253,7 +307,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
     const hiddenCols = COLUMN_LABELS.filter(c => !exportColumns[c.key]).map(c => c.key);
 
     return (
-        <Card className="shadow-lg border-gray-100 bg-white overflow-hidden">
+        <Card className="shadow-lg border-border bg-card overflow-hidden">
             <CardContent className="pt-6">
                 <div className="mb-4 flex flex-wrap justify-between items-center gap-2 print:hidden">
                     <div className="flex items-center gap-2">
@@ -267,10 +321,10 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                         )}
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openExportDialog('xlsx')} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest border-gray-300">
+                        <Button variant="outline" size="sm" onClick={() => openExportDialog('xlsx')} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest border-border">
                             <Download className="mr-1.5 h-3.5 w-3.5" /> Export XLSX
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => openExportDialog('pdf')} disabled={monthlyPayroll.length === 0 || isExportingPdf} className="h-8 font-black text-[10px] uppercase tracking-widest border-gray-300">
+                        <Button variant="outline" size="sm" onClick={() => openExportDialog('pdf')} disabled={monthlyPayroll.length === 0 || isExportingPdf} className="h-8 font-black text-[10px] uppercase tracking-widest border-border">
                             {isExportingPdf ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileDown className="mr-1.5 h-3.5 w-3.5" />} Export PDF
                         </Button>
                         <GeneratePayslipsButton
@@ -287,18 +341,18 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
 
                 <div className="printable-area" ref={printableRef}>
                     <header className="hidden print:block text-center space-y-1 mb-8">
-                        <h1 className="text-2xl font-black uppercase">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-                        <p className="text-sm font-bold text-muted-foreground uppercase">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+                        <h1 className="text-2xl font-black uppercase">{companyProfile.nameEn}</h1>
+                        <p className="text-sm font-bold text-muted-foreground uppercase">{companyProfile.address}</p>
                         <h2 className="text-lg font-black underline mt-2 uppercase tracking-tighter">
                             Workforce Financial Registry: {NEPALI_MONTHS[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}
                         </h2>
                     </header>
 
-                    <ScrollArea className="w-full whitespace-nowrap border rounded-xl overflow-hidden shadow-inner bg-gray-50/20">
+                    <ScrollArea className="w-full whitespace-nowrap border rounded-xl overflow-hidden shadow-inner bg-muted/20">
                         <Table className="text-[11px] border-collapse">
                             <TableHeader>
                                 <TableRow className="bg-muted/50 font-black h-11 border-b-2">
-                                    <SortableTh colKey="employee" label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="sticky left-0 bg-background z-20 border-r min-w-[160px] text-gray-900 uppercase tracking-tighter text-left">
+                                    <SortableTh colKey="employee" label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="sticky left-0 bg-background z-20 border-r min-w-[160px] text-foreground uppercase tracking-tighter text-left">
                                         <MultiSelectFilter label="Employee" options={employeeFilterOptions} selected={filterEmployeeIds} onChange={setFilterEmployeeIds} />
                                     </SortableTh>
                                     <SortableTh colKey="regularHours" label="Regular Hrs" sortKey="regularHours" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
@@ -325,12 +379,12 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                                     <TableRow><TableCell colSpan={16} className="text-center py-20 text-muted-foreground italic">No financial records for this period.</TableCell></TableRow>
                                 ) : monthlyPayroll.map(p => (
                                     <TableRow key={p.id} className="hover:bg-muted/30 h-12 border-b transition-colors group">
-                                        <TableCell data-col="employee" className="font-black sticky left-0 bg-background z-10 border-r text-gray-900 group-hover:text-primary">{p.employeeName}</TableCell>
+                                        <TableCell data-col="employee" className="font-black sticky left-0 bg-background z-10 border-r text-foreground group-hover:text-primary">{p.employeeName}</TableCell>
                                         <TableCell data-col="regularHours" className="text-right tabular-nums px-3">{p.regularHours?.toFixed(1) || '0.0'}</TableCell>
                                         <TableCell data-col="otHours" className="text-right tabular-nums px-3 font-bold text-blue-700">+{p.otHours?.toFixed(1) || '0.0'}</TableCell>
                                         <TableCell data-col="absentDays" className="text-right tabular-nums px-3 text-red-600 font-bold">{p.absentDays || 0}</TableCell>
                                         <TableCell data-col="base" className="text-right tabular-nums px-3 text-muted-foreground font-medium">{p.base || (p.rate || 0).toLocaleString()}</TableCell>
-                                        <TableCell data-col="basicPay" className="text-right tabular-nums px-3 font-bold text-gray-900">{(p.regularPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell data-col="basicPay" className="text-right tabular-nums px-3 font-bold text-foreground">{(p.regularPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="otPay" className="text-right tabular-nums px-3">{(p.otPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="allowance" className="text-right tabular-nums px-3">{(p.allowance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="gross" className="text-right tabular-nums px-3 font-black bg-muted/10">{(p.totalPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -351,7 +405,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                             {totals && monthlyPayroll.length > 0 && (
                                 <TableFooter className="bg-muted/50 font-black h-12 border-t-2">
                                     <TableRow>
-                                        <TableCell data-col="employee" className="sticky left-0 bg-background z-20 border-r text-gray-900 uppercase tracking-tighter">TOTALS</TableCell>
+                                        <TableCell data-col="employee" className="sticky left-0 bg-background z-20 border-r text-foreground uppercase tracking-tighter">TOTALS</TableCell>
                                         <TableCell data-col="regularHours" className="text-right tabular-nums px-3">{totals.regularHours.toFixed(1)}</TableCell>
                                         <TableCell data-col="otHours" className="text-right tabular-nums px-3">{totals.otHours.toFixed(1)}</TableCell>
                                         <TableCell data-col="absentDays" className="text-right tabular-nums px-3">{totals.absentDays}</TableCell>
@@ -378,7 +432,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900">Choose Columns</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground">Choose Columns</DialogTitle>
                         <DialogDescription>
                             Select which columns to include in the {exportMode === 'xlsx' ? 'Excel export' : exportMode === 'pdf' ? 'PDF export' : 'printed sheet'}. This uses the currently filtered and sorted {monthlyPayroll.length} record(s).
                         </DialogDescription>
@@ -412,12 +466,6 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                   .print\\:hidden { display: none !important; }
                   ${hiddenCols.map(k => `.printable-area [data-col="${k}"] { display: none !important; }`).join('\n                  ')}
                 }
-                /* Same reasoning for the PDF export capture - html2canvas
-                   captures the live colored DOM, so grayscale it only while
-                   .pdf-export-mode is applied (screen view stays in color). */
-                .pdf-export-mode { filter: grayscale(1); }
-                ${hiddenCols.map(k => `.pdf-export-mode [data-col="${k}"] { display: none !important; }`).join('\n                ')}
-                .pdf-export-mode [data-col="actions"] { display: none !important; }
             `}</style>
         </Card>
     );

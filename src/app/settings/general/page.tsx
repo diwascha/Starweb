@@ -33,29 +33,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  Loader2,
-  Settings2,
-  CalendarIcon,
-  Hash,
-  RefreshCcw,
-  History,
-  X,
-  Info,
-  ChevronRight,
-  FileText,
-  ShoppingCart,
-  Truck,
-  Calculator,
-  Home,
-  AlertTriangle,
-  SearchCheck,
-  ClipboardList
-} from 'lucide-react';
+import { Plus, Edit, Trash2, Save, Loader2, CalendarIcon, Hash, RefreshCcw, History, X, Info, FileText, ShoppingCart, Truck, Calculator, Home, AlertTriangle, SearchCheck } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -64,12 +42,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
 import { onSettingUpdate, setSetting, updateExistingRecordsNumbering } from '@/services/settings-service';
-import { 
-    documentTypes, 
-    getDocumentName,
-    modules 
-} from '@/lib/types';
-import { DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
+import { getDocumentName, modules } from '@/lib/types';
+import { BUSINESS_ENTITIES, type BusinessEntity } from '@/lib/business-entities';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -138,10 +112,13 @@ export default function GeneralSettingsPage() {
       status: 'Archived'
   });
 
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
-  const [isSavingFleetProfile, setIsSavingFleetProfile] = useState(false);
+  // Profiles keyed by entity id, so the count of businesses is data rather
+  // than a fixed number of useState calls.
+  const [entityProfiles, setEntityProfiles] = useState<Record<string, CompanyProfile>>(
+    () => Object.fromEntries(BUSINESS_ENTITIES.map(e => [e.id, e.defaults]))
+  );
+  const [savingEntityId, setSavingEntityId] = useState<string | null>(null);
+
   const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
   const [isSavingBranding, setIsSavingBranding] = useState(false);
   
@@ -161,8 +138,11 @@ export default function GeneralSettingsPage() {
     const unsubs = [
         onUomsUpdate(setUoms),
         onSettingUpdate('documentPrefixes', (setting) => setPrefixes(setting?.value || {})),
-        onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE)),
-        onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE)),
+        ...BUSINESS_ENTITIES.map(entity =>
+            onSettingUpdate(entity.settingKey, (setting) =>
+                setEntityProfiles(prev => ({ ...prev, [entity.id]: setting?.value || entity.defaults }))
+            )
+        ),
         onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '' })),
         onSettingUpdate('ownership_categories', (s: any) => { 
             const defaults = ['Sijan', 'Shivam', 'Rental', 'Both'];
@@ -188,31 +168,23 @@ export default function GeneralSettingsPage() {
     return () => unsubs.forEach(u => u());
   }, []);
 
-  const handleSaveCompanyProfile = async () => {
+  const handleSaveEntityProfile = async (entity: BusinessEntity) => {
     if (!user) return;
-    setIsSavingProfile(true);
+    setSavingEntityId(entity.id);
     try {
-        await setSetting('companyProfile', { ...companyProfile, lastModifiedBy: user.username, lastModifiedAt: new Date().toISOString() });
-        toast({ title: 'Success', description: 'Main Company profile updated.' });
+        await setSetting(entity.settingKey, {
+            ...(entityProfiles[entity.id] || entity.defaults),
+            lastModifiedBy: user.username,
+            lastModifiedAt: new Date().toISOString(),
+        });
+        toast({ title: 'Success', description: `${entity.label} profile updated.` });
     } catch {
         toast({ title: 'Error', variant: 'destructive' });
     } finally {
-        setIsSavingProfile(false);
+        setSavingEntityId(null);
     }
   };
 
-  const handleSaveFleetProfile = async () => {
-    if (!user) return;
-    setIsSavingFleetProfile(true);
-    try {
-        await setSetting('fleetCompanyProfile', { ...fleetProfile, lastModifiedBy: user.username, lastModifiedAt: new Date().toISOString() });
-        toast({ title: 'Success', description: 'Fleet profile updated.' });
-    } catch {
-        toast({ title: 'Error', variant: 'destructive' });
-    } finally {
-        setIsSavingFleetProfile(false);
-    }
-  };
 
   const handleSaveAppBranding = async () => {
     if (!user) return;
@@ -486,7 +458,7 @@ export default function GeneralSettingsPage() {
   return (
     <div className="flex flex-col gap-8">
         <header>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">General Configuration</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">General Configuration</h1>
             <p className="text-muted-foreground text-sm">Identity, branding, and system-wide standards.</p>
         </header>
 
@@ -500,10 +472,10 @@ export default function GeneralSettingsPage() {
             </TabsList>
 
             <TabsContent value="branding" className="animate-in fade-in slide-in-from-left-2">
-                 <Card className="shadow-sm border-gray-100 bg-white">
+                 <Card className="shadow-sm border-border bg-card">
                     <CardHeader className="flex flex-row items-center justify-between py-6 px-8 border-b bg-primary/5">
                         <div className="space-y-1">
-                            <CardTitle className="text-xl font-black text-gray-900 tracking-tight">System Identity</CardTitle>
+                            <CardTitle className="text-xl font-black text-foreground tracking-tight">System Identity</CardTitle>
                             <CardDescription className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Application naming and persona.</CardDescription>
                         </div>
                         <Button onClick={handleSaveAppBranding} disabled={isSavingBranding} className="h-10 px-8 font-black text-[10px] uppercase tracking-widest shadow-lg">
@@ -525,62 +497,26 @@ export default function GeneralSettingsPage() {
             </TabsContent>
 
             <TabsContent value="profile" className="space-y-8 animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between bg-primary/5 py-4 px-6 border-b">
-                        <CardTitle className="text-lg font-black tracking-tight">Main Manufacturing Profile</CardTitle>
-                        <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">
-                            {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-3.5" />}
-                            Update
-                        </Button>
-                    </CardHeader>
-                    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Name (EN)</Label><Input value={companyProfile.nameEn || ''} onChange={e => setCompanyProfile(p => ({...p, nameEn: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">कम्पनी (NP)</Label><Input value={companyProfile.nameNp || ''} onChange={e => setCompanyProfile(p => ({...p, nameNp: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">PAN/VAT Number</Label><Input value={companyProfile.pan || ''} onChange={e => setCompanyProfile(p => ({...p, pan: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Phone Number</Label><Input value={companyProfile.phone || ''} onChange={e => setCompanyProfile(p => ({...p, phone: e.target.value}))} /></div>
-                        <div className="space-y-1.5 md:col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Address</Label><Input value={companyProfile.address || ''} onChange={e => setCompanyProfile(p => ({...p, address: e.target.value}))} /></div>
-                    </CardContent>
-                </Card>
-                <Card className="shadow-sm border-gray-100 overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between bg-primary/5 py-4 px-6 border-b">
-                        <div>
-                            <CardTitle className="text-lg font-black tracking-tight">Payslip Details</CardTitle>
-                            <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Header, footer, and signature lines shown on the Salary Slip.</CardDescription>
-                        </div>
-                        <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">
-                            {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-3.5" />}
-                            Update
-                        </Button>
-                    </CardHeader>
-                    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1.5 md:col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Address Line 2</Label><Input value={companyProfile.addressLine2 || ''} onChange={e => setCompanyProfile(p => ({...p, addressLine2: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Header Note 1 (e.g. PAN)</Label><Input value={companyProfile.headerNote1 || ''} onChange={e => setCompanyProfile(p => ({...p, headerNote1: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Header Note 2</Label><Input value={companyProfile.headerNote2 || ''} onChange={e => setCompanyProfile(p => ({...p, headerNote2: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Footer Note 1</Label><Input value={companyProfile.footerNote1 || ''} onChange={e => setCompanyProfile(p => ({...p, footerNote1: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Footer Note 2</Label><Input value={companyProfile.footerNote2 || ''} onChange={e => setCompanyProfile(p => ({...p, footerNote2: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Prepared By</Label><Input value={companyProfile.preparedBy || ''} onChange={e => setCompanyProfile(p => ({...p, preparedBy: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Checked By</Label><Input value={companyProfile.checkedBy || ''} onChange={e => setCompanyProfile(p => ({...p, checkedBy: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Authorised By</Label><Input value={companyProfile.authorisedBy || ''} onChange={e => setCompanyProfile(p => ({...p, authorisedBy: e.target.value}))} /></div>
-                    </CardContent>
-                </Card>
-                <Card className="shadow-sm border-gray-100 overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between bg-muted/20 py-4 px-6 border-b">
-                        <CardTitle className="text-lg font-black tracking-tight">Sijan Logistics Profile</CardTitle>
-                        <Button onClick={handleSaveFleetProfile} disabled={isSavingFleetProfile} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">
-                            {isSavingFleetProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                            Update
-                        </Button>
-                    </CardHeader>
-                    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Name (EN)</Label><Input value={fleetProfile.nameEn || ''} onChange={e => setFleetProfile(p => ({...p, nameEn: e.target.value}))} /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">PAN/VAT</Label><Input value={fleetProfile.pan || ''} onChange={e => setFleetProfile(p => ({...p, pan: e.target.value}))} /></div>
-                        <div className="space-y-1.5 md:col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Address</Label><Input value={fleetProfile.address || ''} onChange={e => setFleetProfile(p => ({...p, address: e.target.value}))} /></div>
-                    </CardContent>
-                </Card>
+                {/* One card per business in the registry (lib/business-entities).
+                    Adding a company - Makwanpur Food Industry, say - adds its
+                    form here automatically; there is nothing to copy-paste. */}
+                {BUSINESS_ENTITIES.map(entity => (
+                    <EntityProfileCard
+                        key={entity.id}
+                        entity={entity}
+                        profile={entityProfiles[entity.id] || entity.defaults}
+                        onChange={(patch: Partial<CompanyProfile>) => setEntityProfiles(prev => ({
+                            ...prev,
+                            [entity.id]: { ...(prev[entity.id] || entity.defaults), ...patch },
+                        }))}
+                        onSave={() => handleSaveEntityProfile(entity)}
+                        isSaving={savingEntityId === entity.id}
+                    />
+                ))}
             </TabsContent>
 
             <TabsContent value="ownership" className="animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b bg-muted/5">
                         <div>
                             <CardTitle className="text-base font-black uppercase">Ownership Categories</CardTitle>
@@ -600,7 +536,7 @@ export default function GeneralSettingsPage() {
                             <TableBody>
                                 {ownershipCategories.map(cat => (
                                     <TableRow key={cat.name} className="h-14 border-b group">
-                                        <TableCell className="font-black pl-6 text-gray-900 uppercase tracking-tighter">{cat.name}</TableCell>
+                                        <TableCell className="font-black pl-6 text-foreground uppercase tracking-tighter">{cat.name}</TableCell>
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1 max-w-md">
                                                 {cat.modules?.length === modules.length ? (
@@ -646,7 +582,7 @@ export default function GeneralSettingsPage() {
             </TabsContent>
 
             <TabsContent value="uom" className="animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Units of Measurement</CardTitle>
                         <Button size="sm" onClick={() => { setEditingUom(null); setUomForm({name:'', abbreviation:''}); setIsUomDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> New Unit</Button>
@@ -686,7 +622,7 @@ export default function GeneralSettingsPage() {
                     <p className="text-[10px] font-bold uppercase text-muted-foreground">Document prefixes are automatically selected based on the entry date. Updating a rule will re-sequence existing records in that range.</p>
                 </div>
                 {groupedDocumentTypes.map((group) => (
-                    <Card key={group.label} className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <Card key={group.label} className="shadow-sm border-border bg-card overflow-hidden">
                         <CardHeader className="bg-primary/5 border-b py-3 px-6">
                             <div className="flex items-center gap-2">
                                 <group.icon className="h-4 w-4 text-primary" />
@@ -712,7 +648,7 @@ export default function GeneralSettingsPage() {
                                         
                                         return (
                                             <TableRow key={t} className="h-12 border-b">
-                                                <TableCell className="font-black pl-6 text-gray-900 uppercase tracking-tighter">{getDocumentName(t)}</TableCell>
+                                                <TableCell className="font-black pl-6 text-foreground uppercase tracking-tighter">{getDocumentName(t)}</TableCell>
                                                 <TableCell className="font-mono text-blue-600 font-black">{active?.prefix || (typeof rawRules === 'string' ? rawRules : '(System Default)')}</TableCell>
                                                 <TableCell className="text-center font-bold">{active?.startingNumber.toString().padStart(3, '0') || '001'}</TableCell>
                                                 <TableCell className="text-muted-foreground italic text-[10px]">
@@ -1018,7 +954,7 @@ export default function GeneralSettingsPage() {
                                 <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: [...CORE_MODULES]})} className="h-5 px-1.5 text-[8px] uppercase font-black">Clear Functional</Button>
                             </div>
                         </div>
-                        <ScrollArea className="h-[250px] border rounded-lg bg-gray-50/30 p-2">
+                        <ScrollArea className="h-[250px] border rounded-lg bg-muted/30 p-2">
                             <div className="grid grid-cols-1 gap-1">
                                 {modules.map(m => {
                                     const isCore = CORE_MODULES.includes(m);
@@ -1058,5 +994,63 @@ export default function GeneralSettingsPage() {
             </DialogContent>
         </Dialog>
     </div>
+  );
+}
+
+/**
+ * Editable letterhead for one business. Rendered once per registry entry, so
+ * the Settings page doesn't grow a new hand-written card every time the ERP
+ * takes on another company.
+ *
+ * `extendedFields` gates the payslip/invoice-only fields - signatories and
+ * header/footer notes are meaningful on a salary slip, not on a transport
+ * voucher, so a transport entity isn't asked for them.
+ */
+function EntityProfileCard({ entity, profile, onChange, onSave, isSaving }: {
+  entity: BusinessEntity;
+  profile: CompanyProfile;
+  onChange: (patch: Partial<CompanyProfile>) => void;
+  onSave: () => void;
+  isSaving: boolean;
+}) {
+  const field = (label: string, key: keyof CompanyProfile, wide = false) => (
+    <div className={cn('space-y-1.5', wide && 'md:col-span-2')} key={key as string}>
+      <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+      <Input value={(profile[key] as string) || ''} onChange={e => onChange({ [key]: e.target.value } as Partial<CompanyProfile>)} />
+    </div>
+  );
+
+  return (
+    <Card className="shadow-sm border-border overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between bg-primary/5 py-4 px-6 border-b">
+        <div>
+          <CardTitle className="text-lg font-black tracking-tight">{entity.label}</CardTitle>
+          <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
+            Used by: {entity.modules.join(', ')}
+          </CardDescription>
+        </div>
+        <Button onClick={onSave} disabled={isSaving} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">
+          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          Update
+        </Button>
+      </CardHeader>
+      <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        {field('Name (EN)', 'nameEn')}
+        {field('नाम (NP)', 'nameNp')}
+        {field('PAN/VAT Number', 'pan')}
+        {field('Phone Number', 'phone')}
+        {field('Address', 'address', true)}
+        {entity.extendedFields && <>
+          {field('Address Line 2', 'addressLine2', true)}
+          {field('Header Note 1 (e.g. PAN)', 'headerNote1')}
+          {field('Header Note 2', 'headerNote2')}
+          {field('Footer Note 1', 'footerNote1')}
+          {field('Footer Note 2', 'footerNote2')}
+          {field('Prepared By', 'preparedBy')}
+          {field('Checked By', 'checkedBy')}
+          {field('Authorised By', 'authorisedBy')}
+        </>}
+      </CardContent>
+    </Card>
   );
 }

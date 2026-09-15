@@ -3,18 +3,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement, Party, PartyType, AccountOwnership } from '@/lib/types';
+import type { RawMaterial, PurchaseOrder, PurchaseOrderStatus, Amendment, UnitOfMeasurement, Party, PartyType, AccountOwnership } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X, ChevronDown, Save, Loader2 } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
-import { cn, generateNextPONumber, toNepaliDate, normalizeBF } from '@/lib/utils';
+import { cn, generateNextPONumber, resolveNumberingRule, toNepaliDate, normalizeBF } from '@/lib/utils';
+import { reserveNextNumber } from '@/services/number-reservation-service';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -76,6 +77,14 @@ const generateMaterialName = (type: string, size: string, gsm: string, bf: strin
     }
     return '';
 };
+
+/**
+ * Statuses that mean the order has moved on physically. Amending the paperwork
+ * of an order that has already shipped or been delivered must not rewind it to
+ * 'Amended' - the goods are still shipped. The amendment is recorded in the
+ * amendment log either way.
+ */
+const ADVANCED_STATUSES: PurchaseOrderStatus[] = ['Shipped', 'Delivered', 'Canceled'];
 
 export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
@@ -155,20 +164,40 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     setIsClient(true);
     const unsubs = [
       onRawMaterialsUpdate(setRawMaterials),
-      onPurchaseOrdersUpdate(setPurchaseOrders),
+      onPurchaseOrdersUpdate((list) => { setPurchaseOrders(list); purchaseOrdersRef.current = list; }),
       onUomsUpdate(setUoms),
       onPartiesUpdate(setParties)
     ];
     return () => unsubs.forEach(unsub => unsub());
   }, []);
   
+  // Suggest a PO number once per date, and never again afterwards.
+  //
+  // This used to depend on `purchaseOrders`, which is a live Firestore
+  // subscription - so every time anyone else in the company saved a purchase
+  // order, this effect re-ran and overwrote the number in the open form,
+  // including one the user had typed by hand. The ref records which date a
+  // number has already been suggested for, so a remote change can no longer
+  // reach into the form.
+  const purchaseOrdersRef = useRef<PurchaseOrder[]>([]);
+  const suggestedForDate = useRef<string | null>(null);
+  // What we last suggested, so a number the user edited by hand is left alone.
+  const suggestedNumberRef = useRef<string>('');
+
   useEffect(() => {
-    if(isClient && !poToEdit && purchaseOrders.length > 0) {
-        generateNextPONumber(purchaseOrders, watchedPoDate?.toISOString()).then(nextPoNumber => {
-            form.setValue('poNumber', nextPoNumber);
-        });
-    }
-  }, [isClient, poToEdit, purchaseOrders, form, watchedPoDate]);
+    if (!isClient || poToEdit) return;
+    const dateKey = watchedPoDate ? watchedPoDate.toISOString().slice(0, 10) : '';
+    if (!dateKey || suggestedForDate.current === dateKey) return;
+
+    suggestedForDate.current = dateKey;
+    generateNextPONumber(purchaseOrdersRef.current, watchedPoDate?.toISOString()).then(nextPoNumber => {
+      // Don't stomp a number the user has already edited themselves.
+      if (!form.getValues('poNumber') || form.getValues('poNumber') === suggestedNumberRef.current) {
+        suggestedNumberRef.current = nextPoNumber;
+        form.setValue('poNumber', nextPoNumber);
+      }
+    });
+  }, [isClient, poToEdit, form, watchedPoDate]);
 
   useEffect(() => {
     if (poToEdit) {
@@ -303,18 +332,25 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       };
 
       if (poToEdit?.id) {
-        if (!isCurrentlyDraft && !finalize) {
+        if (isCurrentlyDraft) {
+          // A draft stays a draft until it is explicitly finalized.
+          poData.status = finalize ? 'Ordered' : 'Draft';
+        } else {
+          // Already finalized: editing it is an amendment, and it is logged as
+          // one. What it must NOT do is rewind the order's progress - the old
+          // code set 'Amended' unconditionally, so amending a Shipped or
+          // Delivered order silently threw that state away. A separate gap let
+          // `finalize` on an already-final order fall through to 'Ordered',
+          // which did the same thing by a different route.
           const newAmendment: Amendment = {
             date: now,
             remarks: 'Order details updated after finalization.',
             amendedBy: user.username,
           };
-          poData.status = 'Amended';
           poData.amendments = [...(poToEdit.amendments || []), newAmendment];
-        } else if (isCurrentlyDraft && finalize) {
-           poData.status = 'Ordered';
-        } else if (isCurrentlyDraft && !finalize) {
-           poData.status = 'Draft';
+          poData.status = ADVANCED_STATUSES.includes(poToEdit.status)
+            ? poToEdit.status
+            : 'Amended';
         }
 
         await updatePurchaseOrder(poToEdit.id, poData);
@@ -327,6 +363,35 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         }
 
       } else {
+        // Reserve the number atomically, here at save rather than when the
+        // form opened. The number shown while typing is only a preview
+        // computed from this client's list - two people filling in a PO at
+        // the same moment see the same suggestion. This transaction is what
+        // guarantees they don't both get it.
+        //
+        // A number the user typed themselves is respected as-is: they may be
+        // backfilling a legacy document, and silently renumbering it would be
+        // worse than the gap.
+        const suggested = suggestedNumberRef.current;
+        const userChoseTheirOwn = !!values.poNumber && values.poNumber !== suggested;
+
+        if (!userChoseTheirOwn) {
+          const { prefix, startNum } = await resolveNumberingRule('purchaseOrder', 'SPI-', poData.poDate);
+          const reserved = await reserveNextNumber(
+            'purchaseOrder',
+            prefix,
+            purchaseOrdersRef.current.map(p => p.poNumber),
+            startNum,
+          );
+          if (reserved !== values.poNumber) {
+            toast({
+              title: 'Number reassigned',
+              description: `Another order took ${values.poNumber || 'that number'} first. This one is ${reserved}.`,
+            });
+          }
+          poData.poNumber = reserved;
+        }
+
         const newPOId = await addPurchaseOrder(poData);
         toast({ title: 'Success', description: `Purchase Order ${finalize ? 'created' : 'saved as draft'}.` });
         
@@ -975,7 +1040,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                             value={categoryRenameValue} 
                             onChange={e => setCategoryRenameValue(e.target.value)}
                             placeholder="New category name..."
-                            className="h-8 text-xs bg-white"
+                            className="h-8 text-xs bg-card"
                         />
                         <Button size="sm" variant="outline" onClick={() => setIsRenamingCategory(false)} className="h-8">Cancel</Button>
                         <Button size="sm" onClick={handleRenameCategory} className="h-8">Apply</Button>

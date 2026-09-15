@@ -1,29 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import {
-    HardDrive,
-    Upload,
-    Trash2,
-    Search,
-    FilterX,
-    Loader2,
-    FileSpreadsheet,
-    AlertTriangle,
-    CheckCircle2,
-    Plus,
-    X,
-    Clock,
-    History,
-    ChevronLeft,
-    ChevronRight,
-    Users,
-    ArrowUpDown,
-    CalendarClock,
-    LogIn,
-    LogOut
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { HardDrive, Upload, Trash2, Search, FilterX, Loader2, Clock, History, ChevronLeft, ChevronRight, Users, CalendarClock, LogIn, LogOut } from 'lucide-react';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,7 +13,8 @@ import {
     onRawLogsUpdate,
     deleteAllRawLogs,
     deleteRawLog,
-    deleteRawLogsForMonth
+    deleteRawLogsForMonth,
+    getAttendanceYears
 } from '@/services/attendance/data';
 import { addRawMachineLogs, addBulkManualLogs, bulkClockInOut } from '@/services/attendance/import';
 import { importLegacyPayrollSheet } from '@/services/payroll/legacy-import';
@@ -56,7 +36,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { cn, toNepaliDate, formatTimeForDisplay } from '@/lib/utils';
+import { cn, formatTimeForDisplay } from '@/lib/utils';
 import { format } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
@@ -66,6 +46,7 @@ import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import type { Employee, HrShift } from '@/lib/types';
 import { onEmployeesUpdate, updateEmployee } from '@/services/employee-service';
 import { onShiftsUpdate } from '@/services/hr-admin-service';
+import { readUploadedWorkbook } from '@/lib/workbook-import';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -130,19 +111,25 @@ export default function MachineLogsPage() {
     };
 
     useEffect(() => {
-        setIsLoading(true);
-        const unsub = onRawLogsUpdate((data) => {
-            setLogs(data);
-            setIsLoading(false);
-        });
         const unsubEmployees = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
         const unsubShifts = onShiftsUpdate(setShifts);
         return () => {
-            unsub();
             unsubEmployees();
             unsubShifts();
         };
     }, [inScope]);
+
+    // This page already shows exactly one BS year at a time, so it now fetches
+    // exactly one. Previously it streamed every raw punch ever imported and
+    // then threw away all but the selected year client-side.
+    useEffect(() => {
+        setIsLoading(true);
+        const unsub = onRawLogsUpdate({ bsYears: [parseInt(filterYear)] }, (data) => {
+            setLogs(data);
+            setIsLoading(false);
+        });
+        return () => unsub();
+    }, [filterYear]);
 
     const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
     const employeeByName = useMemo(() => new Map(employees.map(e => [e.name.toLowerCase().trim(), e])), [employees]);
@@ -196,11 +183,20 @@ export default function MachineLogsPage() {
         }
     };
 
+    // From a bounded probe rather than from `logs`, which now only ever holds
+    // the year already selected.
+    const [dataBsYears, setDataBsYears] = useState<number[]>([]);
+    useEffect(() => {
+        let cancelled = false;
+        getAttendanceYears().then(years => { if (!cancelled) setDataBsYears(years); });
+        return () => { cancelled = true; };
+    }, []);
+
     const availableYears = useMemo(() => {
-        const years = new Set(logs.map(l => l.bsYear));
+        const years = new Set(dataBsYears);
         years.add(new NepaliDate().getYear());
         return Array.from(years).sort((a, b) => b - a);
-    }, [logs]);
+    }, [dataBsYears]);
 
     const filteredAndSortedLogs = useMemo(() => {
         let filtered = [...logs];
@@ -290,7 +286,7 @@ export default function MachineLogsPage() {
 
                 try {
                     const data = new Uint8Array(event.target?.result as ArrayBuffer);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const workbook = await readUploadedWorkbook(data, { sheetjs: { cellDates: true } });
                     const dataSheets = workbook.SheetNames.filter(
                         name => !NON_ATTENDANCE_SHEETS.has(name.trim().toLowerCase())
                     );
@@ -391,7 +387,7 @@ export default function MachineLogsPage() {
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-xl"><HardDrive className="h-6 w-6 text-primary"/></div>
                     <div>
-                        <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">Data Import</h1>
+                        <h1 className="text-3xl font-black tracking-tight text-foreground uppercase">Data Import</h1>
                         <p className="text-muted-foreground text-sm font-medium italic">Machine punch logs, in one place.</p>
                     </div>
                 </div>
@@ -399,7 +395,7 @@ export default function MachineLogsPage() {
                     <Button
                         variant="outline"
                         onClick={() => { setBulkClockSelectedIds([]); setBulkClockActionType('IN'); setBulkClockTime('08:00'); setIsBulkClockOpen(true); }}
-                        className="h-10 uppercase text-[10px] font-black tracking-widest border-gray-200"
+                        className="h-10 uppercase text-[10px] font-black tracking-widest border-border"
                     >
                         <Users className="mr-2 h-3.5 w-3.5"/> Bulk Clock In/Out
                     </Button>
@@ -427,7 +423,7 @@ export default function MachineLogsPage() {
                         <div className="flex items-center gap-4">
                             <Loader2 className="h-6 w-6 text-primary animate-spin" />
                             <div className="space-y-1">
-                                <p className="text-sm font-black uppercase text-gray-900">Synchronizing Cloud Registry</p>
+                                <p className="text-sm font-black uppercase text-foreground">Synchronizing Cloud Registry</p>
                                 {currentSheetLabel && (
                                     <p className="text-[10px] text-primary font-black uppercase tracking-widest">
                                         {currentSheetLabel}
@@ -446,7 +442,7 @@ export default function MachineLogsPage() {
                 <div className="space-y-1.5 w-[120px]">
                     <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Year (BS)</Label>
                     <Select value={filterYear} onValueChange={setFilterYear}>
-                        <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>
                             {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
                         </SelectContent>
@@ -455,7 +451,7 @@ export default function MachineLogsPage() {
                 <div className="space-y-1.5 w-[140px]">
                     <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Month (BS)</Label>
                     <Select value={filterMonth} onValueChange={setFilterMonth}>
-                        <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Months</SelectItem>
                             {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
@@ -468,7 +464,7 @@ export default function MachineLogsPage() {
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder="Filter data..." 
-                            className="pl-8 h-9 text-xs bg-white" 
+                            className="pl-8 h-9 text-xs bg-card" 
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                         />
@@ -500,7 +496,7 @@ export default function MachineLogsPage() {
                 </div>
             </div>
 
-            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+            <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-0">
                     <ScrollArea className="w-full">
                         <Table className="text-[13px]">
@@ -520,12 +516,12 @@ export default function MachineLogsPage() {
                                     <TableHead className="text-right pr-6 font-bold" />
                                 </TableRow>
                             </TableHeader>
-                            <TableBody className="bg-white">
+                            <TableBody className="bg-card">
                                 {paginatedLogs.map((log) => (
                                     <TableRow key={log.id} className="h-14 border-b hover:bg-muted/10 transition-colors">
                                         <TableCell className="pl-6">
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-gray-900">{log.dateBS}</span>
+                                                <span className="font-bold text-foreground">{log.dateBS}</span>
                                                 <span className="text-[10px] text-muted-foreground tabular-nums uppercase">{format(new Date(log.date), 'dd MMM yyyy')}</span>
                                             </div>
                                         </TableCell>
@@ -548,12 +544,12 @@ export default function MachineLogsPage() {
                                                 );
                                             })()}
                                         </TableCell>
-                                        <TableCell className="text-center font-medium text-gray-500 text-xs">
+                                        <TableCell className="text-center font-medium text-muted-foreground text-xs">
                                             {log.onDuty ? `${log.onDuty.substring(0, 5)} - ${log.offDuty?.substring(0, 5)}` : '—'}
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <div className="flex flex-col items-center">
-                                                <span className="font-black text-gray-900 tabular-nums">
+                                                <span className="font-black text-foreground tabular-nums">
                                                     {formatTimeForDisplay(log.clockIn)} — {formatTimeForDisplay(log.clockOut)}
                                                 </span>
                                             </div>
@@ -568,7 +564,7 @@ export default function MachineLogsPage() {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex flex-col text-right">
-                                                <span className="text-[10px] font-bold text-gray-700 truncate max-w-[120px]">{log.sourceSheet}</span>
+                                                <span className="text-[10px] font-bold text-foreground truncate max-w-[120px]">{log.sourceSheet}</span>
                                                 <span className="text-[8px] text-muted-foreground uppercase">{format(new Date(log.importedAt), 'p, PP')}</span>
                                             </div>
                                         </TableCell>
@@ -609,7 +605,7 @@ export default function MachineLogsPage() {
             <Dialog open={isShiftAssignOpen} onOpenChange={setIsShiftAssignOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900">Reschedule Shift</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground">Reschedule Shift</DialogTitle>
                         <DialogDescription>
                             {employeeMap.get(shiftAssignEmployeeId)?.name || 'Employee'} — assigning a shift only changes how future calculations read this employee's break window and default duty times. Existing clock-in/out records are never touched.
                         </DialogDescription>
@@ -644,7 +640,7 @@ export default function MachineLogsPage() {
             <Dialog open={isBulkClockOpen} onOpenChange={setIsBulkClockOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-gray-900">Bulk Clock In / Clock Out</DialogTitle>
+                        <DialogTitle className="text-xl font-black text-foreground">Bulk Clock In / Clock Out</DialogTitle>
                         <DialogDescription>Stamp a single clock time for multiple employees on one date. Only the selected side (In or Out) is written — the other punch and any existing record are preserved.</DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-3 gap-4 py-2">

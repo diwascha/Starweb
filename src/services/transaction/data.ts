@@ -1,20 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { 
-    collection, 
-    doc, 
-    onSnapshot, 
-    getDocs, 
-    query, 
-    orderBy, 
-    setDoc, 
-    updateDoc, 
-    deleteDoc, 
-    getDoc,
-    where,
-    DocumentData, 
-    QueryDocumentSnapshot 
-} from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, doc, onSnapshot, getDocs, query, orderBy, setDoc, updateDoc, deleteDoc, getDoc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Transaction, TransactionType, InvoiceType, BillingType } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
@@ -93,22 +80,6 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     }
 };
 
-export const getTransactionsByParty = async (partyId: string): Promise<Transaction[]> => {
-    const q = query(transactionsCollection(), where("partyId", "==", partyId), orderBy('date', 'desc'));
-    try {
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(fromFirestore);
-    } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.TRANSACTIONS,
-                operation: 'list',
-            }));
-        }
-        throw error;
-    }
-};
-
 export const onTransactionsUpdate = (callback: (txns: Transaction[]) => void): () => void => {
     const q = query(transactionsCollection(), orderBy('date', 'desc'));
     return onSnapshot(q, (snapshot) => {
@@ -127,40 +98,26 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'crea
     const docRef = doc(transactionsCollection());
     const now = createTimestamp();
     const payload = { ...transaction, createdAt: now, lastModifiedAt: now };
-    setDoc(docRef, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'create',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        setDoc(docRef, payload),
+        { path: docRef.path, operation: 'create', requestResourceData: payload }
+    );
     return docRef.id;
 };
 
 export const updateTransaction = async (id: string, updates: Partial<Transaction>): Promise<void> => {
     const docRef = doc(transactionsCollection(), id);
     const payload = { ...updates, lastModifiedAt: createTimestamp() };
-    updateDoc(docRef, payload).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'update',
-                requestResourceData: payload,
-            }));
-        }
-    });
+    reportWriteFailure(
+        updateDoc(docRef, payload),
+        { path: docRef.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 export const deleteTransaction = async (id: string): Promise<void> => {
     const docRef = doc(transactionsCollection(), id);
-    deleteDoc(docRef).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'delete',
-            }));
-        }
-    });
+    reportWriteFailure(
+        deleteDoc(docRef),
+        { path: docRef.path, operation: 'delete' }
+    );
 };

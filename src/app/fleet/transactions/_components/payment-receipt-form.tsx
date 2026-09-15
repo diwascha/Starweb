@@ -7,19 +7,19 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Account, Party, Vehicle, Transaction, AccountOwnership, PartyType } from '@/lib/types';
+
+import { Card } from '@/components/ui/card';
+import { Account, Party, Vehicle, Transaction } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, PlusCircle, Loader2 } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, Loader2 } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format } from 'date-fns';
-import { cn, toNepaliDate, generateNextVoucherNumber } from '@/lib/utils';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+
+import { toNepaliDate, generateNextVoucherNumber } from '@/lib/utils';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
-import { Textarea } from '@/components/ui/textarea';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 
@@ -86,15 +86,19 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Sijan' || a.ownership === 'Both')).sort((a, b) => (a.bankName || '').localeCompare(b.bankName || '')), 
   [accounts]);
 
+  // Suggested once, on the first snapshot. The subscription callback fires on
+  // every change to the transaction ledger, so this used to rewrite the
+  // voucher number in your open form each time anyone else posted anything.
+  const voucherSuggested = React.useRef(false);
   React.useEffect(() => {
-    if (!initialValues?.voucherNo) {
-        const unsub = onTransactionsUpdate(async (txns) => {
-            const pmtRcdTxns = txns.filter(t => t.type === 'Payment' || t.type === 'Receipt');
-            const nextNum = await generateNextVoucherNumber(pmtRcdTxns, 'PRV-');
-            form.setValue('voucherNo', nextNum);
-        });
-        return () => unsub();
-    }
+    if (initialValues?.voucherNo) return;
+    const unsub = onTransactionsUpdate(async (txns) => {
+        if (voucherSuggested.current) return;
+        voucherSuggested.current = true;
+        const pmtRcdTxns = txns.filter(t => t.type === 'Payment' || t.type === 'Receipt');
+        form.setValue('voucherNo', await generateNextVoucherNumber(pmtRcdTxns, 'PRV-'));
+    });
+    return () => unsub();
   }, [initialValues, form]);
 
   const totals = React.useMemo(() => {
@@ -118,18 +122,18 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
               <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl><FormMessage/></FormItem>
             )}/>
             <FormField control={form.control} name="date" render={({ field }) => (
-              <FormItem><FormLabel>Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start text-left font-normal bg-white"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select Date'}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
+              <FormItem><FormLabel>Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start text-left font-normal bg-card"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select Date'}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
             )}/>
             <FormField control={form.control} name="billingType" render={({ field }) => (
-              <FormItem><FormLabel>Source</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select><FormMessage/></FormItem>
+              <FormItem><FormLabel>Source</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-card"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select><FormMessage/></FormItem>
             )}/>
           </div>
           {watchedBillingType === 'Bank' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t border-blue-100">
                   <FormField control={form.control} name="accountId" render={({ field }) => (
-                      <FormItem><FormLabel>Bank Account</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}><FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Select Account"/></SelectTrigger></FormControl><SelectContent>{sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                      <FormItem><FormLabel>Bank Account</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}><FormControl><SelectTrigger className="bg-card"><SelectValue placeholder="Select Account"/></SelectTrigger></FormControl><SelectContent>{sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
                   )}/>
-                  <FormField control={form.control} name="chequeNo" render={({ field }) => (<FormItem><FormLabel>Cheque / Ref #</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white" /></FormControl></FormItem>)}/>
+                  <FormField control={form.control} name="chequeNo" render={({ field }) => (<FormItem><FormLabel>Cheque / Ref #</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-card" /></FormControl></FormItem>)}/>
               </div>
           )}
         </Card>

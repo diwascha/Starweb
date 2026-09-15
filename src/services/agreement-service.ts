@@ -1,6 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, query, orderBy, writeBatch } from 'firebase/firestore';
+import { reportWriteFailure } from '@/lib/write-reporting';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, writeBatch } from 'firebase/firestore';
 import type { RentalAgreement } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
@@ -115,12 +116,8 @@ export const terminateAgreement = async (id: string, unitId: string, terminatedB
 
 export const deleteAgreement = async (id: string): Promise<void> => {
     const docRef = doc(getCollection(), id);
-    deleteDoc(docRef).catch(async (err: any) => {
-        if (err.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'delete',
-            }));
-        }
-    });
+    reportWriteFailure(
+        deleteDoc(docRef),
+        { path: docRef.path, operation: 'delete' }
+    );
 };

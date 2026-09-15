@@ -2,26 +2,14 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-    Printer, 
-    ArrowLeft, 
-    Loader2, 
-    FileText, 
-    ShieldCheck, 
-    Save, 
-    History,
-    CheckCircle2,
-    X,
-    ImageIcon
-} from 'lucide-react';
+import { Printer, ArrowLeft, Loader2, ShieldCheck, Save, CheckCircle2 } from 'lucide-react';
 import type { Report, CompanyProfile, ProductSpecification } from '@/lib/types';
 import { getReport } from '@/services/report-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toNepaliDate, cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
+import { toNepaliDate } from '@/lib/utils';
+
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 
@@ -56,7 +44,9 @@ function ReportViewContent() {
 
         fetchData();
         return onSettingUpdate('companyProfile', (s) => {
-            if (s?.value) setCompanyProfile(s.value);
+            // Fall back to the registry default rather than leaving the
+            // letterhead blank when no profile has been saved yet.
+            setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE);
         });
     }, [id]);
 
@@ -127,7 +117,7 @@ function ReportViewContent() {
                 </div>
             </header>
 
-            <div className="printable-area p-12 bg-white text-black border shadow-2xl ring-1 ring-black/5 min-h-[297mm] flex flex-col">
+            <div className="paper printable-area p-12 bg-white text-black border shadow-2xl ring-1 ring-black/5 min-h-[297mm] flex flex-col">
                 <header className="text-center space-y-1 mb-10 border-b-2 border-neutral-900 pb-6">
                     <h1 className="text-2xl font-black uppercase tracking-tight">{companyProfile.nameEn}</h1>
                     <h2 className="text-lg font-semibold">{companyProfile.nameNp}</h2>
@@ -204,7 +194,7 @@ function ReportViewContent() {
                                 </div>
                                 <div>
                                     <p className="text-[9px] font-black uppercase text-neutral-400 tracking-widest mb-1">Authorized By</p>
-                                    <p className="text-xs font-bold uppercase">Shivam Packaging Quality Control</p>
+                                    <p className="text-xs font-bold uppercase">{companyProfile.nameEn} Quality Control</p>
                                 </div>
                             </div>
                         </div>

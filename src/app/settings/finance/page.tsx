@@ -2,15 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { 
-  Party, 
-  Account, 
-  PartyType, 
-  AccountType, 
-  BankAccountType, 
-  AccountOwnership,
-  OwnershipCategory
-} from '@/lib/types';
+import { Party, Account, PartyType, AccountType, BankAccountType, AccountOwnership } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -40,7 +32,7 @@ import {
   Loader2,
   ShieldAlert,
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -53,7 +45,6 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
-import { modules } from '@/lib/types';
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
@@ -244,7 +235,7 @@ export default function FinanceSettingsPage() {
   return (
     <div className="flex flex-col gap-8">
         <header>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Finance & Ledgers</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Finance & Ledgers</h1>
             <p className="text-muted-foreground text-sm">Vendors, accounts, and payroll control.</p>
         </header>
 
@@ -256,7 +247,7 @@ export default function FinanceSettingsPage() {
             </TabsList>
 
             <TabsContent value="parties" className="animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 bg-white">
+                <Card className="shadow-sm border-border bg-card">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Partner Registry</CardTitle>
                         <div className="flex gap-2">
@@ -318,7 +309,7 @@ export default function FinanceSettingsPage() {
             </TabsContent>
 
             <TabsContent value="accounts" className="animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Financial Accounts</CardTitle>
                         <Button size="sm" onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
@@ -372,7 +363,7 @@ export default function FinanceSettingsPage() {
             </TabsContent>
 
             <TabsContent value="payroll" className="animate-in fade-in slide-in-from-left-2">
-                <Card className="shadow-sm border-gray-100 border-l-4 border-l-amber-500 overflow-hidden">
+                <Card className="shadow-sm border-border border-l-4 border-l-amber-500 overflow-hidden">
                     <CardHeader className="bg-amber-50/50 py-4 px-6 border-b">
                         <div className="flex items-center gap-3">
                             <ShieldAlert className="h-5 w-5 text-amber-600"/>
@@ -380,7 +371,7 @@ export default function FinanceSettingsPage() {
                         </div>
                     </CardHeader>
                     <CardContent className="p-6">
-                        <div className="flex flex-wrap gap-4 items-end bg-white p-4 rounded-xl border-2 border-dashed border-amber-200">
+                        <div className="flex flex-wrap gap-4 items-end bg-card p-4 rounded-xl border-2 border-dashed border-amber-200">
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label><Select value={selectedLockYear} onValueChange={setSelectedLockYear}><SelectTrigger className="w-[120px] h-9"><SelectValue /></SelectTrigger><SelectContent>{bsYears.map(y => <SelectItem key={`lock-y-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent></Select></div>
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label><Select value={selectedLockMonth} onValueChange={setSelectedLockMonth}><SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger><SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`lock-m-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent></Select></div>
                             <Button onClick={handleTogglePayrollLock} variant={isCurrentPeriodLocked ? 'destructive' : 'default'} className="h-9 px-8 font-black text-xs uppercase">
