@@ -218,7 +218,7 @@ export default function FleetDashboardPage() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div><CardTitle>Upcoming Renewals</CardTitle></div>
                          <Button asChild size="sm" variant="outline">
-                            <Link href="/fleet/policies">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                            <Link href="/fleet/registry?tab=policies">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
                         </Button>
                     </CardHeader>
                     <CardContent>

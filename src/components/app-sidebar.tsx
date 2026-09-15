@@ -29,10 +29,9 @@ import {
   Award, 
   Wallet, 
   Building2, 
-  PlusCircle, 
-  Truck, 
-  ShieldCheck, 
-  CreditCard, 
+  PlusCircle,
+  Truck,
+  CreditCard,
   ArrowRightLeft,
   TrendingUp,
   Notebook,
@@ -408,8 +407,7 @@ export function AppSidebar() {
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/fleet', true)}><Link href="/fleet" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/registry')}><Link href="/fleet/registry" className="flex items-center gap-2"><Truck className="h-4 w-4" /><span>Vehicles & Drivers</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies" className="flex items-center gap-2"><ShieldCheck className="h-4 w-4" /><span>Policies & Memberships</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/registry')}><Link href="/fleet/registry" className="flex items-center gap-2"><Truck className="h-4 w-4" /><span>Registry (Vehicles, Drivers & Policies)</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/import')}><Link href="/fleet/import" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>Import from Excel</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
 

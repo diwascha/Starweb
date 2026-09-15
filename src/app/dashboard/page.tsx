@@ -525,7 +525,7 @@ export default function DashboardPage() {
         actions.push({
             label: 'Renew Expired Fleet Policies',
             count: fleetStats.expired,
-            href: '/fleet/policies',
+            href: '/fleet/registry?tab=policies',
             items: expiredCases
         });
     }
@@ -781,7 +781,7 @@ export default function DashboardPage() {
                 <StatCardSkeleton />
               ) : (
                 <TripleTile
-                  href="/fleet/policies"
+                  href="/fleet/registry?tab=policies"
                   label="Fleet Alerts"
                   icon={Truck}
                   accent={
