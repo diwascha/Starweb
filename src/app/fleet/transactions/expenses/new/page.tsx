@@ -58,7 +58,7 @@ export default function NewExpenseEntryPage() {
                     </div>
                     <p className="text-muted-foreground ml-10">Record a truck-related expense payment</p>
                 </div>
-                <Button variant="outline" onClick={() => router.push('/fleet/transactions')}>
+                <Button variant="outline" onClick={() => router.push('/fleet/transactions/ledger?view=expenses')}>
                     <History className="mr-2 h-4 w-4" /> Expense History
                 </Button>
             </header>

@@ -251,7 +251,7 @@ export default function FleetDashboardPage() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div><CardTitle>Recent Transactions</CardTitle></div>
                         <Button asChild size="sm" variant="outline">
-                            <Link href="/fleet/transactions">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                            <Link href="/fleet/transactions/ledger?view=grand">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
                         </Button>
                     </CardHeader>
                     <CardContent>

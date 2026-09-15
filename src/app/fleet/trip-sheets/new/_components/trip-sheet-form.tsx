@@ -417,7 +417,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
             } else {
                 await addTrip(tripDataForDb);
                 toast({ title: 'Success', description: 'Sales - Trip Sheet created and transaction recorded.' });
-                router.push('/fleet/transactions');
+                router.push('/fleet/transactions/ledger?view=grand');
             }
 
         } catch (error) {

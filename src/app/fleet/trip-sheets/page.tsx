@@ -7,6 +7,6 @@ import { useRouter } from 'next/navigation';
 // consolidated ledgers). Kept as a redirect so old bookmarks/links don't 404.
 export default function TripSheetsPage() {
     const router = useRouter();
-    useEffect(() => { router.replace('/fleet/transactions/purchase-sales/sales'); }, [router]);
+    useEffect(() => { router.replace('/fleet/transactions/ledger?view=sales'); }, [router]);
     return null;
 }
