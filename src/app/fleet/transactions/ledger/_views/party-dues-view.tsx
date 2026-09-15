@@ -15,6 +15,9 @@ import type { Transaction, Party } from '@/lib/types';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
+import { LedgerToolbar, type LedgerColumn } from '../_components/ledger-toolbar';
+import { SortableHead } from '../_components/sortable-head';
+import { LedgerFilterBar } from '../_components/ledger-filter-bar';
 
 interface PartyDue {
     party: Party;
@@ -22,6 +25,9 @@ interface PartyDue {
     credit: number;
     balance: number; // > 0 = they owe us (receivable), < 0 = we owe them (payable)
 }
+
+type SortKey = 'name' | 'type' | 'debit' | 'credit' | 'balance';
+type SortDirection = 'asc' | 'desc';
 
 export function PartyDuesView() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -32,6 +38,7 @@ export function PartyDuesView() {
     const [filterYear, setFilterYear] = useState('All');
     const [filterMonth, setFilterMonth] = useState('All');
     const [filterPartyId, setFilterPartyId] = useState('All');
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'balance', direction: 'desc' });
     const { inScope } = useOwnershipScope('fleet');
 
     useEffect(() => {
@@ -73,19 +80,48 @@ export function PartyDuesView() {
             })
             .filter(p => showZero || Math.abs(p.balance) > 0.5)
             .filter(p => p.party.name.toLowerCase().includes(search.toLowerCase()))
-            .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
-    }, [parties, filteredTransactions, search, showZero, filterPartyId]);
+            .sort((a, b) => {
+                const getSortValue = (p: PartyDue) => sortConfig.key === 'name' ? p.party.name : sortConfig.key === 'type' ? p.party.type : p[sortConfig.key];
+                const aVal = getSortValue(a);
+                const bVal = getSortValue(b);
+                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+    }, [parties, filteredTransactions, search, showZero, filterPartyId, sortConfig]);
+
+    const requestSort = (key: SortKey) => {
+        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
+    };
 
     const totals = useMemo(() => partyDues.reduce((acc, p) => ({
         receivable: acc.receivable + (p.balance > 0 ? p.balance : 0),
         payable: acc.payable + (p.balance < 0 ? -p.balance : 0),
     }), { receivable: 0, payable: 0 }), [partyDues]);
 
+    const exportColumns: LedgerColumn<PartyDue>[] = [
+        { header: 'Party', value: p => p.party.name },
+        { header: 'Type', value: p => p.party.type },
+        { header: 'Debit', align: 'right', value: p => p.debit.toLocaleString() },
+        { header: 'Credit', align: 'right', value: p => p.credit.toLocaleString() },
+        { header: 'Balance', align: 'right', value: p => Math.abs(p.balance).toLocaleString() },
+        { header: 'Status', value: p => p.balance > 0.5 ? 'Receivable' : p.balance < -0.5 ? 'Payable' : 'Settled' },
+    ];
+
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-black tracking-tight flex items-center gap-2"><Users className="h-6 w-6 text-primary" /> Party-wise Payment Due</h1>
-                <p className="text-sm text-muted-foreground">Outstanding balance per customer/vendor across all fleet transactions and vouchers.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-black tracking-tight flex items-center gap-2"><Users className="h-6 w-6 text-primary" /> Party-wise Payment Due</h1>
+                    <p className="text-sm text-muted-foreground">Outstanding balance per customer/vendor across all fleet transactions and vouchers.</p>
+                </div>
+                <LedgerToolbar
+                    title="Party-wise Payment Due"
+                    subtitle={`Party: ${filterPartyId === 'All' ? 'All' : parties.find(p => p.id === filterPartyId)?.name} | Year: ${filterYear} | Month: ${filterMonth}`}
+                    columns={exportColumns}
+                    rows={partyDues}
+                    filenamePrefix="Party_Dues"
+                />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -95,7 +131,7 @@ export function PartyDuesView() {
 
             <Card>
                 <CardContent className="pt-6 space-y-4">
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-center">
+                    <LedgerFilterBar className="rounded-lg p-3 items-center">
                         <div className="relative flex-1 min-w-[180px] max-w-sm">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Search party..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
@@ -124,16 +160,16 @@ export function PartyDuesView() {
                         <Button variant="outline" size="sm" className="h-9 text-xs sm:ml-auto" onClick={() => setShowZero(v => !v)}>
                             {showZero ? 'Hide settled parties' : 'Show all parties'}
                         </Button>
-                    </div>
+                    </LedgerFilterBar>
 
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Party</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead className="text-right">Debit</TableHead>
-                                <TableHead className="text-right">Credit</TableHead>
-                                <TableHead className="text-right">Balance</TableHead>
+                                <SortableHead label="Party" active={sortConfig.key === 'name'} onClick={() => requestSort('name')} />
+                                <SortableHead label="Type" active={sortConfig.key === 'type'} onClick={() => requestSort('type')} />
+                                <SortableHead label="Debit" align="right" active={sortConfig.key === 'debit'} onClick={() => requestSort('debit')} />
+                                <SortableHead label="Credit" align="right" active={sortConfig.key === 'credit'} onClick={() => requestSort('credit')} />
+                                <SortableHead label="Balance" align="right" active={sortConfig.key === 'balance'} onClick={() => requestSort('balance')} />
                                 <TableHead>Status</TableHead>
                             </TableRow>
                         </TableHeader>

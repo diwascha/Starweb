@@ -3,24 +3,19 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-  PlusCircle, 
-  MoreHorizontal, 
-  Edit, 
-  Trash2, 
-  View, 
-  ArrowUpDown, 
-  Search, 
+import {
+  PlusCircle,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  View,
+  Search,
   User,
-  FileSpreadsheet,
-  FileText,
   Printer,
   Loader2,
   Check,
   ChevronDown,
   FilterX,
-  Truck,
-  Users,
   CalendarIcon,
   ChevronLeft,
   ChevronRight
@@ -73,11 +68,12 @@ import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { Label } from '@/components/ui/label';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
+import { LedgerToolbar, type LedgerColumn } from '../_components/ledger-toolbar';
+import { SortableHead } from '../_components/sortable-head';
+import { LedgerFilterBar } from '../_components/ledger-filter-bar';
 
 type SortKey = 'date' | 'vehicleName' | 'customerName' | 'finalDestination' | 'netAmount' | 'authorship';
 type SortDirection = 'asc' | 'desc';
@@ -351,60 +347,15 @@ export function SalesView() {
     return Math.ceil(filteredAndSortedTrips.length / itemsPerPage);
   }, [filteredAndSortedTrips, itemsPerPage]);
 
-  const handleExportExcel = async () => {
-    try {
-        const XLSX = await import('xlsx');
-        const data = filteredAndSortedTrips.map(trip => ({
-            'Date (BS)': toNepaliDate(trip.date),
-            'Date (AD)': format(new Date(trip.date), 'yyyy-MM-dd'),
-            'Trip #': trip.tripNumber,
-            'Vehicle': trip.vehicleName,
-            'Customer': trip.customerName,
-            'Destination': trip.finalDestination,
-            'Net Bank Pay (NPR)': trip.netAmount.toFixed(2),
-            'Posted By': trip.lastModifiedBy || trip.createdBy
-        }));
-
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Trips");
-        XLSX.writeFile(workbook, `Sales_Trips_Export_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-        toast({ title: 'Export Successful', description: 'Sales trip data exported to Excel.' });
-    } catch (error) {
-        toast({ title: 'Export Failed', description: 'Could not export to Excel.', variant: 'destructive' });
-    }
-  };
-
-  const handleExportPdf = () => {
-    try {
-        const doc = new jsPDF();
-        doc.text("Sales - Trip Sheets Report", 14, 15);
-        doc.setFontSize(10);
-        doc.text(`Generated on: ${format(new Date(), 'PPP')}`, 14, 22);
-
-        const tableData = filteredAndSortedTrips.map(trip => [
-            toNepaliDate(trip.date),
-            trip.tripNumber,
-            trip.vehicleName,
-            trip.customerName,
-            trip.finalDestination,
-            trip.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })
-        ]);
-
-        autoTable(doc, {
-            startY: 30,
-            head: [['Date (BS)', 'Trip #', 'Vehicle', 'Customer', 'Destination', 'Net Pay (NPR)']],
-            body: tableData,
-            theme: 'grid',
-            headStyles: { fillColor: [71, 85, 105] }
-        });
-
-        doc.save(`Sales_Trips_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-        toast({ title: 'Export Successful', description: 'Sales trip report saved as PDF.' });
-    } catch (error) {
-        toast({ title: 'Export Failed', description: 'Could not generate PDF.', variant: 'destructive' });
-    }
-  };
+  const exportColumns: LedgerColumn<typeof augmentedTrips[number]>[] = [
+    { header: 'Date (BS)', value: trip => toNepaliDate(trip.date) },
+    { header: 'Trip #', value: trip => trip.tripNumber },
+    { header: 'Vehicle', value: trip => trip.vehicleName },
+    { header: 'Customer', value: trip => trip.customerName },
+    { header: 'Destination', value: trip => trip.finalDestination },
+    { header: 'Net Bank Pay (NPR)', align: 'right', value: trip => trip.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+    { header: 'Posted By', value: trip => trip.lastModifiedBy || trip.createdBy },
+  ];
 
   const handleClearFilters = () => {
     setSearchQuery('');
@@ -457,12 +408,12 @@ export function SalesView() {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-[11px]">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4 h-8 px-2 text-[11px]">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('customerName')} className="-ml-4 h-8 px-2 text-[11px]">Customer <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('finalDestination')} className="-ml-4 h-8 px-2 text-[11px]">Destination <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('netAmount')} className="-ml-4 h-8 px-2 text-[11px]">Net Bank Pay <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                        <TableHead className="text-[11px]">Authorship</TableHead>
+                        <SortableHead label="Date" active={sortConfig.key === 'date'} onClick={() => requestSort('date')} />
+                        <SortableHead label="Vehicle" active={sortConfig.key === 'vehicleName'} onClick={() => requestSort('vehicleName')} />
+                        <SortableHead label="Customer" active={sortConfig.key === 'customerName'} onClick={() => requestSort('customerName')} />
+                        <SortableHead label="Destination" active={sortConfig.key === 'finalDestination'} onClick={() => requestSort('finalDestination')} />
+                        <SortableHead label="Net Bank Pay" active={sortConfig.key === 'netAmount'} onClick={() => requestSort('netAmount')} />
+                        <SortableHead label="Authorship" active={sortConfig.key === 'authorship'} onClick={() => requestSort('authorship')} />
                         <TableHead className="text-right text-[11px]">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -626,6 +577,13 @@ export function SalesView() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input type="search" placeholder="Search trips..." className="pl-8 sm:w-[300px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
+            <LedgerToolbar
+                title="Sales - Trip Sheets"
+                subtitle={isFiltered ? 'Filtered view' : 'All trips'}
+                columns={exportColumns}
+                rows={filteredAndSortedTrips}
+                filenamePrefix="Sales_Trips"
+            />
             {hasPermission('fleet', 'create') && (
                 <Button asChild>
                     <Link href="/fleet/trip-sheets/new">
@@ -636,9 +594,8 @@ export function SalesView() {
         </div>
       </header>
 
-      <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-lg border border-dashed">
-            <div className="flex flex-wrap gap-4 items-end">
-                <MultiSelect 
+      <LedgerFilterBar>
+                <MultiSelect
                     label="Year (BS)" 
                     values={filterBsYears} 
                     onSelect={setFilterBsYears} 
@@ -692,24 +649,12 @@ export function SalesView() {
                         </SelectContent>
                     </Select>
                 </div>
-            </div>
-            
-            <div className="flex gap-2 w-full md:w-auto items-center pt-2 border-t border-dashed">
                 {isFiltered && (
-                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
+                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground hover:text-foreground h-9 px-2 text-xs">
                         <FilterX className="mr-2 h-3.5 w-3.5" /> Clear All Filters
                     </Button>
                 )}
-                <div className="ml-auto flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleExportExcel} className="h-8 text-xs">
-                        <FileSpreadsheet className="mr-2 h-3.5 w-3.5 text-emerald-600" /> Excel
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleExportPdf} className="h-8 text-xs">
-                        <FileText className="mr-2 h-3.5 w-3.5 text-red-600" /> PDF
-                    </Button>
-                </div>
-            </div>
-      </div>
+      </LedgerFilterBar>
 
       {renderContent()}
     </div>

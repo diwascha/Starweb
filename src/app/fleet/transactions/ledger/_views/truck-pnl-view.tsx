@@ -14,6 +14,9 @@ import type { Transaction, Vehicle } from '@/lib/types';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
+import { LedgerToolbar, type LedgerColumn } from '../_components/ledger-toolbar';
+import { SortableHead } from '../_components/sortable-head';
+import { LedgerFilterBar } from '../_components/ledger-filter-bar';
 
 interface TruckPnl {
     vehicle: Vehicle;
@@ -24,6 +27,9 @@ interface TruckPnl {
     categoryBreakdown: Record<string, number>;
 }
 
+type SortKey = 'name' | 'tripCount' | 'income' | 'expense' | 'net';
+type SortDirection = 'asc' | 'desc';
+
 export function TruckPnlView() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -32,6 +38,7 @@ export function TruckPnlView() {
     const [filterYear, setFilterYear] = useState('All');
     const [filterMonth, setFilterMonth] = useState('All');
     const [filterVehicleId, setFilterVehicleId] = useState('All');
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'net', direction: 'desc' });
     const { inScope } = useOwnershipScope('fleet');
 
     useEffect(() => {
@@ -82,8 +89,19 @@ export function TruckPnlView() {
             }
             return { vehicle, income, expense, net: income - expense, tripCount, categoryBreakdown };
         }).filter(p => p.vehicle.name.toLowerCase().includes(search.toLowerCase()))
-          .sort((a, b) => b.net - a.net);
-    }, [vehicles, filteredTransactions, search]);
+          .sort((a, b) => {
+              const getSortValue = (p: TruckPnl) => sortConfig.key === 'name' ? p.vehicle.name : p[sortConfig.key];
+              const aVal = getSortValue(a);
+              const bVal = getSortValue(b);
+              if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+              if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+              return 0;
+          });
+    }, [vehicles, filteredTransactions, search, sortConfig]);
+
+    const requestSort = (key: SortKey) => {
+        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
+    };
 
     const totals = useMemo(() => truckPnls.reduce((acc, p) => ({
         income: acc.income + p.income,
@@ -91,11 +109,29 @@ export function TruckPnlView() {
         net: acc.net + p.net,
     }), { income: 0, expense: 0, net: 0 }), [truckPnls]);
 
+    const exportColumns: LedgerColumn<TruckPnl>[] = [
+        { header: 'Truck', value: p => p.vehicle.name },
+        { header: 'Trips', align: 'right', value: p => p.tripCount },
+        { header: 'Income', align: 'right', value: p => p.income.toLocaleString() },
+        { header: 'Expense', align: 'right', value: p => p.expense.toLocaleString() },
+        { header: 'Net', align: 'right', value: p => p.net.toLocaleString() },
+        { header: 'Cost Breakdown', value: p => Object.entries(p.categoryBreakdown).map(([cat, amt]) => `${cat}: ${amt.toLocaleString()}`).join('; ') },
+    ];
+
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-black tracking-tight flex items-center gap-2"><Truck className="h-6 w-6 text-primary" /> Truck-wise Profit &amp; Loss</h1>
-                <p className="text-sm text-muted-foreground">Income (freight) vs. all recorded expenses (maintenance, fuel, insurance, tax/renewal, loan, advance) per truck.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-black tracking-tight flex items-center gap-2"><Truck className="h-6 w-6 text-primary" /> Truck-wise Profit &amp; Loss</h1>
+                    <p className="text-sm text-muted-foreground">Income (freight) vs. all recorded expenses (maintenance, fuel, insurance, tax/renewal, loan, advance) per truck.</p>
+                </div>
+                <LedgerToolbar
+                    title="Truck-wise Profit & Loss"
+                    subtitle={`Truck: ${filterVehicleId === 'All' ? 'All' : vehicles.find(v => v.id === filterVehicleId)?.name} | Year: ${filterYear} | Month: ${filterMonth}`}
+                    columns={exportColumns}
+                    rows={truckPnls}
+                    filenamePrefix="Truck_PnL"
+                />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -106,7 +142,7 @@ export function TruckPnlView() {
 
             <Card>
                 <CardContent className="pt-6 space-y-4">
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                    <LedgerFilterBar className="rounded-lg p-3">
                         <div className="relative flex-1 min-w-[180px] max-w-sm">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Search truck..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
@@ -132,16 +168,16 @@ export function TruckPnlView() {
                                 {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                    </div>
+                    </LedgerFilterBar>
 
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Truck</TableHead>
-                                <TableHead className="text-right">Trips</TableHead>
-                                <TableHead className="text-right">Income</TableHead>
-                                <TableHead className="text-right">Expense</TableHead>
-                                <TableHead className="text-right">Net</TableHead>
+                                <SortableHead label="Truck" active={sortConfig.key === 'name'} onClick={() => requestSort('name')} />
+                                <SortableHead label="Trips" align="right" active={sortConfig.key === 'tripCount'} onClick={() => requestSort('tripCount')} />
+                                <SortableHead label="Income" align="right" active={sortConfig.key === 'income'} onClick={() => requestSort('income')} />
+                                <SortableHead label="Expense" align="right" active={sortConfig.key === 'expense'} onClick={() => requestSort('expense')} />
+                                <SortableHead label="Net" align="right" active={sortConfig.key === 'net'} onClick={() => requestSort('net')} />
                                 <TableHead>Cost Breakdown</TableHead>
                             </TableRow>
                         </TableHeader>

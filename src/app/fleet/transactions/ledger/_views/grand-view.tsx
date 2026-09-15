@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { SortableHead } from '../_components/sortable-head';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -138,6 +139,7 @@ export function GrandLedgerView() {
 
     const [filtersOpen, setFiltersOpen] = useState(true);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [dateOrder, setDateOrder] = useState<'asc' | 'desc'>('desc');
     const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
     useEffect(() => {
@@ -316,16 +318,23 @@ export function GrandLedgerView() {
         };
     }, [transactions, filterParties, filterVehicles, filterBillingTypes, bsPeriods, dateRange, filterCategory, globalSearch, vehiclesById, partiesById, accountsById]);
 
+    // ledgerData.entries is newest-first (running balance is computed
+    // oldest-to-first internally, then reversed for display). Flip it back
+    // for the "oldest first" view rather than re-deriving the balance.
+    const orderedEntries = useMemo(() => {
+        return dateOrder === 'asc' ? [...ledgerData.entries].reverse() : ledgerData.entries;
+    }, [ledgerData.entries, dateOrder]);
+
     const paginatedEntries = useMemo(() => {
-        if (itemsPerPage === -1) return ledgerData.entries;
+        if (itemsPerPage === -1) return orderedEntries;
         const start = (currentPage - 1) * itemsPerPage;
-        return ledgerData.entries.slice(start, start + itemsPerPage);
-    }, [ledgerData.entries, currentPage, itemsPerPage]);
+        return orderedEntries.slice(start, start + itemsPerPage);
+    }, [orderedEntries, currentPage, itemsPerPage]);
 
     const totalPages = useMemo(() => {
         if (itemsPerPage === -1) return 1;
-        return Math.max(1, Math.ceil(ledgerData.entries.length / itemsPerPage));
-    }, [ledgerData.entries, itemsPerPage]);
+        return Math.max(1, Math.ceil(orderedEntries.length / itemsPerPage));
+    }, [orderedEntries, itemsPerPage]);
 
     const activeFilterCount = useMemo(() => {
         let n = 0;
@@ -690,7 +699,12 @@ export function GrandLedgerView() {
                     <Table className="text-[13px]">
                         <TableHeader>
                             <TableRow className="hover:bg-transparent bg-muted/40">
-                                <TableHead className="w-[110px] font-semibold">Date (BS)</TableHead>
+                                <SortableHead
+                                    label="Date (BS)"
+                                    className="w-[110px] font-semibold"
+                                    active
+                                    onClick={() => setDateOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                />
                                 <TableHead className="w-[110px] font-semibold">Ref no.</TableHead>
                                 <TableHead className="min-w-[280px] font-semibold">Particulars</TableHead>
                                 <TableHead className="w-[140px] font-semibold">Vehicle</TableHead>

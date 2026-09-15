@@ -3,10 +3,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  PlusCircle, 
-  Search, 
-  ArrowUpDown, 
-  MoreHorizontal, 
+  PlusCircle,
+  Search,
+  MoreHorizontal,
   Trash2, 
   Edit, 
   FilterX, 
@@ -48,8 +47,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
+import { LedgerToolbar, type LedgerColumn } from '../_components/ledger-toolbar';
+import { SortableHead } from '../_components/sortable-head';
+import { LedgerFilterBar } from '../_components/ledger-filter-bar';
 
-type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType';
+type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType' | 'vehicle' | 'paymentMode';
 type SortDirection = 'asc' | 'desc';
 
 const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
@@ -217,9 +219,17 @@ export function ExpensesView() {
             filtered = filtered.filter(e => filterPaymentModes.includes(e.paymentMode));
         }
         
+        const getSortValue = (e: Expense) => {
+            switch (sortConfig.key) {
+                case 'vehicle': return vehiclesById.get(e.vehicleId) || '';
+                case 'paymentMode': return e.paymentMode || '';
+                default: return (e as any)[sortConfig.key] || '';
+            }
+        };
+
         filtered.sort((a, b) => {
-            const aVal = a[sortConfig.key] || '';
-            const bVal = b[sortConfig.key] || '';
+            const aVal = getSortValue(a);
+            const bVal = getSortValue(b);
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
@@ -277,6 +287,16 @@ export function ExpensesView() {
                filterPaymentModes.length > 0;
     }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, filterExpenseTypes, filterPaymentModes]);
 
+    const exportColumns: LedgerColumn<Expense>[] = [
+        { header: 'Date (BS)', value: e => toNepaliDate(e.date) },
+        { header: 'Voucher #', value: e => e.voucherNo },
+        { header: 'Vehicle', value: e => vehiclesById.get(e.vehicleId) || 'N/A' },
+        { header: 'Type', value: e => e.expenseType },
+        { header: 'Settlement', value: e => e.paymentMode },
+        { header: 'Payee / Detail', value: e => e.partyId ? (partiesById.get(e.partyId) || '') : e.destination ? `To ${e.destination}` : 'Direct Cash' },
+        { header: 'Total NPR', align: 'right', value: e => (e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+    ];
+
     return (
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row items-start sm:items-center justify-between gap-4">
@@ -289,6 +309,13 @@ export function ExpensesView() {
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input type="search" placeholder="Search history..." className="pl-8 sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
+                    <LedgerToolbar
+                        title="Expense History"
+                        subtitle={isFiltered ? 'Filtered view' : 'All expenses'}
+                        columns={exportColumns}
+                        rows={filteredAndSortedExpenses}
+                        filenamePrefix="Expense_History"
+                    />
                     {hasPermission('fleet', 'create') && (
                         <Button onClick={() => router.push('/fleet/transactions/expenses/new')}>
                             <PlusCircle className="mr-2 h-4 w-4" /> New Expense
@@ -297,14 +324,14 @@ export function ExpensesView() {
                 </div>
             </header>
 
-            <div className="bg-muted/20 p-4 rounded-lg border border-dashed flex flex-wrap gap-4 items-end">
+            <LedgerFilterBar>
                 <MultiSelect label="Year (BS)" values={filterBsYears} onSelect={setFilterBsYears} items={availableYears.map(y => ({ id: String(y), name: String(y) }))} placeholder="Year" />
                 <MultiSelect label="Month (BS)" values={filterBsMonths} onSelect={setFilterBsMonths} items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} placeholder="Month" />
                 <MultiSelect label="Vehicle" values={filterVehicleIds} onSelect={setFilterVehicleIds} items={vehicles} placeholder="Vehicle" icon={Truck} />
                 <MultiSelect label="Party" values={filterPartyIds} onSelect={setFilterPartyIds} items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} placeholder="Party" icon={Users} />
                 <MultiSelect label="Category" values={filterExpenseTypes} onSelect={setFilterExpenseTypes} items={[{ id: 'Advance', name: 'Advance' }, { id: 'Maintenance', name: 'Maintenance' }, { id: 'Fuel', name: 'Fuel' }, { id: 'Insurance', name: 'Insurance' }, { id: 'Tax/Renewal', name: 'Tax/Renewal' }, { id: 'Loan Repayment', name: 'Loan Repayment' }, { id: 'Transport', name: 'Transport' }, { id: 'Other', name: 'Other' }]} placeholder="Category" icon={Tag} />
                 <MultiSelect label="Mode" values={filterPaymentModes} onSelect={setFilterPaymentModes} items={[{ id: 'Cash', name: 'Cash' }, { id: 'Bank', name: 'Bank' }, { id: 'Mixed', name: 'Mixed' }]} placeholder="Mode" icon={Wallet} />
-                
+
                 <div className="space-y-1.5 w-full md:w-[180px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
                     <Popover>
@@ -320,20 +347,20 @@ export function ExpensesView() {
                 {isFiltered && (
                     <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs"><FilterX className="mr-2 h-3.5 w-3.5" /> Reset</Button>
                 )}
-            </div>
+            </LedgerFilterBar>
 
             <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
-                                <TableHead className="pl-6"><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Date <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'date' ? "opacity-100" : "opacity-30")} /></Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Voucher # <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'voucherNo' ? "opacity-100" : "opacity-30")} /></Button></TableHead>
-                                <TableHead className="text-[11px] font-black uppercase tracking-wider">Vehicle</TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">Type <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'expenseType' ? "opacity-100" : "opacity-30")} /></Button></TableHead>
-                                <TableHead className="text-[11px] font-black uppercase tracking-wider">Settlement</TableHead>
+                                <SortableHead label="Date" className="pl-6" active={sortConfig.key === 'date'} onClick={() => requestSort('date')} />
+                                <SortableHead label="Voucher #" active={sortConfig.key === 'voucherNo'} onClick={() => requestSort('voucherNo')} />
+                                <SortableHead label="Vehicle" active={sortConfig.key === 'vehicle'} onClick={() => requestSort('vehicle')} />
+                                <SortableHead label="Type" active={sortConfig.key === 'expenseType'} onClick={() => requestSort('expenseType')} />
+                                <SortableHead label="Settlement" active={sortConfig.key === 'paymentMode'} onClick={() => requestSort('paymentMode')} />
                                 <TableHead className="text-[11px] font-black uppercase tracking-wider">Payee / Detail</TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider text-right w-full">Total NPR <ArrowUpDown className={cn("ml-2 h-3 w-3", sortConfig.key === 'amount' ? "opacity-100" : "opacity-30")} /></Button></TableHead>
+                                <SortableHead label="Total NPR" align="right" active={sortConfig.key === 'amount'} onClick={() => requestSort('amount')} />
                                 <TableHead className="text-right pr-6 text-[11px] font-black uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>

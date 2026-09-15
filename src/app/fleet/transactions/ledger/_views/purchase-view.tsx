@@ -16,7 +16,6 @@ import { Card, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
 import { toNepaliDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
@@ -28,8 +27,11 @@ import type { DateRange } from 'react-day-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import NepaliDate from 'nepali-date-converter';
+import { LedgerToolbar, type LedgerColumn } from '../_components/ledger-toolbar';
+import { SortableHead } from '../_components/sortable-head';
+import { LedgerFilterBar, LedgerFilterField } from '../_components/ledger-filter-bar';
 
-type SortKey = 'date' | 'purchaseNumber' | 'amount';
+type SortKey = 'date' | 'purchaseNumber' | 'vehicle' | 'party' | 'billingType' | 'amount';
 type SortDirection = 'asc' | 'desc';
 
 export function PurchaseView() {
@@ -91,9 +93,18 @@ export function PurchaseView() {
             filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
         }
 
-        filtered.sort((a: any, b: any) => {
-            const aVal = a[sortConfig.key] || '';
-            const bVal = b[sortConfig.key] || '';
+        const getSortValue = (t: Transaction) => {
+            switch (sortConfig.key) {
+                case 'vehicle': return vehiclesById.get(t.vehicleId || '') || '';
+                case 'party': return partiesById.get(t.partyId || '') || '';
+                case 'billingType': return t.billingType || '';
+                default: return (t as any)[sortConfig.key] || '';
+            }
+        };
+
+        filtered.sort((a, b) => {
+            const aVal = getSortValue(a);
+            const bVal = getSortValue(b);
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
@@ -102,8 +113,21 @@ export function PurchaseView() {
         return filtered;
     }, [transactions, searchQuery, dateRange, filterVehicleId, filterPartyId, sortConfig, vehiclesById, partiesById]);
 
+    const requestSort = (key: SortKey) => {
+        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
+    };
+
     const paginated = filteredAndSorted.slice((currentPage - 1) * itemsPerPage, itemsPerPage === -1 ? undefined : currentPage * itemsPerPage);
     const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(filteredAndSorted.length / itemsPerPage);
+
+    const exportColumns: LedgerColumn<Transaction>[] = [
+        { header: 'Date (BS)', value: t => toNepaliDate(t.date) },
+        { header: 'Purchase #', value: t => t.purchaseNumber || `INV-${t.id.substring(0, 4)}` },
+        { header: 'Supplier', value: t => partiesById.get(t.partyId || '') || 'N/A' },
+        { header: 'Truck', value: t => vehiclesById.get(t.vehicleId || '') || 'N/A' },
+        { header: 'Mode', value: t => t.billingType },
+        { header: 'Amount', align: 'right', value: t => t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+    ];
 
     return (
         <div className="flex flex-col gap-8">
@@ -112,20 +136,27 @@ export function PurchaseView() {
                     <h1 className="text-3xl font-bold tracking-tight text-gray-900">Purchase History</h1>
                     <p className="text-muted-foreground text-sm">Procurement logs for parts, fuel, and fleet assets.</p>
                 </div>
-                {hasPermission('fleet', 'create') && (
-                    <Button onClick={() => router.push('/fleet/transactions/purchase/new')}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> New Purchase
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                    <LedgerToolbar
+                        title="Purchase History"
+                        subtitle={`Supplier: ${filterPartyId === 'All' ? 'All' : partiesById.get(filterPartyId)} | Truck: ${filterVehicleId === 'All' ? 'All' : vehiclesById.get(filterVehicleId)}`}
+                        columns={exportColumns}
+                        rows={filteredAndSorted}
+                        filenamePrefix="Purchase_History"
+                    />
+                    {hasPermission('fleet', 'create') && (
+                        <Button onClick={() => router.push('/fleet/transactions/purchase/new')}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> New Purchase
+                        </Button>
+                    )}
+                </div>
             </header>
 
-            <div className="flex flex-wrap gap-4 items-end bg-muted/20 p-4 rounded-xl border border-dashed">
-                <div className="space-y-1.5 min-w-[200px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Search</Label>
+            <LedgerFilterBar>
+                <LedgerFilterField label="Search" className="min-w-[200px]">
                     <Input placeholder="Search POs or Vendors..." className="h-9 text-xs bg-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                </div>
-                <div className="space-y-1.5 w-[180px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Supplier</Label>
+                </LedgerFilterField>
+                <LedgerFilterField label="Supplier" className="w-[180px]">
                     <Select value={filterPartyId} onValueChange={setFilterPartyId}>
                         <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Vendors" /></SelectTrigger>
                         <SelectContent>
@@ -133,9 +164,8 @@ export function PurchaseView() {
                             {parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both').map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                </div>
-                <div className="space-y-1.5 w-[150px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Truck</Label>
+                </LedgerFilterField>
+                <LedgerFilterField label="Truck" className="w-[150px]">
                     <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
                         <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="All Trucks" /></SelectTrigger>
                         <SelectContent>
@@ -143,19 +173,19 @@ export function PurchaseView() {
                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                </div>
-            </div>
+                </LedgerFilterField>
+            </LedgerFilterBar>
 
             <Card className="shadow-sm border-gray-100 overflow-hidden">
                 <Table>
                     <TableHeader className="bg-muted/50">
                         <TableRow>
-                            <TableHead className="pl-6">Date (BS)</TableHead>
-                            <TableHead>Purchase #</TableHead>
-                            <TableHead>Supplier</TableHead>
-                            <TableHead>Truck</TableHead>
-                            <TableHead>Mode</TableHead>
-                            <TableHead className="text-right pr-6">Amount</TableHead>
+                            <SortableHead label="Date (BS)" className="pl-6" active={sortConfig.key === 'date'} onClick={() => requestSort('date')} />
+                            <SortableHead label="Purchase #" active={sortConfig.key === 'purchaseNumber'} onClick={() => requestSort('purchaseNumber')} />
+                            <SortableHead label="Supplier" active={sortConfig.key === 'party'} onClick={() => requestSort('party')} />
+                            <SortableHead label="Truck" active={sortConfig.key === 'vehicle'} onClick={() => requestSort('vehicle')} />
+                            <SortableHead label="Mode" active={sortConfig.key === 'billingType'} onClick={() => requestSort('billingType')} />
+                            <SortableHead label="Amount" align="right" className="text-right pr-6" active={sortConfig.key === 'amount'} onClick={() => requestSort('amount')} />
                             <TableHead className="w-10 pr-6"></TableHead>
                         </TableRow>
                     </TableHeader>

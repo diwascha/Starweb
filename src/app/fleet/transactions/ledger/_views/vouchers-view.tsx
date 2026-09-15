@@ -47,6 +47,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
+import { LedgerToolbar, type LedgerColumn } from '../_components/ledger-toolbar';
+import { SortableHead } from '../_components/sortable-head';
+import { LedgerFilterBar } from '../_components/ledger-filter-bar';
+
+type SortKey = 'date' | 'voucherNo' | 'type' | 'billingType' | 'totalAmount';
+type SortDirection = 'asc' | 'desc';
 
 interface VoucherSummary {
     voucherId: string;
@@ -148,6 +154,7 @@ export function VouchersView() {
     const [filterVehicleIds, setFilterVehicleIds] = useState<string[]>([]);
     const [filterPartyIds, setFilterPartyIds] = useState<string[]>([]);
     const [filterBillingTypes, setFilterBillingTypes] = useState<string[]>([]);
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
 
     const { toast } = useToast();
     const { hasPermission } = useAuth();
@@ -222,7 +229,7 @@ export function VouchersView() {
             };
         });
 
-        return summaries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return summaries;
     }, [transactions, accountsById]);
 
     const filteredVouchers = useMemo(() => {
@@ -284,8 +291,20 @@ export function VouchersView() {
             });
         }
 
+        filtered.sort((a, b) => {
+            const aVal = sortConfig.key === 'date' ? new Date(a.date).getTime() : a[sortConfig.key];
+            const bVal = sortConfig.key === 'date' ? new Date(b.date).getTime() : b[sortConfig.key];
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
         return filtered;
-    }, [vouchers, searchQuery, filterTypes, filterBillingTypes, filterVehicleIds, filterPartyIds, dateRange, filterBsYears, filterBsMonths]);
+    }, [vouchers, searchQuery, filterTypes, filterBillingTypes, filterVehicleIds, filterPartyIds, dateRange, filterBsYears, filterBsMonths, sortConfig]);
+
+    const requestSort = (key: SortKey) => {
+        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
+    };
 
     const paginatedVouchers = useMemo(() => {
         if (itemsPerPage === -1) return filteredVouchers;
@@ -336,6 +355,16 @@ export function VouchersView() {
         ];
     }, [sijanBankAccounts]);
 
+    const exportColumns: LedgerColumn<VoucherSummary>[] = [
+        { header: 'Date (BS)', value: v => toNepaliDate(v.date) },
+        { header: 'Voucher #', value: v => v.voucherNo },
+        { header: 'Type', value: v => v.type },
+        { header: 'Vehicles', value: v => v.vehicleIds.map(id => vehiclesById.get(id) || id).join(', ') },
+        { header: 'Ledgers', value: v => v.partyIds.map(id => partiesById.get(id) || id).join(', ') },
+        { header: 'Mode / Account', value: v => v.accountName ? `${v.billingType} (${v.accountName})` : v.billingType },
+        { header: 'Total Amount', align: 'right', value: v => v.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+    ];
+
     return (
         <div className="flex flex-col gap-8">
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -348,6 +377,13 @@ export function VouchersView() {
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input type="search" placeholder="Search logs..." className="pl-8 sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
+                    <LedgerToolbar
+                        title="Payment / Receipt Logs"
+                        subtitle={isFiltered ? 'Filtered view' : 'All vouchers'}
+                        columns={exportColumns}
+                        rows={filteredVouchers}
+                        filenamePrefix="Payment_Receipt_Logs"
+                    />
                     {hasPermission('fleet', 'create') && (
                         <Button onClick={() => router.push('/fleet/transactions/payment-receipt/new')}>
                             <PlusCircle className="mr-2 h-4 w-4" /> New Voucher
@@ -356,8 +392,8 @@ export function VouchersView() {
                 </div>
             </header>
 
-            <div className="bg-muted/20 p-4 rounded-lg border border-dashed flex flex-wrap gap-4 items-end">
-                <MultiSelect 
+            <LedgerFilterBar>
+                <MultiSelect
                     label="Year (BS)" 
                     values={filterBsYears} 
                     onSelect={setFilterBsYears} 
@@ -430,15 +466,15 @@ export function VouchersView() {
                         <FilterX className="mr-2 h-3.5 w-3.5" /> Reset
                     </Button>
                 )}
-            </div>
+            </LedgerFilterBar>
 
             <Card>
                 <Table>
                     <TableHeader className="bg-muted/50">
                         <TableRow>
-                            <TableHead className="text-xs">Date (BS)</TableHead>
-                            <TableHead className="text-xs">Voucher #</TableHead>
-                            <TableHead className="text-xs">Type</TableHead>
+                            <SortableHead label="Date (BS)" active={sortConfig.key === 'date'} onClick={() => requestSort('date')} />
+                            <SortableHead label="Voucher #" active={sortConfig.key === 'voucherNo'} onClick={() => requestSort('voucherNo')} />
+                            <SortableHead label="Type" active={sortConfig.key === 'type'} onClick={() => requestSort('type')} />
                             <TableHead className="text-xs">
                                 <div className="flex items-center gap-1.5">
                                     <Truck className="h-3 w-3" />
@@ -451,8 +487,8 @@ export function VouchersView() {
                                     <span>Ledgers</span>
                                 </div>
                             </TableHead>
-                            <TableHead className="text-xs">Mode / Account</TableHead>
-                            <TableHead className="text-right text-xs">Total Amount</TableHead>
+                            <SortableHead label="Mode / Account" active={sortConfig.key === 'billingType'} onClick={() => requestSort('billingType')} />
+                            <SortableHead label="Total Amount" align="right" active={sortConfig.key === 'totalAmount'} onClick={() => requestSort('totalAmount')} />
                             <TableHead className="text-right text-xs">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
