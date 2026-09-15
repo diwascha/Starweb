@@ -408,7 +408,6 @@ export function AppSidebar() {
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/fleet', true)}><Link href="/fleet" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/registry')}><Link href="/fleet/registry" className="flex items-center gap-2"><Truck className="h-4 w-4" /><span>Registry (Vehicles, Drivers & Policies)</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/import')}><Link href="/fleet/import" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>Import from Excel</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
 
                             {hasPermission('fleet', 'create') && (
@@ -434,6 +433,7 @@ export function AppSidebar() {
                             <SidebarGroupLabel className="px-5 py-2 text-[10px] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
                             <SidebarMenuSub>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/ledger')}><Link href="/fleet/transactions/ledger" className="flex items-center gap-2"><CreditCard className="h-4 w-4" /><span>Fleet Ledger</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/import')}><Link href="/fleet/import" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>Import from Excel</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
 
                         </CollapsibleContent>
