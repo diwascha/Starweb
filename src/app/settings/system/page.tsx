@@ -101,6 +101,8 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
 import { exportData, importData, compressBackup, readBackupFile } from '@/services/backup-service';
 import { Separator } from '@/components/ui/separator';
+import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { logAudit } from '@/services/log-service';
 
 const getModuleDisplayName = (m: Module): string => {
     switch (m) {
@@ -148,6 +150,7 @@ export default function SystemSettingsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restorePassword, setRestorePassword] = useState('');
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const [isCleaningSessions, setIsCleaningSessions] = useState(false);
 
@@ -323,15 +326,38 @@ export default function SystemSettingsPage() {
 
   const handleConfirmRestore = async () => {
     if (!restoreFile || !user) return;
+    if (!user.isAdmin) {
+        toast({ title: 'Access Denied', description: 'Only administrators can restore the database.', variant: 'destructive' });
+        return;
+    }
+    if (!restorePassword) {
+        toast({ title: 'Password Required', description: 'Enter your administrator password to confirm this action.', variant: 'destructive' });
+        return;
+    }
     setIsRestoring(true);
     try {
+        const currentUser = auth.currentUser;
+        if (!currentUser || !currentUser.email) {
+            throw new Error('No authenticated session found. Please sign out and sign back in.');
+        }
+        // Re-verify identity right before the destructive operation, even
+        // though this user is already logged in as an admin - a fresh
+        // password confirms it's really them at the keyboard right now.
+        const credential = EmailAuthProvider.credential(currentUser.email, restorePassword);
+        await reauthenticateWithCredential(currentUser, credential);
+
         const data = await readBackupFile(restoreFile);
         await importData(data);
+        await logAudit(`Database Restored from backup file "${restoreFile.name}"`, 'Security');
         toast({ title: 'Restore Complete', description: 'The database has been updated.' });
         setRestoreFile(null);
+        setRestorePassword('');
         if (restoreInputRef.current) restoreInputRef.current.value = '';
     } catch (err: any) {
-        toast({ title: 'Restore Failed', description: err?.message || 'Invalid backup file format.', variant: 'destructive' });
+        const message = err?.code === 'auth/wrong-password' || err?.code === 'auth/invalid-credential'
+            ? 'Incorrect password. Restore cancelled.'
+            : (err?.message || 'Invalid backup file format.');
+        toast({ title: 'Restore Failed', description: message, variant: 'destructive' });
     } finally {
         setIsRestoring(false);
     }
@@ -421,6 +447,18 @@ export default function SystemSettingsPage() {
         setIsCleaningSessions(false);
     }
   };
+
+  if (!user?.isAdmin) {
+    return (
+        <div className="flex h-[60vh] flex-col items-center justify-center gap-3 text-center px-4">
+            <ShieldAlert className="h-10 w-10 text-destructive" />
+            <h1 className="text-xl font-black uppercase tracking-tight">Administrator Access Required</h1>
+            <p className="text-sm text-muted-foreground max-w-sm">
+                System &amp; Security — including user access control, audit logs, and database backup/restore — is restricted to administrator accounts.
+            </p>
+        </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -862,7 +900,7 @@ export default function SystemSettingsPage() {
                             <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select Snapshot File</Label>
                             <Input type="file" accept=".json,.gz" onChange={handleRestoreFileChange} ref={restoreInputRef} className="max-w-md h-10 border-destructive/20 bg-white" />
                         </div>
-                        <AlertDialog>
+                        <AlertDialog onOpenChange={(open) => { if (!open) setRestorePassword(''); }}>
                             <AlertDialogTrigger asChild>
                                 <Button variant="destructive" disabled={!restoreFile || isRestoring} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
                                     {isRestoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
@@ -877,9 +915,20 @@ export default function SystemSettingsPage() {
                                         This cannot be undone. Are you absolutely certain?
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
+                                <div className="space-y-2 py-2">
+                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Confirm Administrator Password</Label>
+                                    <Input
+                                        type="password"
+                                        autoComplete="current-password"
+                                        placeholder="Enter your password to authorize this restore"
+                                        value={restorePassword}
+                                        onChange={(e) => setRestorePassword(e.target.value)}
+                                        className="h-10 border-destructive/20"
+                                    />
+                                </div>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Abort</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleConfirmRestore} className="bg-destructive text-white hover:bg-destructive/90">Yes, Restore System</AlertDialogAction>
+                                    <AlertDialogAction onClick={handleConfirmRestore} disabled={!restorePassword || isRestoring} className="bg-destructive text-white hover:bg-destructive/90">Yes, Restore System</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>

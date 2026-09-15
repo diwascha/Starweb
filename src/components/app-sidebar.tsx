@@ -524,7 +524,9 @@ export function AppSidebar() {
                         <SidebarMenuSub>
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/general')}><Link href="/settings/general" className="flex items-center gap-2"><Settings2 className="h-4 w-4"/><span>General</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/finance')}><Link href="/settings/finance" className="flex items-center gap-2"><Calculator className="h-4 w-4"/><span>Finance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            {user?.isAdmin && (
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/system')}><Link href="/settings/system" className="flex items-center gap-2"><ShieldAlert className="h-4 w-4"/><span>System</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            )}
                         </SidebarMenuSub>
                     </CollapsibleContent>
                 </SidebarMenuItem>
