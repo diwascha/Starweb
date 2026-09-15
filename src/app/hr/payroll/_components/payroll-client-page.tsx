@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Download, Printer, Loader2, View, FileDown, ArrowUpDown, ChevronUp, ChevronDown, X } from 'lucide-react';
 import { onPayrollUpdate } from '@/services/payroll-service';
 import { onEmployeesUpdate } from '@/services/employee-service';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useRouter } from 'next/navigation';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { NEPALI_MONTHS } from '@/lib/constants';
@@ -58,6 +59,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
+    const { inScope } = useOwnershipScope('hr');
 
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
     const [filterEmployeeIds, setFilterEmployeeIds] = useState<string[]>([]);
@@ -74,15 +76,15 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
 
     useEffect(() => {
         const unsubPayroll = onPayrollUpdate((payrolls) => {
-            setAllPayroll(payrolls);
+            setAllPayroll(payrolls.filter(p => inScope(p.ownership)));
             setIsLoading(false);
         });
-        const unsubEmployees = onEmployeesUpdate(setEmployees);
+        const unsubEmployees = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
         return () => {
             unsubPayroll();
             unsubEmployees();
         };
-    }, []);
+    }, [inScope]);
 
     const requestSort = (key: SortKey) => {
         setSortConfig(prev => ({ key, direction: prev?.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));

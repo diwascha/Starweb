@@ -36,6 +36,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { toNepaliDate } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -44,8 +45,9 @@ import Link from 'next/link';
 
 export default function AgreementsPage() {
     const { user, hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('rental');
     const { toast } = useToast();
-    
+
     const [agreements, setAgreements] = useState<RentalAgreement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -57,11 +59,11 @@ export default function AgreementsPage() {
     useEffect(() => {
         setIsLoading(true);
         const unsub = onAgreementsUpdate((data) => {
-            setAgreements(data);
+            setAgreements(data.filter(a => inScope(a.ownership)));
             setIsLoading(false);
         });
         return () => unsub();
-    }, []);
+    }, [inScope]);
 
     const filteredAgreements = useMemo(() => {
         return agreements.filter(a => {

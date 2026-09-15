@@ -27,10 +27,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { GsmReportView } from './_components/gsm-view';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 
 export default function GsmCalculatorPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const { inScope } = useOwnershipScope('finance');
     const companyProfile = useBusinessProfile();
     const [activeTab, setActiveTab] = useState('calculator');
     const [reports, setReports] = useState<GsmReport[]>([]);
@@ -43,11 +45,11 @@ export default function GsmCalculatorPage() {
 
     useEffect(() => {
         const unsub = onGsmReportsUpdate((data) => {
-            setReports(data);
+            setReports(data.filter(r => inScope(r.ownership)));
             setIsLoading(false);
         });
         return () => unsub();
-    }, []);
+    }, [inScope]);
 
     const handlePrint = (report: GsmReport) => {
         setSelectedReport(report);

@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { 
     onPaymentEntriesUpdate, 
@@ -196,6 +197,7 @@ function VoucherReportView({
 export default function PaymentTrackerPage() {
     const { user } = useAuth();
     const { toast } = useToast();
+    const { inScope } = useOwnershipScope('finance');
     const reportRef = useRef<HTMLDivElement>(null);
     
     const [activeTab, setActiveTab] = useState('tracker');
@@ -226,7 +228,7 @@ export default function PaymentTrackerPage() {
     useEffect(() => {
         const unsubs = [
             onPaymentEntriesUpdate((data) => {
-                setSavedEntries(data);
+                setSavedEntries(data.filter(e => inScope(e.ownership)));
                 setIsLoading(false);
             }),
             onSettingUpdate('companyProfile', (s) => {
@@ -234,7 +236,7 @@ export default function PaymentTrackerPage() {
             })
         ];
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [inScope]);
 
     useEffect(() => {
         if (activeTab === 'tracker' && !isEditing) {

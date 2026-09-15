@@ -22,6 +22,7 @@ import { onSettingUpdate } from '@/services/settings-service';
 import React from 'react';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 import { useRouter } from 'next/navigation';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 
 // Internal Components
 import { SavedReportsList } from './_components/reports-list';
@@ -36,15 +37,16 @@ export default function CostReportHistoryPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
     const { toast } = useToast();
+    const { inScope } = useOwnershipScope('crm');
 
     useEffect(() => {
-        const unsubProducts = onProductsUpdate(setProducts);
+        const unsubProducts = onProductsUpdate((data) => setProducts(data.filter(p => inScope(p.ownership))));
         const unsubProfile = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
         return () => {
             unsubProducts();
             unsubProfile();
         };
-    }, []);
+    }, [inScope]);
 
     const handlePreviewFromList = (report: CostReport) => {
         const kCosts = report.kraftPaperCosts || {};

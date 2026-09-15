@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
 import { onPayrollUpdate } from '@/services/payroll-service';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import NepaliDate from 'nepali-date-converter';
 import {
     getFiscalYearStart,
@@ -39,16 +40,17 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
        String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()))
    );
    const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('All');
+   const { inScope } = useOwnershipScope('hr');
 
    useEffect(() => {
-       const unsubEmployees = onEmployeesUpdate(setEmployees);
-       const unsubPayroll = onPayrollUpdate(setPayroll);
+       const unsubEmployees = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
+       const unsubPayroll = onPayrollUpdate((data) => setPayroll(data.filter(p => inScope(p.ownership))));
 
        return () => {
            unsubEmployees();
            unsubPayroll();
        }
-    }, []);
+    }, [inScope]);
 
    // The dashboard summarises one fiscal year at a time, so it subscribes to
    // one fiscal year at a time.

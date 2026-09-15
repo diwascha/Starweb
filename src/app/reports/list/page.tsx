@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
@@ -49,15 +50,16 @@ export default function ReportsListPage() {
     const { toast } = useToast();
     const router = useRouter();
     const { hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('reports');
 
     useEffect(() => {
         setIsLoading(true);
         const unsub = onReportsUpdate((data) => {
-            setReports(data);
+            setReports(data.filter(r => inScope(r.ownership)));
             setIsLoading(false);
         });
         return () => unsub();
-    }, []);
+    }, [inScope]);
 
     const requestSort = (key: SortKey) => {
         let direction: SortDirection = 'asc';

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Edit, Trash2, Loader2, Calculator, HardDrive, FilterX, UserCheck, AlertCircle, ChevronLeft, ChevronRight, Lock, LockOpen, CalendarClock, LogIn, LogOut, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Badge } from '@/components/ui/badge';
 import { onEmployeesUpdate, updateEmployee } from '@/services/employee-service';
 import { getAttendanceYears, updateAttendanceRecord, deleteAttendanceForMonth, deleteAttendanceAndPayrollForFiscalYear, onAttendanceUpdate, runHourlyCalculation, onAttendancePeriodLocksUpdate, bulkClockInOut, onRawLogsUpdate, updateRawLog, type AttendancePeriodLock } from '@/services/attendance-service';
@@ -63,7 +64,8 @@ export default function AttendanceRegistryPage() {
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
   const { toast } = useToast();
   const { hasPermission, user } = useAuth();
-  
+  const { inScope } = useOwnershipScope('hr');
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -133,7 +135,7 @@ export default function AttendanceRegistryPage() {
 
   // Reference data: small, bounded collections that every fiscal year needs.
   useEffect(() => {
-    onEmployeesUpdate(setEmployees);
+    onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
     const unsubHolidays = onHolidaysUpdate(setHolidays);
     const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
     const unsubLocks = onAttendancePeriodLocksUpdate(setPeriodLocks);

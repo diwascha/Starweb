@@ -8,8 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { onRawLogsUpdate, deleteAllRawLogs, deleteRawLog, getAttendanceYears } from '@/services/attendance/data';
-import { addRawMachineLogs, bulkClockInOut } from '@/services/attendance/import';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
+import {
+    onRawLogsUpdate,
+    deleteAllRawLogs,
+    deleteRawLog,
+    deleteRawLogsForMonth,
+    getAttendanceYears
+} from '@/services/attendance/data';
+import { addRawMachineLogs, addBulkManualLogs, bulkClockInOut } from '@/services/attendance/import';
 import { importLegacyPayrollSheet } from '@/services/payroll/legacy-import';
 import { setFiscalYearPeriodLock } from '@/services/period-lock';
 import { resolvePeriodFromSheetName } from '@/lib/attendance';
@@ -46,6 +53,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function MachineLogsPage() {
     const { user, hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('hr');
     const { toast } = useToast();
 
     const [logs, setLogs] = useState<any[]>([]);
@@ -103,13 +111,13 @@ export default function MachineLogsPage() {
     };
 
     useEffect(() => {
-        const unsubEmployees = onEmployeesUpdate(setEmployees);
+        const unsubEmployees = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
         const unsubShifts = onShiftsUpdate(setShifts);
         return () => {
             unsubEmployees();
             unsubShifts();
         };
-    }, []);
+    }, [inScope]);
 
     // This page already shows exactly one BS year at a time, so it now fetches
     // exactly one. Previously it streamed every raw punch ever imported and

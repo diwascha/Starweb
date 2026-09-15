@@ -1,5 +1,12 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, doc, query, orderBy, limit } from 'firebase/firestore';
+
+// Collections that are pure operational trails (grow with every click, not
+// with real business records). Capped in backups so they don't dominate the
+// file size; the most recent entries are kept for audit purposes.
+const CAPPED_COLLECTIONS: Record<string, number> = {
+    logs: 2000,
+};
 
 const collectionsToBackup = [
     'reports',
@@ -49,7 +56,10 @@ export const exportData = async (): Promise<Record<string, any[]>> => {
 
     for (const collectionName of collectionsToBackup) {
         try {
-            const querySnapshot = await getDocs(collection(db, collectionName));
+            const cap = CAPPED_COLLECTIONS[collectionName];
+            const querySnapshot = cap
+                ? await getDocs(query(collection(db, collectionName), orderBy('createdAt', 'desc'), limit(cap)))
+                : await getDocs(collection(db, collectionName));
             data[collectionName] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         } catch (error) {
             console.error(`Error fetching collection ${collectionName}:`, error);
@@ -57,6 +67,37 @@ export const exportData = async (): Promise<Record<string, any[]>> => {
     }
 
     return data;
+};
+
+// Backups are compressed client-side (gzip via the native CompressionStream
+// API) since the raw JSON export can otherwise run into tens of MB. Falls
+// back to plain, unindented JSON if the browser lacks CompressionStream.
+export const compressBackup = async (data: unknown): Promise<{ blob: Blob; gzipped: boolean }> => {
+    const bytes = new TextEncoder().encode(JSON.stringify(data));
+    if (typeof CompressionStream === 'undefined') {
+        return { blob: new Blob([bytes], { type: 'application/json' }), gzipped: false };
+    }
+    const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+    const blob = await new Response(stream).blob();
+    return { blob, gzipped: true };
+};
+
+// Reads a backup file produced by compressBackup (gzip) or a legacy
+// plain-JSON backup, and returns the parsed data.
+export const readBackupFile = async (file: File): Promise<Record<string, any[]>> => {
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    const isGzip = buffer.length > 2 && buffer[0] === 0x1f && buffer[1] === 0x8b;
+    let jsonText: string;
+    if (isGzip) {
+        if (typeof DecompressionStream === 'undefined') {
+            throw new Error('This browser cannot decompress gzip backups. Please use an up-to-date browser.');
+        }
+        const stream = new Blob([buffer]).stream().pipeThrough(new DecompressionStream('gzip'));
+        jsonText = await new Response(stream).text();
+    } else {
+        jsonText = new TextDecoder().decode(buffer);
+    }
+    return JSON.parse(jsonText);
 };
 
 export const importData = async (data: Record<string, any[]>): Promise<void> => {
@@ -129,19 +170,4 @@ export const gzipString = async (text: string): Promise<Blob | null> => {
     } catch {
         return null;
     }
-};
-
-/** Read a backup file that may or may not be gzipped. */
-export const readBackupFile = async (file: File): Promise<Record<string, any[]>> => {
-    const isGzip = file.name.endsWith('.gz')
-        || file.type === 'application/gzip'
-        || file.type === 'application/x-gzip';
-
-    if (!isGzip) return JSON.parse(await file.text());
-
-    if (typeof DecompressionStream === 'undefined') {
-        throw new Error('This browser cannot open a compressed backup. Use a Chromium-based browser, or restore an uncompressed .json backup.');
-    }
-    const stream = file.stream().pipeThrough(new DecompressionStream('gzip'));
-    return JSON.parse(await new Response(stream).text());
 };

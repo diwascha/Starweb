@@ -3,12 +3,28 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import NepaliDate from 'nepali-date-converter';
-import { ShoppingCart, Truck, TrendingUp, TrendingDown, Minus, Clock, Calendar as CalendarIcon, ChevronRight, FileText, Package, MousePointer2, LayoutDashboard } from 'lucide-react';
+import {
+  ShoppingCart,
+  Truck,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Clock,
+  Calendar as CalendarIcon,
+  ChevronRight,
+  FileText,
+  Package,
+  MousePointer2,
+  Building2,
+  LayoutDashboard
+} from 'lucide-react';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onPoliciesUpdate } from '@/services/policy-service';
 import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 import { onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
@@ -40,6 +56,20 @@ import type {
 import { differenceInDays, startOfToday, format, isValid, endOfDay } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { SlidersHorizontal } from 'lucide-react';
+
+/* Which module's data feeds the dashboard's combined stats - lets the user
+ * include/exclude a module's contribution without leaving the page. */
+const DASHBOARD_MODULES = [
+  { key: 'finance', label: 'Finance' },
+  { key: 'fleet', label: 'Fleet' },
+  { key: 'rental', label: 'Rental' },
+  { key: 'purchaseOrders', label: 'Purchase Orders' },
+  { key: 'reports', label: 'Reports / Quotations' },
+] as const;
+type DashboardModuleKey = typeof DASHBOARD_MODULES[number]['key'];
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -317,6 +347,11 @@ function TripleTile({
 
 export default function DashboardPage() {
   const { hasPermission } = useAuth();
+  const { inScope: inScopeFinance } = useOwnershipScope('finance');
+  const { inScope: inScopeFleet } = useOwnershipScope('fleet');
+  const { inScope: inScopeRental } = useOwnershipScope('rental');
+  const { inScope: inScopePO } = useOwnershipScope('purchaseOrders');
+  const { inScope: inScopeReports } = useOwnershipScope('reports');
 
   const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -331,6 +366,18 @@ export default function DashboardPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
+
+  const [includedModules, setIncludedModules] = useState<Set<DashboardModuleKey>>(
+    () => new Set(DASHBOARD_MODULES.map((m) => m.key))
+  );
+  const isIncluded = useCallback((m: DashboardModuleKey) => includedModules.has(m), [includedModules]);
+  const toggleModule = (m: DashboardModuleKey) => {
+    setIncludedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m); else next.add(m);
+      return next;
+    });
+  };
 
   const [ready, setReady] = useState<Record<string, boolean>>({});
   const markReady = useCallback(
@@ -373,25 +420,25 @@ export default function DashboardPage() {
     const canSettingsView = hasPermission('settings', 'view');
 
     const unsubs = [
-      when(canFleetView,   () => onPoliciesUpdate(wrap('policies', setPolicies)), 'policies'),
-      when(canPOView,      () => onPurchaseOrdersUpdate(wrap('pos', setPurchaseOrders)), 'pos'),
-      when(canFinanceView, () => onEstimatedInvoicesUpdate(wrap('invoices', setInvoices)), 'invoices'),
+      when(canFleetView,   () => onPoliciesUpdate(wrap('policies', (v: PolicyOrMembership[]) => setPolicies(isIncluded('fleet') ? v.filter((p) => inScopeFleet(p.ownership)) : []))), 'policies'),
+      when(canPOView,      () => onPurchaseOrdersUpdate(wrap('pos', (v: PurchaseOrder[]) => setPurchaseOrders(isIncluded('purchaseOrders') ? v.filter((p) => inScopePO(p.ownership)) : []))), 'pos'),
+      when(canFinanceView, () => onEstimatedInvoicesUpdate(wrap('invoices', (v: EstimatedInvoice[]) => setInvoices(isIncluded('finance') ? v.filter((i) => inScopeFinance(i.ownership)) : []))), 'invoices'),
       when(canSettingsView,() => onPageVisitsUpdate(wrap('visits', setPageVisits)), 'visits'),
-      when(canFinanceView, () => onChequesUpdate(wrap('cheques', setCheques)), 'cheques'),
-      when(canFleetView,   () => onTripsUpdate(wrap('trips', setTrips)), 'trips'),
-      when(canRentalView,  () => onRentalBillsUpdate(wrap('rental', setRentalBills)), 'rental'),
-      when(canReportsView, () => onProductsUpdate(wrap('products', setProducts)), 'products'),
-      when(canCRMView,     () => onCostReportsUpdate(wrap('costReports', setCostReports)), 'costReports'),
-      when(canFinanceView, () => onGsmReportsUpdate(wrap('gsmReports', setGsmReports)), 'gsmReports'),
-      when(canFleetView,   () => onVehiclesUpdate(wrap('vehicles', setVehicles)), 'vehicles'),
-      when(canFleetView,   () => onDriversUpdate(wrap('drivers', setDrivers)), 'drivers'),
+      when(canFinanceView, () => onChequesUpdate(wrap('cheques', (v: Cheque[]) => setCheques(isIncluded('finance') ? v.filter((c) => inScopeFinance(c.ownership)) : []))), 'cheques'),
+      when(canFleetView,   () => onTripsUpdate(wrap('trips', (v: Trip[]) => setTrips(isIncluded('fleet') ? v.filter((t) => inScopeFleet(t.ownership)) : []))), 'trips'),
+      when(canRentalView,  () => onRentalBillsUpdate(wrap('rental', (v: RentalBill[]) => setRentalBills(isIncluded('rental') ? v.filter((r) => inScopeRental(r.ownership)) : []))), 'rental'),
+      when(canReportsView, () => onProductsUpdate(wrap('products', (v: Product[]) => setProducts(isIncluded('reports') ? v.filter((p) => inScopeReports(p.ownership)) : []))), 'products'),
+      when(canCRMView,     () => onCostReportsUpdate(wrap('costReports', (v: CostReport[]) => setCostReports(isIncluded('reports') ? v.filter((c) => inScopeReports(c.ownership)) : []))), 'costReports'),
+      when(canFinanceView, () => onGsmReportsUpdate(wrap('gsmReports', (v: GsmReport[]) => setGsmReports(isIncluded('reports') ? v.filter((g) => inScopeReports(g.ownership)) : []))), 'gsmReports'),
+      when(canFleetView,   () => onVehiclesUpdate(wrap('vehicles', (v: Vehicle[]) => setVehicles(isIncluded('fleet') ? v.filter((veh) => inScopeFleet(veh.ownership)) : []))), 'vehicles'),
+      when(canFleetView,   () => onDriversUpdate(wrap('drivers', (v: Driver[]) => setDrivers(isIncluded('fleet') ? v.filter((d) => inScopeFleet(d.ownership)) : []))), 'drivers'),
       onSettingUpdate('companyProfile', (s: any) => {
         if (s?.value) setCompanyProfile(s.value);
       }),
     ];
 
     return () => unsubs.forEach((unsub) => unsub?.());
-  }, [markReady, hasPermission]);
+  }, [markReady, hasPermission, inScopeFinance, inScopeFleet, inScopeRental, inScopePO, inScopeReports, isIncluded]);
 
   const { currentMonthStart, currentMonthEnd, lastMonthStart, lastMonthEnd } = useMemo(() => {
     const now = new Date();
@@ -511,7 +558,7 @@ export default function DashboardPage() {
         actions.push({
             label: 'Renew Expired Fleet Policies',
             count: fleetStats.expired,
-            href: '/fleet/policies',
+            href: '/fleet/registry?tab=policies',
             items: expiredCases
         });
     }
@@ -605,7 +652,8 @@ export default function DashboardPage() {
         prevRevenue: previousRev,
         productCount: products.length,
         costReportCount: costReports.length,
-        gsmReportCount: gsmReports.length
+        gsmReportCount: gsmReports.length,
+        unpaidRentCount: unpaidRentBills.length,
       },
       urgentActions: actions,
     };
@@ -633,6 +681,7 @@ export default function DashboardPage() {
   const canFleet = hasPermission('fleet', 'view');
   const canPO = hasPermission('purchaseOrders', 'view');
   const canCRM = hasPermission('crm', 'view');
+  const canRental = hasPermission('rental', 'view');
   const canSettings = hasPermission('settings', 'view');
 
   // Someone whose work is entirely in HR, rental or notes can see none of the
@@ -664,6 +713,47 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 w-full md:w-auto md:overflow-visible text-right">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "h-10 shrink-0 text-[11px] font-black uppercase tracking-wider px-4 border shadow-sm",
+                  includedModules.size < DASHBOARD_MODULES.length && "border-primary text-primary"
+                )}
+              >
+                <SlidersHorizontal className="mr-2 h-4 w-4" /> Modules
+                {includedModules.size < DASHBOARD_MODULES.length && (
+                  <span className="ml-1.5 rounded-full bg-primary text-primary-foreground text-[9px] px-1.5 leading-4">
+                    {includedModules.size}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="end">
+              <div className="flex items-center justify-between px-3 py-2 border-b">
+                <span className="text-[10px] font-black uppercase text-muted-foreground">Include in Summary</span>
+                <button
+                  className="text-[9px] font-bold uppercase text-primary hover:underline"
+                  onClick={() => setIncludedModules(new Set(DASHBOARD_MODULES.map((m) => m.key)))}
+                >
+                  Reset
+                </button>
+              </div>
+              <div className="p-2">
+                {DASHBOARD_MODULES.map((m) => (
+                  <label key={m.key} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-xs">
+                    <Checkbox checked={includedModules.has(m.key)} onCheckedChange={() => toggleModule(m.key)} />
+                    {m.label}
+                  </label>
+                ))}
+              </div>
+              <p className="text-[9px] text-muted-foreground px-3 pb-2 leading-snug">
+                Excluded modules are left out of Revenue, Alerts and every other combined figure below - not just hidden visually.
+              </p>
+            </PopoverContent>
+          </Popover>
            {hasPermission('fleet', 'create') && (
             <Button
               asChild
@@ -736,12 +826,12 @@ export default function DashboardPage() {
                 />
               ))}
 
-            {canFleet &&
+            {canFleet && isIncluded('fleet') &&
               (alertsLoading ? (
                 <StatCardSkeleton />
               ) : (
                 <TripleTile
-                  href="/fleet/policies"
+                  href="/fleet/registry?tab=policies"
                   label="Fleet Alerts"
                   icon={Truck}
                   accent={
@@ -767,7 +857,7 @@ export default function DashboardPage() {
                 />
               ))}
 
-            {canFinance &&
+            {canFinance && isIncluded('finance') &&
               (alertsLoading ? (
                 <StatCardSkeleton />
               ) : (
@@ -798,7 +888,7 @@ export default function DashboardPage() {
                 />
               ))}
 
-            {canCRM && (
+            {canCRM && isIncluded('reports') && (
                <ValueTile
                 href="/crm/pack-spec"
                 accent="border-l-blue-400"
@@ -813,7 +903,7 @@ export default function DashboardPage() {
               />
             )}
 
-            {canPO && (
+            {canPO && isIncluded('purchaseOrders') && (
               <ValueTile
                 href="/purchase-orders/list"
                 accent="border-l-amber-500"
@@ -822,6 +912,18 @@ export default function DashboardPage() {
                 sub="Active Orders"
                 icon={ShoppingCart}
                 iconClass="text-amber-500"
+              />
+            )}
+
+            {canRental && isIncluded('rental') && (
+              <ValueTile
+                href="/rental/billing"
+                accent="border-l-purple-400"
+                label="Rental Collections · Current Month"
+                value={`Rs.${nf(stats.revenue.rental)}`}
+                sub={stats.unpaidRentCount > 0 ? `${stats.unpaidRentCount} unpaid bill(s)` : 'All bills settled'}
+                icon={Building2}
+                iconClass="text-purple-400"
               />
             )}
 

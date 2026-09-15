@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Truck, Users, ArrowRight, TrendingUp, TrendingDown, AlertTriangle, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useState, useEffect, useMemo } from 'react';
 import type { Vehicle, Driver, PolicyOrMembership, Transaction, CompanyProfile } from '@/lib/types';
 import { ChartContainer, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
@@ -23,28 +24,29 @@ import { DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 
 export default function FleetDashboardPage() {
     const { user, hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('fleet');
     const [isLoading, setIsLoading] = useState(true);
-    
+
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
-    
+
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
-            onVehiclesUpdate(setVehicles),
+            onVehiclesUpdate((v) => setVehicles(v.filter(x => inScope(x.ownership)))),
             onDriversUpdate(setDrivers),
             onPoliciesUpdate(setPolicies),
-            onTransactionsUpdate(setTransactions),
+            onTransactionsUpdate((t) => setTransactions(t.filter(x => inScope(x.ownership)))),
             onSettingUpdate('fleetCompanyProfile', (s) => {
                 if (s?.value) setCompanyProfile(s.value);
             })
         ];
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [inScope]);
     
     const stats = useMemo(() => {
         if (isLoading) return { totalVehicles: 0, totalDrivers: 0, netThisMonth: 0, vehicleStatusData: [] };
@@ -216,7 +218,7 @@ export default function FleetDashboardPage() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div><CardTitle>Upcoming Renewals</CardTitle></div>
                          <Button asChild size="sm" variant="outline">
-                            <Link href="/fleet/policies">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                            <Link href="/fleet/registry?tab=policies">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
                         </Button>
                     </CardHeader>
                     <CardContent>
@@ -249,7 +251,7 @@ export default function FleetDashboardPage() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div><CardTitle>Recent Transactions</CardTitle></div>
                         <Button asChild size="sm" variant="outline">
-                            <Link href="/fleet/transactions">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                            <Link href="/fleet/transactions/ledger?view=grand">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
                         </Button>
                     </CardHeader>
                     <CardContent>

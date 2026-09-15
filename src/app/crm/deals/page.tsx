@@ -26,6 +26,7 @@ import {
 import NepaliDate from 'nepali-date-converter';
 import { format, isToday, isFuture, isPast, addDays, startOfDay } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import type { Deal, DealStage, Party, FollowUp, FollowUpStatus, InteractionLog } from '@/lib/types';
 import { onDealsUpdate, addDeal, updateDeal, deleteDeal } from '@/services/deal-service';
@@ -77,6 +78,7 @@ const LOST_REASONS = ['Price', 'Competitor', 'Timing', 'No Response', 'Other'];
 
 function ClientActivityPageContent() {
     const { user } = useAuth();
+    const { inScope } = useOwnershipScope('crm');
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const initialTab = searchParams.get('tab') === 'followups' ? 'followups' : searchParams.get('tab') === 'log' ? 'log' : 'pipeline';
@@ -94,13 +96,13 @@ function ClientActivityPageContent() {
             onFollowUpsUpdate(setFollowups),
             onInteractionsUpdate(setInteractions),
             onPartiesUpdate((data) => {
-                setParties(data.filter(p => p.type === 'Customer' || p.type === 'Both')
+                setParties(data.filter(p => (p.type === 'Customer' || p.type === 'Both') && inScope(p.ownership))
                     .sort((a, b) => a.name.localeCompare(b.name)));
                 setIsLoading(false);
             })
         ];
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [inScope]);
 
     /* ============ Pipeline (Deals) ============ */
     const [searchQuery, setSearchQuery] = useState('');

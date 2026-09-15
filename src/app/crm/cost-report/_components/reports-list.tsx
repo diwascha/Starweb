@@ -19,6 +19,7 @@ import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Badge } from '@/components/ui/badge';
 
 interface SavedReportsListProps {
@@ -31,7 +32,8 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
     const [reports, setReports] = useState<CostReport[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const { user } = useAuth();
-    
+    const { inScope } = useOwnershipScope('crm');
+
     // Filter State
     const [searchQuery, setSearchQuery] = useState('');
     const [filterPartyId, setFilterPartyId] = useState('All');
@@ -43,13 +45,13 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
     const [itemsPerPage, setItemsPerPage] = useState(10);
     
     useEffect(() => {
-        const unsubReports = onCostReportsUpdate(setReports);
-        const unsubParties = onPartiesUpdate(setParties);
+        const unsubReports = onCostReportsUpdate((data) => setReports(data.filter(r => inScope(r.ownership))));
+        const unsubParties = onPartiesUpdate((data) => setParties(data.filter(p => inScope(p.ownership))));
         return () => {
             unsubReports();
             unsubParties();
         };
-    }, []);
+    }, [inScope]);
 
     const uniqueParties = useMemo(() => {
         const pIds = new Set(reports.map(r => r.partyId));

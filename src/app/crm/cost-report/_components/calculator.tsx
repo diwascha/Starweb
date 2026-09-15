@@ -73,6 +73,7 @@ import {
   projectLayersToLegacy, resolveTakeUp,
 } from '@/lib/box-engine';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -790,6 +791,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { inScope } = useOwnershipScope('crm');
 
   const calculateItemCost = useCallback((item: any, globalK: any, globalV: number, globalC: number, globalT: number, tType: string, isAcc = false): CalculatedValues => {
     return sharedCalculateItemCost(item, globalK, globalV, globalC, globalT, tType, isAcc, Number(accessoryConversionCost) || 0, otherPaperCosts, fluteTakeUps);
@@ -846,11 +848,11 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             setTermsAndConditions(prev => prev.length === 0 ? (s.value.termsAndConditions || []) : prev);
         }
     });
-    const unsubParties = onPartiesUpdate(setParties);
+    const unsubParties = onPartiesUpdate((data) => setParties(data.filter(p => inScope(p.ownership))));
     const unsubDeals = onDealsUpdate(setDeals);
-    const unsubReports = onCostReportsUpdate(setCostReports);
+    const unsubReports = onCostReportsUpdate((data) => setCostReports(data.filter(r => inScope(r.ownership))));
     return () => { unsubCostSettings(); unsubParties(); unsubDeals(); unsubReports(); };
-  }, []);
+  }, [inScope]);
 
   const handleSaveMasterTerms = async (newTerms: CostReportTerm[]) => {
       if (!user) return;

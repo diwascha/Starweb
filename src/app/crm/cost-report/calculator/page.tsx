@@ -10,6 +10,7 @@ import { onSettingUpdate } from '@/services/settings-service';
 import { getCostReport } from '@/services/cost-report-service';
 import type { CostReport, Product, CompanyProfile } from '@/lib/types';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import React from 'react';
 
 const QuotationPreviewDialog = React.lazy(() => import('../_components/quotation-preview').then(m => ({ default: m.QuotationPreviewDialog })));
@@ -26,11 +27,12 @@ function CalculatorPageContent() {
     const [products, setProducts] = useState<Product[]>([]);
     const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
     const [isLoading, setIsLoading] = useState(true);
+    const { inScope } = useOwnershipScope('crm');
 
     useEffect(() => {
-        const unsubProducts = onProductsUpdate(setProducts);
+        const unsubProducts = onProductsUpdate((data) => setProducts(data.filter(p => inScope(p.ownership))));
         const unsubProfile = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
-        
+
         if (poId) {
             getCostReport(poId).then(data => {
                 setReportToEdit(data);
@@ -44,7 +46,7 @@ function CalculatorPageContent() {
             unsubProducts();
             unsubProfile();
         };
-    }, [poId]);
+    }, [poId, inScope]);
 
     if (isLoading) {
         return (

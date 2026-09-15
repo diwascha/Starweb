@@ -1,0 +1,420 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { 
+  PlusCircle,
+  Search,
+  MoreHorizontal,
+  Trash2, 
+  Edit, 
+  FilterX, 
+  CalendarIcon, 
+  Loader2,
+  Check,
+  ChevronDown,
+  Users,
+  Truck,
+  ChevronLeft,
+  ChevronRight,
+  Tag,
+  Wallet,
+  Eye,
+  Printer
+} from 'lucide-react';
+import type { Vehicle, Party } from '@/lib/types';
+import type { Expense } from '@/lib/expense-types';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { cn, toNepaliDate } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
+import { onExpensesUpdate, deleteExpense } from '@/services/expense-service';
+import { onVehiclesUpdate } from '@/services/vehicle-service';
+import { onPartiesUpdate } from '@/services/party-service';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import type { DateRange } from 'react-day-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import NepaliDate from 'nepali-date-converter';
+import { NEPALI_MONTHS } from '@/lib/constants';
+import { LedgerToolbar, type LedgerColumn } from '../_components/ledger-toolbar';
+import { SortableHead } from '../_components/sortable-head';
+import { LedgerFilterBar } from '../_components/ledger-filter-bar';
+
+type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType' | 'vehicle' | 'paymentMode';
+type SortDirection = 'asc' | 'desc';
+
+const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
+    const isAll = values.length === 0;
+
+    const toggleItem = (id: string) => {
+        if (id === 'All') {
+            onSelect([]);
+            return;
+        }
+        const next = values.includes(id)
+            ? values.filter((v: string) => v !== id)
+            : [...values, id];
+        onSelect(next);
+    };
+
+    const displayText = isAll
+        ? `All ${placeholder}s`
+        : values.length === 1
+            ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
+            : `${values.length} ${placeholder}s Selected`;
+
+    return (
+        <div className="space-y-1.5 flex-1 min-w-[150px]">
+            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
+                        <div className="flex items-center gap-2 overflow-hidden text-left">
+                            {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                            <span className="truncate">{displayText}</span>
+                        </div>
+                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[200px]" align="start">
+                    <Command>
+                        <CommandInput 
+                            placeholder={`Search ${placeholder.toLowerCase()}...`} 
+                        />
+                        <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                                <CommandItem value="All" onSelect={() => toggleItem('All')} className="text-xs">
+                                    <Check className={cn("mr-2 h-3.5 w-3.5", isAll ? "opacity-100" : "opacity-0")} />
+                                    All {placeholder}s
+                                </CommandItem>
+                                {items.map((item: any) => (
+                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
+                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
+                                        {item.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+};
+
+export function ExpensesView() {
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [parties, setParties] = useState<Party[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
+    const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
+    const [filterVehicleIds, setFilterVehicleIds] = useState<string[]>([]);
+    const [filterPartyIds, setFilterPartyIds] = useState<string[]>([]);
+    const [filterExpenseTypes, setFilterExpenseTypes] = useState<string[]>([]);
+    const [filterPaymentModes, setFilterPaymentModes] = useState<string[]>([]);
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+
+    const { toast } = useToast();
+    const { hasPermission } = useAuth();
+    const { inScope } = useOwnershipScope('fleet');
+    const router = useRouter();
+
+    useEffect(() => {
+        setIsLoading(true);
+        const unsubs = [
+            onExpensesUpdate((e) => setExpenses(e.filter(x => inScope(x.ownership)))),
+            onVehiclesUpdate((v) => setVehicles(v.filter(x => inScope(x.ownership)))),
+            onPartiesUpdate((p) => setParties(p.filter(x => inScope(x.ownership)))),
+        ];
+        setIsLoading(false);
+        return () => unsubs.forEach(u => u());
+    }, [inScope]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, filterExpenseTypes, filterPaymentModes, itemsPerPage]);
+
+    const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
+    const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
+
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        expenses.forEach(e => {
+            try {
+                years.add(new NepaliDate(new Date(e.date)).getYear());
+            } catch {}
+        });
+        return Array.from(years).sort((a, b) => b - a);
+    }, [expenses]);
+
+    const filteredAndSortedExpenses = useMemo(() => {
+        let filtered = [...expenses];
+
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(e => 
+                e.voucherNo.toLowerCase().includes(query) ||
+                (vehiclesById.get(e.vehicleId) || '').toLowerCase().includes(query) ||
+                (e.expenseType || '').toLowerCase().includes(query) ||
+                (e.destination || '').toLowerCase().includes(query) ||
+                (e.remarks || '').toLowerCase().includes(query)
+            );
+        }
+        
+        if (dateRange?.from) {
+            const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
+            filtered = filtered.filter(e => isWithinInterval(new Date(e.date), interval));
+        }
+
+        if (filterBsYears.length > 0) {
+            filtered = filtered.filter(e => {
+                try {
+                    const year = new NepaliDate(new Date(e.date)).getYear();
+                    return filterBsYears.includes(String(year));
+                } catch { return false; }
+            });
+        }
+
+        if (filterBsMonths.length > 0) {
+            filtered = filtered.filter(e => {
+                try {
+                    const month = new NepaliDate(new Date(e.date)).getMonth();
+                    return filterBsMonths.includes(String(month));
+                } catch { return false; }
+            });
+        }
+        
+        if (filterVehicleIds.length > 0) {
+            filtered = filtered.filter(e => filterVehicleIds.includes(e.vehicleId));
+        }
+
+        if (filterPartyIds.length > 0) {
+            filtered = filtered.filter(e => e.partyId && filterPartyIds.includes(e.partyId));
+        }
+
+        if (filterExpenseTypes.length > 0) {
+            filtered = filtered.filter(e => filterExpenseTypes.includes(e.expenseType));
+        }
+
+        if (filterPaymentModes.length > 0) {
+            filtered = filtered.filter(e => filterPaymentModes.includes(e.paymentMode));
+        }
+        
+        const getSortValue = (e: Expense) => {
+            switch (sortConfig.key) {
+                case 'vehicle': return vehiclesById.get(e.vehicleId) || '';
+                case 'paymentMode': return e.paymentMode || '';
+                default: return (e as any)[sortConfig.key] || '';
+            }
+        };
+
+        filtered.sort((a, b) => {
+            const aVal = getSortValue(a);
+            const bVal = getSortValue(b);
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return filtered;
+    }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, filterExpenseTypes, filterPaymentModes, sortConfig, vehiclesById, partiesById]);
+
+    const paginatedExpenses = useMemo(() => {
+        if (itemsPerPage === -1) return filteredAndSortedExpenses;
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredAndSortedExpenses.slice(start, start + itemsPerPage);
+    }, [filteredAndSortedExpenses, currentPage, itemsPerPage]);
+
+    const totalPages = useMemo(() => {
+        if (itemsPerPage === -1) return 1;
+        return Math.ceil(filteredAndSortedExpenses.length / itemsPerPage);
+    }, [filteredAndSortedExpenses, itemsPerPage]);
+
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteExpense(id);
+            toast({ title: 'Success', description: 'Expense record deleted.' });
+        } catch (error) {
+             toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
+        }
+    };
+
+    const requestSort = (key: SortKey) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const handleClearFilters = () => {
+        setSearchQuery('');
+        setDateRange(undefined);
+        setFilterBsYears([]);
+        setFilterBsMonths([]);
+        setFilterVehicleIds([]);
+        setFilterPartyIds([]);
+        setFilterExpenseTypes([]);
+        setFilterPaymentModes([]);
+    };
+
+    const isFiltered = useMemo(() => {
+        return searchQuery !== '' || 
+               !!dateRange || 
+               filterBsYears.length > 0 || 
+               filterBsMonths.length > 0 || 
+               filterVehicleIds.length > 0 ||
+               filterPartyIds.length > 0 ||
+               filterExpenseTypes.length > 0 ||
+               filterPaymentModes.length > 0;
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, filterExpenseTypes, filterPaymentModes]);
+
+    const exportColumns: LedgerColumn<Expense>[] = [
+        { header: 'Date (BS)', value: e => toNepaliDate(e.date) },
+        { header: 'Voucher #', value: e => e.voucherNo },
+        { header: 'Vehicle', value: e => vehiclesById.get(e.vehicleId) || 'N/A' },
+        { header: 'Type', value: e => e.expenseType },
+        { header: 'Settlement', value: e => e.paymentMode },
+        { header: 'Payee / Detail', value: e => e.partyId ? (partiesById.get(e.partyId) || '') : e.destination ? `To ${e.destination}` : 'Direct Cash' },
+        { header: 'Total NPR', align: 'right', value: e => (e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+    ];
+
+    return (
+        <div className="flex flex-col gap-8">
+            <header className="flex flex-col md:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-gray-900 uppercase">Expense History</h1>
+                    <p className="text-muted-foreground text-sm">Log of operational cash/bank payment outflows.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type="search" placeholder="Search history..." className="pl-8 sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    </div>
+                    <LedgerToolbar
+                        title="Expense History"
+                        subtitle={isFiltered ? 'Filtered view' : 'All expenses'}
+                        columns={exportColumns}
+                        rows={filteredAndSortedExpenses}
+                        filenamePrefix="Expense_History"
+                    />
+                    {hasPermission('fleet', 'create') && (
+                        <Button onClick={() => router.push('/fleet/transactions/expenses/new')}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> New Expense
+                        </Button>
+                    )}
+                </div>
+            </header>
+
+            <LedgerFilterBar>
+                <MultiSelect label="Year (BS)" values={filterBsYears} onSelect={setFilterBsYears} items={availableYears.map(y => ({ id: String(y), name: String(y) }))} placeholder="Year" />
+                <MultiSelect label="Month (BS)" values={filterBsMonths} onSelect={setFilterBsMonths} items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} placeholder="Month" />
+                <MultiSelect label="Vehicle" values={filterVehicleIds} onSelect={setFilterVehicleIds} items={vehicles} placeholder="Vehicle" icon={Truck} />
+                <MultiSelect label="Party" values={filterPartyIds} onSelect={setFilterPartyIds} items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} placeholder="Party" icon={Users} />
+                <MultiSelect label="Category" values={filterExpenseTypes} onSelect={setFilterExpenseTypes} items={[{ id: 'Advance', name: 'Advance' }, { id: 'Maintenance', name: 'Maintenance' }, { id: 'Fuel', name: 'Fuel' }, { id: 'Insurance', name: 'Insurance' }, { id: 'Tax/Renewal', name: 'Tax/Renewal' }, { id: 'Loan Repayment', name: 'Loan Repayment' }, { id: 'Transport', name: 'Transport' }, { id: 'Other', name: 'Other' }]} placeholder="Category" icon={Tag} />
+                <MultiSelect label="Mode" values={filterPaymentModes} onSelect={setFilterPaymentModes} items={[{ id: 'Cash', name: 'Cash' }, { id: 'Bank', name: 'Bank' }, { id: 'Mixed', name: 'Mixed' }]} placeholder="Mode" icon={Wallet} />
+
+                <div className="space-y-1.5 w-full md:w-[180px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                <span className="truncate">{dateRange?.from ? (dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")) : 'Pick AD Range'}</span>
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent>
+                    </Popover>
+                </div>
+                {isFiltered && (
+                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs"><FilterX className="mr-2 h-3.5 w-3.5" /> Reset</Button>
+                )}
+            </LedgerFilterBar>
+
+            <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader className="bg-muted/50">
+                            <TableRow>
+                                <SortableHead label="Date" className="pl-6" active={sortConfig.key === 'date'} onClick={() => requestSort('date')} />
+                                <SortableHead label="Voucher #" active={sortConfig.key === 'voucherNo'} onClick={() => requestSort('voucherNo')} />
+                                <SortableHead label="Vehicle" active={sortConfig.key === 'vehicle'} onClick={() => requestSort('vehicle')} />
+                                <SortableHead label="Type" active={sortConfig.key === 'expenseType'} onClick={() => requestSort('expenseType')} />
+                                <SortableHead label="Settlement" active={sortConfig.key === 'paymentMode'} onClick={() => requestSort('paymentMode')} />
+                                <TableHead className="text-[11px] font-black uppercase tracking-wider">Payee / Detail</TableHead>
+                                <SortableHead label="Total NPR" align="right" active={sortConfig.key === 'amount'} onClick={() => requestSort('amount')} />
+                                <TableHead className="text-right pr-6 text-[11px] font-black uppercase tracking-wider">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                            ) : paginatedExpenses.map((e: Expense) => (
+                                <TableRow key={e.id} className="hover:bg-muted/30 h-14">
+                                    <TableCell className="pl-6 font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
+                                    <TableCell className="font-mono text-[11px] font-bold text-blue-600">{e.voucherNo}</TableCell>
+                                    <TableCell><span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">{vehiclesById.get(e.vehicleId) || 'N/A'}</span></TableCell>
+                                    <TableCell><Badge variant="outline" className={cn("text-[9px] uppercase font-bold", e.expenseType === 'Maintenance' && "bg-amber-50 text-amber-700", e.expenseType === 'Advance' && "bg-emerald-50 text-emerald-700", e.expenseType === 'Loan Repayment' && "bg-orange-50 text-orange-700", e.expenseType === 'Fuel' && "bg-yellow-50 text-yellow-700", e.expenseType === 'Insurance' && "bg-purple-50 text-purple-700", e.expenseType === 'Tax/Renewal' && "bg-cyan-50 text-cyan-700", e.expenseType === 'Transport' && "bg-teal-50 text-teal-700", e.expenseType === 'Other' && "bg-slate-50 text-slate-700")}>{e.expenseType}</Badge></TableCell>
+                                    <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/50 border-none">{e.paymentMode}</Badge></TableCell>
+                                    <TableCell className="py-3"><div className="flex flex-col"><span className="text-[11px] font-semibold text-gray-900">{e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}</span>{e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}</div></TableCell>
+                                    <TableCell className="text-right font-black text-red-600 text-[11px] tabular-nums">Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right pr-6">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/view?id=${e.id}`)}><Eye className="mr-2 h-4 w-4" /> View Voucher</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/edit?id=${e.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => window.open(`/fleet/transactions/expenses/view?id=${e.id}`, '_blank')}><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the record. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)} className="bg-destructive text-white">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {!isLoading && filteredAndSortedExpenses.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground italic">No records found.</TableCell></TableRow>}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+                {(totalPages > 1 || itemsPerPage !== -1) && (
+                    <CardFooter className="flex items-center justify-between py-4 border-t bg-muted/5">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            {itemsPerPage === -1 ? <>Showing all <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span> entries</> : <>Showing <span className="font-bold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span>–<span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, filteredAndSortedExpenses.length)}</span> of <span className="font-bold text-foreground">{filteredAndSortedExpenses.length}</span></>}
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Rows</span>
+                                <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(parseInt(v)); setCurrentPage(1); }}><SelectTrigger className="h-8 w-[70px] bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="25">25</SelectItem><SelectItem value="50">50</SelectItem><SelectItem value="-1">All</SelectItem></SelectContent></Select>
+                            </div>
+                            {itemsPerPage !== -1 && (
+                                <div className="flex items-center gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="h-8 w-8 p-0"><ChevronLeft className="h-4 w-4" /></Button>
+                                    <div className="text-xs font-bold px-2 whitespace-nowrap">Page {currentPage} of {totalPages}</div>
+                                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="h-8 w-8 p-0"><ChevronRight className="h-4 w-4" /></Button>
+                                </div>
+                            )}
+                        </div>
+                    </CardFooter>
+                )}
+            </Card>
+        </div>
+    );
+}

@@ -50,6 +50,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { ProductForm } from '../cost-report/_components/product-form';
 import { SortableHead } from '@/components/ui/sortable-head';
@@ -219,6 +220,7 @@ const ProductRowMenu = ({ product, onView, onEdit, onCheckUsage, onDelete, delet
 
 export default function PackSpecPage() {
   const { user, hasPermission } = useAuth();
+  const { inScope } = useOwnershipScope('crm');
   const { toast } = useToast();
   // Reads the saved company profile, so a Settings edit reaches the spec
   // sheet and its export - both used to be pinned to the hardcoded default.
@@ -281,12 +283,12 @@ export default function PackSpecPage() {
 
   useEffect(() => {
     const unsub = onProductsUpdate((data) => {
-      setProducts(data);
+      setProducts(data.filter(p => inScope(p.ownership)));
       setIsLoading(false);
     });
     const unsubParties = onPartiesUpdate((data) => setParties(data.map(p => ({ id: p.id, name: p.name }))));
     return () => { unsub(); unsubParties(); };
-  }, []);
+  }, [inScope]);
 
   const clientOptions = useMemo(() => {
     const names = Array.from(new Set(products.map(p => p.partyName || 'Unassigned Client'))).sort();

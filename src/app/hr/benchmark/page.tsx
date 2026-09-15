@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { cn } from '@/lib/utils';
 import type { Employee, AttendanceRecord, Payroll } from '@/lib/types';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
 import { onPayrollUpdate } from '@/services/payroll-service';
@@ -48,6 +49,7 @@ export default function EmployeePerformanceBenchmarkPage() {
     const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
     const [payroll, setPayroll] = useState<Payroll[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const { inScope } = useOwnershipScope('hr');
 
     const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(
         String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()))
@@ -67,13 +69,13 @@ export default function EmployeePerformanceBenchmarkPage() {
     const [filterPositions, setFilterPositions] = useState<string[]>([]);
 
     useEffect(() => {
-        const unsubEmp = onEmployeesUpdate(setEmployees);
-        const unsubPay = onPayrollUpdate(setPayroll);
+        const unsubEmp = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
+        const unsubPay = onPayrollUpdate((data) => setPayroll(data.filter(p => inScope(p.ownership))));
         return () => {
             unsubEmp();
             unsubPay();
         };
-    }, []);
+    }, [inScope]);
 
     // Which BS years hold data, from a bounded probe rather than by reading
     // every attendance row. Drives the picker below.

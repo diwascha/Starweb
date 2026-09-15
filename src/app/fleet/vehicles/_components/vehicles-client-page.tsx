@@ -32,6 +32,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onVehiclesUpdate, addVehicle, updateVehicle, deleteVehicle } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -78,13 +79,14 @@ export default function VehiclesClientPage({
 
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
-    
+    const { inScope } = useOwnershipScope('fleet');
+
     const driversById = useMemo(() => new Map(drivers.map(d => [d.id, d.name])), [drivers]);
 
     useEffect(() => {
         setIsLoading(true);
         const unsubVehicles = onVehiclesUpdate((data) => {
-            setVehicles(data);
+            setVehicles(data.filter(v => inScope(v.ownership)));
             setIsLoading(false);
         });
         const unsubDrivers = onDriversUpdate(setDrivers);
@@ -92,7 +94,7 @@ export default function VehiclesClientPage({
             unsubVehicles();
             unsubDrivers();
         };
-    }, []);
+    }, [inScope]);
 
     useEffect(() => {
         setCurrentPage(1);

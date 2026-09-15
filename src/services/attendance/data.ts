@@ -215,6 +215,22 @@ export const deleteRawLog = async (id: string) => {
     );
 };
 
+export const deleteRawLogsForMonth = async (year: number, month: number): Promise<void> => {
+    const q = query(getRawLogsCollection(), where('bsYear', '==', year), where('bsMonth', '==', month));
+    const snap = await getDocs(q);
+    try {
+        await deleteDocsInChunks(snap.docs.map(d => d.ref));
+    } catch (err: any) {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'raw_machine_logs_batch_delete',
+                operation: 'write'
+            }));
+        }
+        throw err;
+    }
+};
+
 /**
  * True if either the attendance or the payroll period lock for this BS
  * year/month is set. Deletion (single-month or fiscal-year-wide) must never

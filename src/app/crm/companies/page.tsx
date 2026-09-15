@@ -61,6 +61,7 @@ import {
     TableRow 
 } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -69,6 +70,7 @@ import { readUploadedWorkbook } from '@/lib/workbook-import';
 
 export default function CompaniesManagementPage() {
     const { user } = useAuth();
+    const { inScope } = useOwnershipScope('crm');
     const { toast } = useToast();
     
     const [companies, setCompanies] = useState<Party[]>([]);
@@ -111,7 +113,7 @@ export default function CompaniesManagementPage() {
         setIsLoading(true);
         const unsubs = [
             onPartiesUpdate((data) => {
-                setCompanies(data.filter(p => p.type === 'Customer' || p.type === 'Both'));
+                setCompanies(data.filter(p => (p.type === 'Customer' || p.type === 'Both') && inScope(p.ownership)));
             }),
             onContactsUpdate((data) => {
                 setContacts(data);
@@ -119,7 +121,7 @@ export default function CompaniesManagementPage() {
             })
         ];
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [inScope]);
 
     const filteredCompanies = useMemo(() => {
         return companies.filter(c => 

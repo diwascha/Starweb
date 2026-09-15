@@ -13,6 +13,7 @@ import { getStatusBadgeVariant } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
 import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 import { onRawMaterialsUpdate } from '@/services/raw-material-service';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 
 interface PurchaseOrderDashboardClientProps {
   initialPurchaseOrders: PurchaseOrder[];
@@ -22,16 +23,17 @@ interface PurchaseOrderDashboardClientProps {
 export default function PurchaseOrderDashboardClient({ initialPurchaseOrders, initialRawMaterials }: PurchaseOrderDashboardClientProps) {
    const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(initialPurchaseOrders);
    const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(initialRawMaterials);
-   
+   const { inScope } = useOwnershipScope('purchaseOrders');
+
    useEffect(() => {
-     const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
-     const unsubRMs = onRawMaterialsUpdate(setRawMaterials);
+     const unsubPOs = onPurchaseOrdersUpdate((data) => setPurchaseOrders(data.filter(po => inScope(po.ownership))));
+     const unsubRMs = onRawMaterialsUpdate((data) => setRawMaterials(data.filter(rm => inScope(rm.ownership))));
 
      return () => {
          unsubPOs();
          unsubRMs();
      };
-   }, []);
+   }, [inScope]);
    
    const { totalPOs, totalRawMaterials, avgLeadTime, poStatusData, companyLeadTimeData } = useMemo(() => {
         const deliveredPOs = purchaseOrders.filter(po => po.status === 'Delivered' && po.deliveryDate);

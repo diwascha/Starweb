@@ -519,6 +519,12 @@ export interface Vehicle {
   lastModifiedBy?: string;
   lastModifiedAt?: string; // ISO string
   ownership: string;
+  // Who actually owns this truck and how - distinct from `ownership`, which is
+  // the Sijan/Shivam company-scoping flag. A truck can be company-owned or
+  // run for a third party who's paid out of its earnings (P&L reporting).
+  ownershipType?: 'Own' | 'Third Party' | 'Leased' | 'Retired';
+  ownerName?: string; // required reading when ownershipType is 'Third Party' or 'Leased'
+  monthlyEmi?: number;
 }
 
 export interface Driver {
@@ -533,15 +539,17 @@ export interface Driver {
     createdAt: string; // ISO string
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO string
+    ownership: string;
 }
 
 export type PolicyStatus = 'Active' | 'Renewed' | 'Archived';
 
 export interface PolicyOrMembership {
   id: string;
+  documentNumber: string; // internal registry number, e.g. POL-2083-0001; new on every renewal
   type: string;
   provider: string; // e.g., Insurance company or Membership organization
-  policyNumber: string; // Policy or Membership ID
+  policyNumber: string; // Policy or Membership ID (the insurer/authority's own number)
   startDate: string; // ISO string
   endDate: string; // ISO string
   cost: number; // Premium or Membership fee
@@ -552,8 +560,9 @@ export interface PolicyOrMembership {
   lastModifiedBy?: string;
   lastModifiedAt?: string; // ISO string
   renewedFromId?: string | null;
-  renewedToId?: string | null;   // 
+  renewedToId?: string | null;   //
   status?: PolicyStatus;
+  ownership: string;
 }
 
 
@@ -852,7 +861,7 @@ export interface AppSetting {
     value: any;
 }
 
-export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense', 'rentalBill', 'chequeVoucher', 'gsmVoucher', 'paymentTracker'] as const;
+export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense', 'rentalBill', 'chequeVoucher', 'gsmVoucher', 'paymentTracker', 'policy'] as const;
 export type DocumentType = typeof documentTypes[number];
 
 export interface NumberingRule {
@@ -891,6 +900,8 @@ export const getDocumentName = (type: DocumentType): string => {
             return 'Cheque Voucher (PDC)';
         case 'gsmVoucher':
             return 'GSM Verification Report';
+        case 'policy':
+            return 'Policy / Membership Registration';
         case 'paymentTracker':
             return 'Payment Tracker Entry';
         default:

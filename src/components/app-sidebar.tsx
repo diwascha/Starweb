@@ -30,7 +30,6 @@ import {
   Building2,
   PlusCircle,
   Truck,
-  ShieldCheck,
   CreditCard,
   ArrowRightLeft,
   TrendingUp,
@@ -119,7 +118,7 @@ export function AppSidebar() {
     });
     return () => unsubBranding();
   }, []);
-  
+
   const handleSignOut = async () => {
     try {
         await logout();
@@ -134,10 +133,33 @@ export function AppSidebar() {
     const normalizedTarget = getNormalizedPath(path);
 
     if (exact) return normalizedPath === normalizedTarget;
-    return normalizedPath.startsWith(normalizedTarget) && 
+    return normalizedPath.startsWith(normalizedTarget) &&
            (normalizedPath[normalizedTarget.length] === '/' || normalizedPath.length === normalizedTarget.length);
   };
-  
+
+  // Accordion behavior for the module sections below: `defaultOpen` on a
+  // Collapsible only sets its INITIAL state, so navigating from one module to
+  // another (client-side, no remount) used to leave every previously visited
+  // module's section expanded too - the sidebar only ever grew taller.
+  // Tracking one open section here and driving each Collapsible off it keeps
+  // exactly one expanded at a time, matching the current route.
+  const sectionForPath = (): string | null => {
+    if (getIsActive('/finance')) return 'finance';
+    if (getIsActive('/reports') || getIsActive('/report') || getIsActive('/products')) return 'reports';
+    if (getIsActive('/purchase-orders') || getIsActive('/raw-materials')) return 'purchaseOrders';
+    if (getIsActive('/crm')) return 'crm';
+    if (getIsActive('/hr')) return 'hr';
+    if (getIsActive('/fleet')) return 'fleet';
+    if (getIsActive('/rental')) return 'rental';
+    if (getIsActive('/settings')) return 'settings';
+    return null;
+  };
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  useEffect(() => {
+    setOpenSection(sectionForPath());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   if (!user) {
     return null;
   }
@@ -167,7 +189,7 @@ export function AppSidebar() {
         </SidebarMenu>
         
         {hasPermission('finance', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/finance')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'finance'} onOpenChange={(v: boolean) => setOpenSection(v ? 'finance' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -205,8 +227,8 @@ export function AppSidebar() {
             </Collapsible>
         )}
 
-        {hasPermission('reports', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/reports') || getIsActive('/report') || getIsActive('/products')} className="group/collapsible">
+        {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
+            <Collapsible asChild open={openSection === 'reports'} onOpenChange={(v: boolean) => setOpenSection(v ? 'reports' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -244,8 +266,8 @@ export function AppSidebar() {
             </Collapsible>
         )}
         
-        {hasPermission('purchaseOrders', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/purchase-orders') || getIsActive('/raw-materials')} className="group/collapsible">
+        {(hasPermission('purchaseOrders', 'view') || hasPermission('rawMaterials', 'view')) && (
+            <Collapsible asChild open={openSection === 'purchaseOrders'} onOpenChange={(v: boolean) => setOpenSection(v ? 'purchaseOrders' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -289,7 +311,7 @@ export function AppSidebar() {
         )}
 
         {hasPermission('crm', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/crm')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'crm'} onOpenChange={(v: boolean) => setOpenSection(v ? 'crm' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -325,7 +347,7 @@ export function AppSidebar() {
         )}
     
         {hasPermission('hr', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/hr')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'hr'} onOpenChange={(v: boolean) => setOpenSection(v ? 'hr' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -359,7 +381,7 @@ export function AppSidebar() {
         )}
         
         {hasPermission('fleet', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/fleet')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'fleet'} onOpenChange={(v: boolean) => setOpenSection(v ? 'fleet' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -375,8 +397,7 @@ export function AppSidebar() {
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/fleet', true)}><Link href="/fleet" className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /><span>Dashboard</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/registry')}><Link href="/fleet/registry" className="flex items-center gap-2"><Truck className="h-4 w-4" /><span>Vehicles & Drivers</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies" className="flex items-center gap-2"><ShieldCheck className="h-4 w-4" /><span>Policies & Memberships</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/registry')}><Link href="/fleet/registry" className="flex items-center gap-2"><Truck className="h-4 w-4" /><span>Registry (Vehicles, Drivers & Policies)</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
 
                             {hasPermission('fleet', 'create') && (
@@ -401,12 +422,10 @@ export function AppSidebar() {
 
                             <SidebarGroupLabel className="px-5 py-2 text-[10px] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
                             <SidebarMenuSub>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/trip-sheets', true)}><Link href="/fleet/trip-sheets" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Sales Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/purchase', true)}><Link href="/fleet/transactions/purchase" className="flex items-center gap-2"><ShoppingCart className="h-4 w-4" /><span>Purchase History</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/expenses', true)}><Link href="/fleet/transactions/expenses" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Expense History</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/list', true)}><Link href="/fleet/transactions/payment-receipt/list" className="flex items-center gap-2"><Receipt className="h-4 w-4" /><span>Pmt. / Rcd. logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions" className="flex items-center gap-2"><CreditCard className="h-4 w-4" /><span>Sijan Reports</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/ledger')}><Link href="/fleet/transactions/ledger" className="flex items-center gap-2"><CreditCard className="h-4 w-4" /><span>Fleet Ledger</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/import')}><Link href="/fleet/import" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>Import from Excel</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
+
                         </CollapsibleContent>
                     </SidebarMenuItem>
                 </SidebarMenu>
@@ -414,7 +433,7 @@ export function AppSidebar() {
         )}
 
         {hasPermission('rental', 'view') && (
-            <Collapsible asChild defaultOpen={getIsActive('/rental')} className="group/collapsible">
+            <Collapsible asChild open={openSection === 'rental'} onOpenChange={(v: boolean) => setOpenSection(v ? 'rental' : null)} className="group/collapsible">
                 <SidebarMenu>
                     <SidebarSeparator />
                     <SidebarMenuItem>
@@ -454,7 +473,7 @@ export function AppSidebar() {
             nav. System is an administrator screen - it creates accounts and
             grants admin rights - so it is gated separately below. */}
         {hasPermission('settings', 'view') && (
-        <Collapsible asChild defaultOpen={getIsActive('/settings')} className="group/collapsible">
+        <Collapsible asChild open={openSection === 'settings'} onOpenChange={(v: boolean) => setOpenSection(v ? 'settings' : null)} className="group/collapsible">
             <SidebarMenu>
                 <SidebarSeparator />
                 <SidebarMenuItem>
@@ -469,7 +488,7 @@ export function AppSidebar() {
                         <SidebarMenuSub>
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/general')}><Link href="/settings/general" className="flex items-center gap-2"><Settings2 className="h-4 w-4"/><span>General</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/finance')}><Link href="/settings/finance" className="flex items-center gap-2"><Calculator className="h-4 w-4"/><span>Finance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                            {user.isAdmin && (
+                            {user?.isAdmin && (
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/system')}><Link href="/settings/system" className="flex items-center gap-2"><ShieldAlert className="h-4 w-4"/><span>System</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             )}
                         </SidebarMenuSub>

@@ -1,7 +1,23 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, Transaction, DocumentPrefixes, Trip, TdsCalculation, EstimatedInvoice, DocumentType, NumberingRule, Cheque, GsmReport, PaymentTrackerEntry } from './types';
+import type {
+  Report,
+  PurchaseOrder,
+  PurchaseOrderStatus,
+  AttendanceStatus,
+  Transaction,
+  DocumentPrefixes,
+  Trip,
+  TdsCalculation,
+  EstimatedInvoice,
+  DocumentType,
+  NumberingRule,
+  Cheque,
+  GsmReport,
+  PaymentTrackerEntry,
+  PolicyOrMembership
+} from './types';
 import type { Expense } from './expense-types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
@@ -178,6 +194,9 @@ export const generateNextSalesNumber = (items: Pick<Trip, 'tripNumber'>[], date?
 
 export const generateNextExpenseNumber = (items: Pick<Expense, 'voucherNo'>[], date?: string) =>
   generateNextNumber(items, 'voucherNo', 'expense', 'EXP-', date);
+
+export const generateNextPolicyNumber = (items: Pick<PolicyOrMembership, 'documentNumber'>[], date?: string) =>
+  generateNextNumber(items.map(i => ({ documentNumber: i.documentNumber })), 'documentNumber', 'policy', 'POL-', date);
 
 export const generateNextGsmNumber = (items: Pick<GsmReport, 'voucherNo'>[], date?: string) =>
   generateNextNumber(items, 'voucherNo', 'gsmVoucher', 'GSM-', date);

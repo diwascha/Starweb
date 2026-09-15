@@ -46,6 +46,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { cn, normalizeBF } from '@/lib/utils';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
@@ -54,6 +55,7 @@ const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 export default function RawMaterialsPage() {
   const { user, hasPermission } = useAuth();
   const { toast } = useToast();
+  const { inScope } = useOwnershipScope('purchaseOrders');
   
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
@@ -80,7 +82,7 @@ export default function RawMaterialsPage() {
   useEffect(() => {
     setIsLoading(true);
     const unsubMaterials = onRawMaterialsUpdate((data) => {
-        setMaterials(data);
+        setMaterials(data.filter(m => inScope(m.ownership)));
         setIsLoading(false);
     });
     const unsubUoms = onUomsUpdate(setUoms);
@@ -88,7 +90,7 @@ export default function RawMaterialsPage() {
         unsubMaterials();
         unsubUoms();
     };
-  }, []);
+  }, [inScope]);
 
   useEffect(() => {
     setCurrentPage(1);

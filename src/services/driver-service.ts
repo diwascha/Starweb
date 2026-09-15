@@ -26,6 +26,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
+        ownership: data.ownership || 'Both', // legacy docs predate ownership scoping - default visible rather than hidden
     };
 }
 

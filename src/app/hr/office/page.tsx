@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { 
     onShiftsUpdate, saveShift, deleteShift, discoverShiftsFromRawLogs,
@@ -63,6 +64,7 @@ function SettingsTable({ rows }: { rows: SettingRowSpec[] }) {
 
 export default function HrOfficePage() {
     const { user } = useAuth();
+    const { inScope } = useOwnershipScope('hr');
     const { toast } = useToast();
 
     const [activeTab, setActiveTab] = useState("operations");
@@ -97,13 +99,13 @@ export default function HrOfficePage() {
             onShiftsUpdate(setShifts),
             onHolidaysUpdate(setHolidays),
             onLeaveRequestsUpdate(setLeaveRequests),
-            onEmployeesUpdate(setEmployees),
+            onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership)))),
             onSettingUpdate('hr_config', (s) => {
                 if (s?.value) setHrConfig(s.value);
             })
         ];
         return () => unsubs.forEach(u => u());
-    }, []);
+    }, [inScope]);
 
     const handleSaveHrConfig = async () => {
         if (!user) return;

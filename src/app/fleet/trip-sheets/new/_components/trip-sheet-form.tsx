@@ -429,7 +429,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 );
                 await addTrip({ ...tripDataForDb, tripNumber: reserved });
                 toast({ title: 'Success', description: `Sales - Trip Sheet ${reserved} created and transaction recorded.` });
-                router.push('/fleet/transactions');
+                router.push('/fleet/transactions/ledger?view=grand');
             }
 
         } catch (error) {

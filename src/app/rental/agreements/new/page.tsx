@@ -14,6 +14,7 @@ import { getUnitsByProperty } from '@/services/unit-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { activateAgreement } from '@/services/agreement-service';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
@@ -25,6 +26,7 @@ function AgreementWizard() {
   const unitIdFromUrl = searchParams.get('unitId');
   
   const { user } = useAuth();
+  const { inScope } = useOwnershipScope('rental');
   const { toast } = useToast();
   
   const [step, setStep] = useState(1);
@@ -47,9 +49,9 @@ function AgreementWizard() {
   });
 
   useEffect(() => {
-    onPropertiesUpdate(setProperties);
-    onPartiesUpdate((data) => setTenants(data.filter(p => p.type === 'Tenant' || p.type === 'Both')));
-  }, []);
+    onPropertiesUpdate((data) => setProperties(data.filter(p => inScope(p.ownership))));
+    onPartiesUpdate((data) => setTenants(data.filter(p => (p.type === 'Tenant' || p.type === 'Both') && inScope(p.ownership))));
+  }, [inScope]);
 
   useEffect(() => {
     if (form.propertyId) {
