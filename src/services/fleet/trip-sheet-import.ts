@@ -50,7 +50,22 @@ export interface PaymentSheetCandidate {
 function toIsoDate(value: any): string | null {
     if (value instanceof Date && !isNaN(value.getTime())) return value.toISOString();
     if (typeof value === 'string' && value.trim()) {
-        const d = new Date(value);
+        const trimmed = value.trim();
+        // This workbook's date columns (A.D included) are typed as plain
+        // DD/MM/YYYY text, not real Excel date serials. The bare JS Date
+        // constructor assumes US-style MM/DD/YYYY for slash-separated
+        // strings, so "24/07/2026" would otherwise be misread as month 24
+        // (NaN) or, worse, a day <= 12 would silently swap day and month
+        // into a wrong-but-valid date. Parse day/month/year explicitly first.
+        const dmy = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (dmy) {
+            const day = Number(dmy[1]), month = Number(dmy[2]), year = Number(dmy[3]);
+            if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                const d = new Date(Date.UTC(year, month - 1, day));
+                if (!isNaN(d.getTime())) return d.toISOString();
+            }
+        }
+        const d = new Date(trimmed);
         if (!isNaN(d.getTime())) return d.toISOString();
     }
     return null;
@@ -251,12 +266,13 @@ export function parsePaymentsSheet(grid: any[][]): { candidates: PaymentSheetCan
         const amount = idxAmount >= 0 ? Number(row[idxAmount]) || 0 : 0;
         if (amount <= 0) continue;
 
-        // This workbook's "Date (A.D)" column is usually left blank on the
-        // Payments sheet - only "Date (B.S)" is filled in, typed as plain
-        // DD/MM/YYYY Nepali-calendar text. Prefer a real A.D. cell when
-        // present, otherwise decode the B.S. text properly; only as a last
-        // resort (some other workbook variant where the B.S. cell actually
-        // holds a real Excel date serial) fall back to naive JS parsing.
+        // "Date (A.D)" is sometimes left blank on the Payments sheet and
+        // sometimes filled in (both as plain DD/MM/YYYY text, handled by
+        // toIsoDate). Prefer a real A.D. cell when present and valid,
+        // otherwise decode the B.S. text as a Nepali calendar date; only as
+        // a last resort (some other workbook variant where the B.S. cell
+        // actually holds a real Excel date serial) fall back to naive JS
+        // parsing of that same cell.
         const dateIso = (idxDateAD >= 0 ? toIsoDate(row[idxDateAD]) : null)
             ?? (idxDateBS >= 0 ? toIsoDateFromBsText(row[idxDateBS]) : null)
             ?? (idxDateBS >= 0 ? toIsoDate(row[idxDateBS]) : null);
