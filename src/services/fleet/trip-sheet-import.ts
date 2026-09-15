@@ -23,6 +23,7 @@ import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { COLLECTIONS } from '@/lib/constants';
 import { createTimestamp } from '@/lib/service-utils';
+import NepaliDate from 'nepali-date-converter';
 
 export interface TripSheetCandidate {
     rowNumber: number; // 1-based, for user-facing messages
@@ -53,6 +54,26 @@ function toIsoDate(value: any): string | null {
         if (!isNaN(d.getTime())) return d.toISOString();
     }
     return null;
+}
+
+/**
+ * Parses a Bikram Sambat calendar date typed as plain text (e.g. "08/04/2083",
+ * DD/MM/YYYY - this workbook's convention). This must NOT go through the
+ * plain JS Date constructor: it reads DD/MM as if it were the US MM/DD
+ * convention, which silently produces a wrong-but-valid date for day <= 12
+ * (e.g. "08/04/2083" -> August 4, 2083 AD) and an outright NaN for day > 12
+ * (e.g. "31/04/2083"), which is what showed up as "unreadable". NepaliDate's
+ * own string parser correctly disambiguates DD/MM/YYYY from YYYY/MM/DD.
+ */
+function toIsoDateFromBsText(value: any): string | null {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    try {
+        const jsDate = new NepaliDate(value.trim()).toJsDate();
+        if (isNaN(jsDate.getTime())) return null;
+        return jsDate.toISOString();
+    } catch {
+        return null;
+    }
 }
 
 function findHeaderRow(grid: any[][], mustContain: string): number {
@@ -230,11 +251,14 @@ export function parsePaymentsSheet(grid: any[][]): { candidates: PaymentSheetCan
         const amount = idxAmount >= 0 ? Number(row[idxAmount]) || 0 : 0;
         if (amount <= 0) continue;
 
-        // This workbook's "Date (A.D)" column is often left blank on the
-        // Payments sheet - only "Date (B.S)" is filled in, and Excel stores
-        // it as a real date serial (just custom-formatted to look like a BS
-        // date), so it parses as a normal JS Date too. Fall back to it.
+        // This workbook's "Date (A.D)" column is usually left blank on the
+        // Payments sheet - only "Date (B.S)" is filled in, typed as plain
+        // DD/MM/YYYY Nepali-calendar text. Prefer a real A.D. cell when
+        // present, otherwise decode the B.S. text properly; only as a last
+        // resort (some other workbook variant where the B.S. cell actually
+        // holds a real Excel date serial) fall back to naive JS parsing.
         const dateIso = (idxDateAD >= 0 ? toIsoDate(row[idxDateAD]) : null)
+            ?? (idxDateBS >= 0 ? toIsoDateFromBsText(row[idxDateBS]) : null)
             ?? (idxDateBS >= 0 ? toIsoDate(row[idxDateBS]) : null);
         if (!dateIso) {
             warnings.push(`Payments row ${r + 1}: missing or unreadable date - skipped.`);
