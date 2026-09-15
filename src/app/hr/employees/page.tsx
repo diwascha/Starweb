@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, FileText, Loader2, ChevronLeft, ChevronRight, Users, History, X } from 'lucide-react';
 import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus, Department, Position, BloodGroup, EmployeeDocument } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardFooter } from '@/components/ui/card';
@@ -41,6 +41,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
+import { findDuplicateGroups, type DuplicateGroup } from '@/lib/employee-duplicates';
+import { MergeEmployeesDialog } from './_components/merge-employees-dialog';
+import { WageHistoryDialog } from './_components/wage-history-dialog';
 
 type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'status' | 'department';
 type SortDirection = 'asc' | 'desc';
@@ -105,6 +108,12 @@ export default function EmployeesPage() {
 
   const [isCustomDepartment, setIsCustomDepartment] = useState(false);
   const [isCustomPosition, setIsCustomPosition] = useState(false);
+
+  // Duplicate review + merge
+  const [mergeCandidates, setMergeCandidates] = useState<Employee[]>([]);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[] | null>(null);
+  const [wageHistoryEmployee, setWageHistoryEmployee] = useState<Employee | null>(null);
 
   const knownDepartments = useMemo(() => {
     const fromEmployees = employees.map(e => e.department).filter((d): d is string => Boolean(d));
@@ -190,6 +199,39 @@ export default function EmployeesPage() {
     } finally {
         setIsLoading(false);
     }
+  };
+
+  // A merge rewrites records (edit), re-keys them under new document ids
+  // (add) and removes the duplicates (delete). Gating on anything less lets
+  // someone start a merge the rules will block halfway through, leaving the
+  // records half-moved.
+  const canMerge = hasPermission('hr', 'add') && hasPermission('hr', 'edit') && hasPermission('hr', 'delete');
+
+  const openMergeDialog = (candidates: Employee[]) => {
+    if (candidates.length < 2) {
+        toast({
+            title: 'Select two or more records',
+            description: 'Merging needs at least two employee records to combine.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    setMergeCandidates(candidates);
+    setIsMergeDialogOpen(true);
+  };
+
+  const handleScanForDuplicates = () => {
+    const groups = findDuplicateGroups(employees);
+    setDuplicateGroups(groups);
+    if (groups.length === 0) {
+        toast({ title: 'No likely duplicates', description: 'No employee names looked similar enough to flag.' });
+    }
+  };
+
+  const handleMergeComplete = () => {
+    setSelectedIds(new Set());
+    // The flagged groups name records that may no longer exist; re-scan on demand.
+    setDuplicateGroups(null);
   };
 
   const resetForm = () => {
@@ -352,6 +394,16 @@ export default function EmployeesPage() {
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
                 <span className="text-[10px] font-black uppercase text-primary tracking-widest">{selectedIds.size} Selected</span>
+                {canMerge && selectedIds.size > 1 && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9"
+                        onClick={() => openMergeDialog(employees.filter(e => selectedIds.has(e.id)))}
+                    >
+                        <Users className="h-4 w-4 mr-2" /> Merge Selected
+                    </Button>
+                )}
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button variant="outline" size="sm" className="h-9 text-destructive border-destructive/20 hover:bg-red-50">
@@ -396,6 +448,11 @@ export default function EmployeesPage() {
                 Reset
             </Button>
           )}
+          {canMerge && (
+            <Button variant="outline" onClick={handleScanForDuplicates} className="h-10 font-black text-[10px] uppercase tracking-widest">
+                <Users className="mr-2 h-4 w-4" /> Find Duplicates
+            </Button>
+          )}
           {hasPermission('hr', 'create') && (
             <Button onClick={openAddEmployeeDialog} className="shadow-lg shadow-primary/20 font-black text-xs uppercase tracking-widest px-6">
                 <Plus className="mr-2 h-4 w-4" /> Add Employee
@@ -403,6 +460,47 @@ export default function EmployeesPage() {
           )}
         </div>
       </header>
+
+      {duplicateGroups && duplicateGroups.length > 0 && (
+        <Card className="border-amber-500/30 bg-amber-500/[0.03] p-4">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-sm font-black uppercase tracking-widest">
+                        {duplicateGroups.length} possible duplicate{duplicateGroups.length === 1 ? '' : ' groups'}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                        Names close enough to be the same person. Review each one — similar names
+                        are not always duplicates.
+                    </p>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDuplicateGroups(null)}>
+                    <X className="h-4 w-4" />
+                </Button>
+            </div>
+            <div className="mt-3 space-y-2">
+                {duplicateGroups.map((group, index) => (
+                    <div key={index} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {group.members.map(member => (
+                                <Badge key={member.id} variant="outline" className="font-bold">
+                                    {member.name}
+                                    <span className="ml-1.5 font-normal text-muted-foreground">
+                                        {member.mobileNumber || member.department || '—'}
+                                    </span>
+                                </Badge>
+                            ))}
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                {Math.round(group.similarity * 100)}% match
+                            </span>
+                        </div>
+                        <Button size="sm" variant="outline" className="h-8" onClick={() => openMergeDialog(group.members)}>
+                            Review &amp; Merge
+                        </Button>
+                    </div>
+                ))}
+            </div>
+        </Card>
+      )}
 
       <Card className="shadow-sm border-border bg-card overflow-hidden">
           <Table>
@@ -470,6 +568,7 @@ export default function EmployeesPage() {
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuItem onSelect={() => openEditEmployeeDialog(employee)}><Edit className="mr-2 h-4 w-4" /> Edit Profile</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setWageHistoryEmployee(employee)}><History className="mr-2 h-4 w-4" /> Wage History</DropdownMenuItem>
                                 <DropdownMenuItem asChild><Link href={`/hr/payslip?employeeId=${employee.id}`} className="flex items-center"><FileText className="mr-2 h-4 w-4" /> View Payslips</Link></DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
@@ -675,6 +774,20 @@ export default function EmployeesPage() {
             </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MergeEmployeesDialog
+        open={isMergeDialogOpen}
+        onOpenChange={setIsMergeDialogOpen}
+        candidates={mergeCandidates}
+        performedBy={user?.username || 'System'}
+        onMerged={handleMergeComplete}
+      />
+
+      <WageHistoryDialog
+        open={Boolean(wageHistoryEmployee)}
+        onOpenChange={(open) => { if (!open) setWageHistoryEmployee(null); }}
+        employee={wageHistoryEmployee}
+      />
     </div>
   );
 }

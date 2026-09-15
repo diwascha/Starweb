@@ -93,6 +93,28 @@ export const getPayrollYears = async (): Promise<number[]> => {
     return Array.from(years).sort((a, b) => b - a);
 };
 
+/**
+ * Every payroll row for one employee, newest period first. Backs the wage
+ * history view: what the person was actually paid each month, which is the
+ * authoritative record even when the master wage on their profile has since
+ * been edited.
+ */
+export const getPayrollHistoryForEmployee = async (employeeId: string): Promise<Payroll[]> => {
+    const q = query(getPayrollCollection(), where("employeeId", "==", employeeId));
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs
+            .map(fromFirestore)
+            .sort((a, b) => (b.bsYear - a.bsYear) || (b.bsMonth - a.bsMonth));
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.PAYROLL,
+            operation: 'list',
+        }));
+        return [];
+    }
+};
+
 export const getPayrollForEmployee = async (employeeId: string, bsYear: number, bsMonth: number): Promise<Payroll | null> => {
     const q = query(getPayrollCollection(), where("employeeId", "==", employeeId), where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth), limit(1));
     try {

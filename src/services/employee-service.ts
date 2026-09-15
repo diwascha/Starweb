@@ -18,7 +18,7 @@ import {
     deleteDoc, 
     setDoc 
 } from 'firebase/firestore';
-import type { Employee } from '@/lib/types';
+import type { Employee, WageRevision } from '@/lib/types';
 import { deleteFile } from './storage-service';
 import { COLLECTIONS } from '@/lib/constants';
 import { stripUndefined } from '@/lib/service-utils';
@@ -63,15 +63,23 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         wageBasis: data.wageBasis,
         wageAmount: data.wageAmount || 0,
         allowance: data.allowance,
+        wageHistory: Array.isArray(data.wageHistory) ? data.wageHistory : undefined,
         address: data.address,
         gender: data.gender,
         mobileNumber: data.mobileNumber,
+        email: data.email,
         dateOfBirth: data.dateOfBirth,
         joiningDate: data.joiningDate,
         identityType: data.identityType,
         documentNumber: data.documentNumber,
         referredBy: data.referredBy,
         photoURL: data.photoURL,
+        shiftId: data.shiftId,
+        bloodGroup: data.bloodGroup,
+        emergencyContactName: data.emergencyContactName,
+        emergencyContactNumber: data.emergencyContactNumber,
+        qualification: data.qualification,
+        documents: Array.isArray(data.documents) ? data.documents : undefined,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
@@ -118,9 +126,23 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
     const docRef = doc(getEmployeesCollection());
     const id = docRef.id;
     const now = new Date().toISOString();
-    
+
+    // Seed the wage history with the opening rate, dated from the joining
+    // date when there is one, so the very first rate is part of the record
+    // rather than only appearing once someone later edits it.
+    const openingRevision: WageRevision = {
+        effectiveFrom: employee.joiningDate || now,
+        wageBasis: employee.wageBasis,
+        wageAmount: employee.wageAmount || 0,
+        allowance: employee.allowance,
+        note: 'Opening rate',
+        recordedBy: employee.createdBy,
+        recordedAt: now,
+    };
+
     const payload = stripUndefined({
         ...employee,
+        wageHistory: [stripUndefined(openingRevision)],
         createdAt: now,
     });
 
@@ -148,10 +170,63 @@ export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): ()
     );
 };
 
+/**
+ * Appends a wage revision whenever an update actually changes the wage
+ * basis, amount or allowance. Reads the current record first (only when the
+ * update touches wage fields at all) so an unchanged re-save doesn't
+ * manufacture a revision, and so the history survives callers that know
+ * nothing about it - the Reschedule dialog, the status dropdown, etc.
+ */
+const buildWageHistory = async (
+    employeeDoc: ReturnType<typeof doc>,
+    update: Partial<Omit<Employee, 'id'>>,
+): Promise<WageRevision[] | undefined> => {
+    const touchesWage = update.wageAmount !== undefined
+        || update.wageBasis !== undefined
+        || update.allowance !== undefined;
+    if (!touchesWage) return undefined;
+
+    // Best-effort: this service is built for non-blocking offline writes, so
+    // a read that can't be served (offline with nothing cached) must not take
+    // the wage change down with it. Worst case the change applies without a
+    // history entry.
+    let current: DocumentData | undefined;
+    try {
+        const snap = await getDoc(employeeDoc);
+        if (!snap.exists()) return undefined;
+        current = snap.data();
+    } catch {
+        return undefined;
+    }
+
+    const nextBasis = update.wageBasis ?? current.wageBasis;
+    const nextAmount = update.wageAmount ?? current.wageAmount ?? 0;
+    const nextAllowance = update.allowance ?? current.allowance;
+
+    const unchanged = nextBasis === current.wageBasis
+        && Number(nextAmount) === Number(current.wageAmount ?? 0)
+        && Number(nextAllowance ?? 0) === Number(current.allowance ?? 0);
+    if (unchanged) return undefined;
+
+    const now = new Date().toISOString();
+    const history: WageRevision[] = Array.isArray(current.wageHistory) ? [...current.wageHistory] : [];
+    history.push(stripUndefined({
+        effectiveFrom: now,
+        wageBasis: nextBasis,
+        wageAmount: Number(nextAmount) || 0,
+        allowance: nextAllowance,
+        recordedBy: update.lastModifiedBy || 'System',
+        recordedAt: now,
+    }) as WageRevision);
+    return history;
+};
+
 export const updateEmployee = async (id: string, employee: Partial<Omit<Employee, 'id'>>): Promise<void> => {
     const employeeDoc = doc(getEmployeesCollection(), id);
+    const wageHistory = await buildWageHistory(employeeDoc, employee);
     const payload = stripUndefined({
         ...employee,
+        ...(wageHistory ? { wageHistory } : {}),
         lastModifiedAt: new Date().toISOString(),
     });
 
