@@ -2,15 +2,15 @@
 
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { ShoppingCart, TrendingUp, Wallet, Receipt, CreditCard, BookOpen } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Wallet, Receipt, CreditCard, Truck, Users } from 'lucide-react';
 import { PurchaseView } from './_views/purchase-view';
 import { SalesView } from './_views/sales-view';
 import { ExpensesView } from './_views/expenses-view';
 import { VouchersView } from './_views/vouchers-view';
 import { GrandLedgerView } from './_views/grand-view';
+import { TruckPnlView } from './_views/truck-pnl-view';
+import { PartyDuesView } from './_views/party-dues-view';
 
 const VIEWS = [
     { value: 'grand', label: 'Grand Ledger', description: 'Every transaction, all ledgers combined', icon: CreditCard },
@@ -18,6 +18,8 @@ const VIEWS = [
     { value: 'sales', label: 'Sales (Trip Sheets)', description: 'Freight income booked per trip', icon: TrendingUp },
     { value: 'expenses', label: 'Expenses', description: 'Operational cash/bank payment outflows', icon: Wallet },
     { value: 'vouchers', label: 'Payment & Receipts', description: 'Multi-entry settlement vouchers', icon: Receipt },
+    { value: 'truck-pnl', label: 'Truck P&L', description: 'Income vs. expense per truck', icon: Truck },
+    { value: 'party-dues', label: 'Party Dues', description: 'Outstanding balance per party', icon: Users },
 ] as const;
 
 type ViewKey = typeof VIEWS[number]['value'];
@@ -37,43 +39,35 @@ function LedgerPageInner() {
     };
 
     return (
-        <div className="flex flex-col gap-6">
-            <Card className="border-dashed">
-                <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="flex items-center gap-3 flex-1">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <BookOpen className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-black tracking-tight">Fleet Transaction Ledgers</h1>
-                            <p className="text-xs text-muted-foreground">{active.description}</p>
-                        </div>
-                    </div>
-                    <div className="space-y-1.5 w-full sm:w-64">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Viewing Ledger</Label>
-                        <Select value={activeView} onValueChange={handleChange}>
-                            <SelectTrigger className="h-10 bg-white font-semibold">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {VIEWS.map(v => (
-                                    <SelectItem key={v.value} value={v.value}>
-                                        <span className="flex items-center gap-2">
-                                            <v.icon className="h-4 w-4" /> {v.label}
-                                        </span>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardContent>
-            </Card>
+        <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b">
+                <div className="flex items-center gap-2">
+                    <active.icon className="h-4 w-4 text-primary shrink-0" />
+                    <p className="text-xs text-muted-foreground">{active.description}</p>
+                </div>
+                <Select value={activeView} onValueChange={handleChange}>
+                    <SelectTrigger className="h-8 w-full sm:w-56 text-xs font-semibold">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {VIEWS.map(v => (
+                            <SelectItem key={v.value} value={v.value}>
+                                <span className="flex items-center gap-2">
+                                    <v.icon className="h-3.5 w-3.5" /> {v.label}
+                                </span>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
 
             {activeView === 'grand' && <GrandLedgerView />}
             {activeView === 'purchase' && <PurchaseView />}
             {activeView === 'sales' && <SalesView />}
             {activeView === 'expenses' && <ExpensesView />}
             {activeView === 'vouchers' && <VouchersView />}
+            {activeView === 'truck-pnl' && <TruckPnlView />}
+            {activeView === 'party-dues' && <PartyDuesView />}
         </div>
     );
 }

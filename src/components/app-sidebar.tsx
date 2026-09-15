@@ -33,9 +33,8 @@ import {
   Truck, 
   ShieldCheck, 
   CreditCard, 
-  ArrowRightLeft, 
-  TrendingUp, 
-  BarChart2, 
+  ArrowRightLeft,
+  TrendingUp,
   Notebook,
   Download,
   Upload,
@@ -59,7 +58,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { exportData } from '@/services/backup-service';
+import { exportData, compressBackup } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
 import { useConnectionStatus } from '@/firebase';
 import { useState, useEffect } from 'react';
@@ -133,11 +132,15 @@ export function AppSidebar() {
     setIsExporting(true);
     try {
         const data = await exportData();
-        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+        const { blob, gzipped } = await compressBackup(data);
+        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.href = jsonString;
-        link.download = `starsutra-backup-${new Date().toISOString()}.json`;
+        link.href = url;
+        link.download = `starsutra-backup-${new Date().toISOString()}.json${gzipped ? '.gz' : ''}`;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         toast({ title: 'Export Successful', description: 'Your data has been downloaded.' });
     } catch (error) {
         console.error("Export failed:", error);
@@ -463,7 +466,6 @@ export function AppSidebar() {
 
                             <SidebarGroupLabel className="px-5 py-2 text-[10px] uppercase text-muted-foreground font-bold">Reports</SidebarGroupLabel>
                             <SidebarMenuSub>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/reports')}><Link href="/fleet/reports/truck-pnl" className="flex items-center gap-2"><BarChart2 className="h-4 w-4" /><span>Truck P&amp;L / Party Dues</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>
                     </SidebarMenuItem>

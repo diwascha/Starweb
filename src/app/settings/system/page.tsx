@@ -99,7 +99,7 @@ import { cn, getNormalizedPath } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
-import { exportData, importData } from '@/services/backup-service';
+import { exportData, importData, compressBackup, readBackupFile } from '@/services/backup-service';
 import { Separator } from '@/components/ui/separator';
 
 const getModuleDisplayName = (m: Module): string => {
@@ -299,16 +299,16 @@ export default function SystemSettingsPage() {
     setIsExporting(true);
     try {
         const data = await exportData();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const { blob, gzipped } = await compressBackup(data);
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `starsutra-manual-backup-${new Date().toISOString()}.json`;
+        link.download = `starsutra-manual-backup-${new Date().toISOString()}.json${gzipped ? '.gz' : ''}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        toast({ title: 'Success', description: 'Backup file generated.' });
+        toast({ title: 'Success', description: `Backup file generated${gzipped ? ' (compressed)' : ''}.` });
     } catch {
         toast({ title: 'Backup Failed', variant: 'destructive' });
     } finally {
@@ -325,25 +325,15 @@ export default function SystemSettingsPage() {
     if (!restoreFile || !user) return;
     setIsRestoring(true);
     try {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const content = e.target?.result as string;
-                const data = JSON.parse(content);
-                await importData(data);
-                toast({ title: 'Restore Complete', description: 'The database has been updated.' });
-                setRestoreFile(null);
-                if (restoreInputRef.current) restoreInputRef.current.value = '';
-            } catch (err) {
-                toast({ title: 'Restore Failed', description: 'Invalid backup file format.', variant: 'destructive' });
-            } finally {
-                setIsRestoring(false);
-            }
-        };
-        reader.readAsText(restoreFile);
-    } catch {
+        const data = await readBackupFile(restoreFile);
+        await importData(data);
+        toast({ title: 'Restore Complete', description: 'The database has been updated.' });
+        setRestoreFile(null);
+        if (restoreInputRef.current) restoreInputRef.current.value = '';
+    } catch (err: any) {
+        toast({ title: 'Restore Failed', description: err?.message || 'Invalid backup file format.', variant: 'destructive' });
+    } finally {
         setIsRestoring(false);
-        toast({ title: 'Error', description: 'Could not read restore file.', variant: 'destructive' });
     }
   };
 
@@ -870,7 +860,7 @@ export default function SystemSettingsPage() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select Snapshot File</Label>
-                            <Input type="file" accept=".json" onChange={handleRestoreFileChange} ref={restoreInputRef} className="max-w-md h-10 border-destructive/20 bg-white" />
+                            <Input type="file" accept=".json,.gz" onChange={handleRestoreFileChange} ref={restoreInputRef} className="max-w-md h-10 border-destructive/20 bg-white" />
                         </div>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>

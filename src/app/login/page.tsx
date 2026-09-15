@@ -17,7 +17,7 @@ import { useAuthService } from '@/firebase';
 import { getUserById, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { logAudit } from '@/services/log-service';
-import { exportData } from '@/services/backup-service';
+import { exportData, compressBackup } from '@/services/backup-service';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
 import { cn } from '@/lib/utils';
@@ -178,11 +178,11 @@ export default function LoginPage() {
         const lastBackupDate = localStorage.getItem(lastBackupKey);
         if (lastBackupDate !== today) {
           const backupData = await exportData();
-          const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+          const { blob, gzipped } = await compressBackup(backupData);
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
-          link.download = `starsutra-autobackup-${cloudUser.username}-${today}.json`;
+          link.download = `starsutra-autobackup-${cloudUser.username}-${today}.json${gzipped ? '.gz' : ''}`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
