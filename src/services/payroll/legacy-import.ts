@@ -206,10 +206,13 @@ export const importLegacyPayrollSheet = async (
         const rate = coerceNumber(get('rate'));
         const employee = ensureEmployee(rawName, rate);
 
-        // A "Rounded Net" column, when present, is the actual rupee-rounded
-        // payout amount - more authoritative than the unrounded "Net" figure.
+        // Each column is stored as the sheet wrote it. "Net" used to be
+        // replaced by "Rounded Net" wherever that column existed, on the
+        // reasoning that the rounded figure is the real payout - but that
+        // silently showed a number the Net column never contained. The two
+        // are kept apart; the sheet is the record, not this importer.
         const roundedNetRaw = get('roundedNet');
-        const netPayment = roundedNetRaw !== undefined ? coerceNumber(roundedNetRaw) : coerceNumber(get('netPayment'));
+        const netPayment = coerceNumber(get('netPayment'));
 
         const payrollId = `${bsYear}-${bsMonth}-${employee.id}`;
         const entry: Omit<Payroll, 'id'> = {

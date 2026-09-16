@@ -235,35 +235,179 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         setExportMode(null);
     };
 
-    // Shared by both exports so the PDF and the spreadsheet can never disagree
-    // about which columns are included or what a column contains.
-    const fieldMap: Record<ColumnKey, (p: Payroll) => any> = {
-            employee: p => p.employeeName,
-            regularHours: p => p.regularHours,
-            otHours: p => p.otHours,
-            totalHours: p => p.totalHours,
-            absentDays: p => p.absentDays,
-            base: p => p.base || p.rate,
-            basicPay: p => p.regularPay,
-            otPay: p => p.otPay,
-            total: p => (p.regularPay || 0) + (p.otPay || 0),
-            deduction: p => p.deduction,
-            allowance: p => p.allowance,
-            gross: p => p.totalPay,
-            tds: p => p.tds,
-            grossSalary: p => p.salaryTotal,
-            advance: p => p.advance,
-            net: p => p.netPayment,
-            roundedNet: p => p.roundedNet ?? p.netPayment,
-            remarks: p => p.remark,
+    // One definition per column, used by the header, every body row, the
+    // totals row AND both exports. The on-screen table used to be written out
+    // by hand while the exports were generated from a map, so the two could
+    // drift: hiding a single header cell without hiding its body cell shifted
+    // every value one column away from its label, which is how Rounded Net
+    // ended up printed under "Remarks". Rendering all four from this one list
+    // makes that impossible - a column either exists everywhere or nowhere.
+    const money = (v: number | undefined | null) =>
+        (v || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+    type PayrollColumn = {
+        key: ColumnKey;
+        label: string;
+        sortKey?: SortKey;
+        headClassName?: string;
+        cellClassName?: string;
+        footClassName?: string;
+        cell: (p: Payroll) => ReactNode;
+        foot?: (t: NonNullable<typeof totals>) => ReactNode;
+        exportValue: (p: Payroll) => any;
     };
+
+    const ALL_COLUMNS: PayrollColumn[] = [
+        {
+            key: 'employee', label: 'Employee', sortKey: 'employeeName',
+            headClassName: 'sticky left-0 bg-background z-20 border-r min-w-[160px] text-foreground uppercase tracking-tighter text-left',
+            cellClassName: 'font-black sticky left-0 bg-background z-10 border-r text-foreground group-hover:text-primary',
+            footClassName: 'sticky left-0 bg-background z-20 border-r text-foreground uppercase tracking-tighter',
+            cell: p => p.employeeName,
+            foot: () => 'TOTALS',
+            exportValue: p => p.employeeName,
+        },
+        {
+            key: 'regularHours', label: 'Regular Hrs', sortKey: 'regularHours',
+            cellClassName: 'text-right tabular-nums px-3',
+            cell: p => p.regularHours?.toFixed(1) || '0.0',
+            foot: t => t.regularHours.toFixed(1),
+            exportValue: p => p.regularHours,
+        },
+        {
+            key: 'otHours', label: 'OT Hrs', sortKey: 'otHours',
+            cellClassName: 'text-right tabular-nums px-3 font-bold text-blue-700',
+            cell: p => `+${p.otHours?.toFixed(1) || '0.0'}`,
+            foot: t => t.otHours.toFixed(1),
+            exportValue: p => p.otHours,
+        },
+        {
+            key: 'totalHours', label: 'Total Hour', sortKey: 'totalHours',
+            cellClassName: 'text-right tabular-nums px-3',
+            cell: p => p.totalHours?.toFixed(1) || '0.0',
+            foot: t => t.totalHours.toFixed(1),
+            exportValue: p => p.totalHours,
+        },
+        {
+            key: 'absentDays', label: 'Absent Days', sortKey: 'absentDays',
+            headClassName: 'text-red-600',
+            cellClassName: 'text-right tabular-nums px-3 text-red-600 font-bold',
+            cell: p => p.absentDays || 0,
+            foot: t => t.absentDays,
+            exportValue: p => p.absentDays,
+        },
+        {
+            key: 'base', label: 'Base (Salary or Rate)', sortKey: 'rate',
+            headClassName: 'text-muted-foreground',
+            cellClassName: 'text-right tabular-nums px-3 text-muted-foreground font-medium',
+            cell: p => p.base || (p.rate || 0).toLocaleString(),
+            exportValue: p => p.base || p.rate,
+        },
+        {
+            key: 'basicPay', label: 'Basic Pay', sortKey: 'regularPay',
+            headClassName: 'font-bold text-blue-900',
+            cellClassName: 'text-right tabular-nums px-3 font-bold text-foreground',
+            cell: p => money(p.regularPay),
+            foot: t => money(t.regularPay),
+            exportValue: p => p.regularPay,
+        },
+        {
+            key: 'otPay', label: 'OT Pay', sortKey: 'otPay',
+            cellClassName: 'text-right tabular-nums px-3',
+            cell: p => money(p.otPay),
+            foot: t => money(t.otPay),
+            exportValue: p => p.otPay,
+        },
+        {
+            key: 'total', label: 'Total',
+            cellClassName: 'text-right tabular-nums px-3 font-bold',
+            cell: p => money((p.regularPay || 0) + (p.otPay || 0)),
+            foot: t => money(t.total),
+            exportValue: p => (p.regularPay || 0) + (p.otPay || 0),
+        },
+        {
+            key: 'deduction', label: 'Deduction', sortKey: 'deduction',
+            headClassName: 'text-red-600',
+            cellClassName: 'text-right tabular-nums px-3 text-red-600 font-medium',
+            cell: p => money(p.deduction),
+            foot: t => money(t.deduction),
+            exportValue: p => p.deduction,
+        },
+        {
+            key: 'allowance', label: 'Allowance', sortKey: 'allowance',
+            cellClassName: 'text-right tabular-nums px-3',
+            cell: p => money(p.allowance),
+            foot: t => money(t.allowance),
+            exportValue: p => p.allowance,
+        },
+        {
+            key: 'gross', label: 'Gross', sortKey: 'totalPay',
+            headClassName: 'font-black bg-muted/20',
+            cellClassName: 'text-right tabular-nums px-3 font-black bg-muted/10',
+            cell: p => money(p.totalPay),
+            foot: t => money(t.totalPay),
+            exportValue: p => p.totalPay,
+        },
+        {
+            key: 'tds', label: 'TDS', sortKey: 'tds',
+            headClassName: 'text-red-600',
+            cellClassName: 'text-right tabular-nums px-3 text-red-600 font-medium',
+            cell: p => money(p.tds),
+            foot: t => money(t.tds),
+            exportValue: p => p.tds,
+        },
+        {
+            key: 'grossSalary', label: 'Gross Salary', sortKey: 'salaryTotal',
+            headClassName: 'font-bold',
+            cellClassName: 'text-right tabular-nums px-3 font-bold',
+            cell: p => money(p.salaryTotal),
+            foot: t => money(t.salaryTotal),
+            exportValue: p => p.salaryTotal,
+        },
+        {
+            key: 'advance', label: 'Advance', sortKey: 'advance',
+            headClassName: 'font-black text-orange-600',
+            cellClassName: 'text-right tabular-nums px-3 text-orange-600 font-bold',
+            cell: p => money(p.advance),
+            foot: t => money(t.advance),
+            exportValue: p => p.advance,
+        },
+        {
+            key: 'net', label: 'Net', sortKey: 'netPayment',
+            headClassName: 'font-black',
+            cellClassName: 'text-right tabular-nums px-3 font-bold',
+            cell: p => money(p.netPayment),
+            foot: t => money(t.netPayment),
+            exportValue: p => p.netPayment,
+        },
+        {
+            key: 'roundedNet', label: 'Rounded Net', sortKey: 'roundedNet',
+            headClassName: 'font-black text-emerald-700 bg-emerald-50/30',
+            cellClassName: 'text-right tabular-nums px-3 font-black text-emerald-700 bg-emerald-50/20',
+            cell: p => money(p.roundedNet ?? p.netPayment),
+            foot: t => money(t.roundedNet),
+            exportValue: p => p.roundedNet ?? p.netPayment,
+        },
+        {
+            key: 'remarks', label: 'Remarks',
+            headClassName: 'min-w-[150px] text-left',
+            cellClassName: 'text-[10px] text-muted-foreground italic truncate max-w-[150px] px-3',
+            cell: p => p.remark,
+            exportValue: p => p.remark,
+        },
+    ];
+
+    // Columns this period's layout has at all. Dropped from the array rather
+    // than hidden with CSS, so header, body, totals and export all lose them
+    // together.
+    const visibleColumns = ALL_COLUMNS.filter(c => !formatHiddenCols.includes(c.key));
 
     const handleExportXlsx = async () => {
         const XLSX = (await import('xlsx'));
-        const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key] && !formatHiddenCols.includes(c.key));
+        const selectedCols = visibleColumns.filter(c => exportColumns[c.key]);
         const payrollExport = monthlyPayroll.map(p => {
             const row: Record<string, any> = {};
-            selectedCols.forEach(c => { row[c.label] = fieldMap[c.key](p); });
+            selectedCols.forEach(c => { row[c.label] = c.exportValue(p); });
             return row;
         });
 
@@ -293,7 +437,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                 import('jspdf-autotable'),
             ]);
             const monthName = NEPALI_MONTHS[parseInt(selectedBsMonth)].name;
-            const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key] && !formatHiddenCols.includes(c.key));
+            const selectedCols = visibleColumns.filter(c => exportColumns[c.key]);
 
             const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4', compress: true });
             const pageWidth = pdf.internal.pageSize.getWidth();
@@ -313,10 +457,10 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             pdf.text(`${monthName} ${selectedBsYear} (BS)`, pageWidth / 2, headEnd + 10.5, { align: 'center' });
 
             const isNumericCol = (key: ColumnKey) => key !== 'employee' && key !== 'remarks';
-            const cell = (p: Payroll, key: ColumnKey) => {
-                const v = fieldMap[key](p);
+            const cell = (p: Payroll, col: PayrollColumn) => {
+                const v = col.exportValue(p);
                 if (v === undefined || v === null || v === '') return '';
-                return isNumericCol(key) && typeof v === 'number'
+                return isNumericCol(col.key) && typeof v === 'number'
                     ? v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                     : String(v);
             };
@@ -324,13 +468,13 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             autoTable(pdf, {
                 startY: 27,
                 head: [selectedCols.map(c => c.label)],
-                body: monthlyPayroll.map(p => selectedCols.map(c => cell(p, c.key))),
+                body: monthlyPayroll.map(p => selectedCols.map(c => cell(p, c))),
                 // A totals row matching the on-screen footer, so the printed
                 // registry reconciles without re-adding the column by hand.
                 foot: [selectedCols.map(c => (
                     c.key === 'employee' ? 'TOTAL'
                     : isNumericCol(c.key)
-                        ? (monthlyPayroll.reduce((sum, p) => sum + (Number(fieldMap[c.key](p)) || 0), 0))
+                        ? (monthlyPayroll.reduce((sum, p) => sum + (Number(c.exportValue(p)) || 0), 0))
                             .toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         : ''
                 ))],
@@ -367,9 +511,9 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
 
     // A column is hidden either because the operator unticked it, or
     // because this period's layout has no such column at all.
-    const hiddenCols = COLUMN_LABELS
-        .filter(c => !exportColumns[c.key] || formatHiddenCols.includes(c.key))
-        .map(c => c.key);
+    // Only the operator's export/print choice. Columns this period's layout
+    // lacks are never rendered in the first place, so they need no CSS.
+    const hiddenCols = visibleColumns.filter(c => !exportColumns[c.key]).map(c => c.key);
 
     return (
         <Card className="shadow-lg border-border bg-card overflow-hidden">
@@ -417,54 +561,28 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                         <Table className="text-[11px] border-collapse">
                             <TableHeader>
                                 <TableRow className="bg-muted/50 font-black h-11 border-b-2">
-                                    <SortableTh colKey="employee" label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="sticky left-0 bg-background z-20 border-r min-w-[160px] text-foreground uppercase tracking-tighter text-left">
-                                        <MultiSelectFilter label="Employee" options={employeeFilterOptions} selected={filterEmployeeIds} onChange={setFilterEmployeeIds} />
-                                    </SortableTh>
-                                    <SortableTh colKey="regularHours" label="Regular Hrs" sortKey="regularHours" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
-                                    <SortableTh colKey="otHours" label="OT Hrs" sortKey="otHours" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
-                                    <SortableTh colKey="totalHours" label="Total Hour" sortKey="totalHours" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
-                                    <SortableTh colKey="absentDays" label="Absent Days" sortKey="absentDays" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="text-red-600" />
-                                    <SortableTh colKey="base" label="Base (Salary or Rate)" sortKey="rate" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="text-muted-foreground" />
-                                    <SortableTh colKey="basicPay" label="Basic Pay" sortKey="regularPay" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="font-bold text-blue-900" />
-                                    <SortableTh colKey="otPay" label="OT Pay" sortKey="otPay" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
-                                    <TableHead data-col="total" className={cn('text-right uppercase px-3', hiddenCols.includes('total') && 'hidden')}>Total</TableHead>
-                                    <SortableTh colKey="deduction" label="Deduction" sortKey="deduction" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="text-red-600" />
-                                    <SortableTh colKey="allowance" label="Allowance" sortKey="allowance" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
-                                    <SortableTh colKey="gross" label="Gross" sortKey="totalPay" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="font-black bg-muted/20" />
-                                    <SortableTh colKey="tds" label="TDS" sortKey="tds" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="text-red-600" />
-                                    <SortableTh colKey="grossSalary" label="Gross Salary" sortKey="salaryTotal" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="font-bold" />
-                                    <SortableTh colKey="advance" label="Advance" sortKey="advance" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="font-black text-orange-600" />
-                                    <SortableTh colKey="net" label="Net" sortKey="netPayment" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="font-black" />
-                                    <SortableTh colKey="roundedNet" label="Rounded Net" sortKey="roundedNet" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="font-black text-emerald-700 bg-emerald-50/30" />
-                                    <TableHead data-col="remarks" className="min-w-[150px] uppercase px-3 text-left">Remarks</TableHead>
+                                    {visibleColumns.map(c => c.sortKey ? (
+                                        <SortableTh key={c.key} colKey={c.key} label={c.label} sortKey={c.sortKey} sortConfig={sortConfig} onSort={requestSort} className={c.headClassName}>
+                                            {c.key === 'employee' ? (
+                                                <MultiSelectFilter label="Employee" options={employeeFilterOptions} selected={filterEmployeeIds} onChange={setFilterEmployeeIds} />
+                                            ) : null}
+                                        </SortableTh>
+                                    ) : (
+                                        <TableHead key={c.key} data-col={c.key} className={cn('uppercase px-3 text-right', c.headClassName)}>{c.label}</TableHead>
+                                    ))}
                                     <TableHead data-col="actions" className="print:hidden sticky right-0 bg-background z-10 border-l"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow><TableCell colSpan={19} className="text-center py-20"><Loader2 className="mr-2 h-8 w-8 animate-spin inline-block opacity-20" /></TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={visibleColumns.length + 1} className="text-center py-20"><Loader2 className="mr-2 h-8 w-8 animate-spin inline-block opacity-20" /></TableCell></TableRow>
                                 ) : monthlyPayroll.length === 0 ? (
-                                    <TableRow><TableCell colSpan={19} className="text-center py-20 text-muted-foreground italic">No financial records for this period.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={visibleColumns.length + 1} className="text-center py-20 text-muted-foreground italic">No financial records for this period.</TableCell></TableRow>
                                 ) : monthlyPayroll.map(p => (
                                     <TableRow key={p.id} className="hover:bg-muted/30 h-12 border-b transition-colors group">
-                                        <TableCell data-col="employee" className="font-black sticky left-0 bg-background z-10 border-r text-foreground group-hover:text-primary">{p.employeeName}</TableCell>
-                                        <TableCell data-col="regularHours" className="text-right tabular-nums px-3">{p.regularHours?.toFixed(1) || '0.0'}</TableCell>
-                                        <TableCell data-col="otHours" className="text-right tabular-nums px-3 font-bold text-blue-700">+{p.otHours?.toFixed(1) || '0.0'}</TableCell>
-                                        <TableCell data-col="totalHours" className="text-right tabular-nums px-3">{p.totalHours?.toFixed(1) || '0.0'}</TableCell>
-                                        <TableCell data-col="absentDays" className="text-right tabular-nums px-3 text-red-600 font-bold">{p.absentDays || 0}</TableCell>
-                                        <TableCell data-col="base" className="text-right tabular-nums px-3 text-muted-foreground font-medium">{p.base || (p.rate || 0).toLocaleString()}</TableCell>
-                                        <TableCell data-col="basicPay" className="text-right tabular-nums px-3 font-bold text-foreground">{(p.regularPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="otPay" className="text-right tabular-nums px-3">{(p.otPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="total" className="text-right tabular-nums px-3 font-bold">{((p.regularPay || 0) + (p.otPay || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="deduction" className="text-right tabular-nums px-3 text-red-600 font-medium">{(p.deduction || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="allowance" className="text-right tabular-nums px-3">{(p.allowance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="gross" className="text-right tabular-nums px-3 font-black bg-muted/10">{(p.totalPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="tds" className="text-right tabular-nums px-3 text-red-600 font-medium">{(p.tds || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="grossSalary" className="text-right tabular-nums px-3 font-bold">{(p.salaryTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="advance" className="text-right tabular-nums px-3 text-orange-600 font-bold">{(p.advance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="net" className="text-right tabular-nums px-3 font-bold">{(p.netPayment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="roundedNet" className="text-right tabular-nums px-3 font-black text-emerald-700 bg-emerald-50/20">{(p.roundedNet ?? p.netPayment ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="remarks" className="text-[10px] text-muted-foreground italic truncate max-w-[150px] px-3">{p.remark}</TableCell>
+                                        {visibleColumns.map(c => (
+                                            <TableCell key={c.key} data-col={c.key} className={c.cellClassName}>{c.cell(p)}</TableCell>
+                                        ))}
                                         <TableCell data-col="actions" className="print:hidden sticky right-0 bg-background z-10 border-l px-2">
                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => router.push(`/hr/payslip?employeeId=${p.employeeId}&year=${selectedBsYear}&month=${selectedBsMonth}`)}>
                                                 <View className="h-3.5 w-3.5" />
@@ -476,24 +594,12 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                             {totals && monthlyPayroll.length > 0 && (
                                 <TableFooter className="bg-muted/50 font-black h-12 border-t-2">
                                     <TableRow>
-                                        <TableCell data-col="employee" className="sticky left-0 bg-background z-20 border-r text-foreground uppercase tracking-tighter">TOTALS</TableCell>
-                                        <TableCell data-col="regularHours" className="text-right tabular-nums px-3">{totals.regularHours.toFixed(1)}</TableCell>
-                                        <TableCell data-col="otHours" className="text-right tabular-nums px-3">{totals.otHours.toFixed(1)}</TableCell>
-                                        <TableCell data-col="totalHours" className="text-right tabular-nums px-3">{totals.totalHours.toFixed(1)}</TableCell>
-                                        <TableCell data-col="absentDays" className="text-right tabular-nums px-3">{totals.absentDays}</TableCell>
-                                        <TableCell data-col="base" className="text-right"></TableCell>
-                                        <TableCell data-col="basicPay" className="text-right tabular-nums px-3">{totals.regularPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="otPay" className="text-right tabular-nums px-3">{totals.otPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="total" className="text-right tabular-nums px-3">{totals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="deduction" className="text-right tabular-nums px-3">{totals.deduction.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="allowance" className="text-right tabular-nums px-3">{totals.allowance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="gross" className="text-right tabular-nums px-3">{totals.totalPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="tds" className="text-right tabular-nums px-3">{totals.tds.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="grossSalary" className="text-right tabular-nums px-3">{totals.salaryTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="advance" className="text-right tabular-nums px-3">{totals.advance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="net" className="text-right tabular-nums px-3">{totals.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="roundedNet" className="text-right tabular-nums px-3 text-emerald-700">{totals.roundedNet.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell data-col="remarks" colSpan={2} className="print:hidden"></TableCell>
+                                        {visibleColumns.map(c => (
+                                            <TableCell key={c.key} data-col={c.key} className={c.footClassName ?? c.cellClassName}>
+                                                {c.foot ? c.foot(totals) : null}
+                                            </TableCell>
+                                        ))}
+                                        <TableCell data-col="actions" className="print:hidden sticky right-0 bg-background z-10 border-l"></TableCell>
                                     </TableRow>
                                 </TableFooter>
                             )}
@@ -512,7 +618,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-2 gap-2 py-2 max-h-[320px] overflow-y-auto">
-                        {COLUMN_LABELS.filter(c => !formatHiddenCols.includes(c.key)).map(c => (
+                        {visibleColumns.map(c => (
                             <label key={c.key} className="flex items-center gap-2 text-xs py-1 cursor-pointer">
                                 <Checkbox checked={exportColumns[c.key]} onCheckedChange={() => toggleExportColumn(c.key)} disabled={c.key === 'employee'} />
                                 {c.label}
@@ -545,14 +651,13 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
     );
 }
 
-function SortableTh({ colKey, label, sortKey, sortConfig, onSort, className, hiddenCols, children }: {
+function SortableTh({ colKey, label, sortKey, sortConfig, onSort, className, children }: {
     colKey: ColumnKey;
     label: string;
     sortKey: SortKey;
     sortConfig: { key: SortKey; direction: 'asc' | 'desc' } | null;
     onSort: (key: SortKey) => void;
     className?: string;
-    hiddenCols: ColumnKey[];
     children?: ReactNode;
 }) {
     const isActive = sortConfig?.key === sortKey;

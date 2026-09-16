@@ -253,8 +253,12 @@ export const importConsolidatedLedger = async (
                     tds: coerceNumber(row[59]), // BH
                     advance: coerceNumber(row[60]), // BI
                     netPayment: coerceNumber(row[61]), // BJ
-                    regularHours: coerceNumber(row[34]) * 8, // Calc from workdays
-                    otHours: coerceNumber(row[44]),
+                    // The Payroll Ledger block has no hours columns. These
+                    // used to be filled from the Behavior Ledger block to the
+                    // left - regular hours invented as workdays x 8, OT hours
+                    // copied across - which put behavioural figures into
+                    // payroll and showed numbers the payroll block never
+                    // stated. A column the sheet doesn't have is left unset.
                     createdBy: importedBy,
                     createdAt: now,
                     ownership: 'Both' // High-level payroll is typically broad scope
