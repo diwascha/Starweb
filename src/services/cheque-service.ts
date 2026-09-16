@@ -12,6 +12,23 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { COLLECTIONS } from '@/lib/constants';
 
+/**
+ * Cheques written before splits carried an id still exist, and a split with
+ * no id cannot be addressed for an update at all: the row renders, but
+ * marking it paid asks the transaction for split `undefined` and fails. The
+ * id given here is POSITIONAL rather than random so the same split resolves
+ * to the same value on every read - a fresh random id would never match the
+ * stored document. updateChequeSplit writes a real id back the first time
+ * such a split is touched, so this only applies until then.
+ */
+export const LEGACY_SPLIT_ID_PREFIX = 'legacy-split-';
+
+const legacySplitIndex = (splitId: string): number => {
+    if (!splitId.startsWith(LEGACY_SPLIT_ID_PREFIX)) return -1;
+    const index = Number(splitId.slice(LEGACY_SPLIT_ID_PREFIX.length));
+    return Number.isInteger(index) && index >= 0 ? index : -1;
+};
+
 const getChequesCollection = () => {
     const { db } = getFirebase();
     return collection(db, COLLECTIONS.CHEQUES);
@@ -31,8 +48,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
         amountInWords: String(data.amountInWords || ''),
         accountId: data.accountId,
         ownership: data.ownership || 'Both',
-        splits: (data.splits || []).map((split: any) => ({
+        splits: (data.splits || []).map((split: any, index: number) => ({
             ...split,
+            id: split.id || `${LEGACY_SPLIT_ID_PREFIX}${index}`,
             remarks: split.remarks || '',
         })),
         createdBy: String(data.createdBy || 'System'),
@@ -122,11 +140,24 @@ export const updateChequeSplit = async (
             }
 
             const splits: any[] = snap.data()?.splits || [];
-            if (!splits.some(s => s.id === splitId)) {
+
+            // Match on the stored id, falling back to the positional id given
+            // to a split that has none (see LEGACY_SPLIT_ID_PREFIX).
+            let target = splits.findIndex(s => s.id === splitId);
+            if (target === -1) {
+                const index = legacySplitIndex(splitId);
+                if (index !== -1 && splits[index] && !splits[index].id) target = index;
+            }
+            if (target === -1) {
                 throw new Error(`Cheque ${chequeId} has no split ${splitId}.`);
             }
 
-            const updated = splits.map(s => (s.id === splitId ? mutate(s, splits) : s));
+            const updated = splits.map((s, i) => {
+                if (i !== target) return s;
+                const next = mutate(s, splits);
+                // Leaves the split permanently addressable by a real id.
+                return next.id ? next : { ...next, id: splitId };
+            });
             tx.update(chequeRef, {
                 splits: updated,
                 lastModifiedBy: modifiedBy,

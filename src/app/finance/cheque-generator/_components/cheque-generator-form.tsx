@@ -398,7 +398,9 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         accountId: selectedAccountId,
         ownership: partyOwnership,
         splits: chequeSplits.map((s: any) => ({
-          id: s.id,
+          // Never write a split without one: a split with no id cannot be
+          // marked paid or cancelled afterwards.
+          id: s.id || generateId(),
           chequeDate: (s.chequeDate as Date).toISOString(),
           chequeNumber: s.chequeNumber || '',
           amount: Number(s.amount) || 0,
@@ -420,8 +422,13 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         toast({ title: `Voucher ${reserved} saved` });
       }
       onSaveSuccess();
-    } catch {
-      toast({ title: 'Save failed', description: 'The voucher was not saved.', variant: 'destructive' });
+    } catch (error: any) {
+      console.error('Cheque voucher save failed', error);
+      toast({
+        title: 'Save failed',
+        description: error?.message || 'The voucher was not saved.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSaving(false);
     }

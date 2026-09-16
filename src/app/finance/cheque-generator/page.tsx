@@ -447,8 +447,17 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
       try {
         await updateChequeSplit(cheque.id, splitId, mutate, user.username);
         toast({ title: 'Status updated', description: `Cheque marked as ${newStatus}.` });
-      } catch {
-        toast({ title: 'Update failed', description: 'The status could not be saved.', variant: 'destructive' });
+      } catch (error: any) {
+        // A single generic line here hid which of permission, connectivity or
+        // a missing split actually failed, and logged nothing to look at.
+        console.error('Cheque status update failed', error);
+        toast({
+          title: 'Update failed',
+          description: error?.code === 'permission-denied'
+            ? 'You do not have permission to update cheques.'
+            : error?.message || 'The status could not be saved.',
+          variant: 'destructive',
+        });
       }
     },
     [user, toast]
@@ -500,8 +509,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
       setNewPaymentRemark('');
       setNewPaymentDate(new Date());
       // Dialog stays open — the history table below updates live.
-    } catch {
-      toast({ title: 'Save failed', description: 'The payment was not recorded.', variant: 'destructive' });
+    } catch (error: any) {
+      console.error('Cheque partial payment failed', error);
+      toast({ title: 'Save failed', description: error?.message || 'The payment was not recorded.', variant: 'destructive' });
     } finally {
       setIsPostingPayment(false);
     }
@@ -526,8 +536,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     try {
       await updateChequeSplit(payingSplit.parentCheque.id, payingSplit.id, mutate, user.username);
       toast({ title: 'Payment removed' });
-    } catch {
-      toast({ title: 'Delete failed', description: 'The payment is still on the ledger.', variant: 'destructive' });
+    } catch (error: any) {
+      console.error('Cheque payment delete failed', error);
+      toast({ title: 'Delete failed', description: error?.message || 'The payment is still on the ledger.', variant: 'destructive' });
     }
   };
 
@@ -537,8 +548,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     try {
       await deleteCheque(id);
       toast({ title: 'Voucher deleted', description: 'The cheque voucher has been removed.' });
-    } catch {
-      toast({ title: 'Delete failed', description: 'The voucher is still on the ledger.', variant: 'destructive' });
+    } catch (error: any) {
+      console.error('Cheque voucher delete failed', error);
+      toast({ title: 'Delete failed', description: error?.message || 'The voucher is still on the ledger.', variant: 'destructive' });
     }
   };
 
