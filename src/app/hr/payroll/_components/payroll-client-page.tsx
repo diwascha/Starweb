@@ -27,16 +27,38 @@ const customEmployeeOrder = [
     "SANGITA PYAKUREL", "Sunita Gurung"
 ];
 
-type ColumnKey = 'employee' | 'regularHours' | 'otHours' | 'absentDays' | 'base' | 'basicPay' | 'otPay' | 'allowance' | 'gross' | 'tds' | 'grossSalary' | 'advance' | 'net' | 'roundedNet' | 'remarks';
+type ColumnKey = 'employee' | 'regularHours' | 'otHours' | 'totalHours' | 'absentDays' | 'base' | 'basicPay' | 'otPay' | 'total' | 'deduction' | 'allowance' | 'gross' | 'tds' | 'grossSalary' | 'advance' | 'net' | 'roundedNet' | 'remarks';
 
+/**
+ * The source workbooks use two different payroll layouts, and this table has
+ * to serve both:
+ *
+ *   FY 2076/77 - Poush 2082 ("legacy"):
+ *     Employee | Total Hour | OT Hrs | Regular Hrs | Base | Basic Pay |
+ *     OT Pay | Total | Absent Days | Deduction | Allowance | Gross | TDS |
+ *     Gross Salary | Advance | Net | Remarks
+ *
+ *   Magh 2082 onward (calculated by the VBA code):
+ *     Employee | Regular Hrs | OT Hrs | Absent Days | Base | Basic Pay |
+ *     OT Pay | Allowance | Gross | TDS | Gross Salary | Advance | Net |
+ *     Rounded Net | Remarks
+ *
+ * The columns below are the union of the two. Which of the format-specific
+ * ones are actually shown is decided per period from the data present (see
+ * formatHiddenCols), so a legacy month doesn't display an empty "Rounded
+ * Net" and a VBA month doesn't display an empty "Total Hour"/"Deduction".
+ */
 const COLUMN_LABELS: { key: ColumnKey; label: string }[] = [
     { key: 'employee', label: 'Employee' },
     { key: 'regularHours', label: 'Regular Hrs' },
     { key: 'otHours', label: 'OT Hrs' },
+    { key: 'totalHours', label: 'Total Hour' },
     { key: 'absentDays', label: 'Absent Days' },
     { key: 'base', label: 'Base (Salary or Rate)' },
     { key: 'basicPay', label: 'Basic Pay' },
     { key: 'otPay', label: 'OT Pay' },
+    { key: 'total', label: 'Total' },
+    { key: 'deduction', label: 'Deduction' },
     { key: 'allowance', label: 'Allowance' },
     { key: 'gross', label: 'Gross' },
     { key: 'tds', label: 'TDS' },
@@ -47,7 +69,10 @@ const COLUMN_LABELS: { key: ColumnKey; label: string }[] = [
     { key: 'remarks', label: 'Remarks' },
 ];
 
-type SortKey = 'employeeName' | 'regularHours' | 'otHours' | 'absentDays' | 'rate' | 'regularPay' | 'otPay' | 'allowance' | 'totalPay' | 'tds' | 'salaryTotal' | 'advance' | 'netPayment' | 'roundedNet';
+/** Columns that only exist in one of the two workbook layouts. */
+const FORMAT_SPECIFIC_COLUMNS: ColumnKey[] = ['totalHours', 'total', 'deduction', 'roundedNet'];
+
+type SortKey = 'employeeName' | 'regularHours' | 'otHours' | 'totalHours' | 'absentDays' | 'rate' | 'regularPay' | 'otPay' | 'deduction' | 'allowance' | 'totalPay' | 'tds' | 'salaryTotal' | 'advance' | 'netPayment' | 'roundedNet';
 
 interface PayrollClientPageProps {
     selectedBsYear: string;
@@ -142,9 +167,12 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         return monthlyPayroll.reduce((acc, curr) => ({
             regularHours: acc.regularHours + (curr.regularHours || 0),
             otHours: acc.otHours + (curr.otHours || 0),
+            totalHours: acc.totalHours + (curr.totalHours || 0),
             absentDays: acc.absentDays + (curr.absentDays || 0),
             regularPay: acc.regularPay + (curr.regularPay || 0),
             otPay: acc.otPay + (curr.otPay || 0),
+            total: acc.total + (curr.regularPay || 0) + (curr.otPay || 0),
+            deduction: acc.deduction + (curr.deduction || 0),
             allowance: acc.allowance + (curr.allowance || 0),
             totalPay: acc.totalPay + (curr.totalPay || 0),
             tds: acc.tds + (curr.tds || 0),
@@ -153,10 +181,40 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             netPayment: acc.netPayment + (curr.netPayment || 0),
             roundedNet: acc.roundedNet + (curr.roundedNet ?? curr.netPayment ?? 0),
         }), {
-            regularHours: 0, otHours: 0, absentDays: 0, regularPay: 0, otPay: 0, allowance: 0,
+            regularHours: 0, otHours: 0, totalHours: 0, absentDays: 0, regularPay: 0, otPay: 0,
+            total: 0, deduction: 0, allowance: 0,
             totalPay: 0, tds: 0, salaryTotal: 0, advance: 0, netPayment: 0, roundedNet: 0
         });
     }, [monthlyPayroll]);
+
+    /**
+     * Which layout this period's records came from, read from the data rather
+     * than from the date: a month is only as "legacy" as the columns its rows
+     * actually carry, and that also keeps recalculated periods (which have
+     * neither layout's extra columns) from showing empty ones.
+     */
+    const formatHiddenCols = useMemo(() => {
+        const rows = monthlyPayrollUnfiltered;
+        // Total Hour and Deduction exist only in the legacy layout, so either
+        // one carrying a figure identifies the period as one of those sheets.
+        const isLegacyLayout = rows.some(p => (p.totalHours || 0) > 0 || (p.deduction || 0) > 0);
+        // netPayment is always present, so only an explicitly stored
+        // roundedNet proves the sheet really had that column. Shown for
+        // anything that isn't a legacy sheet (the VBA layout and periods
+        // recalculated in-app both belong there) and never hidden when a row
+        // actually carries one, so a mixed period can't lose real data.
+        const hasRoundedNet = rows.some(p => p.roundedNet !== undefined);
+
+        const shown: Record<string, boolean> = {
+            totalHours: isLegacyLayout,
+            deduction: isLegacyLayout,
+            // "Total" is Basic Pay + OT Pay - a subtotal the legacy sheet
+            // prints but never stored on its own, so it rides with that layout.
+            total: isLegacyLayout,
+            roundedNet: !isLegacyLayout || hasRoundedNet,
+        };
+        return FORMAT_SPECIFIC_COLUMNS.filter(key => !shown[key]);
+    }, [monthlyPayrollUnfiltered]);
 
     const hasActiveFilters = filterEmployeeIds.length > 0;
 
@@ -183,10 +241,13 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             employee: p => p.employeeName,
             regularHours: p => p.regularHours,
             otHours: p => p.otHours,
+            totalHours: p => p.totalHours,
             absentDays: p => p.absentDays,
             base: p => p.base || p.rate,
             basicPay: p => p.regularPay,
             otPay: p => p.otPay,
+            total: p => (p.regularPay || 0) + (p.otPay || 0),
+            deduction: p => p.deduction,
             allowance: p => p.allowance,
             gross: p => p.totalPay,
             tds: p => p.tds,
@@ -199,7 +260,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
 
     const handleExportXlsx = async () => {
         const XLSX = (await import('xlsx'));
-        const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key]);
+        const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key] && !formatHiddenCols.includes(c.key));
         const payrollExport = monthlyPayroll.map(p => {
             const row: Record<string, any> = {};
             selectedCols.forEach(c => { row[c.label] = fieldMap[c.key](p); });
@@ -232,7 +293,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                 import('jspdf-autotable'),
             ]);
             const monthName = NEPALI_MONTHS[parseInt(selectedBsMonth)].name;
-            const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key]);
+            const selectedCols = COLUMN_LABELS.filter(c => exportColumns[c.key] && !formatHiddenCols.includes(c.key));
 
             const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4', compress: true });
             const pageWidth = pdf.internal.pageSize.getWidth();
@@ -304,7 +365,11 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         setExportColumns(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const hiddenCols = COLUMN_LABELS.filter(c => !exportColumns[c.key]).map(c => c.key);
+    // A column is hidden either because the operator unticked it, or
+    // because this period's layout has no such column at all.
+    const hiddenCols = COLUMN_LABELS
+        .filter(c => !exportColumns[c.key] || formatHiddenCols.includes(c.key))
+        .map(c => c.key);
 
     return (
         <Card className="shadow-lg border-border bg-card overflow-hidden">
@@ -357,10 +422,13 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                                     </SortableTh>
                                     <SortableTh colKey="regularHours" label="Regular Hrs" sortKey="regularHours" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
                                     <SortableTh colKey="otHours" label="OT Hrs" sortKey="otHours" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
+                                    <SortableTh colKey="totalHours" label="Total Hour" sortKey="totalHours" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
                                     <SortableTh colKey="absentDays" label="Absent Days" sortKey="absentDays" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="text-red-600" />
                                     <SortableTh colKey="base" label="Base (Salary or Rate)" sortKey="rate" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="text-muted-foreground" />
                                     <SortableTh colKey="basicPay" label="Basic Pay" sortKey="regularPay" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="font-bold text-blue-900" />
                                     <SortableTh colKey="otPay" label="OT Pay" sortKey="otPay" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
+                                    <TableHead data-col="total" className={cn('text-right uppercase px-3', hiddenCols.includes('total') && 'hidden')}>Total</TableHead>
+                                    <SortableTh colKey="deduction" label="Deduction" sortKey="deduction" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="text-red-600" />
                                     <SortableTh colKey="allowance" label="Allowance" sortKey="allowance" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} />
                                     <SortableTh colKey="gross" label="Gross" sortKey="totalPay" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="font-black bg-muted/20" />
                                     <SortableTh colKey="tds" label="TDS" sortKey="tds" sortConfig={sortConfig} onSort={requestSort} hiddenCols={hiddenCols} className="text-red-600" />
@@ -374,18 +442,21 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow><TableCell colSpan={16} className="text-center py-20"><Loader2 className="mr-2 h-8 w-8 animate-spin inline-block opacity-20" /></TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={19} className="text-center py-20"><Loader2 className="mr-2 h-8 w-8 animate-spin inline-block opacity-20" /></TableCell></TableRow>
                                 ) : monthlyPayroll.length === 0 ? (
-                                    <TableRow><TableCell colSpan={16} className="text-center py-20 text-muted-foreground italic">No financial records for this period.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={19} className="text-center py-20 text-muted-foreground italic">No financial records for this period.</TableCell></TableRow>
                                 ) : monthlyPayroll.map(p => (
                                     <TableRow key={p.id} className="hover:bg-muted/30 h-12 border-b transition-colors group">
                                         <TableCell data-col="employee" className="font-black sticky left-0 bg-background z-10 border-r text-foreground group-hover:text-primary">{p.employeeName}</TableCell>
                                         <TableCell data-col="regularHours" className="text-right tabular-nums px-3">{p.regularHours?.toFixed(1) || '0.0'}</TableCell>
                                         <TableCell data-col="otHours" className="text-right tabular-nums px-3 font-bold text-blue-700">+{p.otHours?.toFixed(1) || '0.0'}</TableCell>
+                                        <TableCell data-col="totalHours" className="text-right tabular-nums px-3">{p.totalHours?.toFixed(1) || '0.0'}</TableCell>
                                         <TableCell data-col="absentDays" className="text-right tabular-nums px-3 text-red-600 font-bold">{p.absentDays || 0}</TableCell>
                                         <TableCell data-col="base" className="text-right tabular-nums px-3 text-muted-foreground font-medium">{p.base || (p.rate || 0).toLocaleString()}</TableCell>
                                         <TableCell data-col="basicPay" className="text-right tabular-nums px-3 font-bold text-foreground">{(p.regularPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="otPay" className="text-right tabular-nums px-3">{(p.otPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell data-col="total" className="text-right tabular-nums px-3 font-bold">{((p.regularPay || 0) + (p.otPay || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell data-col="deduction" className="text-right tabular-nums px-3 text-red-600 font-medium">{(p.deduction || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="allowance" className="text-right tabular-nums px-3">{(p.allowance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="gross" className="text-right tabular-nums px-3 font-black bg-muted/10">{(p.totalPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="tds" className="text-right tabular-nums px-3 text-red-600 font-medium">{(p.tds || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -408,10 +479,13 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                                         <TableCell data-col="employee" className="sticky left-0 bg-background z-20 border-r text-foreground uppercase tracking-tighter">TOTALS</TableCell>
                                         <TableCell data-col="regularHours" className="text-right tabular-nums px-3">{totals.regularHours.toFixed(1)}</TableCell>
                                         <TableCell data-col="otHours" className="text-right tabular-nums px-3">{totals.otHours.toFixed(1)}</TableCell>
+                                        <TableCell data-col="totalHours" className="text-right tabular-nums px-3">{totals.totalHours.toFixed(1)}</TableCell>
                                         <TableCell data-col="absentDays" className="text-right tabular-nums px-3">{totals.absentDays}</TableCell>
                                         <TableCell data-col="base" className="text-right"></TableCell>
                                         <TableCell data-col="basicPay" className="text-right tabular-nums px-3">{totals.regularPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="otPay" className="text-right tabular-nums px-3">{totals.otPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell data-col="total" className="text-right tabular-nums px-3">{totals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell data-col="deduction" className="text-right tabular-nums px-3">{totals.deduction.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="allowance" className="text-right tabular-nums px-3">{totals.allowance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="gross" className="text-right tabular-nums px-3">{totals.totalPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell data-col="tds" className="text-right tabular-nums px-3">{totals.tds.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -438,7 +512,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-2 gap-2 py-2 max-h-[320px] overflow-y-auto">
-                        {COLUMN_LABELS.map(c => (
+                        {COLUMN_LABELS.filter(c => !formatHiddenCols.includes(c.key)).map(c => (
                             <label key={c.key} className="flex items-center gap-2 text-xs py-1 cursor-pointer">
                                 <Checkbox checked={exportColumns[c.key]} onCheckedChange={() => toggleExportColumn(c.key)} disabled={c.key === 'employee'} />
                                 {c.label}
