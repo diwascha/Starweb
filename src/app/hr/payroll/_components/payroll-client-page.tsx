@@ -100,7 +100,9 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
     const printableRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const unsubPayroll = onPayrollUpdate((payrolls) => {
+        // This table only ever renders the selected year and month, so the
+        // listener is scoped to that BS year instead of the whole collection.
+        const unsubPayroll = onPayrollUpdate({ bsYears: [parseInt(selectedBsYear)] }, (payrolls) => {
             setAllPayroll(payrolls.filter(p => inScope(p.ownership)));
             setIsLoading(false);
         });
@@ -109,7 +111,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             unsubPayroll();
             unsubEmployees();
         };
-    }, [inScope]);
+    }, [inScope, selectedBsYear]);
 
     const requestSort = (key: SortKey) => {
         setSortConfig(prev => ({ key, direction: prev?.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));

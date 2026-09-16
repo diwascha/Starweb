@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import type { Payroll } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
+import { streamByBsYear, type BsYearScope } from '../bs-year-stream';
 import { coerceNumber } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -60,19 +61,20 @@ export const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | Do
     };
 };
 
-export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => void => {
-    return onSnapshot(getPayrollCollection(), 
-        (snapshot) => {
-            callback(snapshot.docs.map(fromFirestore));
-        },
-        async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: COLLECTIONS.PAYROLL,
-                operation: 'list',
-            }));
-        }
-    );
-};
+/**
+ * Payroll for the given BS years only.
+ *
+ * This collection grows by a row per employee per month forever, and the
+ * listener used to attach to all of it: every screen downloaded every payroll
+ * record ever imported, on every mount, only to filter down to one month
+ * client-side. Scoped the same way attendance already is - see
+ * services/bs-year-stream for why BS year is the right granularity.
+ */
+export const onPayrollUpdate = (
+    scope: BsYearScope,
+    callback: (records: Payroll[]) => void
+): () => void =>
+    streamByBsYear(getPayrollCollection, scope, fromFirestore, COLLECTIONS.PAYROLL, callback);
 
 export const getPayrollYears = async (): Promise<number[]> => {
     const years = new Set<number>();

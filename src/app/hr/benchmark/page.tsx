@@ -70,11 +70,7 @@ export default function EmployeePerformanceBenchmarkPage() {
 
     useEffect(() => {
         const unsubEmp = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
-        const unsubPay = onPayrollUpdate((data) => setPayroll(data.filter(p => inScope(p.ownership))));
-        return () => {
-            unsubEmp();
-            unsubPay();
-        };
+        return () => unsubEmp();
     }, [inScope]);
 
     // Which BS years hold data, from a bounded probe rather than by reading
@@ -102,8 +98,14 @@ export default function EmployeePerformanceBenchmarkPage() {
             setAttendance(data);
             setIsLoading(false);
         });
-        return () => unsubAtt();
-    }, [fyStart]);
+        const unsubPay = onPayrollUpdate(
+            { bsYears: getFiscalYearBsYears(fyStart) },
+            (data) => setPayroll(data.filter(p => inScope(p.ownership))));
+        return () => {
+            unsubAtt();
+            unsubPay();
+        };
+    }, [fyStart, inScope]);
 
     const periodGroups = useMemo(() => getBenchmarkPeriodGroups(fyStart, periodType, 0), [fyStart, periodType]);
 

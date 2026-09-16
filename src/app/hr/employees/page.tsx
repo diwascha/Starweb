@@ -51,6 +51,8 @@ type SortDirection = 'asc' | 'desc';
 const employeeStatuses: EmployeeStatus[] = ['Working', 'Long Leave', 'Resigned', 'Dismissed'];
 const departments: Department[] = ['Production', 'Admin'];
 const positions: Position[] = ['Manager', 'Supervisor', 'Machine Operator', 'Helpers', 'Staff'];
+const genders: Gender[] = ['Male', 'Female', 'Other'];
+const DEFAULT_STATUS_FILTER = 'Working';
 
 const initialFormState = {
     name: '',
@@ -95,7 +97,9 @@ export default function EmployeesPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('All');
+  // Current staff are what this page is for day to day; leavers stay one
+  // dropdown away rather than padding the list.
+  const [filterStatus, setFilterStatus] = useState<string>(DEFAULT_STATUS_FILTER);
   const [filterWageBasis, setFilterWageBasis] = useState<string>('All');
   const [sortConfig, setSortConfig] = useState<{ key: EmployeeSortKey; direction: SortDirection }>({
     key: 'name',
@@ -379,7 +383,7 @@ export default function EmployeesPage() {
 
   const handleResetFilters = () => {
     setSearchQuery('');
-    setFilterStatus('All');
+    setFilterStatus(DEFAULT_STATUS_FILTER);
     setFilterWageBasis('All');
   };
 
@@ -443,7 +447,7 @@ export default function EmployeesPage() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input type="search" placeholder="Search..." className="pl-8 w-64 bg-card" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
-          {(searchQuery || filterStatus !== 'All' || filterWageBasis !== 'All') && (
+          {(searchQuery || filterStatus !== DEFAULT_STATUS_FILTER || filterWageBasis !== 'All') && (
             <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-10 text-muted-foreground hover:text-foreground font-bold uppercase text-[10px]">
                 Reset
             </Button>
@@ -515,6 +519,10 @@ export default function EmployeesPage() {
                     <TableHead className="w-[300px]"><Button variant="ghost" onClick={() => setSortConfig({ key: 'name', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc' })} className="font-black uppercase text-[10px] tracking-widest">Employee <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                     <TableHead className="text-center font-black uppercase text-[10px] tracking-widest">Status</TableHead>
                     <TableHead className="font-black uppercase text-[10px] tracking-widest">Department / Position</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Contact</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Address</TableHead>
+                    <TableHead className="text-center font-black uppercase text-[10px] tracking-widest">Gender</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Date of Birth</TableHead>
                     <TableHead className="font-black uppercase text-[10px] tracking-widest">Joining Date</TableHead>
                     <TableHead className="text-right font-black uppercase text-[10px] tracking-widest">Wage Basis</TableHead>
                     <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest">Actions</TableHead>
@@ -522,7 +530,7 @@ export default function EmployeesPage() {
             </TableHeader>
             <TableBody>
                 {isLoading ? (
-                    <TableRow><TableCell colSpan={7} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20" /></TableCell></TableRow>
                 ) : paginatedEmployees.map(employee => (
                 <TableRow key={employee.id} className={cn("group h-16 transition-colors", selectedIds.has(employee.id) ? "bg-primary/5" : "hover:bg-muted/30")}>
                     <TableCell className="pl-6">
@@ -556,6 +564,15 @@ export default function EmployeesPage() {
                             <span className="text-[10px] text-muted-foreground uppercase font-medium">{employee.position}</span>
                         </div>
                     </TableCell>
+                    <TableCell>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-medium font-mono">{employee.mobileNumber || '—'}</span>
+                            {employee.email && <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">{employee.email}</span>}
+                        </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" title={employee.address || ''}>{employee.address || '—'}</TableCell>
+                    <TableCell className="text-center text-[10px] font-bold uppercase text-muted-foreground">{employee.gender || '—'}</TableCell>
+                    <TableCell className="text-xs font-medium font-mono text-blue-900">{employee.dateOfBirth ? toNepaliDate(employee.dateOfBirth) : '—'}</TableCell>
                     <TableCell className="text-xs font-medium font-mono text-blue-900">{employee.joiningDate ? toNepaliDate(employee.joiningDate) : '—'}</TableCell>
                     <TableCell className="text-right">
                         <div className="flex flex-col">
@@ -586,7 +603,7 @@ export default function EmployeesPage() {
                 </TableRow>
                 ))}
                 {!isLoading && filteredAndSortedEmployees.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="h-40 text-center text-muted-foreground italic">No employee records found matching your criteria.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="h-40 text-center text-muted-foreground italic">No employee records found matching your criteria.</TableCell></TableRow>
                 )}
             </TableBody>
           </Table>
@@ -760,9 +777,20 @@ export default function EmployeesPage() {
                                 </div>
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Contact Number (Optional)</Label>
-                            <Input name="mobileNumber" value={formState.mobileNumber} onChange={handleFormChange} className="h-10" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Contact Number (Optional)</Label>
+                                <Input name="mobileNumber" value={formState.mobileNumber} onChange={handleFormChange} className="h-10" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Gender</Label>
+                                <Select value={formState.gender} onValueChange={v => setFormState(p => ({ ...p, gender: v as Gender }))}>
+                                    <SelectTrigger className="h-10 bg-card"><SelectValue placeholder="Select gender" /></SelectTrigger>
+                                    <SelectContent>
+                                        {genders.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
                 </div>

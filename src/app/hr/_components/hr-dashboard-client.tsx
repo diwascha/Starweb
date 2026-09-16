@@ -44,23 +44,20 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
 
    useEffect(() => {
        const unsubEmployees = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
-       const unsubPayroll = onPayrollUpdate((data) => setPayroll(data.filter(p => inScope(p.ownership))));
-
-       return () => {
-           unsubEmployees();
-           unsubPayroll();
-       }
+       return () => unsubEmployees();
     }, [inScope]);
 
    // The dashboard summarises one fiscal year at a time, so it subscribes to
    // one fiscal year at a time.
    useEffect(() => {
-       const unsubAttendance = onAttendanceUpdate(
-           { bsYears: getFiscalYearBsYears(parseInt(selectedFiscalYear)) },
-           setAttendance
-       );
-       return () => unsubAttendance();
-   }, [selectedFiscalYear]);
+       const years = { bsYears: getFiscalYearBsYears(parseInt(selectedFiscalYear)) };
+       const unsubAttendance = onAttendanceUpdate(years, setAttendance);
+       const unsubPayroll = onPayrollUpdate(years, (data) => setPayroll(data.filter(p => inScope(p.ownership))));
+       return () => {
+           unsubAttendance();
+           unsubPayroll();
+       };
+   }, [selectedFiscalYear, inScope]);
 
    // From a bounded probe of which BS years hold data. Deriving this from
    // `attendance` would be circular now that attendance is scoped to the
