@@ -208,6 +208,22 @@ export interface EmployeeDocument {
     uploadedAt: string;
 }
 
+/**
+ * One entry in an employee's wage rate history. A revision is appended
+ * whenever the master wage (basis, amount or allowance) actually changes,
+ * so the record keeps what someone was paid at any point in time rather
+ * than only the current figure.
+ */
+export interface WageRevision {
+  effectiveFrom: string; // ISO string - when this rate starts applying
+  wageBasis: WageBasis;
+  wageAmount: number;
+  allowance?: number;
+  note?: string;
+  recordedBy: string;
+  recordedAt: string; // ISO string
+}
+
 export interface Employee {
   id: string;
   name: string;
@@ -217,6 +233,7 @@ export interface Employee {
   wageBasis: WageBasis;
   wageAmount: number;
   allowance?: number;
+  wageHistory?: WageRevision[];
   address?: string;
   gender?: Gender;
   mobileNumber?: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, FileText, Loader2, ChevronLeft, ChevronRight, Users, History, X } from 'lucide-react';
 import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus, Department, Position, BloodGroup, EmployeeDocument } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardFooter } from '@/components/ui/card';
@@ -41,6 +41,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
+import { findDuplicateGroups, type DuplicateGroup } from '@/lib/employee-duplicates';
+import { MergeEmployeesDialog } from './_components/merge-employees-dialog';
+import { WageHistoryDialog } from './_components/wage-history-dialog';
 
 type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'status' | 'department';
 type SortDirection = 'asc' | 'desc';
@@ -48,6 +51,8 @@ type SortDirection = 'asc' | 'desc';
 const employeeStatuses: EmployeeStatus[] = ['Working', 'Long Leave', 'Resigned', 'Dismissed'];
 const departments: Department[] = ['Production', 'Admin'];
 const positions: Position[] = ['Manager', 'Supervisor', 'Machine Operator', 'Helpers', 'Staff'];
+const genders: Gender[] = ['Male', 'Female', 'Other'];
+const DEFAULT_STATUS_FILTER = 'Working';
 
 const initialFormState = {
     name: '',
@@ -92,7 +97,9 @@ export default function EmployeesPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('All');
+  // Current staff are what this page is for day to day; leavers stay one
+  // dropdown away rather than padding the list.
+  const [filterStatus, setFilterStatus] = useState<string>(DEFAULT_STATUS_FILTER);
   const [filterWageBasis, setFilterWageBasis] = useState<string>('All');
   const [sortConfig, setSortConfig] = useState<{ key: EmployeeSortKey; direction: SortDirection }>({
     key: 'name',
@@ -105,6 +112,12 @@ export default function EmployeesPage() {
 
   const [isCustomDepartment, setIsCustomDepartment] = useState(false);
   const [isCustomPosition, setIsCustomPosition] = useState(false);
+
+  // Duplicate review + merge
+  const [mergeCandidates, setMergeCandidates] = useState<Employee[]>([]);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[] | null>(null);
+  const [wageHistoryEmployee, setWageHistoryEmployee] = useState<Employee | null>(null);
 
   const knownDepartments = useMemo(() => {
     const fromEmployees = employees.map(e => e.department).filter((d): d is string => Boolean(d));
@@ -190,6 +203,39 @@ export default function EmployeesPage() {
     } finally {
         setIsLoading(false);
     }
+  };
+
+  // A merge rewrites records (edit), re-keys them under new document ids
+  // (add) and removes the duplicates (delete). Gating on anything less lets
+  // someone start a merge the rules will block halfway through, leaving the
+  // records half-moved.
+  const canMerge = hasPermission('hr', 'add') && hasPermission('hr', 'edit') && hasPermission('hr', 'delete');
+
+  const openMergeDialog = (candidates: Employee[]) => {
+    if (candidates.length < 2) {
+        toast({
+            title: 'Select two or more records',
+            description: 'Merging needs at least two employee records to combine.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    setMergeCandidates(candidates);
+    setIsMergeDialogOpen(true);
+  };
+
+  const handleScanForDuplicates = () => {
+    const groups = findDuplicateGroups(employees);
+    setDuplicateGroups(groups);
+    if (groups.length === 0) {
+        toast({ title: 'No likely duplicates', description: 'No employee names looked similar enough to flag.' });
+    }
+  };
+
+  const handleMergeComplete = () => {
+    setSelectedIds(new Set());
+    // The flagged groups name records that may no longer exist; re-scan on demand.
+    setDuplicateGroups(null);
   };
 
   const resetForm = () => {
@@ -337,7 +383,7 @@ export default function EmployeesPage() {
 
   const handleResetFilters = () => {
     setSearchQuery('');
-    setFilterStatus('All');
+    setFilterStatus(DEFAULT_STATUS_FILTER);
     setFilterWageBasis('All');
   };
 
@@ -352,6 +398,16 @@ export default function EmployeesPage() {
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
                 <span className="text-[10px] font-black uppercase text-primary tracking-widest">{selectedIds.size} Selected</span>
+                {canMerge && selectedIds.size > 1 && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9"
+                        onClick={() => openMergeDialog(employees.filter(e => selectedIds.has(e.id)))}
+                    >
+                        <Users className="h-4 w-4 mr-2" /> Merge Selected
+                    </Button>
+                )}
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button variant="outline" size="sm" className="h-9 text-destructive border-destructive/20 hover:bg-red-50">
@@ -391,9 +447,14 @@ export default function EmployeesPage() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input type="search" placeholder="Search..." className="pl-8 w-64 bg-card" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
-          {(searchQuery || filterStatus !== 'All' || filterWageBasis !== 'All') && (
+          {(searchQuery || filterStatus !== DEFAULT_STATUS_FILTER || filterWageBasis !== 'All') && (
             <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-10 text-muted-foreground hover:text-foreground font-bold uppercase text-[10px]">
                 Reset
+            </Button>
+          )}
+          {canMerge && (
+            <Button variant="outline" onClick={handleScanForDuplicates} className="h-10 font-black text-[10px] uppercase tracking-widest">
+                <Users className="mr-2 h-4 w-4" /> Find Duplicates
             </Button>
           )}
           {hasPermission('hr', 'create') && (
@@ -403,6 +464,47 @@ export default function EmployeesPage() {
           )}
         </div>
       </header>
+
+      {duplicateGroups && duplicateGroups.length > 0 && (
+        <Card className="border-amber-500/30 bg-amber-500/[0.03] p-4">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-sm font-black uppercase tracking-widest">
+                        {duplicateGroups.length} possible duplicate{duplicateGroups.length === 1 ? '' : ' groups'}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                        Names close enough to be the same person. Review each one — similar names
+                        are not always duplicates.
+                    </p>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDuplicateGroups(null)}>
+                    <X className="h-4 w-4" />
+                </Button>
+            </div>
+            <div className="mt-3 space-y-2">
+                {duplicateGroups.map((group, index) => (
+                    <div key={index} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {group.members.map(member => (
+                                <Badge key={member.id} variant="outline" className="font-bold">
+                                    {member.name}
+                                    <span className="ml-1.5 font-normal text-muted-foreground">
+                                        {member.mobileNumber || member.department || '—'}
+                                    </span>
+                                </Badge>
+                            ))}
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                {Math.round(group.similarity * 100)}% match
+                            </span>
+                        </div>
+                        <Button size="sm" variant="outline" className="h-8" onClick={() => openMergeDialog(group.members)}>
+                            Review &amp; Merge
+                        </Button>
+                    </div>
+                ))}
+            </div>
+        </Card>
+      )}
 
       <Card className="shadow-sm border-border bg-card overflow-hidden">
           <Table>
@@ -417,6 +519,10 @@ export default function EmployeesPage() {
                     <TableHead className="w-[300px]"><Button variant="ghost" onClick={() => setSortConfig({ key: 'name', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc' })} className="font-black uppercase text-[10px] tracking-widest">Employee <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                     <TableHead className="text-center font-black uppercase text-[10px] tracking-widest">Status</TableHead>
                     <TableHead className="font-black uppercase text-[10px] tracking-widest">Department / Position</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Contact</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Address</TableHead>
+                    <TableHead className="text-center font-black uppercase text-[10px] tracking-widest">Gender</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Date of Birth</TableHead>
                     <TableHead className="font-black uppercase text-[10px] tracking-widest">Joining Date</TableHead>
                     <TableHead className="text-right font-black uppercase text-[10px] tracking-widest">Wage Basis</TableHead>
                     <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest">Actions</TableHead>
@@ -424,7 +530,7 @@ export default function EmployeesPage() {
             </TableHeader>
             <TableBody>
                 {isLoading ? (
-                    <TableRow><TableCell colSpan={7} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20" /></TableCell></TableRow>
                 ) : paginatedEmployees.map(employee => (
                 <TableRow key={employee.id} className={cn("group h-16 transition-colors", selectedIds.has(employee.id) ? "bg-primary/5" : "hover:bg-muted/30")}>
                     <TableCell className="pl-6">
@@ -458,6 +564,15 @@ export default function EmployeesPage() {
                             <span className="text-[10px] text-muted-foreground uppercase font-medium">{employee.position}</span>
                         </div>
                     </TableCell>
+                    <TableCell>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-medium font-mono">{employee.mobileNumber || '—'}</span>
+                            {employee.email && <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">{employee.email}</span>}
+                        </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" title={employee.address || ''}>{employee.address || '—'}</TableCell>
+                    <TableCell className="text-center text-[10px] font-bold uppercase text-muted-foreground">{employee.gender || '—'}</TableCell>
+                    <TableCell className="text-xs font-medium font-mono text-blue-900">{employee.dateOfBirth ? toNepaliDate(employee.dateOfBirth) : '—'}</TableCell>
                     <TableCell className="text-xs font-medium font-mono text-blue-900">{employee.joiningDate ? toNepaliDate(employee.joiningDate) : '—'}</TableCell>
                     <TableCell className="text-right">
                         <div className="flex flex-col">
@@ -470,6 +585,7 @@ export default function EmployeesPage() {
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuItem onSelect={() => openEditEmployeeDialog(employee)}><Edit className="mr-2 h-4 w-4" /> Edit Profile</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setWageHistoryEmployee(employee)}><History className="mr-2 h-4 w-4" /> Wage History</DropdownMenuItem>
                                 <DropdownMenuItem asChild><Link href={`/hr/payslip?employeeId=${employee.id}`} className="flex items-center"><FileText className="mr-2 h-4 w-4" /> View Payslips</Link></DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
@@ -487,7 +603,7 @@ export default function EmployeesPage() {
                 </TableRow>
                 ))}
                 {!isLoading && filteredAndSortedEmployees.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="h-40 text-center text-muted-foreground italic">No employee records found matching your criteria.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="h-40 text-center text-muted-foreground italic">No employee records found matching your criteria.</TableCell></TableRow>
                 )}
             </TableBody>
           </Table>
@@ -661,9 +777,20 @@ export default function EmployeesPage() {
                                 </div>
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Contact Number (Optional)</Label>
-                            <Input name="mobileNumber" value={formState.mobileNumber} onChange={handleFormChange} className="h-10" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Contact Number (Optional)</Label>
+                                <Input name="mobileNumber" value={formState.mobileNumber} onChange={handleFormChange} className="h-10" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Gender</Label>
+                                <Select value={formState.gender} onValueChange={v => setFormState(p => ({ ...p, gender: v as Gender }))}>
+                                    <SelectTrigger className="h-10 bg-card"><SelectValue placeholder="Select gender" /></SelectTrigger>
+                                    <SelectContent>
+                                        {genders.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -675,6 +802,20 @@ export default function EmployeesPage() {
             </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MergeEmployeesDialog
+        open={isMergeDialogOpen}
+        onOpenChange={setIsMergeDialogOpen}
+        candidates={mergeCandidates}
+        performedBy={user?.username || 'System'}
+        onMerged={handleMergeComplete}
+      />
+
+      <WageHistoryDialog
+        open={Boolean(wageHistoryEmployee)}
+        onOpenChange={(open) => { if (!open) setWageHistoryEmployee(null); }}
+        employee={wageHistoryEmployee}
+      />
     </div>
   );
 }

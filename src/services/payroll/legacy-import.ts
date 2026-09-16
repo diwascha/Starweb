@@ -43,6 +43,63 @@ const PAYROLL_HEADER_SEARCH_WINDOW = 15;
  * Returns null if no such block is found anywhere in the window (e.g. it's
  * a pure attendance sheet with payroll computed elsewhere).
  */
+/**
+ * Row labels that mark the end of the payroll block rather than an employee.
+ * A monthly sheet stacks several unrelated tables in the same columns below
+ * the payroll block - a TOTAL line, then (Magh 2082 onward) a "Behavioral
+ * Patterns" table that reuses "Employee" as its first heading, and on the
+ * older sheets a TRUCK/Drivers section.
+ */
+const BLOCK_END_LABELS = ['total', 'employee', 'truck', 'drivers', 'driver', 'name'];
+const BLOCK_END_PREFIXES = ['behavioral', 'behavioural', 'pattern', 'summary'];
+
+const isBlockEndLabel = (value: string): boolean => {
+    const v = value.trim().toLowerCase();
+    if (!v) return false;
+    if (BLOCK_END_LABELS.includes(v)) return true;
+    return BLOCK_END_PREFIXES.some(p => v.startsWith(p));
+};
+
+/**
+ * Finds the row where the payroll block stops.
+ *
+ * The block's own rows are followed, in the same columns, by other tables:
+ * a TOTAL line, a "Behavioral Patterns (from attendance)" table whose first
+ * column is also headed "Employee", and on the pre-Magh sheets a
+ * TRUCK/Drivers section. Reading past the end pulls those rows in as
+ * payroll - and because a payroll row's id is derived from the employee and
+ * the period, a behavioural row for the same person overwrites that
+ * person's real payroll for the month.
+ *
+ * Scanning stops at the first end-of-block label, or at a run of two blank
+ * names once the block has started. A single blank is not enough: several
+ * sheets leave one blank row between the header and the first employee.
+ */
+export const findPayrollBlockEnd = (
+    grid: any[][],
+    headerRowIndex: number,
+    nameColIndex: number
+): number => {
+    let seenData = false;
+    let blankRun = 0;
+
+    for (let r = headerRowIndex + 1; r < grid.length; r++) {
+        const row = grid[r];
+        const raw = row && row.length > nameColIndex ? row[nameColIndex] : undefined;
+        const value = String(raw ?? '').trim();
+
+        if (!value) {
+            blankRun++;
+            if (seenData && blankRun >= 2) return r - 1;
+            continue;
+        }
+        blankRun = 0;
+        if (isBlockEndLabel(value)) return r;
+        seenData = true;
+    }
+    return grid.length;
+};
+
 export const findPayrollBlockStart = (
     grid: any[][],
     fromRowIndex: number
@@ -131,7 +188,14 @@ export const importLegacyPayrollSheet = async (
         return employee;
     };
 
-    for (let r = headerIndex + 1; r < grid.length; r++) {
+    // Rows are read from the payroll block's own header down to the end of
+    // that block only. Starting at the attendance header (which can sit
+    // several rows above) and running to the end of the sheet swept in every
+    // table stacked below the payroll block.
+    const nameColIndex = startCol + map.name;
+    const blockEndRow = findPayrollBlockEnd(grid, payrollHeaderRowIndex, nameColIndex);
+
+    for (let r = payrollHeaderRowIndex + 1; r < blockEndRow; r++) {
         const row = grid[r];
         if (!row || row.length <= startCol) continue;
 
@@ -142,10 +206,13 @@ export const importLegacyPayrollSheet = async (
         const rate = coerceNumber(get('rate'));
         const employee = ensureEmployee(rawName, rate);
 
-        // A "Rounded Net" column, when present, is the actual rupee-rounded
-        // payout amount - more authoritative than the unrounded "Net" figure.
+        // Each column is stored as the sheet wrote it. "Net" used to be
+        // replaced by "Rounded Net" wherever that column existed, on the
+        // reasoning that the rounded figure is the real payout - but that
+        // silently showed a number the Net column never contained. The two
+        // are kept apart; the sheet is the record, not this importer.
         const roundedNetRaw = get('roundedNet');
-        const netPayment = roundedNetRaw !== undefined ? coerceNumber(roundedNetRaw) : coerceNumber(get('netPayment'));
+        const netPayment = coerceNumber(get('netPayment'));
 
         const payrollId = `${bsYear}-${bsMonth}-${employee.id}`;
         const entry: Omit<Payroll, 'id'> = {
