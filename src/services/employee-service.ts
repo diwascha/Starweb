@@ -40,6 +40,13 @@ export const isValidEmployeeName = (name: string): boolean => {
     if (n.length < 2) return false;
     
     const lower = n.toLowerCase();
+
+    // Section labels from the monthly sheets that sit in the same column as
+    // employee names (a TRUCK/Drivers block, a sub-header). Matched whole so
+    // a real name that merely contains one of these words is unaffected.
+    const sectionLabels = ['name', 'truck', 'trucks', 'driver', 'drivers', 'staff', 'total', 's.n.', 'sn'];
+    if (sectionLabels.includes(lower)) return false;
+
     const noisePatterns = [
         'trend:', 'absenteeism:', 'arrivals:', 'utilization:', 'absences (', 
         'shift-start', 'hotspots:', 'employee', 'total', 'behavioral patterns',
