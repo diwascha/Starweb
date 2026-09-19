@@ -45,8 +45,8 @@ import { onLogsUpdate, type SystemLog } from '@/services/log-service';
 import { onAllSessionsUpdate, revokeSession, cleanupStaleSessions, renameDevice } from '@/services/session-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { useHrFeatureLocks, setHrFeatureLocks, type HrFeatureLocks } from '@/hooks/use-hr-feature-locks';
-import { deleteAttendanceLogsForFiscalYear } from '@/services/attendance/data';
-import { getFiscalYearStart, getFiscalYearMonths, formatFiscalYear } from '@/lib/fiscal-year';
+import { deleteAttendanceLogsForFiscalYear, getAttendanceLogsBsYears } from '@/services/attendance/data';
+import { getFiscalYearStart, getFiscalYearMonths, getFiscalYearsForBsYears, formatFiscalYear } from '@/lib/fiscal-year';
 import NepaliDate from 'nepali-date-converter';
 import { Gauge, DatabaseZap } from 'lucide-react';
 
@@ -67,6 +67,7 @@ import { Badge } from '@/components/ui/badge';
 import { format, formatDistanceToNow, differenceInMinutes } from 'date-fns';
 import { cn, getNormalizedPath } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
 import { exportData, importData, compressBackup, readBackupFile } from '@/services/backup-service';
@@ -141,8 +142,24 @@ export default function SystemSettingsPage() {
   const { locks: hrFeatureLocks } = useHrFeatureLocks();
   const [isSavingHrLock, setIsSavingHrLock] = useState<keyof HrFeatureLocks | null>(null);
   const currentFyStart = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
+  const [purgeableFiscalYears, setPurgeableFiscalYears] = useState<number[]>([]);
   const [purgeFiscalYear, setPurgeFiscalYear] = useState<number>(currentFyStart);
   const [isPurgingAttendance, setIsPurgingAttendance] = useState(false);
+
+  useEffect(() => {
+    if (!isAdministrator) return;
+    let cancelled = false;
+    getAttendanceLogsBsYears().then(bsYears => {
+        if (cancelled) return;
+        const years = getFiscalYearsForBsYears(bsYears);
+        setPurgeableFiscalYears(years);
+        if (years.length > 0 && !years.includes(purgeFiscalYear)) {
+            setPurgeFiscalYear(years[0]);
+        }
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdministrator]);
 
   useEffect(() => {
     if (!isAdministrator) return;
@@ -478,12 +495,16 @@ export default function SystemSettingsPage() {
   const handlePurgeAttendanceLogs = async () => {
     setIsPurgingAttendance(true);
     try {
-        const result = await deleteAttendanceLogsForFiscalYear(getFiscalYearMonths(purgeFiscalYear));
-        await logAudit(`Purged attendance logs for FY ${formatFiscalYear(purgeFiscalYear)} (${result.recordsDeleted} records, ${result.monthsCleared} months cleared, ${result.monthsSkippedLocked} locked months skipped)`, 'HR');
+        // force: true - this is an explicit admin action from Settings, so a
+        // month locked against normal recalculation/re-sync is still cleared.
+        const result = await deleteAttendanceLogsForFiscalYear(getFiscalYearMonths(purgeFiscalYear), true);
+        await logAudit(`Purged attendance logs for FY ${formatFiscalYear(purgeFiscalYear)} (${result.recordsDeleted} records, ${result.monthsCleared} months cleared, including locked months)`, 'HR');
         toast({
             title: 'Attendance Logs Purged',
-            description: `${result.recordsDeleted} records removed across ${result.monthsCleared} months.${result.monthsSkippedLocked > 0 ? ` ${result.monthsSkippedLocked} locked month(s) were skipped.` : ''} Payroll data was not touched.`,
+            description: `${result.recordsDeleted} records removed across ${result.monthsCleared} months, including any locked months. Payroll data was not touched.`,
         });
+        const bsYears = await getAttendanceLogsBsYears();
+        setPurgeableFiscalYears(getFiscalYearsForBsYears(bsYears));
     } catch {
         toast({ title: 'Purge Failed', description: 'Could not delete attendance logs for this fiscal year.', variant: 'destructive' });
     } finally {
@@ -851,23 +872,31 @@ export default function SystemSettingsPage() {
                         </CardTitle>
                         <CardDescription>
                             Permanently deletes stored attendance and raw machine-log records for a fiscal year, so you don't have to keep them around or re-import later.
-                            Payroll, bonus, and behavior data on the Payroll page are never touched. Locked/finalized months are skipped automatically.
+                            Payroll, bonus, and behavior data on the Payroll page are never touched. This deliberately clears locked/finalized months too, since this is an explicit admin action.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2 max-w-xs">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Fiscal Year</Label>
-                            <Input
-                                type="number"
-                                value={purgeFiscalYear}
-                                onChange={(e) => setPurgeFiscalYear(Number(e.target.value))}
-                                className="h-10 font-bold border-destructive/20"
-                            />
+                            {purgeableFiscalYears.length > 0 ? (
+                                <Select value={String(purgeFiscalYear)} onValueChange={(v) => setPurgeFiscalYear(Number(v))}>
+                                    <SelectTrigger className="h-10 font-bold border-destructive/20">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {purgeableFiscalYears.map(fy => (
+                                            <SelectItem key={fy} value={String(fy)}>FY {formatFiscalYear(fy)}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <p className="text-xs text-muted-foreground italic py-2">No fiscal years with stored attendance data were found.</p>
+                            )}
                             <p className="text-[9px] text-muted-foreground italic">FY {formatFiscalYear(purgeFiscalYear)} (Shrawan {purgeFiscalYear} &ndash; Ashadh {purgeFiscalYear + 1})</p>
                         </div>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" disabled={isPurgingAttendance} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
+                                <Button variant="destructive" disabled={isPurgingAttendance || purgeableFiscalYears.length === 0} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
                                     {isPurgingAttendance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                                     Delete Attendance Logs for FY {formatFiscalYear(purgeFiscalYear)}
                                 </Button>
@@ -876,8 +905,8 @@ export default function SystemSettingsPage() {
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Delete Attendance Logs for FY {formatFiscalYear(purgeFiscalYear)}?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        This permanently deletes every <span className="font-bold text-foreground">attendance</span> and <span className="font-bold text-foreground">raw machine log</span> record for FY {formatFiscalYear(purgeFiscalYear)}.
-                                        Payroll, bonus, and behavior records for this fiscal year are not affected. Locked months are skipped. This cannot be undone.
+                                        This permanently deletes every <span className="font-bold text-foreground">attendance</span> and <span className="font-bold text-foreground">raw machine log</span> record for FY {formatFiscalYear(purgeFiscalYear)}, including any locked/finalized months.
+                                        Payroll, bonus, and behavior records for this fiscal year are not affected. This cannot be undone.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
