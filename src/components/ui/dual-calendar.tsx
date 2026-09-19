@@ -28,6 +28,20 @@ const nepaliWeekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // Range for BS Year selection
 const BS_YEARS = Array.from({ length: 151 }, (_, i) => 1970 + i);
 
+/**
+ * Format a Date's LOCAL calendar day as YYYY-MM-DD.
+ *
+ * `Date.toISOString()` converts to UTC first, so a date selected at local
+ * midnight in a timezone ahead of UTC (Nepal is UTC+5:45) reads back as the
+ * PREVIOUS day - e.g. picking 2026-09-16 displayed as 2026-09-15. The BS side
+ * of this calendar never had this bug because it builds its display string
+ * from year/month/day parts directly; the AD side needs the same treatment.
+ */
+const formatLocalISODate = (d: Date): string => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 interface DualCalendarProps {
   selected?: Date;
   onSelect: (date?: Date) => void;
@@ -50,7 +64,7 @@ export function DualCalendar({ selected, onSelect }: DualCalendarProps) {
   useEffect(() => {
     if (selected) {
         const nd = new NepaliDate(selected);
-        setManualInput(calendarType === 'BS' ? nd.format('YYYY/MM/DD') : selected.toISOString().split('T')[0]);
+        setManualInput(calendarType === 'BS' ? nd.format('YYYY/MM/DD') : formatLocalISODate(selected));
     }
   }, [selected, calendarType]);
 
@@ -118,10 +132,21 @@ export function DualCalendar({ selected, onSelect }: DualCalendarProps) {
             }
         }
     } else {
-        // Expected: YYYY-MM-DD
-        const d = new Date(val);
-        if (!isNaN(d.getTime())) {
-            handleADSelect(d);
+        // Expected: YYYY-MM-DD. Parsed from parts and built with the local
+        // Date constructor - not `new Date(val)`, which treats a bare
+        // YYYY-MM-DD string as UTC midnight and can land on the wrong local
+        // day, the same class of bug fixed in formatLocalISODate above.
+        const parts = val.split('-');
+        if (parts.length === 3) {
+            const y = parseInt(parts[0]);
+            const m = parseInt(parts[1]) - 1;
+            const d = parseInt(parts[2]);
+            if (!isNaN(y) && !isNaN(m) && !isNaN(d) && m >= 0 && m <= 11 && d >= 1 && d <= 31) {
+                const date = new Date(y, m, d);
+                if (!isNaN(date.getTime())) {
+                    handleADSelect(date);
+                }
+            }
         }
     }
   };
