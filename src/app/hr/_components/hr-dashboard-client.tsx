@@ -24,6 +24,7 @@ import {
     formatFiscalYear,
 } from '@/lib/fiscal-year';
 import { aggregatePerformanceMetricsWithTrend, type PeriodPerformanceMetrics } from '@/lib/performance-metrics';
+import { useHrFeatureLocks } from '@/hooks/use-hr-feature-locks';
 interface HrDashboardClientProps {
     initialEmployees: Employee[];
     initialAttendance: AttendanceRecord[];
@@ -41,6 +42,8 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
    );
    const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('All');
    const { inScope } = useOwnershipScope('hr');
+   const { locks: featureLocks, isLoading: locksLoading } = useHrFeatureLocks();
+   const attendanceEnabled = !locksLoading && featureLocks.attendanceLogsEnabled;
 
    useEffect(() => {
        const unsubEmployees = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
@@ -48,16 +51,20 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
     }, [inScope]);
 
    // The dashboard summarises one fiscal year at a time, so it subscribes to
-   // one fiscal year at a time.
+   // one fiscal year at a time. Attendance is gated on the feature lock -
+   // it's the reason this page used to cost ~8,600 reads per visit; payroll
+   // stays subscribed always, since the Company Overview below still needs
+   // Total Net and Bonus Accrued when attendance is locked.
    useEffect(() => {
        const years = { bsYears: getFiscalYearBsYears(parseInt(selectedFiscalYear)) };
-       const unsubAttendance = onAttendanceUpdate(years, setAttendance);
+       if (!attendanceEnabled) setAttendance([]);
+       const unsubAttendance = attendanceEnabled ? onAttendanceUpdate(years, setAttendance) : () => {};
        const unsubPayroll = onPayrollUpdate(years, (data) => setPayroll(data.filter(p => inScope(p.ownership))));
        return () => {
            unsubAttendance();
            unsubPayroll();
        };
-   }, [selectedFiscalYear, inScope]);
+   }, [selectedFiscalYear, inScope, attendanceEnabled]);
 
    // From a bounded probe of which BS years hold data. Deriving this from
    // `attendance` would be circular now that attendance is scoped to the
@@ -133,6 +140,47 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
         });
    }, [employees, attendance, fyMonths, fyPayroll, selectedEmployeeId]);
 
+   // When attendance is locked, aggregatePerformanceMetricsWithTrend gets an
+   // empty attendance array and returns no rows at all - which would also
+   // wipe out Total Net and Bonus Accrued, the two figures that don't need
+   // attendance in the first place. This branch builds those rows directly
+   // from payroll instead: one per employee actually paid this fiscal year,
+   // with the attendance-derived columns simply absent rather than shown as
+   // zero.
+   const slimOverviewRows = useMemo(() => {
+        const payrollByEmployee = new Map<string, { net: number; bonus: number; months: Set<number> }>();
+        for (const p of fyPayroll) {
+            const existing = payrollByEmployee.get(p.employeeId) || { net: 0, bonus: 0, months: new Set<number>() };
+            existing.net += p.roundedNet ?? p.netPayment ?? 0;
+            existing.bonus += p.bonus ?? 0;
+            existing.months.add(p.bsMonth);
+            payrollByEmployee.set(p.employeeId, existing);
+        }
+        const filtered = selectedEmployeeId === 'All' ? employees : employees.filter(e => e.id === selectedEmployeeId);
+        return filtered
+            .filter(e => payrollByEmployee.has(e.id))
+            .map(e => {
+                const pay = payrollByEmployee.get(e.id)!;
+                return {
+                    employeeId: e.id,
+                    employeeName: e.name,
+                    monthsPaid: pay.months.size,
+                    totalNet: pay.net,
+                    bonusAccrued: pay.bonus,
+                };
+            })
+            .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+   }, [employees, fyPayroll, selectedEmployeeId]);
+
+   const slimOverviewTotals = useMemo(() => {
+        if (slimOverviewRows.length === 0) return null;
+        return slimOverviewRows.reduce((acc, r) => ({
+            totalNet: acc.totalNet + r.totalNet,
+            bonusAccrued: acc.bonusAccrued + r.bonusAccrued,
+            headcount: acc.headcount + 1,
+        }), { totalNet: 0, bonusAccrued: 0, headcount: 0 });
+   }, [slimOverviewRows]);
+
    const overviewTotals = useMemo(() => {
         if (overviewRows.length === 0) return null;
         const sum = overviewRows.reduce((acc, r) => ({
@@ -183,7 +231,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
             </div>
        </div>
 
-       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+       <div className={cn("grid gap-4 md:grid-cols-2", attendanceEnabled ? "lg:grid-cols-5" : "lg:grid-cols-2")}>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
@@ -194,6 +242,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                     <p className="text-xs text-muted-foreground">{summary.workingEmployees} currently working</p>
                 </CardContent>
             </Card>
+            {attendanceEnabled && (
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Attendance Records</CardTitle>
@@ -204,6 +253,8 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                     <p className="text-xs text-muted-foreground">for FY {formatFiscalYear(fyStart)}</p>
                 </CardContent>
             </Card>
+            )}
+            {attendanceEnabled && (
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Regular Hours</CardTitle>
@@ -213,6 +264,8 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                     <div className="text-2xl font-bold">{summary.totalRegularHours.toFixed(1)}</div>
                 </CardContent>
             </Card>
+            )}
+            {attendanceEnabled && (
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Overtime Hours</CardTitle>
@@ -222,6 +275,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                     <div className="text-2xl font-bold">{summary.totalOvertimeHours.toFixed(1)}</div>
                 </CardContent>
             </Card>
+            )}
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Net Payroll</CardTitle>
@@ -236,10 +290,15 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
        <Card className="shadow-sm border-border bg-card overflow-hidden">
             <CardHeader className="bg-[#1c355e]/5 border-b py-4 px-6">
                 <CardTitle className="text-sm font-black uppercase tracking-tight">Company Overview - FY {formatFiscalYear(fyStart)}</CardTitle>
-                <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Every employee, aggregated across the full fiscal year - the same figures Analytics and Performance Benchmark use.</CardDescription>
+                <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
+                    {attendanceEnabled
+                        ? "Every employee, aggregated across the full fiscal year - the same figures Analytics and Performance Benchmark use."
+                        : "Attendance Logs is locked to conserve database quota, so this shows payroll figures only. An administrator can re-enable it in Settings > System."}
+                </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
                 <ScrollArea className="w-full">
+                    {attendanceEnabled ? (
                     <Table className="text-[11px] border-collapse">
                         <TableHeader className="bg-muted/30">
                             <TableRow className="h-11">
@@ -296,6 +355,40 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                             </TableFooter>
                         )}
                     </Table>
+                    ) : (
+                    <Table className="text-[11px] border-collapse">
+                        <TableHeader className="bg-muted/30">
+                            <TableRow className="h-11">
+                                <TableHead className="sticky left-0 bg-background z-20 border-r pl-6 font-black uppercase text-foreground">Employee</TableHead>
+                                <TableHead className="text-center font-bold uppercase px-3">Months Paid</TableHead>
+                                <TableHead className="text-right font-bold uppercase px-3">Total Net</TableHead>
+                                <TableHead className="text-right font-bold uppercase px-3 pr-6">Bonus Accrued</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {slimOverviewRows.length === 0 ? (
+                                <TableRow><TableCell colSpan={4} className="text-center py-16 text-muted-foreground italic">No payroll found for FY {formatFiscalYear(fyStart)}.</TableCell></TableRow>
+                            ) : slimOverviewRows.map(r => (
+                                <TableRow key={r.employeeId} className="hover:bg-muted/20 h-12 border-b">
+                                    <TableCell className="sticky left-0 bg-background z-10 border-r pl-6 font-black text-foreground uppercase tracking-tighter">{r.employeeName}</TableCell>
+                                    <TableCell className="text-center tabular-nums px-3">{r.monthsPaid}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3 font-bold">{r.totalNet.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3 pr-6">{r.bonusAccrued > 0 ? r.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                        {slimOverviewTotals && (
+                            <TableFooter className="bg-muted/50 font-black h-12 border-t-2">
+                                <TableRow>
+                                    <TableCell className="sticky left-0 bg-background z-20 border-r pl-6 text-foreground uppercase tracking-tighter">Total (Headcount: {slimOverviewTotals.headcount})</TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell className="text-right tabular-nums px-3">{slimOverviewTotals.totalNet.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3 pr-6">{slimOverviewTotals.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        )}
+                    </Table>
+                    )}
                     <ScrollBar orientation="horizontal" />
                 </ScrollArea>
             </CardContent>

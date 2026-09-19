@@ -47,6 +47,8 @@ import type { Employee, HrShift } from '@/lib/types';
 import { onEmployeesUpdate, updateEmployee } from '@/services/employee-service';
 import { onShiftsUpdate } from '@/services/hr-admin-service';
 import { readUploadedWorkbook } from '@/lib/workbook-import';
+import { useHrFeatureLocks } from '@/hooks/use-hr-feature-locks';
+import { LockedFeatureNotice } from '@/components/hr/locked-feature-notice';
 
 type SortKey = 'date' | 'employeeName' | 'statusFromMachine';
 type SortDirection = 'asc' | 'desc';
@@ -55,6 +57,8 @@ export default function MachineLogsPage() {
     const { user, hasPermission } = useAuth();
     const { inScope } = useOwnershipScope('hr');
     const { toast } = useToast();
+    const { locks: featureLocks, isLoading: locksLoading } = useHrFeatureLocks();
+    const dataImportEnabled = !locksLoading && featureLocks.dataImportEnabled;
 
     const [logs, setLogs] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -111,25 +115,32 @@ export default function MachineLogsPage() {
     };
 
     useEffect(() => {
+        if (!dataImportEnabled) return;
         const unsubEmployees = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
         const unsubShifts = onShiftsUpdate(setShifts);
         return () => {
             unsubEmployees();
             unsubShifts();
         };
-    }, [inScope]);
+    }, [inScope, dataImportEnabled]);
 
     // This page already shows exactly one BS year at a time, so it now fetches
     // exactly one. Previously it streamed every raw punch ever imported and
-    // then threw away all but the selected year client-side.
+    // then threw away all but the selected year client-side. Gated on the
+    // feature lock: raw machine logs are one of the two collections that
+    // drove the app past Firestore's free read quota.
     useEffect(() => {
+        if (!dataImportEnabled) {
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         const unsub = onRawLogsUpdate({ bsYears: [parseInt(filterYear)] }, (data) => {
             setLogs(data);
             setIsLoading(false);
         });
         return () => unsub();
-    }, [filterYear]);
+    }, [filterYear, dataImportEnabled]);
 
     const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
     const employeeByName = useMemo(() => new Map(employees.map(e => [e.name.toLowerCase().trim(), e])), [employees]);
@@ -187,10 +198,11 @@ export default function MachineLogsPage() {
     // the year already selected.
     const [dataBsYears, setDataBsYears] = useState<number[]>([]);
     useEffect(() => {
+        if (!dataImportEnabled) return;
         let cancelled = false;
         getAttendanceYears().then(years => { if (!cancelled) setDataBsYears(years); });
         return () => { cancelled = true; };
-    }, []);
+    }, [dataImportEnabled]);
 
     const availableYears = useMemo(() => {
         const years = new Set(dataBsYears);
@@ -380,6 +392,23 @@ export default function MachineLogsPage() {
             direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
         }));
     };
+
+    if (locksLoading) {
+        return (
+            <div className="flex h-[60vh] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin opacity-30" />
+            </div>
+        );
+    }
+
+    if (!dataImportEnabled) {
+        return (
+            <LockedFeatureNotice
+                title="Data Import"
+                reason="streams a full fiscal year of raw punch records to render one month (roughly 4,000+ reads per visit)"
+            />
+        );
+    }
 
     return (
         <div className="flex flex-col gap-8">

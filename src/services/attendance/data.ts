@@ -243,6 +243,68 @@ export const deleteAttendanceAndPayrollForFiscalYear = async (
     return { monthsDeleted, monthsSkippedLocked };
 };
 
+/**
+ * Deletes only `attendance` and `raw_machine_logs` rows for every month in a
+ * fiscal year - the two collections that stream a whole fiscal year on every
+ * visit and drove the app past Firestore's free read quota. Nothing shown on
+ * the Payroll page is touched: `payroll`, `bonus_ledger`, `bonus_summaries`,
+ * `behavior_ledger` and `behavior_analytics` are left exactly as they are, so
+ * finalized pay figures survive a purge of the raw punch data they were
+ * calculated from. A locked month (finalized or imported) is skipped unless
+ * `force` is set, same as the existing fiscal-year cleanup.
+ *
+ * `force` exists because this purge is only reachable from Settings > System
+ * by an administrator, deliberately deleting raw punch data that has already
+ * served its purpose. The lock exists to protect that data from being
+ * recalculated or re-synced over by accident during normal HR use - it was
+ * never meant to block an admin from clearing it out on purpose here, and
+ * without `force` a fully-imported fiscal year (locked precisely because it
+ * is finalized) could never be purged at all.
+ *
+ * Meant as a one-off: once a fiscal year's attendance has been fully entered
+ * into payroll and is no longer needed, this frees the stored data without
+ * requiring it to ever be re-imported.
+ */
+export const deleteAttendanceLogsForFiscalYear = async (
+    fyMonths: { bsYear: number; bsMonth: number }[],
+    force: boolean = false
+): Promise<{ monthsCleared: number; monthsSkippedLocked: number; recordsDeleted: number }> => {
+    let monthsCleared = 0;
+    let monthsSkippedLocked = 0;
+    let recordsDeleted = 0;
+
+    for (const { bsYear, bsMonth } of fyMonths) {
+        if (!force && await isPeriodLocked(bsYear, bsMonth)) {
+            monthsSkippedLocked++;
+            continue;
+        }
+
+        const [attSnap, rawSnap] = await Promise.all([
+            getDocs(query(getAttendanceCollection(), where('bsYear', '==', bsYear), where('bsMonth', '==', bsMonth))),
+            getDocs(query(getRawLogsCollection(), where('bsYear', '==', bsYear), where('bsMonth', '==', bsMonth))),
+        ]);
+        const refs = [...attSnap.docs, ...rawSnap.docs].map(d => d.ref);
+
+        if (refs.length > 0) {
+            try {
+                await deleteDocsInChunks(refs);
+            } catch (err: any) {
+                if (err.code === 'permission-denied') {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: 'attendance_logs_only_batch_delete',
+                        operation: 'write',
+                    }));
+                }
+                throw err;
+            }
+        }
+        recordsDeleted += refs.length;
+        monthsCleared++;
+    }
+
+    return { monthsCleared, monthsSkippedLocked, recordsDeleted };
+};
+
 export const deleteAllRawLogs = async (): Promise<void> => {
     const snap = await getDocs(getRawLogsCollection());
     if (snap.empty) return;
@@ -309,6 +371,39 @@ export const getAttendanceYears = async (): Promise<number[]> => {
         // picker and strand the user on a blank page; fall back to the current
         // fiscal year's two BS years.
         return [latest, latest - 1];
+    }
+};
+
+/**
+ * Which BS years hold `attendance` or `raw_machine_logs` data specifically -
+ * the two collections the fiscal-year purge in Settings > System deletes.
+ *
+ * `getAttendanceYears` also probes `payroll` and `behavior_ledger`, which is
+ * right for a fiscal-year picker that's about VIEWING data, but wrong here:
+ * a year with payroll but no attendance left has nothing for this purge to
+ * delete, and offering it just brings back the "which year do I check"
+ * hassle this picker exists to remove.
+ */
+export const getAttendanceLogsBsYears = async (): Promise<number[]> => {
+    const sources = [getAttendanceCollection(), getRawLogsCollection()];
+
+    const latest = new NepaliDate().getYear() + 1;
+    const candidates: number[] = [];
+    for (let y = latest; y >= EARLIEST_BS_YEAR; y--) candidates.push(y);
+
+    const probes = candidates.flatMap(year =>
+        sources.map(async source => {
+            const snap = await getDocs(query(source, where('bsYear', '==', year), limit(1)));
+            return snap.empty ? null : year;
+        })
+    );
+
+    try {
+        const found = await Promise.all(probes);
+        return Array.from(new Set(found.filter((y): y is number => y !== null)))
+            .sort((a, b) => b - a);
+    } catch {
+        return [];
     }
 };
 

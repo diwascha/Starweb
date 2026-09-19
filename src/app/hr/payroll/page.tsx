@@ -21,6 +21,8 @@ import { setCombinedPeriodLock } from '@/services/period-lock';
 import { getFiscalYearStart, getFiscalYearMonths, getFiscalYearsForBsYears, getFiscalYearBsYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
 import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
+import { useHrFeatureLocks } from '@/hooks/use-hr-feature-locks';
+import LedgerImportButton from '../attendance/_components/ledger-import-button';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { Employee, AttendanceRecord } from '@/lib/types';
@@ -38,11 +40,14 @@ import {
 
 export default function UnifiedWorkforcePage() {
     const searchParams = useSearchParams();
-    const activeTab = searchParams.get('tab') || "payroll";
+    const requestedTab = searchParams.get('tab') || "payroll";
     const router = useRouter();
     const { user, hasPermission } = useAuth();
     const { inScope } = useOwnershipScope('hr');
     const { toast } = useToast();
+    const { locks: featureLocks, isLoading: locksLoading } = useHrFeatureLocks();
+    const payrollAnalyticsEnabled = !locksLoading && featureLocks.payrollAnalyticsEnabled;
+    const dataImportEnabled = !locksLoading && featureLocks.dataImportEnabled;
 
     // Global Selection State
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
@@ -93,12 +98,19 @@ export default function UnifiedWorkforcePage() {
 
     // Attendance is scoped to the selected fiscal year and re-subscribed when
     // it changes; streaming the whole collection is what made this page's cost
-    // grow with every month of history.
+    // grow with every month of history. Only Recalculate, Sync Metrics and the
+    // Behavioral Intelligence tab need it - the Financial Registry and Bonus
+    // tabs read stored payroll/bonus records and never touch attendance - so
+    // it's gated on that lock rather than loaded unconditionally.
     useEffect(() => {
+        if (!payrollAnalyticsEnabled) {
+            setAttendance([]);
+            return;
+        }
         const fyStart = parseInt(selectedFiscalYear);
         const unsubAtt = onAttendanceUpdate({ bsYears: getFiscalYearBsYears(fyStart) }, setAttendance);
         return () => unsubAtt();
-    }, [selectedFiscalYear]);
+    }, [selectedFiscalYear, payrollAnalyticsEnabled]);
 
     // Derived from the year probe, not from `attendance` - that is now scoped
     // to one fiscal year and would leave the picker offering only itself.
@@ -183,7 +195,7 @@ export default function UnifiedWorkforcePage() {
     };
 
     const handleRecalculate = async () => {
-        if (!selectedBsYear || selectedBsMonth === '' || !user || isLocked) return;
+        if (!selectedBsYear || selectedBsMonth === '' || !user || isLocked || !payrollAnalyticsEnabled) return;
         setIsRecalculating(true);
         try {
             const year = parseInt(selectedBsYear);
@@ -228,7 +240,7 @@ export default function UnifiedWorkforcePage() {
     // Never touches any other month's data. Re-locks the period afterward,
     // same as Recalculate, since this is a calculation action.
     const handleSyncMetrics = async () => {
-        if (!selectedBsYear || selectedBsMonth === '' || !user || isLocked) return;
+        if (!selectedBsYear || selectedBsMonth === '' || !user || isLocked || !payrollAnalyticsEnabled) return;
         setIsRefreshing(true);
         try {
             const year = parseInt(selectedBsYear);
@@ -310,8 +322,12 @@ export default function UnifiedWorkforcePage() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => openCalcDialog('recalculate')}
-                                    disabled={isLoadingData || isRecalculating || isLocked}
-                                    title={isLocked ? 'Unlock Calculation first to recalculate.' : 'Recompute payroll from attendance for this period.'}
+                                    disabled={isLoadingData || isRecalculating || isLocked || !payrollAnalyticsEnabled}
+                                    title={
+                                        !payrollAnalyticsEnabled
+                                            ? 'Locked to conserve database quota - recalculating needs a fiscal year of attendance. An administrator can re-enable it in Settings > System.'
+                                            : isLocked ? 'Unlock Calculation first to recalculate.' : 'Recompute payroll from attendance for this period.'
+                                    }
                                     className="h-9 px-4 font-black text-[10px] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5"
                                 >
                                     {isRecalculating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Calculator className="mr-2 h-3.5 w-3.5" />}
@@ -364,10 +380,14 @@ export default function UnifiedWorkforcePage() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => openCalcDialog('sync')}
-                                    disabled={isLoadingData || isRefreshing || isLocked}
-                                    title={isLocked
-                                        ? 'Unlock Calculation first to sync.'
-                                        : "Shows this month's behavioral analytics if they already exist, or generates them once if they don't. Only affects the selected month."}
+                                    disabled={isLoadingData || isRefreshing || isLocked || !payrollAnalyticsEnabled}
+                                    title={
+                                        !payrollAnalyticsEnabled
+                                            ? 'Locked to conserve database quota - syncing needs a fiscal year of attendance. An administrator can re-enable it in Settings > System.'
+                                            : isLocked
+                                                ? 'Unlock Calculation first to sync.'
+                                                : "Shows this month's behavioral analytics if they already exist, or generates them once if they don't. Only affects the selected month."
+                                    }
                                     className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-border text-muted-foreground hover:text-primary"
                                 >
                                     {isRefreshing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-2 h-3.5 w-3.5" />}
@@ -375,15 +395,25 @@ export default function UnifiedWorkforcePage() {
                                 </Button>
                             )}
 
-                            <Button variant="outline" onClick={() => router.push('/hr/attendance/raw')} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5">
-                                <Upload className="mr-2 h-3.5 w-3.5" /> Import Data
-                            </Button>
+                            {dataImportEnabled && (
+                                <Button variant="outline" onClick={() => router.push('/hr/attendance/raw')} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5">
+                                    <Upload className="mr-2 h-3.5 w-3.5" /> Import Data
+                                </Button>
+                            )}
+
+                            {hasPermission('hr', 'edit') && (
+                                <LedgerImportButton mode="payroll-only" onImportComplete={() => setRefreshTrigger(prev => prev + 1)} />
+                            )}
                         </div>
                     </div>
                 </CardHeader>
             </Card>
 
-            <Tabs defaultValue={activeTab} className="w-full">
+            <Tabs
+                key={payrollAnalyticsEnabled ? 'with-analytics' : 'without-analytics'}
+                defaultValue={requestedTab === 'analytics' && !payrollAnalyticsEnabled ? 'payroll' : requestedTab}
+                className="w-full"
+            >
                 <TabsList className="bg-muted/50 p-1 h-12 w-full justify-start gap-4 mb-6 border overflow-x-auto no-scrollbar print:hidden">
                     <TabsTrigger value="payroll" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
                         <FileText className="h-4 w-4"/>
@@ -393,42 +423,46 @@ export default function UnifiedWorkforcePage() {
                         <Award className="h-4 w-4"/>
                         Bonus Evaluation
                     </TabsTrigger>
-                    <TabsTrigger value="analytics" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                        <BarChart2 className="h-4 w-4"/>
-                        Behavioral Intelligence
-                    </TabsTrigger>
+                    {payrollAnalyticsEnabled && (
+                        <TabsTrigger value="analytics" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                            <BarChart2 className="h-4 w-4"/>
+                            Behavioral Intelligence
+                        </TabsTrigger>
+                    )}
                 </TabsList>
 
                 <div className="mt-0 animate-in fade-in zoom-in-95 duration-200">
                     <TabsContent value="payroll" className="m-0 border-none p-0">
                         <Suspense fallback={<Skeleton className="h-[600px] w-full" />}>
-                            <PayrollClientPage 
-                                selectedBsYear={selectedBsYear} 
-                                selectedBsMonth={selectedBsMonth} 
+                            <PayrollClientPage
+                                selectedBsYear={selectedBsYear}
+                                selectedBsMonth={selectedBsMonth}
                             />
                         </Suspense>
                     </TabsContent>
-                    
+
                     <TabsContent value="bonus" className="m-0 border-none p-0">
                         <Suspense fallback={<Skeleton className="h-[600px] w-full" />}>
-                            <BonusView 
-                                selectedBsYear={selectedBsYear} 
+                            <BonusView
+                                selectedBsYear={selectedBsYear}
                                 selectedBsMonth={selectedBsMonth}
                             />
                         </Suspense>
                     </TabsContent>
-                    
-                    <TabsContent value="analytics" className="m-0 border-none p-0">
-                        <Suspense fallback={<Skeleton className="h-[600px] w-full" />}>
-                            <AnalyticsView 
-                                selectedBsYear={selectedBsYear} 
-                                selectedBsMonth={selectedBsMonth}
-                                employees={employees}
-                                attendance={attendance}
-                                refreshTrigger={refreshTrigger}
-                            />
-                        </Suspense>
-                    </TabsContent>
+
+                    {payrollAnalyticsEnabled && (
+                        <TabsContent value="analytics" className="m-0 border-none p-0">
+                            <Suspense fallback={<Skeleton className="h-[600px] w-full" />}>
+                                <AnalyticsView
+                                    selectedBsYear={selectedBsYear}
+                                    selectedBsMonth={selectedBsMonth}
+                                    employees={employees}
+                                    attendance={attendance}
+                                    refreshTrigger={refreshTrigger}
+                                />
+                            </Suspense>
+                        </TabsContent>
+                    )}
                 </div>
             </Tabs>
 

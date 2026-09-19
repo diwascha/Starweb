@@ -7,14 +7,15 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import HrDashboardClient from './_components/hr-dashboard-client';
 import { Separator } from '@/components/ui/separator';
+import { useHrFeatureLocks, type HrFeatureLocks } from '@/hooks/use-hr-feature-locks';
 
-const hrModules = [
+const hrModules: { name: string; description: string; href: string; icon: typeof Users; lockKey?: keyof HrFeatureLocks }[] = [
     { name: 'Employees', description: 'Manage employee records and wage information.', href: '/hr/employees', icon: Users },
-    { name: 'Data Import', description: 'Machine punch logs and master ledger workbooks.', href: '/hr/attendance/raw', icon: Upload },
-    { name: 'Attendance Logs', description: 'Validated work-hour records and metrics.', href: '/hr/attendance', icon: Calendar },
+    { name: 'Data Import', description: 'Machine punch logs and master ledger workbooks.', href: '/hr/attendance/raw', icon: Upload, lockKey: 'dataImportEnabled' },
+    { name: 'Attendance Logs', description: 'Validated work-hour records and metrics.', href: '/hr/attendance', icon: Calendar, lockKey: 'attendanceLogsEnabled' },
     { name: 'HR Setting', description: 'Configure rules, shifts, holidays, and leaves.', href: '/hr/office', icon: Settings2 },
     { name: 'Payroll', description: 'Consolidated Payroll, Bonus, and Analytics.', href: '/hr/payroll', icon: FileText },
-    { name: 'Performance Benchmark', description: 'Compare employees and track performance trends over time.', href: '/hr/benchmark', icon: TrendingUp },
+    { name: 'Performance Benchmark', description: 'Compare employees and track performance trends over time.', href: '/hr/benchmark', icon: TrendingUp, lockKey: 'benchmarkEnabled' },
 ];
 
 function DashboardSkeleton() {
@@ -31,6 +32,9 @@ function DashboardSkeleton() {
 }
 
 export default function HRPage() {
+    const { locks } = useHrFeatureLocks();
+    const visibleModules = hrModules.filter((module) => !module.lockKey || locks[module.lockKey]);
+
     return (
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -50,7 +54,7 @@ export default function HRPage() {
                 <div>
                     <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 px-1">Operational Modules</h2>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {hrModules.map((module) => (
+                        {visibleModules.map((module) => (
                             <Link href={module.href} key={module.name}>
                                 <Card className="h-full transition-all hover:shadow-lg border-none ring-1 ring-black/5 bg-card group">
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
