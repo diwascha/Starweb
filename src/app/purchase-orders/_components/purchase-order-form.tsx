@@ -401,11 +401,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             router.push('/purchase-orders/list');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save purchase order:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save purchase order. Please try again.',
+        description: error?.message
+            ? `Failed to save purchase order: ${error.message}`
+            : 'Failed to save purchase order. Please try again.',
         variant: 'destructive',
       });
     } finally {

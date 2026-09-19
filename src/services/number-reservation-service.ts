@@ -68,8 +68,13 @@ export const reserveNextNumber = async (
 ): Promise<string> => {
     const { db } = getFirebase();
     // The prefix is part of the id, so changing prefix mid-year starts a
-    // clean sequence instead of continuing the old one.
-    const counterRef = doc(db, COLLECTIONS.NUMBER_COUNTERS, `${counterKey}__${prefix}`);
+    // clean sequence instead of continuing the old one. Firestore document
+    // IDs cannot contain a literal "/" (it's the path separator), but the
+    // numbering-rule editor in Settings > General only blocks backslashes
+    // and actively suggests "/" as a prefix separator - so a prefix like
+    // "PO/82-83/" must be encoded here rather than used raw, or `doc()`
+    // throws and every save using that prefix fails with a generic error.
+    const counterRef = doc(db, COLLECTIONS.NUMBER_COUNTERS, `${counterKey}__${encodeURIComponent(prefix)}`);
 
     // Highest number already on a real document. Recomputed every call so an
     // imported or hand-typed number immediately raises the floor.
