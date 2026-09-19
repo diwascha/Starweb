@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, Fragment, type ReactNode } from 'react';
-import { TrendingUp, TrendingDown, Minus, ArrowUpDown, ChevronUp, ChevronDown, AlertTriangle, Users, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ArrowUpDown, ChevronUp, ChevronDown, AlertTriangle, Users, X, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -26,6 +26,8 @@ import {
     formatFiscalYear,
 } from '@/lib/fiscal-year';
 import { aggregatePerformanceMetricsWithTrend, getBenchmarkPeriodGroups, type BenchmarkPeriodType, type PeriodPerformanceMetrics } from '@/lib/performance-metrics';
+import { useHrFeatureLocks } from '@/hooks/use-hr-feature-locks';
+import { LockedFeatureNotice } from '@/components/hr/locked-feature-notice';
 type SortKey = 'employeeName' | 'attendanceRate' | 'absentDays' | 'lateArrivals' | 'overtimeHours' | 'totalNet' | 'bonusAccrued';
 
 const PERIOD_TYPES: { value: BenchmarkPeriodType; label: string }[] = [
@@ -50,6 +52,8 @@ export default function EmployeePerformanceBenchmarkPage() {
     const [payroll, setPayroll] = useState<Payroll[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { inScope } = useOwnershipScope('hr');
+    const { locks: featureLocks, isLoading: locksLoading } = useHrFeatureLocks();
+    const benchmarkEnabled = !locksLoading && featureLocks.benchmarkEnabled;
 
     const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(
         String(getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth()))
@@ -69,18 +73,20 @@ export default function EmployeePerformanceBenchmarkPage() {
     const [filterPositions, setFilterPositions] = useState<string[]>([]);
 
     useEffect(() => {
+        if (!benchmarkEnabled) return;
         const unsubEmp = onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
         return () => unsubEmp();
-    }, [inScope]);
+    }, [inScope, benchmarkEnabled]);
 
     // Which BS years hold data, from a bounded probe rather than by reading
     // every attendance row. Drives the picker below.
     const [dataBsYears, setDataBsYears] = useState<number[]>([]);
     useEffect(() => {
+        if (!benchmarkEnabled) return;
         let cancelled = false;
         getAttendanceYears().then(years => { if (!cancelled) setDataBsYears(years); });
         return () => { cancelled = true; };
-    }, []);
+    }, [benchmarkEnabled]);
 
     const availableFiscalYears = useMemo(() => {
         const years = getFiscalYearsForBsYears(dataBsYears);
@@ -93,6 +99,10 @@ export default function EmployeePerformanceBenchmarkPage() {
     // Benchmarking compares months WITHIN one fiscal year, so that year is the
     // whole working set - no reason to stream the rest of history for it.
     useEffect(() => {
+        if (!benchmarkEnabled) {
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         const unsubAtt = onAttendanceUpdate({ bsYears: getFiscalYearBsYears(fyStart) }, (data) => {
             setAttendance(data);
@@ -105,7 +115,7 @@ export default function EmployeePerformanceBenchmarkPage() {
             unsubAtt();
             unsubPay();
         };
-    }, [fyStart, inScope]);
+    }, [fyStart, inScope, benchmarkEnabled]);
 
     const periodGroups = useMemo(() => getBenchmarkPeriodGroups(fyStart, periodType, 0), [fyStart, periodType]);
 
@@ -233,6 +243,23 @@ export default function EmployeePerformanceBenchmarkPage() {
     const toggleCompare = (id: string) => {
         setCompareIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
     };
+
+    if (locksLoading) {
+        return (
+            <div className="flex h-[60vh] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin opacity-30" />
+            </div>
+        );
+    }
+
+    if (!benchmarkEnabled) {
+        return (
+            <LockedFeatureNotice
+                title="Employee Performance Benchmark"
+                reason="streams a full fiscal year of attendance records to rank employees (roughly 8,600 reads per visit)"
+            />
+        );
+    }
 
     return (
         <div className="flex flex-col gap-8">

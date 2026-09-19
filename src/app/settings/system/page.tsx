@@ -44,6 +44,11 @@ import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onLogsUpdate, type SystemLog } from '@/services/log-service';
 import { onAllSessionsUpdate, revokeSession, cleanupStaleSessions, renameDevice } from '@/services/session-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
+import { useHrFeatureLocks, setHrFeatureLocks, type HrFeatureLocks } from '@/hooks/use-hr-feature-locks';
+import { deleteAttendanceLogsForFiscalYear } from '@/services/attendance/data';
+import { getFiscalYearStart, getFiscalYearMonths, formatFiscalYear } from '@/lib/fiscal-year';
+import NepaliDate from 'nepali-date-converter';
+import { Gauge, DatabaseZap } from 'lucide-react';
 
 import { 
     onUsersUpdate,
@@ -132,6 +137,12 @@ export default function SystemSettingsPage() {
     key: 'count',
     direction: 'desc'
   });
+
+  const { locks: hrFeatureLocks } = useHrFeatureLocks();
+  const [isSavingHrLock, setIsSavingHrLock] = useState<keyof HrFeatureLocks | null>(null);
+  const currentFyStart = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
+  const [purgeFiscalYear, setPurgeFiscalYear] = useState<number>(currentFyStart);
+  const [isPurgingAttendance, setIsPurgingAttendance] = useState(false);
 
   useEffect(() => {
     if (!isAdministrator) return;
@@ -446,6 +457,40 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const handleToggleHrLock = async (key: keyof HrFeatureLocks, value: boolean) => {
+    if (!user) return;
+    setIsSavingHrLock(key);
+    try {
+        await setHrFeatureLocks({ ...hrFeatureLocks, [key]: value }, user.username);
+        toast({
+            title: value ? 'Feature Re-enabled' : 'Feature Locked',
+            description: value
+                ? 'This will resume streaming attendance data and consume Firestore reads. Switch it off again once you are done.'
+                : 'This feature is now hidden and its Firestore listeners are closed.',
+        });
+    } catch {
+        toast({ title: 'Error', description: 'Could not update the feature lock.', variant: 'destructive' });
+    } finally {
+        setIsSavingHrLock(null);
+    }
+  };
+
+  const handlePurgeAttendanceLogs = async () => {
+    setIsPurgingAttendance(true);
+    try {
+        const result = await deleteAttendanceLogsForFiscalYear(getFiscalYearMonths(purgeFiscalYear));
+        await logAudit(`Purged attendance logs for FY ${formatFiscalYear(purgeFiscalYear)} (${result.recordsDeleted} records, ${result.monthsCleared} months cleared, ${result.monthsSkippedLocked} locked months skipped)`, 'HR');
+        toast({
+            title: 'Attendance Logs Purged',
+            description: `${result.recordsDeleted} records removed across ${result.monthsCleared} months.${result.monthsSkippedLocked > 0 ? ` ${result.monthsSkippedLocked} locked month(s) were skipped.` : ''} Payroll data was not touched.`,
+        });
+    } catch {
+        toast({ title: 'Purge Failed', description: 'Could not delete attendance logs for this fiscal year.', variant: 'destructive' });
+    } finally {
+        setIsPurgingAttendance(false);
+    }
+  };
+
   if (!isAdministrator) {
     return (
       <div className="flex flex-col gap-8">
@@ -489,6 +534,9 @@ export default function SystemSettingsPage() {
                 <TabsTrigger value="identities" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
                     Identity Registry
                     {orphanedUsernames.length > 0 && <Badge className="bg-red-500 h-4 px-1 text-[8px]">{orphanedUsernames.length}</Badge>}
+                </TabsTrigger>
+                <TabsTrigger value="hr-quota" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
+                    <Gauge className="h-3.5 w-3.5" /> HR Quota
                 </TabsTrigger>
                 <TabsTrigger value="usage" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Usage Stats</TabsTrigger>
                 <TabsTrigger value="logs" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Audit Logs</TabsTrigger>
@@ -751,6 +799,95 @@ export default function SystemSettingsPage() {
                         </div>
                     </div>
                 )}
+            </TabsContent>
+
+            <TabsContent value="hr-quota" className="space-y-6 animate-in fade-in slide-in-from-left-2">
+                <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200 flex gap-4">
+                    <Gauge className="h-5 w-5 text-amber-600 shrink-0" />
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black uppercase text-amber-900">Free-Tier Firestore Quota Guard</p>
+                        <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                            These HR pages each stream a full fiscal year of attendance data on every visit, which previously exceeded Firestore's free-plan daily read limit and blocked writes across the whole app.
+                            They are locked by default. Switching one on resumes its Firestore listeners and consumes reads again &mdash; switch it back off once you are done. No data or code is deleted by locking a feature.
+                        </p>
+                    </div>
+                </div>
+
+                <Card className="shadow-sm border-border bg-card overflow-hidden">
+                    <CardHeader className="py-4 border-b bg-muted/5">
+                        <CardTitle className="text-sm font-black uppercase tracking-tight">HR Feature Locks</CardTitle>
+                        <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Per-feature switches, each independent.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0 divide-y">
+                        {([
+                            { key: 'attendanceLogsEnabled', label: 'Attendance Logs', cost: '~17,000 reads per visit' },
+                            { key: 'dataImportEnabled', label: 'Data Import (Machine Logs & Ledger)', cost: '~8,600 reads per visit' },
+                            { key: 'benchmarkEnabled', label: 'Performance Benchmark', cost: '~8,600 reads per visit' },
+                            { key: 'payrollAnalyticsEnabled', label: 'Payroll Analytics (Recalculate / Sync / Analytics tab)', cost: '~8,400 reads per visit' },
+                        ] as { key: keyof HrFeatureLocks; label: string; cost: string }[]).map(({ key, label, cost }) => (
+                            <div key={key} className="flex items-center justify-between p-4">
+                                <div className="space-y-0.5">
+                                    <Label className="font-bold text-xs uppercase cursor-pointer">{label}</Label>
+                                    <p className="text-[9px] text-muted-foreground uppercase font-medium">{cost}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {isSavingHrLock === key && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                                    <Switch
+                                        checked={hrFeatureLocks[key]}
+                                        disabled={isSavingHrLock !== null}
+                                        onCheckedChange={(v) => handleToggleHrLock(key, v)}
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+
+                <Card className="border-destructive/20 bg-destructive/[0.02]">
+                    <CardHeader>
+                        <CardTitle className="text-sm font-black uppercase flex items-center gap-2 text-destructive">
+                            <DatabaseZap className="h-4 w-4" />
+                            Purge Attendance Logs (One-Time)
+                        </CardTitle>
+                        <CardDescription>
+                            Permanently deletes stored attendance and raw machine-log records for a fiscal year, so you don't have to keep them around or re-import later.
+                            Payroll, bonus, and behavior data on the Payroll page are never touched. Locked/finalized months are skipped automatically.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2 max-w-xs">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Fiscal Year</Label>
+                            <Input
+                                type="number"
+                                value={purgeFiscalYear}
+                                onChange={(e) => setPurgeFiscalYear(Number(e.target.value))}
+                                className="h-10 font-bold border-destructive/20"
+                            />
+                            <p className="text-[9px] text-muted-foreground italic">FY {formatFiscalYear(purgeFiscalYear)} (Shrawan {purgeFiscalYear} &ndash; Ashadh {purgeFiscalYear + 1})</p>
+                        </div>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" disabled={isPurgingAttendance} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
+                                    {isPurgingAttendance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                    Delete Attendance Logs for FY {formatFiscalYear(purgeFiscalYear)}
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Attendance Logs for FY {formatFiscalYear(purgeFiscalYear)}?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This permanently deletes every <span className="font-bold text-foreground">attendance</span> and <span className="font-bold text-foreground">raw machine log</span> record for FY {formatFiscalYear(purgeFiscalYear)}.
+                                        Payroll, bonus, and behavior records for this fiscal year are not affected. Locked months are skipped. This cannot be undone.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handlePurgeAttendanceLogs} className="bg-destructive text-white hover:bg-destructive/90">Yes, Delete Attendance Logs</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </CardContent>
+                </Card>
             </TabsContent>
 
             <TabsContent value="usage" className="space-y-6 animate-in fade-in slide-in-from-left-2">

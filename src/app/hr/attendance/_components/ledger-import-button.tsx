@@ -26,8 +26,25 @@ interface MappingRow extends LedgerSheetPreview {
  * detection, the year/month confirmation dialog, and the commit step. Drop
  * it wherever historical attendance/payroll data should be importable -
  * currently the Attendance Logs page, since that's where its output lands.
+ *
+ * `mode="payroll-only"` (used on the Payroll page when Attendance Logs is
+ * locked to conserve the Firestore read quota) writes only the payroll block
+ * of each sheet: attendance is force-unchecked and hidden, sheets carrying no
+ * payroll data are dropped from the list entirely, and the Consolidated
+ * Ledger summary checkbox - which also writes attendance-derived bonus and
+ * behaviour records - is hidden and left off. The underlying importer
+ * (`importLedgerWorkbook`) already honours `includeAttendance`/
+ * `includePayroll` independently and per-sheet, so this mode is a UI
+ * restriction only, not a new import path.
  */
-export default function LedgerImportButton({ onImportComplete }: { onImportComplete?: () => void }) {
+export default function LedgerImportButton({
+    onImportComplete,
+    mode = 'full',
+}: {
+    onImportComplete?: () => void;
+    mode?: 'full' | 'payroll-only';
+}) {
+    const payrollOnly = mode === 'payroll-only';
     const { user } = useAuth();
     const { toast } = useToast();
 
@@ -80,24 +97,39 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                         if (preview.isConsolidatedSummary && !preview.hasAttendance && !preview.hasPayroll) {
                             continue;
                         }
+                        // In payroll-only mode a sheet with no payroll block
+                        // has nothing this importer will write - drop it
+                        // rather than list a row that can only ever be unchecked.
+                        if (payrollOnly && !preview.hasPayroll) {
+                            continue;
+                        }
                         rows.push({
                             ...preview,
                             year: String(preview.guessedYear ?? fallbackYear),
                             month: String(preview.guessedMonth ?? fallbackMonth),
-                            includeAttendance: preview.hasAttendance,
+                            includeAttendance: payrollOnly ? false : preview.hasAttendance,
                             includePayroll: preview.hasPayroll,
                         });
                     }
 
-                    if (rows.length === 0 && !foundSummary) {
-                        toast({ title: 'Nothing Recognizable', description: `No attendance/payroll sheets or a "Consolidated Ledger" summary sheet were found. Available sheets: ${workbook.SheetNames.join(', ')}`, variant: 'destructive' });
+                    if (rows.length === 0 && !(foundSummary && !payrollOnly)) {
+                        toast({
+                            title: 'Nothing Recognizable',
+                            description: payrollOnly
+                                ? `No payroll sheets were found. Available sheets: ${workbook.SheetNames.join(', ')}`
+                                : `No attendance/payroll sheets or a "Consolidated Ledger" summary sheet were found. Available sheets: ${workbook.SheetNames.join(', ')}`,
+                            variant: 'destructive',
+                        });
                         return;
                     }
 
                     ledgerSheetsRef.current = sheetsMap;
                     setMappingRows(rows);
-                    setHasConsolidatedSummary(foundSummary);
-                    setIncludeConsolidatedSummary(foundSummary);
+                    // The summary sheet's own 5-section layout writes bonus,
+                    // behaviour and analytics records derived from attendance -
+                    // out of scope for a payroll-only import.
+                    setHasConsolidatedSummary(!payrollOnly && foundSummary);
+                    setIncludeConsolidatedSummary(!payrollOnly && foundSummary);
                     setIsMappingDialogOpen(true);
                 } catch (error: any) {
                     toast({ title: 'Could Not Read File', description: error.message || 'Failed to parse the Excel file.', variant: 'destructive' });
@@ -117,12 +149,15 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
     const handleConfirmLedgerImport = async () => {
         if (!user) return;
         const mappings: ConfirmedSheetMapping[] = mappingRows
-            .filter(r => r.includeAttendance || r.includePayroll)
+            .filter(r => (payrollOnly ? false : r.includeAttendance) || r.includePayroll)
             .map(r => ({
                 sheetName: r.sheetName,
                 year: parseInt(r.year, 10),
                 month: parseInt(r.month, 10),
-                includeAttendance: r.includeAttendance,
+                // Enforced again here, not just at the checkbox: this is the
+                // actual boundary that keeps a payroll-only import from
+                // writing to the locked attendance collection.
+                includeAttendance: payrollOnly ? false : r.includeAttendance,
                 includePayroll: r.includePayroll,
             }));
 
@@ -138,7 +173,7 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
             const result = await importLedgerWorkbook(
                 ledgerSheetsRef.current,
                 mappings,
-                includeConsolidatedSummary && hasConsolidatedSummary,
+                !payrollOnly && includeConsolidatedSummary && hasConsolidatedSummary,
                 user.username,
                 (label) => setLedgerImportProgress(`Processing: ${label}`)
             );
@@ -176,7 +211,7 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                 className="h-10 font-black text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5"
             >
                 {(isImportingLedger || isReadingLedger) ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Terminal className="mr-2 h-4 w-4"/>}
-                {isReadingLedger ? 'Reading...' : isImportingLedger ? 'Processing...' : 'Import Consolidated Ledger'}
+                {isReadingLedger ? 'Reading...' : isImportingLedger ? 'Processing...' : payrollOnly ? 'Import Payroll Data' : 'Import Consolidated Ledger'}
             </Button>
 
             {isImportingLedger && (
@@ -200,7 +235,9 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                     <DialogHeader>
                         <DialogTitle className="text-xl font-black text-foreground">Confirm Sheet Placement</DialogTitle>
                         <DialogDescription>
-                            Confirm the year and month each sheet belongs to before importing. Attendance rows use their own dates when present; the payroll block has no date column of its own, so this is what files it under a period.
+                            {payrollOnly
+                                ? "Confirm the year and month each sheet's payroll block belongs to before importing. Attendance Logs is currently locked to conserve the database quota, so only payroll figures are written - the sheet's attendance rows are not imported."
+                                : "Confirm the year and month each sheet belongs to before importing. Attendance rows use their own dates when present; the payroll block has no date column of its own, so this is what files it under a period."}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -221,7 +258,7 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                                     <TableHead className="pl-4 font-bold">Sheet</TableHead>
                                     <TableHead className="text-center font-bold">Year (BS)</TableHead>
                                     <TableHead className="text-center font-bold">Month (BS)</TableHead>
-                                    <TableHead className="text-center font-bold">Attendance</TableHead>
+                                    {!payrollOnly && <TableHead className="text-center font-bold">Attendance</TableHead>}
                                     <TableHead className="text-center font-bold">Payroll</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -253,13 +290,15 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                                                 </SelectContent>
                                             </Select>
                                         </TableCell>
-                                        <TableCell className="text-center">
-                                            <Checkbox
-                                                checked={row.includeAttendance}
-                                                disabled={!row.hasAttendance}
-                                                onCheckedChange={(v) => updateMappingRow(row.sheetName, { includeAttendance: Boolean(v) })}
-                                            />
-                                        </TableCell>
+                                        {!payrollOnly && (
+                                            <TableCell className="text-center">
+                                                <Checkbox
+                                                    checked={row.includeAttendance}
+                                                    disabled={!row.hasAttendance}
+                                                    onCheckedChange={(v) => updateMappingRow(row.sheetName, { includeAttendance: Boolean(v) })}
+                                                />
+                                            </TableCell>
+                                        )}
                                         <TableCell className="text-center">
                                             <Checkbox
                                                 checked={row.includePayroll}
@@ -270,7 +309,7 @@ export default function LedgerImportButton({ onImportComplete }: { onImportCompl
                                     </TableRow>
                                 ))}
                                 {mappingRows.length === 0 && (
-                                    <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground italic">No monthly sheets detected - only the summary sheet, if selected above, will be imported.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={payrollOnly ? 4 : 5} className="h-20 text-center text-muted-foreground italic">No monthly sheets detected - only the summary sheet, if selected above, will be imported.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>

@@ -243,6 +243,59 @@ export const deleteAttendanceAndPayrollForFiscalYear = async (
     return { monthsDeleted, monthsSkippedLocked };
 };
 
+/**
+ * Deletes only `attendance` and `raw_machine_logs` rows for every month in a
+ * fiscal year - the two collections that stream a whole fiscal year on every
+ * visit and drove the app past Firestore's free read quota. Nothing shown on
+ * the Payroll page is touched: `payroll`, `bonus_ledger`, `bonus_summaries`,
+ * `behavior_ledger` and `behavior_analytics` are left exactly as they are, so
+ * finalized pay figures survive a purge of the raw punch data they were
+ * calculated from. A locked month (finalized or imported) is skipped rather
+ * than cleared, same as the existing fiscal-year cleanup.
+ *
+ * Meant as a one-off: once a fiscal year's attendance has been fully entered
+ * into payroll and is no longer needed, this frees the stored data without
+ * requiring it to ever be re-imported.
+ */
+export const deleteAttendanceLogsForFiscalYear = async (
+    fyMonths: { bsYear: number; bsMonth: number }[]
+): Promise<{ monthsCleared: number; monthsSkippedLocked: number; recordsDeleted: number }> => {
+    let monthsCleared = 0;
+    let monthsSkippedLocked = 0;
+    let recordsDeleted = 0;
+
+    for (const { bsYear, bsMonth } of fyMonths) {
+        if (await isPeriodLocked(bsYear, bsMonth)) {
+            monthsSkippedLocked++;
+            continue;
+        }
+
+        const [attSnap, rawSnap] = await Promise.all([
+            getDocs(query(getAttendanceCollection(), where('bsYear', '==', bsYear), where('bsMonth', '==', bsMonth))),
+            getDocs(query(getRawLogsCollection(), where('bsYear', '==', bsYear), where('bsMonth', '==', bsMonth))),
+        ]);
+        const refs = [...attSnap.docs, ...rawSnap.docs].map(d => d.ref);
+
+        if (refs.length > 0) {
+            try {
+                await deleteDocsInChunks(refs);
+            } catch (err: any) {
+                if (err.code === 'permission-denied') {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: 'attendance_logs_only_batch_delete',
+                        operation: 'write',
+                    }));
+                }
+                throw err;
+            }
+        }
+        recordsDeleted += refs.length;
+        monthsCleared++;
+    }
+
+    return { monthsCleared, monthsSkippedLocked, recordsDeleted };
+};
+
 export const deleteAllRawLogs = async (): Promise<void> => {
     const snap = await getDocs(getRawLogsCollection());
     if (snap.empty) return;

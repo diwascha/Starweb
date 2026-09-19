@@ -32,6 +32,8 @@ import { format as formatDate, startOfDay, isEqual, isWithinInterval } from 'dat
 import Link from 'next/link';
 import LedgerImportButton from './_components/ledger-import-button';
 import { getFiscalYearStart, getFiscalYearMonths, getFiscalYearsForBsYears, getFiscalYearBsYears, formatFiscalYear, fiscalMonthName } from '@/lib/fiscal-year';
+import { useHrFeatureLocks } from '@/hooks/use-hr-feature-locks';
+import { LockedFeatureNotice } from '@/components/hr/locked-feature-notice';
 
 type SortKey = 'date' | 'dateBS' | 'employeeName' | 'status' | 'clockIn' | 'clockOut' | 'gTime' | 'breakHours' | 'gHours' | 'grossHours' | 'regularHours' | 'overtimeHours' | 'remarks';
 type SortDirection = 'asc' | 'desc';
@@ -65,6 +67,8 @@ export default function AttendanceRegistryPage() {
   const { toast } = useToast();
   const { hasPermission, user } = useAuth();
   const { inScope } = useOwnershipScope('hr');
+  const { locks: featureLocks, isLoading: locksLoading } = useHrFeatureLocks();
+  const attendanceEnabled = !locksLoading && featureLocks.attendanceLogsEnabled;
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -134,7 +138,11 @@ export default function AttendanceRegistryPage() {
   const visibleColCount = 4 + Object.values(visibleColumns).filter(Boolean).length;
 
   // Reference data: small, bounded collections that every fiscal year needs.
+  // Nothing on this page is usable while the feature is locked, so none of
+  // its subscriptions - including the small reference collections - open
+  // until an administrator turns it back on.
   useEffect(() => {
+    if (!attendanceEnabled) return;
     onEmployeesUpdate((data) => setEmployees(data.filter(e => inScope(e.ownership))));
     const unsubHolidays = onHolidaysUpdate(setHolidays);
     const unsubLeaves = onLeaveRequestsUpdate(setLeaveRequests);
@@ -146,12 +154,18 @@ export default function AttendanceRegistryPage() {
         unsubLeaves();
         unsubShifts();
     };
-  }, []);
+  }, [attendanceEnabled]);
 
   // Attendance and raw logs grow forever, so they are scoped to the selected
   // fiscal year and re-subscribed when it changes. The month filter below
-  // narrows further, client-side, from this much smaller set.
+  // narrows further, client-side, from this much smaller set. Gated on the
+  // feature lock: this pair is the page's entire read cost (~17,000 per
+  // fiscal year visit), which is why Attendance Logs is locked by default.
   useEffect(() => {
+    if (!attendanceEnabled) {
+        setIsDataLoading(false);
+        return;
+    }
     const scope = { bsYears: getFiscalYearBsYears(fyStart) };
     setIsDataLoading(true);
     const unsubRawLogs = onRawLogsUpdate(scope, setRawLogs);
@@ -163,7 +177,7 @@ export default function AttendanceRegistryPage() {
         unsubRawLogs();
         unsubAttendance();
     };
-  }, [fyStart]);
+  }, [fyStart, attendanceEnabled]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -665,6 +679,23 @@ export default function AttendanceRegistryPage() {
         setBulkLockConfirm(null);
     }
   };
+
+  if (locksLoading) {
+    return (
+        <div className="flex h-[60vh] items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin opacity-30" />
+        </div>
+    );
+  }
+
+  if (!attendanceEnabled) {
+    return (
+        <LockedFeatureNotice
+            title="Attendance Logs"
+            reason="streams the whole fiscal year of attendance and raw punch records to render one month (roughly 17,000 reads per visit)"
+        />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
