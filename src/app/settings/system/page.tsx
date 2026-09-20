@@ -142,24 +142,39 @@ export default function SystemSettingsPage() {
   const { locks: hrFeatureLocks } = useHrFeatureLocks();
   const [isSavingHrLock, setIsSavingHrLock] = useState<keyof HrFeatureLocks | null>(null);
   const currentFyStart = getFiscalYearStart(new NepaliDate().getYear(), new NepaliDate().getMonth());
-  const [purgeableFiscalYears, setPurgeableFiscalYears] = useState<number[]>([]);
+  const [activeTab, setActiveTab] = useState('users');
+  const [purgeableFiscalYears, setPurgeableFiscalYears] = useState<number[] | null>(null);
+  const [isLoadingPurgeYears, setIsLoadingPurgeYears] = useState(false);
+  const [manualFyEntry, setManualFyEntry] = useState(false);
   const [purgeFiscalYear, setPurgeFiscalYear] = useState<number>(currentFyStart);
   const [isPurgingAttendance, setIsPurgingAttendance] = useState(false);
 
-  useEffect(() => {
-    if (!isAdministrator) return;
-    let cancelled = false;
+  const loadPurgeableFiscalYears = () => {
+    setIsLoadingPurgeYears(true);
     getAttendanceLogsBsYears().then(bsYears => {
-        if (cancelled) return;
         const years = getFiscalYearsForBsYears(bsYears);
         setPurgeableFiscalYears(years);
+        // Detected years are a convenience, not a gate: if the probe finds
+        // nothing (empty database, or the probe itself failed under a
+        // permission or quota hiccup - it fires ~30 reads), fall back to
+        // manual entry rather than leaving the purge unusable. A previous
+        // version disabled the delete button whenever this came back empty,
+        // which broke the purge entirely whenever the probe failed.
+        setManualFyEntry(years.length === 0);
         if (years.length > 0 && !years.includes(purgeFiscalYear)) {
             setPurgeFiscalYear(years[0]);
         }
-    });
-    return () => { cancelled = true; };
+    }).finally(() => setIsLoadingPurgeYears(false));
+  };
+
+  useEffect(() => {
+    // Loaded lazily, only once the HR Quota tab is actually opened - not on
+    // every visit to Settings > System - since the probe itself costs ~30
+    // reads (candidate BS years x 2 collections).
+    if (!isAdministrator || activeTab !== 'hr-quota' || purgeableFiscalYears !== null) return;
+    loadPurgeableFiscalYears();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdministrator]);
+  }, [isAdministrator, activeTab, purgeableFiscalYears]);
 
   useEffect(() => {
     if (!isAdministrator) return;
@@ -503,8 +518,7 @@ export default function SystemSettingsPage() {
             title: 'Attendance Logs Purged',
             description: `${result.recordsDeleted} records removed across ${result.monthsCleared} months, including any locked months. Payroll data was not touched.`,
         });
-        const bsYears = await getAttendanceLogsBsYears();
-        setPurgeableFiscalYears(getFiscalYearsForBsYears(bsYears));
+        loadPurgeableFiscalYears();
     } catch {
         toast({ title: 'Purge Failed', description: 'Could not delete attendance logs for this fiscal year.', variant: 'destructive' });
     } finally {
@@ -545,7 +559,7 @@ export default function SystemSettingsPage() {
             </div>
         </header>
 
-        <Tabs defaultValue="users" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="bg-muted/50 p-1 mb-6 h-auto flex-wrap">
                 <TabsTrigger value="users" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Access Control</TabsTrigger>
                 <TabsTrigger value="sessions" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
@@ -877,8 +891,21 @@ export default function SystemSettingsPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2 max-w-xs">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Fiscal Year</Label>
-                            {purgeableFiscalYears.length > 0 ? (
+                            <div className="flex items-center justify-between">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Fiscal Year</Label>
+                                {isLoadingPurgeYears ? (
+                                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => (purgeableFiscalYears && purgeableFiscalYears.length > 0) ? setManualFyEntry(v => !v) : loadPurgeableFiscalYears()}
+                                        className="text-[9px] font-bold uppercase text-primary hover:underline"
+                                    >
+                                        {manualFyEntry && purgeableFiscalYears && purgeableFiscalYears.length > 0 ? 'Choose detected year' : (purgeableFiscalYears && purgeableFiscalYears.length > 0 ? 'Enter manually' : 'Retry detection')}
+                                    </button>
+                                )}
+                            </div>
+                            {!manualFyEntry && purgeableFiscalYears && purgeableFiscalYears.length > 0 ? (
                                 <Select value={String(purgeFiscalYear)} onValueChange={(v) => setPurgeFiscalYear(Number(v))}>
                                     <SelectTrigger className="h-10 font-bold border-destructive/20">
                                         <SelectValue />
@@ -890,13 +917,21 @@ export default function SystemSettingsPage() {
                                     </SelectContent>
                                 </Select>
                             ) : (
-                                <p className="text-xs text-muted-foreground italic py-2">No fiscal years with stored attendance data were found.</p>
+                                <Input
+                                    type="number"
+                                    value={purgeFiscalYear}
+                                    onChange={(e) => setPurgeFiscalYear(Number(e.target.value))}
+                                    className="h-10 font-bold border-destructive/20"
+                                />
+                            )}
+                            {purgeableFiscalYears && purgeableFiscalYears.length === 0 && !isLoadingPurgeYears && (
+                                <p className="text-[9px] text-muted-foreground italic">No fiscal years with attendance data were detected - enter one manually, or retry detection above.</p>
                             )}
                             <p className="text-[9px] text-muted-foreground italic">FY {formatFiscalYear(purgeFiscalYear)} (Shrawan {purgeFiscalYear} &ndash; Ashadh {purgeFiscalYear + 1})</p>
                         </div>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" disabled={isPurgingAttendance || purgeableFiscalYears.length === 0} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
+                                <Button variant="destructive" disabled={isPurgingAttendance} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
                                     {isPurgingAttendance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                                     Delete Attendance Logs for FY {formatFiscalYear(purgeFiscalYear)}
                                 </Button>
