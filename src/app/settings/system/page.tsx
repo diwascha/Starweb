@@ -350,7 +350,16 @@ export default function SystemSettingsPage() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        toast({ title: 'Success', description: `Backup file generated${gzipped ? ' (compressed)' : ''}.` });
+        const skipped: { collection: string; reason: string }[] = data?._meta?.skipped || [];
+        if (skipped.length > 0) {
+            toast({
+                title: 'Backup incomplete',
+                description: `Saved, but ${skipped.length} collection(s) could not be read: ${skipped.map(s => s.collection).join(', ')}. This file cannot be used for a restore.`,
+                variant: 'destructive',
+            });
+        } else {
+            toast({ title: 'Success', description: `Backup file generated${gzipped ? ' (compressed)' : ''}.` });
+        }
     } catch {
         toast({ title: 'Backup Failed', variant: 'destructive' });
     } finally {
