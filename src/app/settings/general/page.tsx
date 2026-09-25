@@ -41,7 +41,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
-import { onSettingUpdate, setSetting, updateExistingRecordsNumbering } from '@/services/settings-service';
+import { onSettingUpdate, setSetting, updateExistingRecordsNumbering, previewRenumbering, type RenumberPreview } from '@/services/settings-service';
 import { getDocumentName, modules } from '@/lib/types';
 import { BUSINESS_ENTITIES, type BusinessEntity } from '@/lib/business-entities';
 import { cn, toNepaliDate } from '@/lib/utils';
@@ -136,6 +136,45 @@ export default function GeneralSettingsPage() {
   const [uomForm, setUomForm] = useState({ name: '', abbreviation: '' });
 
   const [isSyncing, setIsSyncing] = useState<Record<string, boolean>>({});
+  // Renumbering rewrites numbers on saved documents, so it always asks first.
+  const [pendingRenumber, setPendingRenumber] = useState<{ type: DocumentType; preview: RenumberPreview; run: () => Promise<void> } | null>(null);
+  const [isRenumbering, setIsRenumbering] = useState(false);
+
+  // Two rules covering the same dates would give one period two numbering
+  // sequences. Returns the clashing rule's prefix, or null.
+  const findOverlappingRule = (rules: NumberingRule[], candidate: NumberingRule): string | null => {
+    const start = new Date(candidate.effectiveFrom).getTime();
+    const end = candidate.effectiveTo ? new Date(candidate.effectiveTo).getTime() : Infinity;
+    const clash = rules.find(r => {
+      const rStart = new Date(r.effectiveFrom).getTime();
+      const rEnd = r.effectiveTo ? new Date(r.effectiveTo).getTime() : Infinity;
+      return rStart <= end && start <= rEnd;
+    });
+    return clash ? clash.prefix : null;
+  };
+
+  // Shows what will change and runs `run` only after the user confirms.
+  // Nothing to change -> runs straight away.
+  const askRenumber = async (type: DocumentType, rule: NumberingRule, run: () => Promise<void>) => {
+    try {
+      const preview = await previewRenumbering(type, rule);
+      if (preview.changing === 0) { await run(); return; }
+      setPendingRenumber({ type, preview, run });
+    } catch {
+      toast({ title: 'Could not check existing records', variant: 'destructive' });
+    }
+  };
+
+  const confirmRenumber = async () => {
+    if (!pendingRenumber) return;
+    setIsRenumbering(true);
+    try {
+      await pendingRenumber.run();
+    } finally {
+      setIsRenumbering(false);
+      setPendingRenumber(null);
+    }
+  };
 
   useEffect(() => {
     setIsLoading(true);
@@ -300,22 +339,27 @@ export default function GeneralSettingsPage() {
         status: 'Active',
     };
     
+    const clash = findOverlappingRule(rules, newRule);
+    if (clash !== null) {
+        setPrefixError(`These dates overlap the existing rule "${clash}". Adjust the dates so each period has one numbering rule.`);
+        return;
+    }
     rules.push(newRule);
     
     const newConfig = { ...prefixes, [activeNumberingKey]: rules };
-    
-    try {
-        await setSetting('documentPrefixes', newConfig);
-        
-        // Background Process: Sync existing records to the new rule
-        toast({ title: 'Updating History...', description: 'Applying new sequence to existing records.' });
-        await updateExistingRecordsNumbering(activeNumberingKey, newRule, user.username);
-        
-        setIsNumberingDialogOpen(false);
-        toast({ title: 'Numbering Rule Updated', description: 'All historical records for this period have been re-sequenced.' });
-    } catch {
-        toast({ title: 'Error', variant: 'destructive' });
-    }
+    const key = activeNumberingKey;
+    const username = user.username;
+
+    await askRenumber(key, newRule, async () => {
+      try {
+          await setSetting('documentPrefixes', newConfig);
+          await updateExistingRecordsNumbering(key, newRule, username);
+          setIsNumberingDialogOpen(false);
+          toast({ title: 'Numbering Rule Updated', description: 'Records in this period now follow the new sequence.' });
+      } catch {
+          toast({ title: 'Renumbering incomplete', description: 'The rule was saved but not every record was renumbered. Use Sync to finish.', variant: 'destructive' });
+      }
+    });
   };
 
   const handleManualSync = async (type: DocumentType) => {
@@ -329,11 +373,16 @@ export default function GeneralSettingsPage() {
       }
 
       setIsSyncing(prev => ({ ...prev, [type]: true }));
+      const username = user.username;
       try {
-          await updateExistingRecordsNumbering(type, active, user.username);
-          toast({ title: 'Sync Complete', description: `${getDocumentName(type)} numbering has been synchronized.` });
-      } catch (error) {
-          toast({ title: 'Sync Failed', variant: 'destructive' });
+          await askRenumber(type, active, async () => {
+              try {
+                  await updateExistingRecordsNumbering(type, active, username);
+                  toast({ title: 'Sync Complete', description: `${getDocumentName(type)} numbering has been synchronized.` });
+              } catch {
+                  toast({ title: 'Sync Failed', description: 'Some records were not renumbered. Run Sync again to finish.', variant: 'destructive' });
+              }
+          });
       } finally {
           setIsSyncing(prev => ({ ...prev, [type]: false }));
       }
@@ -392,24 +441,29 @@ export default function GeneralSettingsPage() {
         updatedRules = [newRuleBase];
     } else {
         if (!Array.isArray(rawRules)) return;
+        const clash = findOverlappingRule(rawRules.filter((_, i) => i !== editingRuleIndex), newRuleBase);
+        if (clash !== null) {
+            setPrefixError(`These dates overlap the existing rule "${clash}". Adjust the dates so each period has one numbering rule.`);
+            return;
+        }
         updatedRules = [...rawRules];
         updatedRules[editingRuleIndex] = newRuleBase;
     }
     
     const newConfig = { ...prefixes, [historyKey]: updatedRules };
-    
-    try {
-        await setSetting('documentPrefixes', newConfig);
-        
-        // Background Process: Sync existing records to the edited rule
-        toast({ title: 'Updating History...', description: 'Applying changes to existing records.' });
-        await updateExistingRecordsNumbering(historyKey, newRuleBase, user.username);
-        
-        setIsEditRuleDialogOpen(false);
-        toast({ title: 'Record Updated', description: 'Ledger sequence successfully modified.' });
-    } catch {
-        toast({ title: 'Update Failed', variant: 'destructive' });
-    }
+    const key = historyKey;
+    const username = user.username;
+
+    await askRenumber(key, newRuleBase, async () => {
+      try {
+          await setSetting('documentPrefixes', newConfig);
+          await updateExistingRecordsNumbering(key, newRuleBase, username);
+          setIsEditRuleDialogOpen(false);
+          toast({ title: 'Record Updated', description: 'Ledger sequence successfully modified.' });
+      } catch {
+          toast({ title: 'Renumbering incomplete', description: 'The rule was saved but not every record was renumbered. Use Sync to finish.', variant: 'destructive' });
+      }
+    });
   };
 
   const handleDeleteRule = async (idx: number) => {
@@ -724,6 +778,34 @@ export default function GeneralSettingsPage() {
                 <DialogFooter><Button onClick={handleUomSubmit} className="w-full">Save Unit</Button></DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <AlertDialog open={!!pendingRenumber} onOpenChange={(open) => { if (!open && !isRenumbering) setPendingRenumber(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Renumber existing {pendingRenumber ? getDocumentName(pendingRenumber.type) : ''} records?</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-sm">
+                  <p>
+                    {pendingRenumber?.preview.changing} of {pendingRenumber?.preview.total} records in this period will get a new number,
+                    so the whole period runs as one sequence: {pendingRenumber?.preview.first} to {pendingRenumber?.preview.last}.
+                  </p>
+                  {!!pendingRenumber?.preview.examples.length && (
+                    <ul className="list-disc pl-5">
+                      {pendingRenumber.preview.examples.map(e => <li key={e.from + e.to}>{e.from} &rarr; {e.to}</li>)}
+                    </ul>
+                  )}
+                  <p>Printed or shared copies will still show the old numbers. Cancel to leave everything unchanged.</p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isRenumbering}>Cancel</AlertDialogCancel>
+              <AlertDialogAction disabled={isRenumbering} onClick={(e) => { e.preventDefault(); confirmRenumber(); }}>
+                {isRenumbering && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Renumber
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Dialog open={isNumberingDialogOpen} onOpenChange={setIsNumberingDialogOpen}>
             <DialogContent className="sm:max-w-md">
