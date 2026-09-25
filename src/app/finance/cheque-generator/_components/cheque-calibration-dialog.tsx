@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Printer, RotateCcw, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 import { NepalChequeView } from './nepal-cheque-print';
 import { CHEQUE_FIELD_LABELS, CHEQUE_LAYOUT_PRESETS, CHEQUE_LAYOUT_SETTING_KEY, LEGACY_LAYOUT, type ChequeFieldKey, type ChequeLayout } from '@/lib/cheque-layout';
 import { setSetting } from '@/services/settings-service';
@@ -34,6 +35,8 @@ export function ChequeCalibrationDialog({
     onSaved: (layout: ChequeLayout) => void;
 }) {
     const { toast } = useToast();
+    // The layout is a shared setting saved under Finance edit permission.
+    const canEditLayout = useAuth().hasPermission('finance', 'edit');
     const [draft, setDraft] = useState<ChequeLayout>(layout);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -185,7 +188,7 @@ export function ChequeCalibrationDialog({
                     <Button variant="outline" onClick={printSheet}>
                         <Printer className="mr-2 h-4 w-4" /> Print grid on plain paper
                     </Button>
-                    <Button onClick={save} disabled={isSaving}>
+                    <Button onClick={save} disabled={isSaving || !canEditLayout}>
                         <Save className="mr-2 h-4 w-4" /> Save layout
                     </Button>
                 </DialogFooter>

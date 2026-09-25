@@ -63,7 +63,9 @@ function SettingsTable({ rows }: { rows: SettingRowSpec[] }) {
 }
 
 export default function HrOfficePage() {
-    const { user } = useAuth();
+    const { user, hasPermission } = useAuth();
+    // hr_config is saved under HR edit permission (see firestore.rules).
+    const canEditHrConfig = hasPermission('hr', 'edit');
     const { inScope } = useOwnershipScope('hr');
     const { toast } = useToast();
 
@@ -222,7 +224,7 @@ export default function HrOfficePage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button onClick={handleSaveHrConfig} disabled={isSavingConfig} className="h-10 px-6 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">
+                    <Button onClick={handleSaveHrConfig} disabled={isSavingConfig || !canEditHrConfig} className="h-10 px-6 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">
                         {isSavingConfig ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
                         Commit Operations Rules
                     </Button>

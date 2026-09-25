@@ -125,7 +125,12 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
 }
 
 export default function FinanceSettingsPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  // Mirrors the Settings permission the admin granted: add / edit / delete
+  // each unlock only their own buttons, view alone is read-only.
+  const canAdd = hasPermission('settings', 'add');
+  const canEdit = hasPermission('settings', 'edit');
+  const canDelete = hasPermission('settings', 'delete');
   const { toast } = useToast();
   
   const [parties, setParties] = useState<Party[]>([]);
@@ -255,8 +260,8 @@ export default function FinanceSettingsPage() {
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Partner Registry</CardTitle>
                         <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setIsMergeDialogOpen(true)} className="h-8 uppercase font-black text-[10px] tracking-widest"><GitMerge className="mr-2 h-3.5 w-3.5"/> Merge Duplicates</Button>
-                            <Button size="sm" onClick={() => { setEditingParty(null); setPartyForm({name:'', type:'Vendor', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), address: '', panNumber: ''}); setIsPartyDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Partner</Button>
+                            <Button variant="outline" size="sm" onClick={() => setIsMergeDialogOpen(true)} disabled={!canEdit} className="h-8 uppercase font-black text-[10px] tracking-widest"><GitMerge className="mr-2 h-3.5 w-3.5"/> Merge Duplicates</Button>
+                            <Button size="sm" disabled={!canAdd} onClick={() => { setEditingParty(null); setPartyForm({name:'', type:'Vendor', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), address: '', panNumber: ''}); setIsPartyDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Partner</Button>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -276,7 +281,7 @@ export default function FinanceSettingsPage() {
                                     <TableCell><Badge variant="secondary" className="text-[9px] uppercase">{party.type}</Badge></TableCell>
                                     <TableCell><Badge variant="outline" className="text-[9px] uppercase">{party.ownership}</Badge></TableCell>
                                     <TableCell className="text-right pr-6 space-x-1">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { 
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canEdit} onClick={() => { 
                                             setEditingParty(party); 
                                             setPartyForm({
                                                 name: party.name || '',
@@ -289,7 +294,7 @@ export default function FinanceSettingsPage() {
                                         }}><Edit className="h-3.5 w-3.5"/></Button>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" disabled={!canDelete}><Trash2 className="h-3.5 w-3.5"/></Button>
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
@@ -316,7 +321,7 @@ export default function FinanceSettingsPage() {
                 <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Financial Accounts</CardTitle>
-                        <Button size="sm" onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
+                        <Button size="sm" disabled={!canAdd} onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Account Name</TableHead><TableHead>Type</TableHead><TableHead>Bank</TableHead><TableHead>Ownership</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader>
@@ -328,7 +333,7 @@ export default function FinanceSettingsPage() {
                                 <TableCell className="text-muted-foreground">{acc.bankName || '-'}</TableCell>
                                 <TableCell><Badge variant="outline" className="text-[9px] uppercase">{acc.ownership}</Badge></TableCell>
                                 <TableCell className="text-right pr-6 space-x-1">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { 
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canEdit} onClick={() => { 
                                         setEditingAccount(acc); 
                                         setAccountForm({
                                             name: acc.name || '',
@@ -343,7 +348,7 @@ export default function FinanceSettingsPage() {
                                     }}><Edit className="h-3.5 w-3.5" /></Button>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" disabled={!canDelete}><Trash2 className="h-3.5 w-3.5"/></Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
@@ -378,7 +383,7 @@ export default function FinanceSettingsPage() {
                         <div className="flex flex-wrap gap-4 items-end bg-card p-4 rounded-xl border-2 border-dashed border-amber-200">
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label><Select value={selectedLockYear} onValueChange={setSelectedLockYear}><SelectTrigger className="w-[120px] h-9"><SelectValue /></SelectTrigger><SelectContent>{bsYears.map(y => <SelectItem key={`lock-y-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent></Select></div>
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label><Select value={selectedLockMonth} onValueChange={setSelectedLockMonth}><SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger><SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`lock-m-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent></Select></div>
-                            <Button onClick={handleTogglePayrollLock} variant={isCurrentPeriodLocked ? 'destructive' : 'default'} className="h-9 px-8 font-black text-xs uppercase">
+                            <Button onClick={handleTogglePayrollLock} disabled={!canAdd || !canEdit} title={!canAdd || !canEdit ? 'Locking needs Settings add and edit permission' : undefined} variant={isCurrentPeriodLocked ? 'destructive' : 'default'} className="h-9 px-8 font-black text-xs uppercase">
                                 {isCurrentPeriodLocked ? 'Unlock Period' : 'Lock Cycle'}
                             </Button>
                         </div>

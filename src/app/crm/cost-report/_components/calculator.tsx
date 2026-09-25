@@ -790,7 +790,9 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
   
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  // Shared costing rates/terms live in settings/costing, saved under CRM edit.
+  const canEditCosting = hasPermission('crm', 'edit');
   const { inScope } = useOwnershipScope('crm');
 
   const calculateItemCost = useCallback((item: any, globalK: any, globalV: number, globalC: number, globalT: number, tType: string, isAcc = false): CalculatedValues => {
@@ -856,6 +858,10 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
 
   const handleSaveMasterTerms = async (newTerms: CostReportTerm[]) => {
       if (!user) return;
+      if (!canEditCosting) {
+          toast({ title: 'View only', description: 'Changing the master terms needs CRM edit permission.', variant: 'destructive' });
+          return;
+      }
       try {
           await updateCostSettings({ termsAndConditions: newTerms }, user.username);
           setTermsAndConditions(newTerms);
@@ -1148,8 +1154,9 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             await addCostReport(reportData);
         }
 
-        // Persist global rates to settings
-        await updateCostSettings({
+        // Persist global rates to settings - only for users allowed to change
+        // them; a CRM user without edit rights still saves their report.
+        if (canEditCosting) await updateCostSettings({
             kraftPaperCosts,
             virginPaperCost: Number(virginPaperCost) || 0,
             conversionCost: Number(conversionCost) || 0,

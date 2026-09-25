@@ -77,7 +77,11 @@ const groupedDocumentTypes: { label: string; icon: any; types: DocumentType[] }[
 ];
 
 export default function GeneralSettingsPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  // View-only users (Settings: view without edit) can browse but not change anything.
+  const canAdd = hasPermission('settings', 'add');
+  const canEdit = hasPermission('settings', 'edit');
+  const canDelete = hasPermission('settings', 'delete');
   const { toast } = useToast();
   
   const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
@@ -462,6 +466,11 @@ export default function GeneralSettingsPage() {
             <p className="text-muted-foreground text-sm">Identity, branding, and system-wide standards.</p>
         </header>
 
+        {!canEdit && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                View only: you can see these settings, but saving needs Settings edit permission from an administrator.
+            </div>
+        )}
         <Tabs defaultValue="branding" className="w-full">
             <TabsList className="bg-muted/50 p-1 mb-6">
                 <TabsTrigger value="branding" className="px-6 text-[10px] uppercase font-bold tracking-widest">App Branding</TabsTrigger>
@@ -478,7 +487,7 @@ export default function GeneralSettingsPage() {
                             <CardTitle className="text-xl font-black text-foreground tracking-tight">System Identity</CardTitle>
                             <CardDescription className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Application naming and persona.</CardDescription>
                         </div>
-                        <Button onClick={handleSaveAppBranding} disabled={isSavingBranding} className="h-10 px-8 font-black text-[10px] uppercase tracking-widest shadow-lg">
+                        <Button onClick={handleSaveAppBranding} disabled={isSavingBranding || !canEdit} className="h-10 px-8 font-black text-[10px] uppercase tracking-widest shadow-lg">
                             {isSavingBranding ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
                             Apply Branding
                         </Button>
@@ -486,11 +495,11 @@ export default function GeneralSettingsPage() {
                     <CardContent className="p-8 space-y-6">
                         <div className="space-y-2 max-w-md">
                             <Label className="text-xs font-black uppercase text-muted-foreground tracking-widest">Master App Name</Label>
-                            <Input value={appBranding.appName || ''} onChange={e => setAppBranding(p => ({ ...p, appName: e.target.value }))} className="h-12 text-lg font-bold" />
+                            <Input value={appBranding.appName || ''} onChange={e => setAppBranding(p => ({ ...p, appName: e.target.value }))} disabled={!canEdit} className="h-12 text-lg font-bold" />
                         </div>
                         <div className="space-y-2 max-w-md">
                             <Label className="text-xs font-black uppercase text-muted-foreground tracking-widest">Tagline</Label>
-                            <Input value={appBranding.appMotto || ''} onChange={e => setAppBranding(p => ({ ...p, appMotto: e.target.value }))} className="h-10" />
+                            <Input value={appBranding.appMotto || ''} onChange={e => setAppBranding(p => ({ ...p, appMotto: e.target.value }))} disabled={!canEdit} className="h-10" />
                         </div>
                     </CardContent>
                  </Card>
@@ -511,6 +520,7 @@ export default function GeneralSettingsPage() {
                         }))}
                         onSave={() => handleSaveEntityProfile(entity)}
                         isSaving={savingEntityId === entity.id}
+                        readOnly={!canEdit}
                     />
                 ))}
             </TabsContent>
@@ -522,7 +532,7 @@ export default function GeneralSettingsPage() {
                             <CardTitle className="text-base font-black uppercase">Ownership Categories</CardTitle>
                             <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Manage organizational units and their module scope.</CardDescription>
                         </div>
-                        <Button size="sm" onClick={() => openOwnershipDialog()} className="h-9 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Category</Button>
+                        <Button size="sm" onClick={() => openOwnershipDialog()} disabled={!canEdit} className="h-9 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Category</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs">
@@ -552,10 +562,10 @@ export default function GeneralSettingsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right pr-6 space-x-1">
-                                            <Button variant="ghost" size="icon" className="h-4 w-4 text-primary" onClick={() => openOwnershipDialog(cat)}><Edit className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-4 w-4 text-primary" onClick={() => openOwnershipDialog(cat)} disabled={!canEdit}><Edit className="h-4 w-4" /></Button>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                    <Button disabled={!canEdit} variant="ghost" size="icon" className="h-4 w-4 text-destructive"><Trash2 className="h-4 w-4" /></Button>
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
@@ -585,17 +595,17 @@ export default function GeneralSettingsPage() {
                 <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Units of Measurement</CardTitle>
-                        <Button size="sm" onClick={() => { setEditingUom(null); setUomForm({name:'', abbreviation:''}); setIsUomDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> New Unit</Button>
+                        <Button size="sm" disabled={!canAdd} onClick={() => { setEditingUom(null); setUomForm({name:'', abbreviation:''}); setIsUomDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> New Unit</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Unit Name</TableHead><TableHead>Code</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader>
                         <TableBody>
                         {uoms.map(u => (
                             <TableRow key={u.id} className="h-12 border-b"><TableCell className="font-bold pl-6">{u.name}</TableCell><TableCell className="font-black text-primary">{u.abbreviation}</TableCell><TableCell className="text-right pr-6 space-x-1">
-                                <Button variant="ghost" size="icon" className="h-3.5 w-3.5" onClick={() => { setEditingUom(u); setUomForm({name:u.name, abbreviation:u.abbreviation}); setIsUomDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon" className="h-3.5 w-3.5" disabled={!canEdit} onClick={() => { setEditingUom(u); setUomForm({name:u.name, abbreviation:u.abbreviation}); setIsUomDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-3.5 w-3.5 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                                        <Button disabled={!canDelete} variant="ghost" size="icon" className="h-3.5 w-3.5 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
@@ -667,7 +677,7 @@ export default function GeneralSettingsPage() {
                                                         size="sm" 
                                                         className="h-7 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-emerald-600" 
                                                         onClick={() => handleManualSync(t)}
-                                                        disabled={isSyncing[t]}
+                                                        disabled={isSyncing[t] || !canEdit}
                                                     >
                                                         {isSyncing[t] ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <SearchCheck className="mr-1 h-3 w-3" />}
                                                         Scan & Sync
@@ -686,6 +696,7 @@ export default function GeneralSettingsPage() {
                                                         size="sm" 
                                                         className="h-7 text-[9px] font-black uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5" 
                                                         onClick={() => openNumberingDialog(t)}
+                                                        disabled={!canEdit}
                                                     >
                                                         <RefreshCcw className="mr-1 h-3 w-3" />
                                                         Update
@@ -822,13 +833,13 @@ export default function GeneralSettingsPage() {
                                                 {rule.originalIndex === -99 && (
                                                     <Badge variant="outline" className="text-[8px] uppercase bg-amber-50 text-amber-700 border-amber-200 mr-2">Upgrade Required</Badge>
                                                 )}
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRuleDialog(rule.originalIndex)}>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRuleDialog(rule.originalIndex)} disabled={!canEdit}>
                                                     <Edit className="h-3.5 w-3.5" />
                                                 </Button>
                                                 {rule.originalIndex !== -99 && (
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
+                                                            <Button disabled={!canEdit} variant="ghost" size="icon" className="h-7 w-7 text-destructive">
                                                                 <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>
                                                         </AlertDialogTrigger>
@@ -1006,17 +1017,18 @@ export default function GeneralSettingsPage() {
  * header/footer notes are meaningful on a salary slip, not on a transport
  * voucher, so a transport entity isn't asked for them.
  */
-function EntityProfileCard({ entity, profile, onChange, onSave, isSaving }: {
+function EntityProfileCard({ entity, profile, onChange, onSave, isSaving, readOnly }: {
   entity: BusinessEntity;
   profile: CompanyProfile;
   onChange: (patch: Partial<CompanyProfile>) => void;
   onSave: () => void;
   isSaving: boolean;
+  readOnly: boolean;
 }) {
   const field = (label: string, key: keyof CompanyProfile, wide = false) => (
     <div className={cn('space-y-1.5', wide && 'md:col-span-2')} key={key as string}>
       <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
-      <Input value={(profile[key] as string) || ''} onChange={e => onChange({ [key]: e.target.value } as Partial<CompanyProfile>)} />
+      <Input value={(profile[key] as string) || ''} onChange={e => onChange({ [key]: e.target.value } as Partial<CompanyProfile>)} disabled={readOnly} />
     </div>
   );
 
@@ -1029,7 +1041,7 @@ function EntityProfileCard({ entity, profile, onChange, onSave, isSaving }: {
             Used by: {entity.modules.join(', ')}
           </CardDescription>
         </div>
-        <Button onClick={onSave} disabled={isSaving} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">
+        <Button onClick={onSave} disabled={isSaving || readOnly} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">
           {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
           Update
         </Button>
