@@ -264,6 +264,20 @@ service cloud.firestore {
       allow read, delete: if isAdmin();
     }
 
+    // Page-visit counters. Every signed-in user records their own navigation
+    // (usage-tracker), but reading the stats is a Settings screen, so the
+    // catch-all below keeps read/delete on the settings permission. The write
+    // is narrowed to exactly what the tracker sends: a new counter starting at
+    // 1, or an existing one going up by exactly 1.
+    match /pageVisits/{visitId} {
+      allow create: if isApproved() &&
+                       request.resource.data.keys().hasOnly(['path', 'count', 'lastVisited']) &&
+                       request.resource.data.count == 1;
+      allow update: if isApproved() &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'lastVisited']) &&
+                       request.resource.data.count == resource.data.count + 1;
+    }
+
     // --- Business data, gated by the admin-assigned module permissions ---
 
     match /{col}/{docId} {

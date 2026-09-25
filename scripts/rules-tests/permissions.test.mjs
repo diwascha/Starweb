@@ -7,6 +7,10 @@ const env = await initializeTestEnvironment({
   firestore: { rules: fs.readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8'), host: '127.0.0.1', port: 8080 },
 });
 
+// Start from an empty database: the emulator keeps documents between runs,
+// which turns a second run's "create" checks into updates.
+await env.clearFirestore();
+
 let pass = 0; const fails = [];
 const ok = (name, cond, detail='') => { if (cond) pass++; else fails.push(`${name} ${detail}`); };
 
@@ -181,6 +185,15 @@ await allow('user logs as themselves',  () => setDoc(doc(hrview, 'logs/own'), { 
 await deny ('user logs as someone else',() => setDoc(doc(hrview, 'logs/forged'), { userId: 'boss', message: 'x' }));
 await deny ('user logs without userId', () => setDoc(doc(hrview, 'logs/blank'), { message: 'x' }));
 await deny ('anonymous writes a log',   () => setDoc(doc(anon, 'logs/anon'), { userId: '', message: 'x' }));
+
+console.log('\n=== 13. Page-visit tracking works for every approved user ===');
+await allow('approved user starts a visit counter', () => setDoc(doc(nobody, 'pageVisits/dash'), { path: '/dashboard', count: 1, lastVisited: 1 }));
+await allow('approved user adds one visit',       () => updateDoc(doc(nobody, 'pageVisits/dash'), { count: 2, lastVisited: 2 }));
+await deny ('approved user inflates a counter',   () => updateDoc(doc(nobody, 'pageVisits/dash'), { count: 999 }));
+await deny ('approved user starts at 50',         () => setDoc(doc(nobody, 'pageVisits/other'), { path: '/x', count: 50, lastVisited: 1 }));
+await deny ('approved user adds extra fields',    () => setDoc(doc(nobody, 'pageVisits/extra'), { path: '/x', count: 1, lastVisited: 1, note: 'x' }));
+await deny ('approved user reads visit stats',    () => getDoc(doc(nobody, 'pageVisits/dash')));
+await deny ('unapproved user records a visit',    () => setDoc(doc(pending, 'pageVisits/p'), { path: '/x', count: 1, lastVisited: 1 }));
 
 console.log('\n=== 9. Admin still has everything ===');
 for (const c of ALL) await allow(`admin writes ${c}`, () => setDoc(doc(boss, `${c}/adm`), { v:1 }));
