@@ -332,3 +332,7 @@ export const toWords = (num: number): string => {
     // the absolute value as though it were a payment.
     return `${num < 0 ? 'Minus ' : ''}${words} Only.`;
 };
+
+/** Rupee amount with Nepali lakh grouping and two decimals, e.g. 1,25,000.50. */
+export const formatAmount2 = (value: number | null | undefined): string =>
+  (Number(value) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

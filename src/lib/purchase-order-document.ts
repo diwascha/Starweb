@@ -61,7 +61,7 @@ const sumByUnit = (items: any[]): Record<string, number> =>
 
 const unitTotalsText = (totals: Record<string, number>, separator = '  /  '): string =>
     Object.entries(totals)
-        .map(([unit, total]) => `${total.toLocaleString()} ${unit}`)
+        .map(([unit, total]) => `${total.toLocaleString('en-IN')} ${unit}`)
         .join(separator);
 
 /** Build the printable model of an order. */

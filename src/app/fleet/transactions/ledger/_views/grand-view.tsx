@@ -419,7 +419,7 @@ export function GrandLedgerView() {
         }
     };
 
-    const money = (n: number) => Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2 });
+    const money = (n: number) => Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2 });
     const drcr = (n: number) => (n >= 0 ? 'Dr' : 'Cr');
 
     const handleExport = async (type: 'excel' | 'pdf') => {
@@ -658,7 +658,7 @@ export function GrandLedgerView() {
                     <Card key={i} className="border-border/60 py-3 px-3">
                         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">{s.label}</p>
                         <p className="text-sm font-bold tabular-nums">
-                            {s.count ? s.value.toLocaleString() : money(s.value)}
+                            {s.count ? s.value.toLocaleString('en-IN') : money(s.value)}
                             {s.dc && <span className="ml-1 text-[10px] font-semibold text-muted-foreground">{s.value >= 0 ? 'Dr' : 'Cr'}</span>}
                         </p>
                     </Card>

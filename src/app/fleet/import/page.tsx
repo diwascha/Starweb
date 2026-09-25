@@ -398,7 +398,7 @@ export default function FleetImportPage() {
                                                         ? `${r.category}${r.partyName ? ` - ${r.partyName}` : ''}`
                                                         : `${r.mode}${r.chequeRef ? ` - ${r.chequeRef}` : ''}`}
                                                 </TableCell>
-                                                <TableCell className="text-right text-xs tabular-nums">Rs. {r.amount.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right text-xs tabular-nums">Rs. {r.amount.toLocaleString('en-IN')}</TableCell>
                                                 <TableCell>
                                                     {r.status === 'duplicate' && <Badge variant="outline" className="text-[9px]">Already Recorded</Badge>}
                                                     {r.status === 'new' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px]">New</Badge>}
@@ -411,7 +411,7 @@ export default function FleetImportPage() {
                             </div>
                         </CardContent>
                         <CardFooter className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Total value to import: <strong>Rs. {summary.totalAmount.toLocaleString()}</strong></span>
+                            <span className="text-sm text-muted-foreground">Total value to import: <strong>Rs. {summary.totalAmount.toLocaleString('en-IN')}</strong></span>
                             <div className="flex gap-2">
                                 <Button variant="outline" onClick={resetImport} disabled={isImporting}>Cancel</Button>
                                 <Button onClick={handleConfirmImport} disabled={isImporting || summary.toImportCount === 0}>

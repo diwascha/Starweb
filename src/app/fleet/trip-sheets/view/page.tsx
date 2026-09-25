@@ -112,11 +112,11 @@ function TripSheetViewContent() {
                             </TableHeader>
                             <TableBody>
                                 {trip.destinations.map((d, i) => (
-                                    <TableRow key={i}><TableCell className="font-bold">{d.name}</TableCell><TableCell className="text-right tabular-nums">{Number(d.freight).toLocaleString()}</TableCell></TableRow>
+                                    <TableRow key={i}><TableCell className="font-bold">{d.name}</TableCell><TableCell className="text-right tabular-nums">{Number(d.freight).toLocaleString('en-IN')}</TableCell></TableRow>
                                 ))}
                             </TableBody>
                             <TableFooter className="bg-muted/30">
-                                <TableRow className="font-black"><TableCell className="text-right">Total Freight</TableCell><TableCell className="text-right tabular-nums">Rs. {totalFreight.toLocaleString()}</TableCell></TableRow>
+                                <TableRow className="font-black"><TableCell className="text-right">Total Freight</TableCell><TableCell className="text-right tabular-nums">Rs. {totalFreight.toLocaleString('en-IN')}</TableCell></TableRow>
                             </TableFooter>
                         </Table>
                     </section>
@@ -132,7 +132,7 @@ function TripSheetViewContent() {
                                     {trip.fuelEntries.map((f, i) => (
                                         <TableRow key={i}>
                                             <TableCell>{parties.find(p => p.id === f.partyId)?.name || 'N/A'}</TableCell>
-                                            <TableCell className="text-right tabular-nums">{Number(f.amount).toLocaleString()}</TableCell>
+                                            <TableCell className="text-right tabular-nums">{Number(f.amount).toLocaleString('en-IN')}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -141,8 +141,8 @@ function TripSheetViewContent() {
                         <section>
                             <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-2">Internal Outflows</h3>
                             <div className="p-4 bg-muted/20 border rounded-lg space-y-2 text-xs">
-                                <div className="flex justify-between"><span>Truck Advance (Peski)</span><span className="font-bold">Rs. {(Number(trip.truckAdvance) || 0).toLocaleString()}</span></div>
-                                <div className="flex justify-between"><span>Loading/Unloading</span><span className="font-bold">Rs. {Number(trip.transport).toLocaleString()}</span></div>
+                                <div className="flex justify-between"><span>Truck Advance (Peski)</span><span className="font-bold">Rs. {(Number(trip.truckAdvance) || 0).toLocaleString('en-IN')}</span></div>
+                                <div className="flex justify-between"><span>Loading/Unloading</span><span className="font-bold">Rs. {Number(trip.transport).toLocaleString('en-IN')}</span></div>
                             </div>
                         </section>
                     </div>

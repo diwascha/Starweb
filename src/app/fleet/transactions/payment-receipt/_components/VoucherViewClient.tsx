@@ -147,8 +147,8 @@ export default function VoucherViewClient({
                                 {t.vehicleId && <span className="text-[10px] text-gray-500">{vehicles.find(v => v.id === t.vehicleId)?.name}</span>}
                             </div>
                         </TableCell>
-                        <TableCell className="px-2 py-1 text-xs text-right">{t.type === 'Payment' ? t.amount.toLocaleString(undefined, {minimumFractionDigits: 2}) : ''}</TableCell>
-                        <TableCell className="px-2 py-1 text-xs text-right">{t.type === 'Receipt' ? t.amount.toLocaleString(undefined, {minimumFractionDigits: 2}) : ''}</TableCell>
+                        <TableCell className="px-2 py-1 text-xs text-right">{t.type === 'Payment' ? t.amount.toLocaleString('en-IN', {minimumFractionDigits: 2}) : ''}</TableCell>
+                        <TableCell className="px-2 py-1 text-xs text-right">{t.type === 'Receipt' ? t.amount.toLocaleString('en-IN', {minimumFractionDigits: 2}) : ''}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>

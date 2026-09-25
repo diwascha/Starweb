@@ -481,10 +481,10 @@ export default function TenantsPage() {
                                         "text-right font-mono font-bold text-xs tabular-nums",
                                         tenant.outstandingBalance > 0 ? "text-red-600" : "text-emerald-600"
                                     )}>
-                                        Rs. {tenant.outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        Rs. {tenant.outstandingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                     </TableCell>
                                     <TableCell className="text-right font-mono text-xs text-muted-foreground tabular-nums">
-                                        Rs. {tenant.securityDeposit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        Rs. {tenant.securityDeposit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                     </TableCell>
                                     <TableCell className="text-right pr-6">
                                         <div className="flex items-center justify-end gap-1">
@@ -941,11 +941,11 @@ export default function TenantsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <Card className="bg-red-50 border-red-100 shadow-none ring-1 ring-red-200/50">
                                     <CardHeader className="py-3 px-4"><CardTitle className="text-[10px] uppercase font-bold text-red-600 tracking-widest">Outstanding Dues</CardTitle></CardHeader>
-                                    <CardContent className="px-4 pb-4"><p className="text-2xl font-black text-red-700">Rs. {bills.filter(b => b.tenantId === selectedTenant.id && b.status !== 'Paid').reduce((sum, b) => sum + b.amount, 0).toLocaleString()}</p></CardContent>
+                                    <CardContent className="px-4 pb-4"><p className="text-2xl font-black text-red-700">Rs. {bills.filter(b => b.tenantId === selectedTenant.id && b.status !== 'Paid').reduce((sum, b) => sum + b.amount, 0).toLocaleString('en-IN')}</p></CardContent>
                                 </Card>
                                 <Card className="bg-green-50 border-green-100 shadow-none ring-1 ring-green-200/50">
                                     <CardHeader className="py-3 px-4"><CardTitle className="text-[10px] uppercase font-bold text-green-600 tracking-widest">Held Security</CardTitle></CardHeader>
-                                    <CardContent className="px-4 pb-4"><p className="text-2xl font-black text-green-700">Rs. {agreements.find(a => a.tenantId === selectedTenant.id)?.securityDeposit.toLocaleString() || '0'}</p></CardContent>
+                                    <CardContent className="px-4 pb-4"><p className="text-2xl font-black text-green-700">Rs. {agreements.find(a => a.tenantId === selectedTenant.id)?.securityDeposit.toLocaleString('en-IN') || '0'}</p></CardContent>
                                 </Card>
                                 <Card className="bg-blue-50 border-blue-100 shadow-none ring-1 ring-blue-200/50">
                                     <CardHeader className="py-3 px-4"><CardTitle className="text-[10px] uppercase font-bold text-blue-600 tracking-widest">Current Occupancy</CardTitle></CardHeader>
@@ -1010,7 +1010,7 @@ export default function TenantsPage() {
                                                 {bills.filter(b => b.tenantId === selectedTenant.id).slice(0, 5).map(bill => (
                                                     <TableRow key={bill.id} className="h-10">
                                                         <TableCell className="text-muted-foreground">{new Date(bill.createdAt).toLocaleDateString()}</TableCell>
-                                                        <TableCell className="text-right font-mono font-bold">Rs. {bill.amount.toLocaleString()}</TableCell>
+                                                        <TableCell className="text-right font-mono font-bold">Rs. {bill.amount.toLocaleString('en-IN')}</TableCell>
                                                         <TableCell className="text-center">
                                                             <Badge variant={bill.status === 'Paid' ? 'default' : 'destructive'} className={cn(
                                                                 "text-[8px] font-black h-3 px-1.5 py-0 uppercase",
@@ -1045,8 +1045,8 @@ export default function TenantsPage() {
                                         )}>{agreement.status}</Badge>
                                     </CardHeader>
                                     <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6 py-6 border-y bg-muted/50">
-                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Monthly Rent</p><p className="font-black text-lg text-foreground">Rs. {agreement.monthlyRent.toLocaleString()}</p></div>
-                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Security Deposit</p><p className="font-black text-lg text-foreground">Rs. {agreement.securityDeposit.toLocaleString()}</p></div>
+                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Monthly Rent</p><p className="font-black text-lg text-foreground">Rs. {agreement.monthlyRent.toLocaleString('en-IN')}</p></div>
+                                        <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Security Deposit</p><p className="font-black text-lg text-foreground">Rs. {agreement.securityDeposit.toLocaleString('en-IN')}</p></div>
                                         <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Billing Cycle</p><p className="font-bold text-foreground">Every {agreement.billingDate}th</p></div>
                                         <div className="space-y-1"><p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Valid Until (BS)</p><p className="font-bold text-foreground">{toNepaliDate(agreement.endDate)}</p></div>
                                     </CardContent>
@@ -1081,10 +1081,10 @@ export default function TenantsPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right font-mono font-bold text-red-500 tabular-nums">
-                                                    {t.type === 'Sales' ? t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'}
+                                                    {t.type === 'Sales' ? t.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'}
                                                 </TableCell>
                                                 <TableCell className="text-right font-mono font-bold text-emerald-600 tabular-nums">
-                                                    {t.type === 'Receipt' ? t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'}
+                                                    {t.type === 'Receipt' ? t.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'}
                                                 </TableCell>
                                             </TableRow>
                                         ))}

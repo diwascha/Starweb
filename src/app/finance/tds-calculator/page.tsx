@@ -403,10 +403,10 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                     </div>
                     <div className="flex items-center space-x-3 p-4 rounded-xl bg-muted/20 border"><Switch id="include-vat" checked={includeVat} onCheckedChange={setIncludeVat} /><Label htmlFor="include-vat" className="text-xs font-bold uppercase cursor-pointer">Include VAT (13%)</Label></div>
                     <div className="rounded-2xl border-2 border-primary/20 bg-primary/[0.02] p-6 space-y-4">
-                        <div className="flex justify-between text-xs font-black uppercase"><span className="opacity-70">Total with VAT</span><span>Rs. {totalWithVat.toLocaleString()}</span></div>
-                        <div className="flex justify-between text-xs font-black uppercase text-red-600"><span>TDS Withholding</span><span>- Rs. {tds.toLocaleString()}</span></div>
+                        <div className="flex justify-between text-xs font-black uppercase"><span className="opacity-70">Total with VAT</span><span>Rs. {totalWithVat.toLocaleString('en-IN')}</span></div>
+                        <div className="flex justify-between text-xs font-black uppercase text-red-600"><span>TDS Withholding</span><span>- Rs. {tds.toLocaleString('en-IN')}</span></div>
                         <Separator className="h-0.5 bg-primary/20" />
-                        <div className="flex justify-between items-center"><span className="text-xs font-black uppercase tracking-widest">Net Payable</span><span className="text-2xl font-black tabular-nums">Rs. {netAmount.toLocaleString()}</span></div>
+                        <div className="flex justify-between items-center"><span className="text-xs font-black uppercase tracking-widest">Net Payable</span><span className="text-2xl font-black tabular-nums">Rs. {netAmount.toLocaleString('en-IN')}</span></div>
                     </div>
                 </CardContent>
             </Card>

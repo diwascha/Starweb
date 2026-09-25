@@ -112,10 +112,10 @@ export function TruckPnlView() {
     const exportColumns: LedgerColumn<TruckPnl>[] = [
         { header: 'Truck', value: p => p.vehicle.name },
         { header: 'Trips', align: 'right', value: p => p.tripCount },
-        { header: 'Income', align: 'right', value: p => p.income.toLocaleString() },
-        { header: 'Expense', align: 'right', value: p => p.expense.toLocaleString() },
-        { header: 'Net', align: 'right', value: p => p.net.toLocaleString() },
-        { header: 'Cost Breakdown', value: p => Object.entries(p.categoryBreakdown).map(([cat, amt]) => `${cat}: ${amt.toLocaleString()}`).join('; ') },
+        { header: 'Income', align: 'right', value: p => p.income.toLocaleString('en-IN') },
+        { header: 'Expense', align: 'right', value: p => p.expense.toLocaleString('en-IN') },
+        { header: 'Net', align: 'right', value: p => p.net.toLocaleString('en-IN') },
+        { header: 'Cost Breakdown', value: p => Object.entries(p.categoryBreakdown).map(([cat, amt]) => `${cat}: ${amt.toLocaleString('en-IN')}`).join('; ') },
     ];
 
     return (
@@ -135,9 +135,9 @@ export function TruckPnlView() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Card><CardHeader className="pb-2"><CardDescription>Total Income</CardDescription><CardTitle className="text-2xl text-emerald-600">Rs. {totals.income.toLocaleString()}</CardTitle></CardHeader></Card>
-                <Card><CardHeader className="pb-2"><CardDescription>Total Expense</CardDescription><CardTitle className="text-2xl text-destructive">Rs. {totals.expense.toLocaleString()}</CardTitle></CardHeader></Card>
-                <Card><CardHeader className="pb-2"><CardDescription>Net Profit / Loss</CardDescription><CardTitle className={totals.net >= 0 ? 'text-2xl text-emerald-600' : 'text-2xl text-destructive'}>Rs. {totals.net.toLocaleString()}</CardTitle></CardHeader></Card>
+                <Card><CardHeader className="pb-2"><CardDescription>Total Income</CardDescription><CardTitle className="text-2xl text-emerald-600">Rs. {totals.income.toLocaleString('en-IN')}</CardTitle></CardHeader></Card>
+                <Card><CardHeader className="pb-2"><CardDescription>Total Expense</CardDescription><CardTitle className="text-2xl text-destructive">Rs. {totals.expense.toLocaleString('en-IN')}</CardTitle></CardHeader></Card>
+                <Card><CardHeader className="pb-2"><CardDescription>Net Profit / Loss</CardDescription><CardTitle className={totals.net >= 0 ? 'text-2xl text-emerald-600' : 'text-2xl text-destructive'}>Rs. {totals.net.toLocaleString('en-IN')}</CardTitle></CardHeader></Card>
             </div>
 
             <Card>
@@ -187,18 +187,18 @@ export function TruckPnlView() {
                                 <TableRow key={p.vehicle.id}>
                                     <TableCell className="font-semibold">{p.vehicle.name}</TableCell>
                                     <TableCell className="text-right tabular-nums">{p.tripCount}</TableCell>
-                                    <TableCell className="text-right tabular-nums text-emerald-700">Rs. {p.income.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right tabular-nums text-destructive">Rs. {p.expense.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right tabular-nums text-emerald-700">Rs. {p.income.toLocaleString('en-IN')}</TableCell>
+                                    <TableCell className="text-right tabular-nums text-destructive">Rs. {p.expense.toLocaleString('en-IN')}</TableCell>
                                     <TableCell className="text-right tabular-nums font-bold">
                                         <span className={p.net >= 0 ? 'text-emerald-700 flex items-center justify-end gap-1' : 'text-destructive flex items-center justify-end gap-1'}>
                                             {p.net >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                                            Rs. {p.net.toLocaleString()}
+                                            Rs. {p.net.toLocaleString('en-IN')}
                                         </span>
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex flex-wrap gap-1">
                                             {Object.entries(p.categoryBreakdown).map(([cat, amt]) => (
-                                                <Badge key={cat} variant="outline" className="text-[9px] font-normal">{cat}: Rs. {amt.toLocaleString()}</Badge>
+                                                <Badge key={cat} variant="outline" className="text-[9px] font-normal">{cat}: Rs. {amt.toLocaleString('en-IN')}</Badge>
                                             ))}
                                         </div>
                                     </TableCell>

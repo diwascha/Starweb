@@ -417,7 +417,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                 <FormControl><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">Rs.</span><Input {...numFieldProps} className="pl-10 h-10 text-lg font-black" {...field} value={field.value || ''} onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); if (watchedMode === 'Mixed') { const total = val + (watchedExtraAmount || 0); form.setValue('cashAmount', total); form.setValue('bankAmount', 0); } }} /></div></FormControl>
                                 {routeStandardAmount && (
                                     <p className="text-[10px] text-amber-700 font-bold uppercase mt-1 flex items-center gap-1">
-                                        <Lightbulb className="h-3 w-3" /> Standard: Rs. {routeStandardAmount.toLocaleString()} 
+                                        <Lightbulb className="h-3 w-3" /> Standard: Rs. {routeStandardAmount.toLocaleString('en-IN')} 
                                         <Button type="button" variant="link" size="sm" className="h-auto p-0 font-black text-[10px] underline ml-2" onClick={() => form.setValue('amount', routeStandardAmount)}>Use</Button>
                                     </p>
                                 )}
@@ -457,7 +457,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 )}
 
                 <div className="p-4 bg-primary/5 rounded-xl border border-primary/20 flex justify-between items-center">
-                    <div><p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Net Outflow</p><h3 className="text-xl font-black tabular-nums">Rs. {totalSettlement.toLocaleString(undefined, {minimumFractionDigits: 2})}</h3></div>
+                    <div><p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Net Outflow</p><h3 className="text-xl font-black tabular-nums">Rs. {totalSettlement.toLocaleString('en-IN', {minimumFractionDigits: 2})}</h3></div>
                     <Badge variant="outline" className="h-fit bg-card px-3 py-1 font-mono text-[10px] uppercase border-none">{watchedMode}</Badge>
                 </div>
 

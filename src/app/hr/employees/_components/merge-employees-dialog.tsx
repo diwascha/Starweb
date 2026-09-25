@@ -158,7 +158,7 @@ export function MergeEmployeesDialog({
                                                 <span>{candidate.department || '—'} / {candidate.position || '—'}</span>
                                                 <span>{candidate.mobileNumber || 'No mobile'}</span>
                                                 <span>{candidate.status || 'Working'}</span>
-                                                <span>Rs. {(candidate.wageAmount || 0).toLocaleString()} {candidate.wageBasis}</span>
+                                                <span>Rs. {(candidate.wageAmount || 0).toLocaleString('en-IN')} {candidate.wageBasis}</span>
                                                 <span>Joined {candidate.joiningDate ? toNepaliDate(candidate.joiningDate) : '—'}</span>
                                                 <span>{candidate.documentNumber || 'No ID on file'}</span>
                                             </div>

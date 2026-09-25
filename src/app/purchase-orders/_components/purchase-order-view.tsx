@@ -186,7 +186,7 @@ function PurchaseOrderDocument({
                 <div className="border-2 border-neutral-900 px-5 py-2 text-right">
                     <p className="text-[9px] font-bold uppercase text-neutral-500">Total Order Volume</p>
                     {model.grandTotals.map(([unit, total]) => (
-                        <p key={unit} className="text-[15px] font-extrabold">{total.toLocaleString()} {unit}</p>
+                        <p key={unit} className="text-[15px] font-extrabold">{total.toLocaleString('en-IN')} {unit}</p>
                     ))}
                 </div>
             </div>
@@ -445,7 +445,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         setText(13, 'bold', INK);
         let ty = y + 12;
         (model.grandTotals.length ? model.grandTotals : [['', 0] as [string, number]]).forEach(([unit, total]) => {
-            doc.text(unit ? `${total.toLocaleString()} ${unit}` : '-', right - 4, ty, { align: 'right' });
+            doc.text(unit ? `${total.toLocaleString('en-IN')} ${unit}` : '-', right - 4, ty, { align: 'right' });
             ty += 6;
         });
         y += tBoxH + 12;

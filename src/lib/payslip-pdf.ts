@@ -75,7 +75,7 @@ export const computePayslipFigures = (payroll?: Payroll | null): PayslipFigures 
 };
 
 export const fmtAmount = (n: number) =>
-  (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  (n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** Height one slip occupies, so callers can lay two out on a page. */
 export const PAYSLIP_HEIGHT_MM = 128;

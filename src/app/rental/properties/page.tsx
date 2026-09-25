@@ -256,7 +256,7 @@ function AssetRegistryContent() {
                                     </div>
                                     <div className="flex justify-between items-center pt-2 border-t border-dashed text-sm font-medium">
                                         <span className="text-muted-foreground">Exp. Monthly Income</span>
-                                        <span className="font-bold text-foreground">Rs. {p.monthlyIncome.toLocaleString()}</span>
+                                        <span className="font-bold text-foreground">Rs. {p.monthlyIncome.toLocaleString('en-IN')}</span>
                                     </div>
                                     <Button onClick={() => handleOpenUnitTab(p.id)} variant="outline" className="w-full h-10 font-bold text-xs uppercase tracking-widest border-border">
                                         <Home className="mr-2 h-4 w-4" /> Manage Units
@@ -300,7 +300,7 @@ function AssetRegistryContent() {
                                             <TableCell className="font-black text-foreground pl-6">{u.unitNumber}</TableCell>
                                             {!propIdFilter && <TableCell className="text-sm font-medium text-blue-800">{u.propertyName}</TableCell>}
                                             <TableCell className="text-xs text-muted-foreground uppercase font-bold">{u.type} • {u.floor}</TableCell>
-                                            <TableCell className="font-mono font-bold text-xs">Rs. {u.monthlyRent.toLocaleString()}</TableCell>
+                                            <TableCell className="font-mono font-bold text-xs">Rs. {u.monthlyRent.toLocaleString('en-IN')}</TableCell>
                                             <TableCell className="text-center">
                                                 <Badge variant="outline" className={cn(
                                                     "uppercase text-[9px] font-black h-5 shadow-sm px-2",

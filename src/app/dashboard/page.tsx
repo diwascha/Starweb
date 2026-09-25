@@ -936,7 +936,7 @@ export default function DashboardPage() {
                 href="/settings/system?tab=usage"
                 accent="border-l-indigo-400"
                 label="System Engagement"
-                value={stats.totalVisits.toLocaleString()}
+                value={stats.totalVisits.toLocaleString('en-IN')}
                 sub="Views"
                 icon={MousePointer2}
                 iconClass="text-indigo-400"

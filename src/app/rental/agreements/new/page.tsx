@@ -188,8 +188,8 @@ function AgreementWizard() {
                 <div><Label className="text-muted-foreground uppercase text-[10px]">Unit Number</Label><p className="font-bold">{selectedUnit?.unitNumber}</p></div>
                 <div className="col-span-2 border-t pt-2"><Label className="text-muted-foreground uppercase text-[10px]">Tenant</Label><p className="font-bold text-lg">{selectedTenant?.name}</p></div>
                 <Separator className="col-span-2" />
-                <div><Label className="text-muted-foreground uppercase text-[10px]">Rent / Mo</Label><p className="font-bold">Rs. {form.monthlyRent.toLocaleString()}</p></div>
-                <div><Label className="text-muted-foreground uppercase text-[10px]">Security Deposit</Label><p className="font-bold">Rs. {form.securityDeposit.toLocaleString()}</p></div>
+                <div><Label className="text-muted-foreground uppercase text-[10px]">Rent / Mo</Label><p className="font-bold">Rs. {form.monthlyRent.toLocaleString('en-IN')}</p></div>
+                <div><Label className="text-muted-foreground uppercase text-[10px]">Security Deposit</Label><p className="font-bold">Rs. {form.securityDeposit.toLocaleString('en-IN')}</p></div>
                 <div><Label className="text-muted-foreground uppercase text-[10px]">Duration</Label><p className="font-bold">{toNepaliDate(form.startDate)} - {toNepaliDate(form.endDate)}</p></div>
                 <div><Label className="text-muted-foreground uppercase text-[10px]">Status Upon Save</Label><Badge className="bg-green-600">Active</Badge></div>
              </div>

@@ -390,8 +390,8 @@ export default function EmployeePerformanceBenchmarkPage() {
                                         <TableCell className="text-center tabular-nums px-3 font-bold text-red-700">{r.absentDays}</TableCell>
                                         <TableCell className="text-center tabular-nums px-3 font-bold text-amber-700">{r.lateArrivals}</TableCell>
                                         <TableCell className="text-right tabular-nums px-3 font-bold text-blue-700">+{r.overtimeHours.toFixed(1)}</TableCell>
-                                        <TableCell className="text-right tabular-nums px-3 font-bold">{r.totalNet.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                                        <TableCell className="text-right tabular-nums px-3">{r.bonusAccrued > 0 ? r.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3 font-bold">{r.totalNet.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{r.bonusAccrued > 0 ? r.bonusAccrued.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}</TableCell>
                                         <TableCell className="px-3 pr-6">
                                             {r.flags.length > 0 ? (
                                                 <div className="flex items-center gap-1 text-red-600">
@@ -413,8 +413,8 @@ export default function EmployeePerformanceBenchmarkPage() {
                                         <TableCell className="text-center tabular-nums px-3">{totals.absentDays}</TableCell>
                                         <TableCell className="text-center tabular-nums px-3">{totals.lateArrivals}</TableCell>
                                         <TableCell className="text-right tabular-nums px-3">+{totals.overtimeHours.toFixed(1)}</TableCell>
-                                        <TableCell className="text-right tabular-nums px-3">{totals.totalNet.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                                        <TableCell className="text-right tabular-nums px-3">{totals.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{totals.totalNet.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums px-3">{totals.bonusAccrued.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</TableCell>
                                         <TableCell className="pr-6"></TableCell>
                                     </TableRow>
                                 </TableFooter>

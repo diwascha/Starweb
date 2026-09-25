@@ -889,7 +889,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 <TableCell colSpan={showPaperSpecs ? 4 : 1} className="text-right font-bold">Total</TableCell>
                                 <TableCell className="font-bold">
                                     {Object.entries(quantityTotalsByUnit).map(([unit, total]) => (
-                                        <span key={unit} className="mr-4">{total.toLocaleString()} {unit}</span>
+                                        <span key={unit} className="mr-4">{total.toLocaleString('en-IN')} {unit}</span>
                                     ))}
                                 </TableCell>
                                 <TableCell></TableCell>

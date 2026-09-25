@@ -298,18 +298,18 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                     index + 1,
                     item.productName,
                     item.quantity,
-                    Number(item.rate).toLocaleString(undefined, { minimumFractionDigits: 2 }),
-                    Number(item.gross).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+                    Number(item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+                    Number(item.gross).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
                 ]),
                 foot: [
                     [{ content: 'Gross Total', colSpan: 4, styles: { halign: 'right' as const } },
-                     Number(invoiceData.grossTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })],
+                     Number(invoiceData.grossTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })],
                     ...(Number(invoiceData.vatTotal) > 0
                         ? [[{ content: 'VAT', colSpan: 4, styles: { halign: 'right' as const } },
-                            Number(invoiceData.vatTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })]]
+                            Number(invoiceData.vatTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })]]
                         : []),
                     [{ content: 'Net Total', colSpan: 4, styles: { halign: 'right' as const } },
-                     Number(invoiceData.netTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })],
+                     Number(invoiceData.netTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })],
                 ],
                 theme: 'grid',
                 styles: { fontSize: 9 },
@@ -437,7 +437,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                                     </TableCell>
                                     <TableCell><Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} className="h-10 font-bold" /></TableCell>
                                     <TableCell><Input type="number" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)} className="h-10" /></TableCell>
-                                    <TableCell className="text-right pr-6 font-bold tabular-nums whitespace-nowrap">Rs. {item.gross.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right pr-6 font-bold tabular-nums whitespace-nowrap">Rs. {item.gross.toLocaleString('en-IN')}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -449,19 +449,19 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-right w-full md:w-auto">
                         <div className="space-y-0.5">
                             <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Total Qty</p>
-                            <p className="text-sm font-bold tabular-nums">{invoiceData.totalQuantity.toLocaleString()}</p>
+                            <p className="text-sm font-bold tabular-nums">{invoiceData.totalQuantity.toLocaleString('en-IN')}</p>
                         </div>
                         <div className="space-y-0.5">
                             <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Gross Amt</p>
-                            <p className="text-sm font-bold tabular-nums whitespace-nowrap">Rs. {invoiceData.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            <p className="text-sm font-bold tabular-nums whitespace-nowrap">Rs. {invoiceData.grossTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
                         </div>
                         <div className="space-y-0.5">
                             <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">VAT (13%)</p>
-                            <p className="text-sm font-bold tabular-nums text-blue-600 whitespace-nowrap">Rs. {invoiceData.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            <p className="text-sm font-bold tabular-nums text-blue-600 whitespace-nowrap">Rs. {invoiceData.vatTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
                         </div>
                         <div className="space-y-0.5">
                             <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Net Total</p>
-                            <p className="text-base font-black text-blue-900 tabular-nums whitespace-nowrap">Rs. {invoiceData.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            <p className="text-base font-black text-blue-900 tabular-nums whitespace-nowrap">Rs. {invoiceData.netTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
                         </div>
                     </div>
                 </div>

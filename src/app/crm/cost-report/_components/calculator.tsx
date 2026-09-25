@@ -65,7 +65,7 @@ import {
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { cn, toNepaliDate, normalizeBF, generateId } from '@/lib/utils';
+import { cn, toNepaliDate, normalizeBF, generateId, formatAmount2 } from '@/lib/utils';
 import { calculateItemCost as sharedCalculateItemCost } from '@/lib/cost-calculator';
 import type { RateContext } from '@/lib/box-engine';
 import {
@@ -365,18 +365,18 @@ const CostingTableRow = React.memo(({
                 {collapsedGroups.calc ? (
                     <TableCell className={cn("border-x px-2 text-[10px] leading-tight text-center", calc.rateMissing ? "bg-destructive/10 text-destructive" : "bg-primary/5")} title={calc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
                         <div className="text-muted-foreground tabular-nums">{(calc.totalGsm || 0).toFixed(0)} gsm &middot; {(calc.paperWeight || 0).toFixed(0)} g</div>
-                        <div className="font-bold tabular-nums">Rs. {(calc.paperCost || 0).toFixed(2)}{calc.rateMissing && ' ⚠'}</div>
-                        {(calc.transportCost || 0) > 0 && <div className="text-muted-foreground tabular-nums">+ Rs. {(calc.transportCost || 0).toFixed(2)} tpt</div>}
+                        <div className="font-bold tabular-nums">Rs. {formatAmount2((calc.paperCost || 0))}{calc.rateMissing && ' ⚠'}</div>
+                        {(calc.transportCost || 0) > 0 && <div className="text-muted-foreground tabular-nums">+ Rs. {formatAmount2((calc.transportCost || 0))} tpt</div>}
                     </TableCell>
                 ) : (<>
                 <TableCell className="text-center font-medium bg-muted/20 border-r">{(calc.totalGsm || 0).toFixed(0)}</TableCell>
                 <TableCell className="text-center font-medium bg-muted/20 border-r">{(calc.paperWeight || 0).toFixed(1)}</TableCell>
                 <TableCell className={cn("text-center font-bold border-r", calc.rateMissing ? "bg-destructive/10 text-destructive" : "bg-primary/5")} title={calc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
-                    Rs. {(calc.paperCost || 0).toFixed(2)}{calc.rateMissing && ' ⚠'}
+                    Rs. {formatAmount2((calc.paperCost || 0))}{calc.rateMissing && ' ⚠'}
                 </TableCell>
-                <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {(calc.transportCost || 0).toFixed(2)}</TableCell>
+                <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {formatAmount2((calc.transportCost || 0))}</TableCell>
                 </>)}
-                <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {totalRowCost.toFixed(2)}</TableCell>
+                <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {formatAmount2(totalRowCost)}</TableCell>
                 <TableCell className="px-2">
                     <div className="flex items-center gap-0.5">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="Box Designer - layer construction, materials and load capacity" onClick={() => onOpenDesigner(index)}><Boxes className="h-4 w-4" /></Button>
@@ -461,13 +461,13 @@ const CostingTableRow = React.memo(({
                         {collapsedGroups.calc ? (
                             <TableCell className={cn("border-x px-2 text-[10px] leading-tight text-center", accCalc.rateMissing && "bg-destructive/10 text-destructive")} title={accCalc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
                                 <div className="text-muted-foreground tabular-nums">{(accCalc.totalGsm || 0).toFixed(0)} gsm &middot; {(accCalc.paperWeight || 0).toFixed(0)} g</div>
-                                <div className="tabular-nums">Rs. {(accCalc.paperCost || 0).toFixed(2)}{accCalc.rateMissing && ' ⚠'}</div>
+                                <div className="tabular-nums">Rs. {formatAmount2((accCalc.paperCost || 0))}{accCalc.rateMissing && ' ⚠'}</div>
                             </TableCell>
                         ) : (<>
                         <TableCell className="text-center bg-muted/20 border-r">{(accCalc.totalGsm || 0).toFixed(0)}</TableCell>
                         <TableCell className="text-center bg-muted/20 border-r">{(accCalc.paperWeight || 0).toFixed(1)}</TableCell>
                         <TableCell className={cn("text-center border-r", accCalc.rateMissing && "bg-destructive/10 text-destructive")} title={accCalc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
-                            Rs. {(accCalc.paperCost || 0).toFixed(2)}{accCalc.rateMissing && ' ⚠'}
+                            Rs. {formatAmount2((accCalc.paperCost || 0))}{accCalc.rateMissing && ' ⚠'}
                         </TableCell>
                         <TableCell className="text-center border-r"></TableCell>
                         </>)}
@@ -687,7 +687,7 @@ const CostingItemCard = React.memo(({
                 </div>
                 <div className="flex items-center justify-between pt-1">
                     <span className="text-[10px] font-bold uppercase text-muted-foreground">Row Total</span>
-                    <span className="text-base font-black text-primary">Rs. {totalRowCost.toFixed(2)}</span>
+                    <span className="text-base font-black text-primary">Rs. {formatAmount2(totalRowCost)}</span>
                 </div>
             </CardContent>
         </Card>
@@ -1436,7 +1436,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                         <SelectContent>
                                             <SelectItem value="none">Standalone (No Deal)</SelectItem>
                                             {filteredDeals.map(d => (
-                                                <SelectItem key={d.id} value={d.id}>{d.title} (Rs.{d.value.toLocaleString()})</SelectItem>
+                                                <SelectItem key={d.id} value={d.id}>{d.title} (Rs.{d.value.toLocaleString('en-IN')})</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>

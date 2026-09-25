@@ -206,7 +206,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                 <TableCell><FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => (<Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-9"/>)}/></TableCell>
                                 <TableCell><FormField control={form.control} name={`items.${index}.uom`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value || ''}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Unit"/></SelectTrigger></FormControl><SelectContent>{uoms.map(u => <SelectItem key={u.id} value={u.abbreviation}>{u.abbreviation}</SelectItem>)}</SelectContent></Select>)}/></TableCell>
                                 <TableCell><FormField control={form.control} name={`items.${index}.rate`} render={({ field }) => (<Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-9"/>)}/></TableCell>
-                                <TableCell className="text-right font-mono font-bold">{( (watchedItems[index]?.quantity || 0) * (watchedItems[index]?.rate || 0) ).toLocaleString()}</TableCell>
+                                <TableCell className="text-right font-mono font-bold">{( (watchedItems[index]?.quantity || 0) * (watchedItems[index]?.rate || 0) ).toLocaleString('en-IN')}</TableCell>
                                 <TableCell><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
                             </TableRow>
                         ))}
@@ -215,12 +215,12 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
             </CardContent>
             <CardFooter className="bg-muted/30 flex flex-col items-end py-4">
                 <div className="w-full md:w-64 space-y-2">
-                    <div className="flex justify-between text-sm"><span>Subtotal</span><span>Rs. {totals.subtotal.toLocaleString()}</span></div>
+                    <div className="flex justify-between text-sm"><span>Subtotal</span><span>Rs. {totals.subtotal.toLocaleString('en-IN')}</span></div>
                     {watchedInvoiceType === 'Taxable' && (
-                        <div className="flex justify-between text-sm text-blue-600"><span>VAT (13%)</span><span>Rs. {totals.vat.toLocaleString()}</span></div>
+                        <div className="flex justify-between text-sm text-blue-600"><span>VAT (13%)</span><span>Rs. {totals.vat.toLocaleString('en-IN')}</span></div>
                     )}
                     <Separator />
-                    <div className="flex justify-between text-lg font-black"><span>Total</span><span>Rs. {totals.grandTotal.toLocaleString()}</span></div>
+                    <div className="flex justify-between text-lg font-black"><span>Total</span><span>Rs. {totals.grandTotal.toLocaleString('en-IN')}</span></div>
                 </div>
             </CardFooter>
         </Card>

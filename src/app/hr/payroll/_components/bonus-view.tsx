@@ -99,7 +99,7 @@ export default function BonusView({ selectedBsYear, selectedBsMonth }: BonusView
                         <div key={`summary-${s.id}`} className="p-4 space-y-1">
                             <div className="flex justify-between items-baseline">
                                 <span className="font-black text-[11px] text-foreground uppercase tracking-tighter">{s.employeeName}</span>
-                                <span className="font-black text-sm text-emerald-700">Rs. {s.accruedYTD?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span className="font-black text-sm text-emerald-700">Rs. {s.accruedYTD?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                             </div>
                             <p className="text-[10px] text-muted-foreground">
                                 Eligible {s.eligibleMonths}/{s.monthsWorked} months &middot; Avg. Attendance {s.avgAttendancePct?.toFixed(1)}%
@@ -152,7 +152,7 @@ export default function BonusView({ selectedBsYear, selectedBsMonth }: BonusView
                                         }
                                     </TableCell>
                                     <TableCell className="text-right font-black text-foreground tabular-nums">
-                                        {item.accrual ? `Rs. ${item.accrual.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}
+                                        {item.accrual ? `Rs. ${item.accrual.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'}
                                     </TableCell>
                                     <TableCell className="pr-6 text-[10px] text-muted-foreground italic truncate max-w-[220px]">{item.note}</TableCell>
                                 </TableRow>

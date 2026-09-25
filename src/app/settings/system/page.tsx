@@ -964,7 +964,7 @@ export default function SystemSettingsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-3xl font-black text-foreground tabular-nums">
-                                {totalUsageViews.toLocaleString()}
+                                {totalUsageViews.toLocaleString('en-IN')}
                                 <span className="text-xs font-bold text-muted-foreground ml-2 uppercase tracking-tighter">Total Views</span>
                             </div>
                         </CardContent>
@@ -977,7 +977,7 @@ export default function SystemSettingsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-3xl font-black text-foreground tabular-nums">
-                                {aggregatedVisits.length.toLocaleString()}
+                                {aggregatedVisits.length.toLocaleString('en-IN')}
                                 <span className="text-xs font-bold text-muted-foreground ml-2 uppercase tracking-tighter">Mapped Routes</span>
                             </div>
                         </CardContent>
@@ -1045,7 +1045,7 @@ export default function SystemSettingsPage() {
                                                         style={{ width: `${Math.min(100, (visit.count / totalUsageViews) * 500)}%` }} 
                                                     />
                                                 </div>
-                                                <span className="font-black tabular-nums text-blue-900">{visit.count.toLocaleString()}</span>
+                                                <span className="font-black tabular-nums text-blue-900">{visit.count.toLocaleString('en-IN')}</span>
                                             </div>
                                         </TableCell>
                                     </TableRow>

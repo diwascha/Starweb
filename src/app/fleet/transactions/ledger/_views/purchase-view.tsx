@@ -126,7 +126,7 @@ export function PurchaseView() {
         { header: 'Supplier', value: t => partiesById.get(t.partyId || '') || 'N/A' },
         { header: 'Truck', value: t => vehiclesById.get(t.vehicleId || '') || 'N/A' },
         { header: 'Mode', value: t => t.billingType },
-        { header: 'Amount', align: 'right', value: t => t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+        { header: 'Amount', align: 'right', value: t => t.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) },
     ];
 
     return (
@@ -201,7 +201,7 @@ export function PurchaseView() {
                                         {t.billingType}
                                     </Badge>
                                 </TableCell>
-                                <TableCell className="text-right font-black tabular-nums">Rs. {t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right font-black tabular-nums">Rs. {t.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-right pr-6">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>

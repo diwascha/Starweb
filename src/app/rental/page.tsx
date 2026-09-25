@@ -84,8 +84,8 @@ export default function RentalDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard title="Total Properties" value={stats.totalProperties} icon={Building2} color="blue" />
         <SummaryCard title="Occupancy" value={`${stats.occupiedUnits}/${stats.totalUnits}`} subtitle={`${stats.vacantUnits} Vacant`} icon={Home} color="green" />
-        <SummaryCard title="Expected Monthly" value={`Rs.${stats.monthlyExpected.toLocaleString()}`} icon={TrendingUp} color="emerald" />
-        <SummaryCard title="Outstanding" value={`Rs.${stats.outstandingRent.toLocaleString()}`} icon={AlertCircle} color="red" />
+        <SummaryCard title="Expected Monthly" value={`Rs.${stats.monthlyExpected.toLocaleString('en-IN')}`} icon={TrendingUp} color="emerald" />
+        <SummaryCard title="Outstanding" value={`Rs.${stats.outstandingRent.toLocaleString('en-IN')}`} icon={AlertCircle} color="red" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -105,7 +105,7 @@ export default function RentalDashboardPage() {
                         <p className="text-xs text-muted-foreground">{bill.propertyName} • Unit {bill.unitNumber}</p>
                       </div>
                       <div className="text-right space-y-1">
-                        <p className="font-bold text-red-600">Rs. {bill.amount.toLocaleString()}</p>
+                        <p className="font-bold text-red-600">Rs. {bill.amount.toLocaleString('en-IN')}</p>
                         <Badge variant="outline" className="text-[10px] uppercase">{bill.type}</Badge>
                       </div>
                     </div>
