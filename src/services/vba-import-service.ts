@@ -12,6 +12,7 @@
  * BL=63 (Analytics)
  */
 
+import { getLockedPeriodKeys } from './period-lock';
 import { getFirebase } from '@/lib/firebase';
 import { 
     collection, 
@@ -93,8 +94,11 @@ export const importConsolidatedLedger = async (
         behaviorLedger: 0,
         payroll: 0,
         behaviorAnalytics: 0,
-        newEmployees: 0
+        newEmployees: 0,
+        payrollSkippedLocked: 0,
     };
+    // Payroll in a locked month is finalized; the rules reject writing it.
+    const lockedPeriods = await getLockedPeriodKeys();
 
     let batch = writeBatch(db);
     let writeCount = 0;
@@ -232,7 +236,9 @@ export const importConsolidatedLedger = async (
             }
 
             // Section 4: Payroll Ledger (AV-BJ)
-            if (isValidEmployeeName(String(row[50]))) { // AY
+            if (isValidEmployeeName(String(row[50])) && lockedPeriods.has(`${period.year}-${period.month}`)) {
+                results.payrollSkippedLocked++;
+            } else if (isValidEmployeeName(String(row[50]))) { // AY
                 const payrollId = `${period.year}-${period.month}-${emp.id}`;
                 const entry: Omit<Payroll, 'id'> = {
                     bsYear: period.year,

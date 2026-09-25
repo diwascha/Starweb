@@ -155,6 +155,50 @@ service cloud.firestore {
       }.get(col, []);
     }
 
+    // --- Period locks (H5) ---
+    //
+    // A locked month's payroll and attendance are finalized. The lock used to
+    // be checked only in the browser, so anyone with HR edit could rewrite
+    // locked history directly. Enforced here for those two collections:
+    //   - no one, admins included, changes values in a locked month (unlock
+    //     it first);
+    //   - re-pointing a record to another employee (Employees > Merge) only
+    //     touches identity fields and stays allowed;
+    //   - only an admin may create or delete in a locked month: the admin
+    //     attendance purge, and payroll moved to a new id by a merge.
+    function isPeriodLockedCol(col) {
+      return col in ['payroll', 'attendance'];
+    }
+
+    function periodLocked(data) {
+      let y = data.get('bsYear', -1);
+      let m = data.get('bsMonth', -1);
+      let id = string(y) + '-' + string(m);
+      let payLock = /databases/$(database)/documents/payroll_periods/$(id);
+      let attLock = /databases/$(database)/documents/attendance_periods/$(id);
+      return y != -1 && m != -1 && (
+        (exists(payLock) && get(payLock).data.get('locked', false) == true) ||
+        (exists(attLock) && get(attLock).data.get('locked', false) == true));
+    }
+
+    function identityOnlyChange() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['employeeId', 'employeeName', 'ownership']);
+    }
+
+    function lockAllowsCreate(col) {
+      return !isPeriodLockedCol(col) || isAdmin() || !periodLocked(request.resource.data);
+    }
+
+    function lockAllowsUpdate(col) {
+      return !isPeriodLockedCol(col) || identityOnlyChange() ||
+             (!periodLocked(resource.data) && !periodLocked(request.resource.data));
+    }
+
+    function lockAllowsDelete(col) {
+      return !isPeriodLockedCol(col) || isAdmin() || !periodLocked(resource.data);
+    }
+
     // Collections with their own blocks below. The catch-all must not grant
     // anything here, or it would OR away their restrictions - which is exactly
     // the bug described at the top of this file.
@@ -246,11 +290,17 @@ service cloud.firestore {
       // Login resolves username -> email before sign-in, so an unauthenticated
       // read of a SINGLE known document is required. Listing is not.
       allow get: if true;
-      allow list: if isAuthenticated();
-      // The document must point back at its creator, so a signed-in user
-      // cannot squat someone else's name. An admin provisions on their behalf.
-      allow create, update: if isAdmin() ||
+      // Listing every username and email is the admin Identity Registry.
+      allow list: if isAdmin();
+      // Accounts are provisioned by an admin (Settings > System); there is no
+      // self-signup. The old rule only checked the NEW uid, so any signed-in
+      // account could overwrite someone else's mapping with its own email and
+      // lock them out of username login. A non-admin may now only touch a
+      // mapping that is already theirs, and must leave it theirs.
+      allow create: if isAdmin();
+      allow update: if isAdmin() ||
                        (isAuthenticated() &&
+                        resource.data.get('uid', '') == request.auth.uid &&
                         request.resource.data.get('uid', '') == request.auth.uid);
       allow delete: if isAdmin();
     }
@@ -264,6 +314,20 @@ service cloud.firestore {
       allow read, delete: if isAdmin();
     }
 
+    // Page-visit counters. Every signed-in user records their own navigation
+    // (usage-tracker), but reading the stats is a Settings screen, so the
+    // catch-all below keeps read/delete on the settings permission. The write
+    // is narrowed to exactly what the tracker sends: a new counter starting at
+    // 1, or an existing one going up by exactly 1.
+    match /pageVisits/{visitId} {
+      allow create: if isApproved() &&
+                       request.resource.data.keys().hasOnly(['path', 'count', 'lastVisited']) &&
+                       request.resource.data.count == 1;
+      allow update: if isApproved() &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'lastVisited']) &&
+                       request.resource.data.count == resource.data.count + 1;
+    }
+
     // --- Business data, gated by the admin-assigned module permissions ---
 
     match /{col}/{docId} {
@@ -272,36 +336,38 @@ service cloud.firestore {
                      : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'view')
                      : isAdmin());
 
-      allow create: if !isIdentityCollection(col) && (
+      allow create: if !isIdentityCollection(col) && lockAllowsCreate(col) && (
                        moduleOf(col) != '' ? can(moduleOf(col), 'add')
                      : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'add')
                      : isAdmin());
 
-      allow update: if !isIdentityCollection(col) && (
+      allow update: if !isIdentityCollection(col) && lockAllowsUpdate(col) && (
                        moduleOf(col) != '' ? can(moduleOf(col), 'edit')
                      : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'edit')
                      : isAdmin());
 
-      allow delete: if !isIdentityCollection(col) && (
+      allow delete: if !isIdentityCollection(col) && lockAllowsDelete(col) && (
                        moduleOf(col) != '' ? can(moduleOf(col), 'delete')
                      : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'delete')
                      : isAdmin());
 
-      // Subcollections inherit the parent collection's module.
+      // Subcollections inherit the parent collection's module. NOTE: in rules
+      // v2 `{allPaths=**}` also matches ZERO segments - the document itself -
+      // so every restriction on the block above must be repeated here.
       match /{allPaths=**} {
         allow read:   if !isIdentityCollection(col) && (
                          moduleOf(col) != '' ? can(moduleOf(col), 'view')
                        : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'view')
                        : isAdmin());
-        allow create: if !isIdentityCollection(col) && (
+        allow create: if !isIdentityCollection(col) && lockAllowsCreate(col) && (
                          moduleOf(col) != '' ? can(moduleOf(col), 'add')
                        : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'add')
                        : isAdmin());
-        allow update: if !isIdentityCollection(col) && (
+        allow update: if !isIdentityCollection(col) && lockAllowsUpdate(col) && (
                          moduleOf(col) != '' ? can(moduleOf(col), 'edit')
                        : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'edit')
                        : isAdmin());
-        allow delete: if !isIdentityCollection(col) && (
+        allow delete: if !isIdentityCollection(col) && lockAllowsDelete(col) && (
                          moduleOf(col) != '' ? can(moduleOf(col), 'delete')
                        : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'delete')
                        : isAdmin());

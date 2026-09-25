@@ -24,7 +24,7 @@ import { getEmployees } from '../employee-service';
 import { getAttendanceCollection } from './data';
 import { findPayrollBlockStart, importLegacyPayrollSheet } from '../payroll/legacy-import';
 import { importConsolidatedLedger } from '../vba-import-service';
-import { setFiscalYearPeriodLock } from '../period-lock';
+import { setFiscalYearPeriodLock, getLockedPeriodKeys } from '../period-lock';
 
 const CONSOLIDATED_LEDGER_SUMMARY_SHEET = 'consolidated ledger';
 // Sheets that are never a month's attendance/payroll data, regardless of name.
@@ -287,10 +287,18 @@ export const importLedgerWorkbook = async (
     const importedPeriods = new Map<string, { bsYear: number; bsMonth: number }>();
     const markImported = (bsYear: number, bsMonth: number) => importedPeriods.set(`${bsYear}-${bsMonth}`, { bsYear, bsMonth });
 
+    // A locked month is finalized: the rules reject writing its attendance
+    // or payroll, so skip it up front rather than fail half-way through.
+    const lockedPeriods = await getLockedPeriodKeys();
+
     for (const mapping of mappings) {
         if (!mapping.includeAttendance && !mapping.includePayroll) continue;
         const grid = sheets.get(mapping.sheetName);
         if (!grid) continue;
+        if (lockedPeriods.has(`${mapping.year}-${mapping.month}`)) {
+            result.skippedSheets.push(`${mapping.sheetName} (month locked - unlock it to re-import)`);
+            continue;
+        }
 
         onProgress(mapping.sheetName);
 
@@ -342,6 +350,9 @@ export const importLedgerWorkbook = async (
             result.bonusSummaries += summaryResult.bonusSummaries;
             result.behaviorLedger += summaryResult.behaviorLedger;
             result.behaviorAnalytics += summaryResult.behaviorAnalytics;
+            if (summaryResult.payrollSkippedLocked > 0) {
+                result.skippedSheets.push(`${summaryResult.payrollSkippedLocked} summary payroll row(s) in locked months`);
+            }
         }
     }
 

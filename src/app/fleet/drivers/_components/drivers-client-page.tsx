@@ -37,6 +37,7 @@ import { format } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { onDriversUpdate, addDriver, updateDriver, deleteDriver } from '@/services/driver-service';
+import { confirmNoLinkedRecords } from '@/services/linked-records';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadFile } from '@/services/storage-service';
@@ -201,6 +202,8 @@ export default function DriversClientPage({
 
     const handleDelete = async (id: string, photoURL?: string) => {
         try {
+            const name = drivers.find(d => d.id === id)?.name || 'This driver';
+            if (!(await confirmNoLinkedRecords('driver', id, name))) return;
             await deleteDriver(id, photoURL);
             toast({ title: 'Success', description: 'Driver deleted.' });
         } catch (error) {
