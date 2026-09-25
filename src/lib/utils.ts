@@ -344,3 +344,17 @@ export const toWords = (num: number): string => {
 /** Rupee amount with Nepali lakh grouping and two decimals, e.g. 1,25,000.50. */
 export const formatAmount2 = (value: number | null | undefined): string =>
   (Number(value) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * Escapes text for safe insertion into an HTML string. Use for every value
+ * interpolated into HTML built by hand (e.g. print windows written with
+ * document.write) - a stored remark like `<img onerror=...>` would otherwise
+ * run as script in a window that shares the app's origin and login.
+ */
+export const escapeHtml = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
