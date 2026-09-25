@@ -40,6 +40,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty, deleteParty } from '@/services/party-service';
+import { confirmNoLinkedRecords } from '@/services/linked-records';
 import { onAgreementsUpdate, activateAgreement } from '@/services/agreement-service';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 import { onRentalBillsUpdate } from '@/services/rental-billing-service';
@@ -365,6 +366,8 @@ export default function TenantsPage() {
   const handleDeleteTenant = async (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
       try {
+          const name = tenants.find(t => t.id === id)?.name || 'This tenant';
+          if (!(await confirmNoLinkedRecords('party', id, name))) return;
           await deleteParty(id);
           toast({ title: 'Tenant Removed' });
       } catch {

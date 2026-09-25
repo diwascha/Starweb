@@ -39,6 +39,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onPeriodLocksUpdate } from '@/services/payroll/period-lock';
+import { confirmNoLinkedRecords } from '@/services/linked-records';
 import { setCombinedPeriodLock } from '@/services/period-lock';
 import { getAttendanceYears } from '@/services/attendance/data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -305,7 +306,7 @@ export default function FinanceSettingsPage() {
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => deleteParty(party.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                                    <AlertDialogAction onClick={async () => { if (await confirmNoLinkedRecords('party', party.id, party.name)) deleteParty(party.id); }} className="bg-destructive text-white">Delete</AlertDialogAction>
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
@@ -359,7 +360,7 @@ export default function FinanceSettingsPage() {
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => deleteAccount(acc.id)} className="bg-destructive text-white">Delete</AlertDialogAction>
+                                                <AlertDialogAction onClick={async () => { if (await confirmNoLinkedRecords('account', acc.id, acc.name)) deleteAccount(acc.id); }} className="bg-destructive text-white">Delete</AlertDialogAction>
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>

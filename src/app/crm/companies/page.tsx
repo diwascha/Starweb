@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import type { Party, CRMContact, CustomerClassification } from '@/lib/types';
 import { onPartiesUpdate, updateParty, deleteParty, mergeParties, addParty } from '@/services/party-service';
+import { confirmNoLinkedRecords } from '@/services/linked-records';
 import { getCostReports } from '@/services/cost-report-service';
 import { onContactsUpdate, addContact, updateContact, deleteContact } from '@/services/crm-service';
 import { Card, CardContent } from '@/components/ui/card';
@@ -318,6 +319,7 @@ export default function CompaniesManagementPage() {
     const handleConfirmDelete = async () => {
         if (!deletingCompany) return;
         try {
+            if (!(await confirmNoLinkedRecords('party', deletingCompany.id, deletingCompany.name))) return;
             await deleteParty(deletingCompany.id);
             toast({ title: 'Account Purged', description: `${deletingCompany.name} has been removed.` });
         } catch {

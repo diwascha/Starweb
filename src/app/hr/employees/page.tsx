@@ -32,6 +32,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { onEmployeesUpdate, addEmployee, updateEmployee, deleteEmployee } from '@/services/employee-service';
+import { confirmNoLinkedRecords, findLinkedRecords } from '@/services/linked-records';
 
 import { cn, toNepaliDate } from '@/lib/utils';
 import { uploadFile } from '@/services/storage-service';
@@ -192,6 +193,14 @@ export default function EmployeesPage() {
     if (selectedIds.size === 0) return;
     setIsLoading(true);
     try {
+        const blocked: string[] = [];
+        for (const id of selectedIds) {
+            if ((await findLinkedRecords('employee', id)).length > 0) blocked.push(employees.find(e => e.id === id)?.name || id);
+        }
+        if (blocked.length > 0) {
+            toast({ title: 'Cannot delete', description: `${blocked.join(', ')} still have payroll or attendance records. Set their status to Resigned instead.`, variant: 'destructive' });
+            return;
+        }
         await Promise.all(Array.from(selectedIds).map(async id => {
             const emp = employees.find(e => e.id === id);
             return deleteEmployee(id, emp?.photoURL);
@@ -594,7 +603,7 @@ export default function EmployeesPage() {
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the employee and their metadata.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteEmployee(employee.id, employee.photoURL)} className="bg-destructive text-white">Delete</AlertDialogAction></AlertDialogFooter>
+                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={async () => { if (await confirmNoLinkedRecords('employee', employee.id, employee.name, 'set their status to Resigned instead')) deleteEmployee(employee.id, employee.photoURL); }} className="bg-destructive text-white">Delete</AlertDialogAction></AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
                             </DropdownMenuContent>

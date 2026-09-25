@@ -34,6 +34,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onVehiclesUpdate, addVehicle, updateVehicle, deleteVehicle } from '@/services/vehicle-service';
+import { confirmNoLinkedRecords } from '@/services/linked-records';
 import { onDriversUpdate } from '@/services/driver-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
@@ -159,6 +160,8 @@ export default function VehiclesClientPage({
 
     const handleDelete = async (id: string) => {
         try {
+            const name = vehicles.find(v => v.id === id)?.name || 'This vehicle';
+            if (!(await confirmNoLinkedRecords('vehicle', id, name))) return;
             await deleteVehicle(id);
             toast({ title: 'Success', description: 'Vehicle deleted.' });
         } catch (error) {
