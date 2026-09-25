@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Printer, FileDown, Loader2, X } from 'lucide-react';
-import { toNepaliDate } from '@/lib/utils';
+import { toNepaliDate, escapeHtml as esc } from '@/lib/utils';
 import { format } from 'date-fns';
 
 interface LedgerData {
@@ -98,14 +98,14 @@ export function LedgerReportPreview({ isOpen, onOpenChange, ledgerData, fleetPro
     const handlePrint = () => {
         const rows = chronological.map(e => `
             <tr>
-                <td>${toNepaliDate(e.date)}</td>
-                <td class="mono">${e.refNo}</td>
-                <td><div class="b">${e.remarks || e.type}</div>${e.lineItemsSummary ? `<div class="sub">${e.lineItemsSummary}</div>` : ''}</td>
-                <td>${e.vehicleName}</td>
-                <td class="center">${e.categoryDisplay}</td>
-                <td class="right">${e.debit ? money(e.debit) : '-'}</td>
-                <td class="right">${e.credit ? money(e.credit) : '-'}</td>
-                <td class="right b">${money(e.balance)} ${drcr(e.balance)}</td>
+                <td>${esc(toNepaliDate(e.date))}</td>
+                <td class="mono">${esc(e.refNo)}</td>
+                <td><div class="b">${esc(e.remarks || e.type)}</div>${e.lineItemsSummary ? `<div class="sub">${esc(e.lineItemsSummary)}</div>` : ''}</td>
+                <td>${esc(e.vehicleName)}</td>
+                <td class="center">${esc(e.categoryDisplay)}</td>
+                <td class="right">${esc(e.debit ? money(e.debit) : '-')}</td>
+                <td class="right">${esc(e.credit ? money(e.credit) : '-')}</td>
+                <td class="right b">${esc(money(e.balance))} ${esc(drcr(e.balance))}</td>
             </tr>`).join('');
 
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fleet Ledger</title>
@@ -134,19 +134,19 @@ export function LedgerReportPreview({ isOpen, onOpenChange, ledgerData, fleetPro
             @media print { @page { size: A4 landscape; margin: 10mm; } body { padding: 0; } }
         </style></head><body>
             <div class="head">
-                <h1>${fleetProfile.nameEn}</h1>
-                ${fleetProfile.nameNp ? `<div class="np">${fleetProfile.nameNp}</div>` : ''}
-                <p>${fleetProfile.address}</p>
-                <p>PAN: ${fleetProfile.pan}</p>
+                <h1>${esc(fleetProfile.nameEn)}</h1>
+                ${fleetProfile.nameNp ? `<div class="np">${esc(fleetProfile.nameNp)}</div>` : ''}
+                <p>${esc(fleetProfile.address)}</p>
+                <p>PAN: ${esc(fleetProfile.pan)}</p>
                 <h2>TRANSACTION LEDGER</h2>
             </div>
             <div class="meta">
                 <div>
-                    <p><b>Period:</b> ${filters.period}</p>
-                    <p><b>Entities:</b> ${filters.parties} | ${filters.vehicles}</p>
-                    ${filters.paymentModes ? `<p><b>Payment Modes:</b> ${filters.paymentModes}</p>` : ''}
+                    <p><b>Period:</b> ${esc(filters.period)}</p>
+                    <p><b>Entities:</b> ${esc(filters.parties)} | ${esc(filters.vehicles)}</p>
+                    ${filters.paymentModes ? `<p><b>Payment Modes:</b> ${esc(filters.paymentModes)}</p>` : ''}
                 </div>
-                <div class="r"><p><b>Generated:</b> ${format(new Date(), 'PPP p')}</p></div>
+                <div class="r"><p><b>Generated:</b> ${esc(format(new Date(), 'PPP p'))}</p></div>
             </div>
             <table>
                 <thead>
@@ -159,20 +159,20 @@ export function LedgerReportPreview({ isOpen, onOpenChange, ledgerData, fleetPro
                     <tr class="b">
                         <td colspan="2"></td><td>Balance B/F (Opening)</td><td class="center">-</td><td class="center">-</td>
                         <td class="right">-</td><td class="right">-</td>
-                        <td class="right">${money(ledgerData.stats.opening)} ${drcr(ledgerData.stats.opening)}</td>
+                        <td class="right">${esc(money(ledgerData.stats.opening))} ${esc(drcr(ledgerData.stats.opening))}</td>
                     </tr>
                     ${rows}
                 </tbody>
                 <tfoot>
                     <tr>
                         <td colspan="5" class="right">Total period movement</td>
-                        <td class="right">${money(ledgerData.stats.debit)}</td>
-                        <td class="right">${money(ledgerData.stats.credit)}</td>
-                        <td class="right">${money(ledgerData.stats.closing)} ${drcr(ledgerData.stats.closing)}</td>
+                        <td class="right">${esc(money(ledgerData.stats.debit))}</td>
+                        <td class="right">${esc(money(ledgerData.stats.credit))}</td>
+                        <td class="right">${esc(money(ledgerData.stats.closing))} ${esc(drcr(ledgerData.stats.closing))}</td>
                     </tr>
                 </tfoot>
             </table>
-            <div class="foot"><p>System-generated statement for ${fleetProfile.nameEn}. No signature required.</p></div>
+            <div class="foot"><p>System-generated statement for ${esc(fleetProfile.nameEn)}. No signature required.</p></div>
         </body></html>`;
 
         const w = window.open('', '', 'height=800,width=1100');

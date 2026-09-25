@@ -33,7 +33,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, KeyRound, Loader2, ShieldCheck, Download, RefreshCcw, BarChart3, MousePointer2, Clock, ArrowUpDown, Fingerprint, Mail, User as UserIcon, ShieldAlert, AlertTriangle, ListTree, Monitor, LogOut, Settings2, Save, Sparkles, Timer } from 'lucide-react';
+import { Plus, Edit, Trash2, KeyRound, Loader2, ShieldCheck, Download, RefreshCcw, SearchCheck, BarChart3, MousePointer2, Clock, ArrowUpDown, Fingerprint, Mail, User as UserIcon, ShieldAlert, AlertTriangle, ListTree, Monitor, LogOut, Settings2, Save, Sparkles, Timer } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -70,7 +70,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
-import { exportData, importData, compressBackup, readBackupFile } from '@/services/backup-service';
+import { exportData, RAW_LOGS_COLLECTION, compressBackup, readBackupFile, planRestore, applyRestore, type RestorePlan } from '@/services/backup-service';
 import { Separator } from '@/components/ui/separator';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { logAudit } from '@/services/log-service';
@@ -128,6 +128,10 @@ export default function SystemSettingsPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restorePassword, setRestorePassword] = useState('');
+  const [backupIncludeRawLogs, setBackupIncludeRawLogs] = useState(false);
+  const [restorePlan, setRestorePlan] = useState<RestorePlan | null>(null);
+  const [isPlanningRestore, setIsPlanningRestore] = useState(false);
+  const [restoreDeleteExtra, setRestoreDeleteExtra] = useState(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const [isCleaningSessions, setIsCleaningSessions] = useState(false);
 
@@ -340,7 +344,7 @@ export default function SystemSettingsPage() {
   const handleManualBackup = async () => {
     setIsExporting(true);
     try {
-        const data = await exportData();
+        const data = await exportData({ exclude: backupIncludeRawLogs ? [] : [RAW_LOGS_COLLECTION] });
         const { blob, gzipped } = await compressBackup(data);
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -354,7 +358,7 @@ export default function SystemSettingsPage() {
         if (skipped.length > 0) {
             toast({
                 title: 'Backup incomplete',
-                description: `Saved, but ${skipped.length} collection(s) could not be read: ${skipped.map(s => s.collection).join(', ')}. This file cannot be used for a restore.`,
+                description: `Saved, but ${skipped.length} collection(s) could not be read: ${skipped.map(s => s.collection).join(', ')}. A restore from this file leaves those collections as they are.`,
                 variant: 'destructive',
             });
         } else {
@@ -369,11 +373,39 @@ export default function SystemSettingsPage() {
 
   const handleRestoreFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setRestoreFile(file);
+    setRestoreFile(file || null);
+    setRestorePlan(null);
+    setRestoreDeleteExtra(false);
   };
 
+  // Step 1: compare the file with the database and show what would change.
+  // Reads the collections in the file once; writes nothing.
+  const handleCheckRestore = async () => {
+    if (!restoreFile) return;
+    setIsPlanningRestore(true);
+    try {
+        const data = await readBackupFile(restoreFile);
+        setRestorePlan(await planRestore(data));
+    } catch (err: any) {
+        toast({ title: 'Cannot use this file', description: err?.message || 'Invalid backup file format.', variant: 'destructive' });
+    } finally {
+        setIsPlanningRestore(false);
+    }
+  };
+
+  const restoreTotals = useMemo(() => {
+    const cols = restorePlan?.collections || [];
+    const sum = (f: (c: RestorePlan['collections'][number]) => number) => cols.reduce((n, c) => n + f(c), 0);
+    return {
+        add: sum(c => c.add.length),
+        update: sum(c => c.update.length),
+        extra: sum(c => c.extra.length),
+        locked: sum(c => c.lockedSkipped),
+    };
+  }, [restorePlan]);
+
   const handleConfirmRestore = async () => {
-    if (!restoreFile || !user) return;
+    if (!restoreFile || !restorePlan || !user) return;
     if (!user.isAdmin) {
         toast({ title: 'Access Denied', description: 'Only administrators can restore the database.', variant: 'destructive' });
         return;
@@ -394,13 +426,23 @@ export default function SystemSettingsPage() {
         const credential = EmailAuthProvider.credential(currentUser.email, restorePassword);
         await reauthenticateWithCredential(currentUser, credential);
 
-        // Handles both the plain .json backups and the gzipped .json.gz ones
-        // the daily auto-backup now produces.
-        const data = await readBackupFile(restoreFile);
-        await importData(data);
-        await logAudit(`Database Restored from backup file "${restoreFile.name}"`, 'Security');
-        toast({ title: 'Restore Complete', description: 'The database has been updated.' });
+        const results = await applyRestore(restorePlan, restoreDeleteExtra);
+        const written = results.reduce((n, r) => n + r.written, 0);
+        const deleted = results.reduce((n, r) => n + r.deleted, 0);
+        const failed = results.filter(r => r.error);
+        await logAudit(`Database restored from "${restoreFile.name}": ${written} written, ${deleted} deleted${failed.length ? `, failed: ${failed.map(f => f.collection).join(', ')}` : ''}`, 'Security');
+        if (failed.length > 0) {
+            toast({
+                title: 'Restore partly done',
+                description: `${written} records written, ${deleted} deleted. Failed: ${failed.map(f => `${f.collection} (${f.error})`).join(', ')}. Check the file again and re-run to finish - records already restored are skipped.`,
+                variant: 'destructive',
+            });
+        } else {
+            toast({ title: 'Restore Complete', description: `${written} records written, ${deleted} deleted.` });
+        }
         setRestoreFile(null);
+        setRestorePlan(null);
+        setRestoreDeleteExtra(false);
         setRestorePassword('');
         if (restoreInputRef.current) restoreInputRef.current.value = '';
     } catch (err: any) {
@@ -1100,9 +1142,13 @@ export default function SystemSettingsPage() {
                             <Download className="h-4 w-4 text-primary" />
                             Data Preservation
                         </CardTitle>
-                        <CardDescription>Download a full snapshot of the system database for local archiving.</CardDescription>
+                        <CardDescription>Download a snapshot of the database for local archiving. Only administrators get the automatic weekly copy; this button is for any time.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-3">
+                        <label className="flex items-start gap-2 text-xs">
+                            <Checkbox checked={backupIncludeRawLogs} onCheckedChange={(v) => setBackupIncludeRawLogs(v === true)} className="mt-0.5" />
+                            <span>Include raw machine logs (fingerprint punches). This is the largest collection and uses many of the free daily reads; attendance already calculated from them is always included.</span>
+                        </label>
                         <Button onClick={handleManualBackup} disabled={isExporting} className="h-10 px-8 font-black text-xs uppercase tracking-widest shadow-lg">
                             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                             Download System Snapshot
@@ -1116,26 +1162,78 @@ export default function SystemSettingsPage() {
                             <RefreshCcw className="h-4 w-4" />
                             Database Restoration
                         </CardTitle>
-                        <CardDescription>Upload a previously downloaded .json snapshot to restore system data. THIS WILL OVERWRITE ALL CURRENT DATA.</CardDescription>
+                        <CardDescription>Upload a snapshot, check what it would change, then restore. Records in the file are added or brought back to their backed-up version first; nothing is deleted unless you tick the option below. User accounts and logs are never touched.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select Snapshot File</Label>
                             <Input type="file" accept=".json,.gz" onChange={handleRestoreFileChange} ref={restoreInputRef} className="max-w-md h-10 border-destructive/20 bg-card" />
                         </div>
+                        {!restorePlan && (
+                            <Button variant="outline" onClick={handleCheckRestore} disabled={!restoreFile || isPlanningRestore} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
+                                {isPlanningRestore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchCheck className="mr-2 h-4 w-4" />}
+                                Check Backup
+                            </Button>
+                        )}
+                        {restorePlan && (
+                            <div className="space-y-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Backup taken {restorePlan.createdAt ? new Date(restorePlan.createdAt).toLocaleString() : 'at an unknown date'}.
+                                    Restoring writes {(restoreTotals.add + restoreTotals.update).toLocaleString('en-IN')} records
+                                    {restoreDeleteExtra ? ` and deletes ${restoreTotals.extra.toLocaleString('en-IN')}` : ''}.
+                                </p>
+                                <div className="max-h-72 overflow-auto border rounded-md">
+                                    <Table className="text-[11px]">
+                                        <TableHeader className="bg-muted/50"><TableRow>
+                                            <TableHead>Collection</TableHead><TableHead className="text-right">Add</TableHead><TableHead className="text-right">Update</TableHead>
+                                            <TableHead className="text-right">Unchanged</TableHead><TableHead className="text-right">Not in backup</TableHead><TableHead className="text-right">Locked, skipped</TableHead>
+                                        </TableRow></TableHeader>
+                                        <TableBody>
+                                            {restorePlan.collections.filter(c => c.add.length || c.update.length || c.extra.length || c.lockedSkipped).map(c => (
+                                                <TableRow key={c.collection}>
+                                                    <TableCell className="font-mono">{c.collection}</TableCell>
+                                                    <TableCell className="text-right">{c.add.length}</TableCell>
+                                                    <TableCell className="text-right">{c.update.length}</TableCell>
+                                                    <TableCell className="text-right text-muted-foreground">{c.unchanged}</TableCell>
+                                                    <TableCell className="text-right">{c.extra.length}</TableCell>
+                                                    <TableCell className="text-right">{c.lockedSkipped}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                                {restoreTotals.locked > 0 && (
+                                    <p className="text-xs text-amber-600">{restoreTotals.locked} changed payroll/attendance records are in locked months and will be left as they are. Unlock those months first if they must be restored.</p>
+                                )}
+                                {restorePlan.ignored.length > 0 && (
+                                    <p className="text-xs text-muted-foreground">Not restored: {restorePlan.ignored.map(i => `${i.collection} (${i.reason})`).join('; ')}.</p>
+                                )}
+                                {restoreTotals.extra > 0 && (
+                                    <label className="flex items-start gap-2 text-xs">
+                                        <Checkbox checked={restoreDeleteExtra} onCheckedChange={(v) => setRestoreDeleteExtra(v === true)} className="mt-0.5" />
+                                        <span>Also delete the {restoreTotals.extra.toLocaleString('en-IN')} records that are not in the backup (anything created after it was taken). Deletion runs only after every write has finished.</span>
+                                    </label>
+                                )}
+                                {restoreTotals.add + restoreTotals.update + restoreTotals.extra > 15000 && (
+                                    <p className="text-xs text-destructive">This is more than most of the free daily write limit (20,000). It may stop part-way; running the check and restore again the next day finishes it.</p>
+                                )}
+                            </div>
+                        )}
+                        {restorePlan && (
                         <AlertDialog onOpenChange={(open) => { if (!open) setRestorePassword(''); }}>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" disabled={!restoreFile || isRestoring} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
+                                <Button variant="destructive" disabled={isRestoring || (restoreTotals.add + restoreTotals.update + (restoreDeleteExtra ? restoreTotals.extra : 0)) === 0} className="h-10 px-8 font-black text-xs uppercase tracking-widest">
                                     {isRestoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
-                                    Execute Full Restore
+                                    Restore
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle>CRITICAL: System Restore Initiated</AlertDialogTitle>
+                                    <AlertDialogTitle>Restore from backup?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        This action is highly destructive. All current records in the database will be deleted and replaced with the contents of the uploaded snapshot.
-                                        This cannot be undone. Are you absolutely certain?
+                                        {(restoreTotals.add + restoreTotals.update).toLocaleString('en-IN')} records will be written back to their backed-up version
+                                        {restoreDeleteExtra ? `, then ${restoreTotals.extra.toLocaleString('en-IN')} records not in the backup will be deleted` : ''}.
+                                        Changes made since the backup to those records will be lost. Download a fresh snapshot first if you may need them.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <div className="space-y-2 py-2">
@@ -1151,10 +1249,11 @@ export default function SystemSettingsPage() {
                                 </div>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Abort</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleConfirmRestore} disabled={!restorePassword || isRestoring} className="bg-destructive text-white hover:bg-destructive/90">Yes, Restore System</AlertDialogAction>
+                                    <AlertDialogAction onClick={handleConfirmRestore} disabled={!restorePassword || isRestoring} className="bg-destructive text-white hover:bg-destructive/90">Yes, Restore</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
+                        )}
                     </CardContent>
                 </Card>
             </TabsContent>

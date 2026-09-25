@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { onSettingUpdate } from '@/services/settings-service';
 import { DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import type { CompanyProfile } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn, escapeHtml as esc } from '@/lib/utils';
 
 export interface LedgerColumn<T> {
     header: string;
@@ -105,8 +105,8 @@ export function LedgerToolbar<T,>({ title, subtitle, columns, rows, filenamePref
     };
 
     const handlePrint = () => {
-        const rowsHtml = rows.map(r => `<tr>${columns.map(c => `<td class="${c.align === 'right' ? 'right' : c.align === 'center' ? 'center' : ''}">${cellValue(r, c)}</td>`).join('')}</tr>`).join('');
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+        const rowsHtml = rows.map(r => `<tr>${columns.map(c => `<td class="${c.align === 'right' ? 'right' : c.align === 'center' ? 'center' : ''}">${esc(cellValue(r, c))}</td>`).join('')}</tr>`).join('');
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
         <style>
             * { box-sizing: border-box; }
             body { font-family: system-ui, -apple-system, sans-serif; padding: 16px; color: #111; margin: 0; }
@@ -126,21 +126,21 @@ export function LedgerToolbar<T,>({ title, subtitle, columns, rows, filenamePref
             @media print { @page { size: A4 landscape; margin: 10mm; } body { padding: 0; } }
         </style></head><body>
             <div class="head">
-                <h1>${fleetProfile.nameEn}</h1>
-                ${fleetProfile.nameNp ? `<div class="np">${fleetProfile.nameNp}</div>` : ''}
-                <p>${fleetProfile.address}</p>
-                <p>PAN: ${fleetProfile.pan}</p>
-                <h2>${title.toUpperCase()}</h2>
+                <h1>${esc(fleetProfile.nameEn)}</h1>
+                ${fleetProfile.nameNp ? `<div class="np">${esc(fleetProfile.nameNp)}</div>` : ''}
+                <p>${esc(fleetProfile.address)}</p>
+                <p>PAN: ${esc(fleetProfile.pan)}</p>
+                <h2>${esc(title.toUpperCase())}</h2>
             </div>
             <div class="meta">
-                <div>${subtitle || ''}</div>
-                <div>Generated: ${format(new Date(), 'PPP p')}</div>
+                <div>${esc(subtitle || '')}</div>
+                <div>Generated: ${esc(format(new Date(), 'PPP p'))}</div>
             </div>
             <table>
-                <thead><tr>${columns.map(c => `<th class="${c.align === 'right' ? 'right' : c.align === 'center' ? 'center' : ''}">${c.header}</th>`).join('')}</tr></thead>
+                <thead><tr>${columns.map(c => `<th class="${c.align === 'right' ? 'right' : c.align === 'center' ? 'center' : ''}">${esc(c.header)}</th>`).join('')}</tr></thead>
                 <tbody>${rowsHtml}</tbody>
             </table>
-            <div class="foot"><p>System-generated statement for ${fleetProfile.nameEn}. No signature required.</p></div>
+            <div class="foot"><p>System-generated statement for ${esc(fleetProfile.nameEn)}. No signature required.</p></div>
         </body></html>`;
 
         const w = window.open('', '', 'height=800,width=1100');

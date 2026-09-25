@@ -28,7 +28,11 @@
       ]
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://testreportgen-default-rtdb.asia-southeast1.firebasedatabase.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com https://*.firebasedatabase.app wss://*.firebaseio.com wss://*.firebasedatabase.app; frame-src 'self' https://*.firebaseapp.com https://www.hamropatro.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'",
+      "dangerousDisableAssetCspModification": [
+        "script-src",
+        "style-src"
+      ]
     },
     "windows": [
       {

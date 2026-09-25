@@ -1,5 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, getDocs, writeBatch, doc, query, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, doc, query, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { getLockedPeriodKeys } from './period-lock';
 
 // Collections that are pure operational trails (grow with every click, not
 // with real business records). Capped in backups so they don't dominate the
@@ -65,14 +66,24 @@ const collectionsToBackup = [
 export interface BackupMeta {
     createdAt: string;
     skipped: { collection: string; reason: string }[];
+    /** Left out on purpose. A restore leaves these collections untouched. */
+    excluded?: string[];
 }
 
-export const exportData = async (): Promise<Record<string, any>> => {
+/**
+ * Raw fingerprint-machine punches: by far the largest collection, and only
+ * the source for attendance that is already calculated and stored.
+ */
+export const RAW_LOGS_COLLECTION = 'raw_machine_logs';
+
+export const exportData = async (options: { exclude?: string[] } = {}): Promise<Record<string, any>> => {
     const { db } = getFirebase();
     const data: Record<string, any> = {};
     const skipped: BackupMeta['skipped'] = [];
+    const excluded = collectionsToBackup.filter(c => options.exclude?.includes(c));
 
     for (const collectionName of collectionsToBackup) {
+        if (excluded.includes(collectionName)) continue;
         try {
             const cap = CAPPED_COLLECTIONS[collectionName];
             const querySnapshot = cap
@@ -86,7 +97,7 @@ export const exportData = async (): Promise<Record<string, any>> => {
         }
     }
 
-    data._meta = { createdAt: new Date().toISOString(), skipped } satisfies BackupMeta;
+    data._meta = { createdAt: new Date().toISOString(), skipped, excluded } satisfies BackupMeta;
     return data;
 };
 
@@ -121,63 +132,175 @@ export const readBackupFile = async (file: File): Promise<Record<string, any[]>>
     return JSON.parse(jsonText);
 };
 
-export const importData = async (data: Record<string, any>): Promise<void> => {
-    const { db } = getFirebase();
-    // Restore clears every listed collection before importing, so refuse a
-    // file that does not contain all of them - otherwise anything missing
-    // from it (an older or partial backup) would simply be deleted.
-    const missing = collectionsToBackup.filter(c => !Array.isArray(data?.[c]));
-    const skipped: BackupMeta['skipped'] = data?._meta?.skipped || [];
-    if (missing.length > 0 || skipped.length > 0) {
-        const names = [...new Set([...missing, ...skipped.map(s => s.collection)])];
-        throw new Error(`This backup is incomplete (${names.join(', ')}). Restoring it would delete that data, so it was not started.`);
+// Never restored. Login accounts and username mappings are tied to Firebase
+// Auth and the rules refuse to rewrite admin accounts - the old restore died
+// on exactly this, after it had already deleted everything before it. Logs
+// and page visits are append-only trails that the rules only let a user
+// write for themselves.
+const NOT_RESTORED = new Set(['system_users', 'usernames', 'sessions', 'logs', 'pageVisits']);
+
+// Restored last, so every payroll/attendance write is checked against the
+// locks as they are now, not half-way through changing them.
+const RESTORE_LAST = ['attendance_periods', 'payroll_periods'];
+const LOCKED_BY_PERIOD = new Set(['payroll', 'attendance']);
+
+const WRITE_CHUNK = 400;
+
+export interface RestoreCollectionPlan {
+    collection: string;
+    add: { id: string; data: any }[];
+    update: { id: string; data: any }[];
+    unchanged: number;
+    /** In the database but not in the backup. Deleted only if asked. */
+    extra: string[];
+    /** Changed records in locked months; the rules refuse to rewrite them. */
+    lockedSkipped: number;
+}
+
+export interface RestorePlan {
+    createdAt: string | null;
+    collections: RestoreCollectionPlan[];
+    /** In the file but not restored, with the reason. */
+    ignored: { collection: string; reason: string }[];
+}
+
+export interface RestoreResult {
+    collection: string;
+    written: number;
+    deleted: number;
+    error?: string;
+}
+
+// JSON turns a Firestore Timestamp into {seconds, nanoseconds}; turn it back.
+const reviveTimestamps = (value: any): any => {
+    if (Array.isArray(value)) return value.map(reviveTimestamps);
+    if (value && typeof value === 'object') {
+        const keys = Object.keys(value).filter(k => k !== 'type');
+        if (keys.length === 2 && typeof value.seconds === 'number' && typeof value.nanoseconds === 'number') {
+            return new Timestamp(value.seconds, value.nanoseconds);
+        }
+        const out: any = {};
+        for (const [k, v] of Object.entries(value)) out[k] = reviveTimestamps(v);
+        return out;
     }
-    // First, delete all existing data in the collections
-    for (const collectionName of collectionsToBackup) {
-        try {
-            const querySnapshot = await getDocs(collection(db, collectionName));
-            let deleteBatch = writeBatch(db);
-            let deleteCount = 0;
-            for (const document of querySnapshot.docs) {
-                deleteBatch.delete(document.ref);
-                deleteCount++;
-                if (deleteCount === 499) {
-                    await deleteBatch.commit();
-                    deleteBatch = writeBatch(db);
-                    deleteCount = 0;
-                }
+    return value;
+};
+
+// Key-order independent comparison, with Timestamps in their JSON shape on
+// both sides.
+const canonical = (value: any): string => JSON.stringify(value, (_k, v) => {
+    if (v instanceof Timestamp) return { seconds: v.seconds, nanoseconds: v.nanoseconds };
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+        return Object.keys(v).sort().reduce((acc: any, k) => { acc[k] = v[k]; return acc; }, {});
+    }
+    return v;
+});
+
+const validId = (id: unknown): id is string => typeof id === 'string' && id.length > 0 && !id.includes('/');
+
+/**
+ * Reads the backup against the live database and works out what a restore
+ * would change. Writes nothing. Only collections present in the file are
+ * considered - a collection missing from the file is left alone, never
+ * emptied.
+ */
+export const planRestore = async (data: Record<string, any>): Promise<RestorePlan> => {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        throw new Error('This file is not a StarSutra backup.');
+    }
+    const skippedInBackup = new Map<string, string>(
+        (data._meta?.skipped || []).map((s: any) => [s.collection, s.reason])
+    );
+    const known = collectionsToBackup.filter(c => Array.isArray(data[c]));
+    if (known.length === 0) throw new Error('This file does not contain any StarSutra data.');
+
+    const ignored: RestorePlan['ignored'] = [];
+    const targets: string[] = [];
+    for (const name of known) {
+        if (NOT_RESTORED.has(name)) ignored.push({ collection: name, reason: 'user accounts and logs are never restored' });
+        else if (skippedInBackup.has(name)) ignored.push({ collection: name, reason: `could not be read when the backup was made (${skippedInBackup.get(name)})` });
+        else if (data[name].some((item: any) => !validId(item?.id))) ignored.push({ collection: name, reason: 'contains records without a valid id' });
+        else targets.push(name);
+    }
+    targets.sort((a, b) => Number(RESTORE_LAST.includes(a)) - Number(RESTORE_LAST.includes(b)));
+
+    const { db } = getFirebase();
+    const lockedKeys = await getLockedPeriodKeys();
+    const isLocked = (d: any) => d && lockedKeys.has(`${d.bsYear}-${d.bsMonth}`);
+
+    const collections: RestoreCollectionPlan[] = [];
+    for (const name of targets) {
+        const snap = await getDocs(collection(db, name));
+        const current = new Map(snap.docs.map(d => [d.id, d.data()]));
+        const plan: RestoreCollectionPlan = { collection: name, add: [], update: [], unchanged: 0, extra: [], lockedSkipped: 0 };
+        const inBackup = new Set<string>();
+
+        for (const item of data[name]) {
+            const { id, ...rest } = item;
+            inBackup.add(id);
+            const restored = reviveTimestamps(rest);
+            const existing = current.get(id);
+            if (existing === undefined) {
+                plan.add.push({ id, data: restored });
+            } else if (canonical(existing) === canonical(restored)) {
+                plan.unchanged++;
+            } else if (LOCKED_BY_PERIOD.has(name) && (isLocked(existing) || isLocked(restored))) {
+                plan.lockedSkipped++;
+            } else {
+                plan.update.push({ id, data: restored });
             }
-            if (deleteCount > 0) {
-                await deleteBatch.commit();
+        }
+        for (const id of current.keys()) if (!inBackup.has(id)) plan.extra.push(id);
+        collections.push(plan);
+    }
+
+    return { createdAt: data._meta?.createdAt || null, collections, ignored };
+};
+
+/**
+ * Applies a plan from planRestore. Every collection is written (added and
+ * updated) before anything is deleted, and deletion of records that are not
+ * in the backup only happens when `deleteExtra` is set. A failure in one
+ * collection is reported and the rest carry on, so nothing is left
+ * half-deleted.
+ */
+export const applyRestore = async (plan: RestorePlan, deleteExtra: boolean): Promise<RestoreResult[]> => {
+    const { db } = getFirebase();
+    const results = new Map<string, RestoreResult>(
+        plan.collections.map(c => [c.collection, { collection: c.collection, written: 0, deleted: 0 }])
+    );
+
+    const run = async (name: string, ops: ((b: ReturnType<typeof writeBatch>) => void)[], field: 'written' | 'deleted') => {
+        const result = results.get(name)!;
+        if (result.error) return;
+        for (let i = 0; i < ops.length; i += WRITE_CHUNK) {
+            const batch = writeBatch(db);
+            const chunk = ops.slice(i, i + WRITE_CHUNK);
+            chunk.forEach(op => op(batch));
+            try {
+                await batch.commit();
+                result[field] += chunk.length;
+            } catch (error: any) {
+                result.error = error?.code || error?.message || 'write failed';
+                return;
             }
-        } catch (error) {
-             console.error(`Error deleting collection ${collectionName}:`, error);
-             throw new Error(`Failed to clear existing data in ${collectionName}.`);
+        }
+    };
+
+    for (const c of plan.collections) {
+        const writes = [...c.add, ...c.update].map(({ id, data }) =>
+            (b: ReturnType<typeof writeBatch>) => b.set(doc(db, c.collection, id), data));
+        await run(c.collection, writes, 'written');
+    }
+
+    if (deleteExtra) {
+        for (const c of plan.collections) {
+            const deletes = c.extra.map(id => (b: ReturnType<typeof writeBatch>) => b.delete(doc(db, c.collection, id)));
+            await run(c.collection, deletes, 'deleted');
         }
     }
 
-    // Then, import the new data
-    for (const collectionName in data) {
-        if (collectionsToBackup.includes(collectionName)) {
-            const collectionData = data[collectionName];
-             let importBatch = writeBatch(db);
-            let importCount = 0;
-            for (const item of collectionData) {
-                const { id, ...itemData } = item;
-                const docRef = doc(db, collectionName, id);
-                importBatch.set(docRef, itemData);
-                importCount++;
-                 if (importCount === 499) {
-                    await importBatch.commit();
-                    importBatch = writeBatch(db);
-                    importCount = 0;
-                }
-            }
-            if (importCount > 0) {
-                await importBatch.commit();
-            }
-        }
-    }
+    return Array.from(results.values());
 };
 
 /**
