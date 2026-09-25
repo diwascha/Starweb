@@ -188,7 +188,10 @@ service cloud.firestore {
     }
 
     match /settings/{settingId} {
-      allow read: if isAuthenticated();
+      // Approved accounts only. Anyone can create a sign-in against the public
+      // API key, and costing, HR rules and numbering are not public. The
+      // login screen's documents are public by their own blocks above.
+      allow read: if isApproved();
       allow write: if isAdmin() ||
                       (settingWriteModule(settingId) != '' && can(settingWriteModule(settingId), 'edit'));
     }
@@ -254,7 +257,10 @@ service cloud.firestore {
 
     match /logs/{logId} {
       // Was `if true`: any anonymous caller could create unlimited documents.
-      allow create: if isAuthenticated();
+      // Entries must be attributed to the caller: the audit trail was
+      // forgeable when the client could write any userId it liked.
+      allow create: if isAuthenticated() &&
+                       request.resource.data.get('userId', '') == request.auth.uid;
       allow read, delete: if isAdmin();
     }
 

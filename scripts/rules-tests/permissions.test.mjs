@@ -172,6 +172,16 @@ for (const [name, db] of [['approved no-perm user', nobody], ['hr full user', hr
 }
 await allow('admin writes unknown collection', () => setDoc(doc(boss, 'unknown_collection/adm'), { v: 1 }));
 
+console.log('\n=== 12. Settings need approval; logs are attributed to the caller ===');
+await allow('approved user reads a settings doc',    () => getDoc(doc(nobody, 'settings/hr_config')));
+await deny ('unapproved user reads a settings doc',  () => getDoc(doc(pending, 'settings/hr_config')));
+await allow('unapproved user reads companyProfile (login screen)', () => getDoc(doc(pending, 'settings/companyProfile')));
+await allow('anonymous reads companyProfile (login screen)',       () => getDoc(doc(anon, 'settings/companyProfile')));
+await allow('user logs as themselves',  () => setDoc(doc(hrview, 'logs/own'), { userId: 'hrview', message: 'x' }));
+await deny ('user logs as someone else',() => setDoc(doc(hrview, 'logs/forged'), { userId: 'boss', message: 'x' }));
+await deny ('user logs without userId', () => setDoc(doc(hrview, 'logs/blank'), { message: 'x' }));
+await deny ('anonymous writes a log',   () => setDoc(doc(anon, 'logs/anon'), { userId: '', message: 'x' }));
+
 console.log('\n=== 9. Admin still has everything ===');
 for (const c of ALL) await allow(`admin writes ${c}`, () => setDoc(doc(boss, `${c}/adm`), { v:1 }));
 
