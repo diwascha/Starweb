@@ -400,9 +400,9 @@ export default function FleetImportPage() {
                                                 </TableCell>
                                                 <TableCell className="text-right text-xs tabular-nums">Rs. {r.amount.toLocaleString('en-IN')}</TableCell>
                                                 <TableCell>
-                                                    {r.status === 'duplicate' && <Badge variant="outline" className="text-[9px]">Already Recorded</Badge>}
-                                                    {r.status === 'new' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px]">New</Badge>}
-                                                    {r.status === 'new-vehicle' && <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[9px]">{r.source === 'trip' ? 'New Truck' : 'New Party'}</Badge>}
+                                                    {r.status === 'duplicate' && <Badge variant="outline" className="text-[0.5625rem]">Already Recorded</Badge>}
+                                                    {r.status === 'new' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[0.5625rem]">New</Badge>}
+                                                    {r.status === 'new-vehicle' && <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[0.5625rem]">{r.source === 'trip' ? 'New Truck' : 'New Party'}</Badge>}
                                                 </TableCell>
                                             </TableRow>
                                         ))}

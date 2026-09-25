@@ -121,7 +121,7 @@ export default function ReportsListPage() {
     };
 
     const sortButton = (key: SortKey, label: string) => (
-        <Button variant="ghost" onClick={() => requestSort(key)} className="h-8 px-2 text-[10px] font-black uppercase tracking-widest hover:bg-transparent">
+        <Button variant="ghost" onClick={() => requestSort(key)} className="h-8 px-2 text-[0.625rem] font-black uppercase tracking-widest hover:bg-transparent">
             {label}
             <ArrowUpDown className={cn("ml-1.5 h-3 w-3", sortConfig.key === key ? "text-primary opacity-100" : "opacity-30")} />
         </Button>
@@ -167,7 +167,7 @@ export default function ReportsListPage() {
                                 <TableHead>{sortButton('productName', 'Product / Material')}</TableHead>
                                 <TableHead>{sortButton('taxInvoiceNumber', 'Invoice #')}</TableHead>
                                 <TableHead className="text-right">{sortButton('quantity', 'Qty')}</TableHead>
-                                <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest text-muted-foreground">Actions</TableHead>
+                                <TableHead className="text-right pr-6 font-black uppercase text-[0.625rem] tracking-widest text-muted-foreground">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -180,7 +180,7 @@ export default function ReportsListPage() {
                                     <TableCell>
                                         <div className="flex flex-col">
                                             <span className="font-bold text-foreground uppercase">{report.product?.name || 'Custom Product'}</span>
-                                            <span className="text-[9px] text-muted-foreground uppercase font-black">{report.product?.materialCode || 'No Code'}</span>
+                                            <span className="text-[0.5625rem] text-muted-foreground uppercase font-black">{report.product?.materialCode || 'No Code'}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-mono">{report.taxInvoiceNumber || '—'}</TableCell>
@@ -220,14 +220,14 @@ export default function ReportsListPage() {
                                 </TableRow>
                             ))}
                             {!isLoading && filteredAndSortedReports.length === 0 && (
-                                <TableRow><TableCell colSpan={6} className="h-60 text-center text-muted-foreground italic uppercase font-black text-[10px] tracking-widest opacity-20">No matching reports found.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-60 text-center text-muted-foreground italic uppercase font-black text-[0.625rem] tracking-widest opacity-20">No matching reports found.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </CardContent>
                 {totalPages > 1 && (
                     <CardFooter className="py-3 border-t bg-muted/5 flex justify-between items-center px-6">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Page {currentPage} of {totalPages}</span>
+                        <span className="text-[0.625rem] font-bold text-muted-foreground uppercase">Page {currentPage} of {totalPages}</span>
                         <div className="flex gap-2">
                             <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}><ChevronLeft className="h-4 w-4"/></Button>
                             <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}><ChevronRight className="h-4 w-4"/></Button>

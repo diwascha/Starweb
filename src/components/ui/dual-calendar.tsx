@@ -192,15 +192,14 @@ export function DualCalendar({ selected, onSelect }: DualCalendarProps) {
       <div className="flex flex-col gap-3 pb-2 border-b">
           <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Label className="text-[10px] uppercase font-bold" htmlFor="calendar-type">AD</Label>
+                <Label className="text-[0.625rem] uppercase font-bold" htmlFor="calendar-type">AD</Label>
                 <Switch
                   id="calendar-type"
                   checked={calendarType === "BS"}
                   onCheckedChange={(checked) => setCalendarType(checked ? "BS" : "AD")}
                 />
-                <Label className="text-[10px] uppercase font-bold" htmlFor="calendar-type">BS</Label>
+                <Label className="text-[0.625rem] uppercase font-bold" htmlFor="calendar-type">BS</Label>
               </div>
-              <ConnectionIndicator />
           </div>
           
           <div className="relative group">
@@ -209,9 +208,9 @@ export function DualCalendar({ selected, onSelect }: DualCalendarProps) {
                 value={manualInput} 
                 onChange={e => handleManualJump(e.target.value)} 
                 placeholder={calendarType === 'BS' ? "YYYY/MM/DD" : "YYYY-MM-DD"}
-                className="pl-8 h-8 text-[11px] font-mono shadow-inner bg-muted/20 border-none focus-visible:ring-1"
+                className="pl-8 h-8 text-[0.6875rem] font-mono shadow-inner bg-muted/20 border-none focus-visible:ring-1"
               />
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-muted-foreground uppercase pointer-events-none opacity-50">
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[0.5625rem] font-bold text-muted-foreground uppercase pointer-events-none opacity-50">
                   Jump To
               </div>
           </div>
@@ -304,16 +303,4 @@ export function DualCalendar({ selected, onSelect }: DualCalendarProps) {
       )}
     </div>
   )
-}
-
-function ConnectionIndicator() {
-    return (
-        <div className="flex items-center gap-1.5 text-[8px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-            <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-            </span>
-            Sync
-        </div>
-    );
 }

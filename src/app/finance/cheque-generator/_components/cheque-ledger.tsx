@@ -200,12 +200,12 @@ export function ChequeLedger() {
                     <Table className="text-xs">
                         <TableHeader className="bg-muted/50 border-b">
                             <TableRow className="hover:bg-transparent h-10">
-                                <TableHead className="pl-6 font-bold uppercase text-[10px]">Payment Date (BS)</TableHead>
-                                <TableHead className="font-bold uppercase text-[10px]">Beneficiary / Payee</TableHead>
-                                <TableHead className="font-bold uppercase text-[10px]">Reference (Cheque/Voucher)</TableHead>
-                                <TableHead className="font-bold uppercase text-[10px]">Source Account</TableHead>
-                                <TableHead className="font-bold uppercase text-[10px]">Payment Note</TableHead>
-                                <TableHead className="text-right pr-6 font-bold uppercase text-[10px]">Amount (NPR)</TableHead>
+                                <TableHead className="pl-6 font-bold uppercase text-[0.625rem]">Payment Date (BS)</TableHead>
+                                <TableHead className="font-bold uppercase text-[0.625rem]">Beneficiary / Payee</TableHead>
+                                <TableHead className="font-bold uppercase text-[0.625rem]">Reference (Cheque/Voucher)</TableHead>
+                                <TableHead className="font-bold uppercase text-[0.625rem]">Source Account</TableHead>
+                                <TableHead className="font-bold uppercase text-[0.625rem]">Payment Note</TableHead>
+                                <TableHead className="text-right pr-6 font-bold uppercase text-[0.625rem]">Amount (NPR)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody className="bg-card">
@@ -216,16 +216,16 @@ export function ChequeLedger() {
                                     <TableCell>
                                         <div className="flex flex-col">
                                             <span className="font-bold text-blue-600">Cheque: {p.chequeNumber || 'N/A'}</span>
-                                            <span className="text-[9px] uppercase text-muted-foreground">Voucher: #{p.voucherNo}</span>
+                                            <span className="text-[0.5625rem] uppercase text-muted-foreground">Voucher: #{p.voucherNo}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
                                         {p.accountId === 'cash' ? (
-                                            <Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/20 border-none">Cash</Badge>
+                                            <Badge variant="outline" className="text-[0.5625rem] uppercase font-bold bg-muted/20 border-none">Cash</Badge>
                                         ) : (
                                             <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold text-foreground">{accounts.find(a => a.id === p.accountId)?.bankName || 'Bank'}</span>
-                                                <span className="text-[9px] text-muted-foreground font-mono">{accounts.find(a => a.id === p.accountId)?.accountNumber}</span>
+                                                <span className="text-[0.625rem] font-bold text-foreground">{accounts.find(a => a.id === p.accountId)?.bankName || 'Bank'}</span>
+                                                <span className="text-[0.5625rem] text-muted-foreground font-mono">{accounts.find(a => a.id === p.accountId)?.accountNumber}</span>
                                             </div>
                                         )}
                                     </TableCell>
@@ -244,7 +244,7 @@ export function ChequeLedger() {
                         {filteredPayments.length > 0 && (
                             <TableFooter className="bg-muted/40 font-black h-12 border-t-2">
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-right uppercase tracking-widest text-[10px]">Total Filtered Period Payments</TableCell>
+                                    <TableCell colSpan={5} className="text-right uppercase tracking-widest text-[0.625rem]">Total Filtered Period Payments</TableCell>
                                     <TableCell className="text-right pr-6 text-base text-emerald-800 tabular-nums">Rs. {money(totalAmount)}</TableCell>
                                 </TableRow>
                             </TableFooter>
@@ -253,7 +253,7 @@ export function ChequeLedger() {
                 </CardContent>
                 {totalPages > 1 && (
                     <CardFooter className="py-3 border-t bg-muted/5 flex justify-between items-center px-6">
-                         <div className="text-[10px] font-bold text-muted-foreground uppercase">Page {currentPage} of {totalPages}</div>
+                         <div className="text-[0.625rem] font-bold text-muted-foreground uppercase">Page {currentPage} of {totalPages}</div>
                          <div className="flex gap-2">
                             <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}><ChevronLeft className="h-4 w-4"/></Button>
                             <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}><ChevronRight className="h-4 w-4"/></Button>

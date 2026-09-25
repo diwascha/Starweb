@@ -208,14 +208,14 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
             </div>
             <div className="bg-card p-4 flex flex-col sm:flex-row flex-wrap items-end gap-4 border-b">
                 <div className="space-y-1.5 w-[120px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
+                    <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
                     <Select value={selectedFiscalYear} onValueChange={setSelectedFiscalYear}>
                         <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>{availableFiscalYears.map(y => <SelectItem key={`dash-fy-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}</SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-1.5 w-[200px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employee</Label>
+                    <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Employee</Label>
                     <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
                         <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -224,10 +224,10 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                         </SelectContent>
                     </Select>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="h-9 font-bold text-[10px] uppercase tracking-widest">
+                <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="h-9 font-bold text-[0.625rem] uppercase tracking-widest">
                     <RefreshCcw className={cn("mr-2 h-3.5 w-3.5", isRefreshing && "animate-spin")} /> Refresh
                 </Button>
-                <p className="text-[10px] text-muted-foreground italic ml-auto">Fiscal year runs Shrawan to Ashadh. Data updates live as attendance/payroll change.</p>
+                <p className="text-[0.625rem] text-muted-foreground italic ml-auto">Fiscal year runs Shrawan to Ashadh. Data updates live as attendance/payroll change.</p>
             </div>
        </div>
 
@@ -290,7 +290,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
        <Card className="shadow-sm border-border bg-card overflow-hidden">
             <CardHeader className="bg-[#1c355e]/5 border-b py-4 px-6">
                 <CardTitle className="text-sm font-black uppercase tracking-tight">Company Overview - FY {formatFiscalYear(fyStart)}</CardTitle>
-                <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
+                <CardDescription className="text-[0.625rem] uppercase font-bold text-muted-foreground">
                     {attendanceEnabled
                         ? "Every employee, aggregated across the full fiscal year - the same figures Analytics and Performance Benchmark use."
                         : "Attendance Logs is locked to conserve database quota, so this shows payroll figures only. An administrator can re-enable it in Settings > System."}
@@ -299,7 +299,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
             <CardContent className="p-0">
                 <ScrollArea className="w-full">
                     {attendanceEnabled ? (
-                    <Table className="text-[11px] border-collapse">
+                    <Table className="text-[0.6875rem] border-collapse">
                         <TableHeader className="bg-muted/30">
                             <TableRow className="h-11">
                                 <TableHead className="sticky left-0 bg-background z-20 border-r pl-6 font-black uppercase text-foreground">Employee</TableHead>
@@ -332,7 +332,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                                         {r.flags.length > 0 ? (
                                             <div className="flex items-center gap-1 text-red-600">
                                                 <AlertTriangle className="h-3 w-3 shrink-0" />
-                                                <span className="text-[10px] font-bold">{r.flags.join('; ')}</span>
+                                                <span className="text-[0.625rem] font-bold">{r.flags.join('; ')}</span>
                                             </div>
                                         ) : <span className="text-muted-foreground">—</span>}
                                     </TableCell>
@@ -356,7 +356,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                         )}
                     </Table>
                     ) : (
-                    <Table className="text-[11px] border-collapse">
+                    <Table className="text-[0.6875rem] border-collapse">
                         <TableHeader className="bg-muted/30">
                             <TableRow className="h-11">
                                 <TableHead className="sticky left-0 bg-background z-20 border-r pl-6 font-black uppercase text-foreground">Employee</TableHead>
@@ -398,7 +398,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
 }
 
 function TrendBadge({ trend }: { trend: PeriodPerformanceMetrics['trend'] }) {
-    if (trend === 'N/A') return <span className="text-muted-foreground text-[10px]">—</span>;
+    if (trend === 'N/A') return <span className="text-muted-foreground text-[0.625rem]">—</span>;
     const config = {
         Improving: { icon: TrendingUp, cls: 'border-emerald-200 text-emerald-700' },
         Declining: { icon: TrendingDown, cls: 'border-red-200 text-red-700' },
@@ -406,7 +406,7 @@ function TrendBadge({ trend }: { trend: PeriodPerformanceMetrics['trend'] }) {
     }[trend];
     const Icon = config.icon;
     return (
-        <Badge variant="outline" className={cn("text-[9px] font-black uppercase h-5 px-1.5 gap-1", config.cls)}>
+        <Badge variant="outline" className={cn("text-[0.5625rem] font-black uppercase h-5 px-1.5 gap-1", config.cls)}>
             <Icon className="h-2.5 w-2.5" /> {trend}
         </Badge>
     );

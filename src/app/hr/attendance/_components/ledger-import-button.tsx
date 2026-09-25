@@ -217,7 +217,7 @@ export default function LedgerImportButton({
                 variant="outline"
                 onClick={() => ledgerFileInputRef.current?.click()}
                 disabled={isImportingLedger || isReadingLedger}
-                className="h-10 font-black text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5"
+                className="h-10 font-black text-[0.625rem] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5"
             >
                 {(isImportingLedger || isReadingLedger) ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Terminal className="mr-2 h-4 w-4"/>}
                 {isReadingLedger ? 'Reading...' : isImportingLedger ? 'Processing...' : payrollOnly ? 'Import Payroll Data' : 'Import Consolidated Ledger'}
@@ -230,7 +230,7 @@ export default function LedgerImportButton({
                         <div className="space-y-1">
                             <p className="text-sm font-black uppercase text-foreground">Processing Master Ledger</p>
                             {ledgerImportProgress && (
-                                <p className="text-[10px] text-primary font-black uppercase tracking-widest animate-pulse">
+                                <p className="text-[0.625rem] text-primary font-black uppercase tracking-widest animate-pulse">
                                     {ledgerImportProgress}
                                 </p>
                             )}
@@ -255,7 +255,7 @@ export default function LedgerImportButton({
                             <Checkbox checked={includeConsolidatedSummary} onCheckedChange={(v) => setIncludeConsolidatedSummary(Boolean(v))} />
                             <div>
                                 <p className="text-xs font-black uppercase text-foreground">Also Import "Consolidated Ledger" Summary</p>
-                                <p className="text-[10px] text-muted-foreground">Imports its own pre-computed Bonus, Behavior, and Analytics sections.</p>
+                                <p className="text-[0.625rem] text-muted-foreground">Imports its own pre-computed Bonus, Behavior, and Analytics sections.</p>
                             </div>
                         </label>
                     )}
@@ -277,7 +277,7 @@ export default function LedgerImportButton({
                                         <TableCell className="pl-4">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-foreground">{row.sheetName}</span>
-                                                <span className="text-[9px] text-muted-foreground uppercase">
+                                                <span className="text-[0.5625rem] text-muted-foreground uppercase">
                                                     {row.rowCount} rows{!row.hasAttendance && !row.hasPayroll ? ' - no recognizable data' : ''}
                                                     {row.isConsolidatedSummary ? ' - also the Consolidated Ledger summary sheet' : ''}
                                                 </span>

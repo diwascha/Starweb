@@ -201,23 +201,23 @@ export function LedgerReportPreview({ isOpen, onOpenChange, ledgerData, fleetPro
                         <div className="text-center border-b-2 border-neutral-800 pb-3 mb-4">
                             <h1 className="text-xl font-bold uppercase tracking-wide">{fleetProfile.nameEn}</h1>
                             {fleetProfile.nameNp && <p className="font-semibold text-sm">{fleetProfile.nameNp}</p>}
-                            <p className="text-[11px] text-neutral-500">{fleetProfile.address}</p>
-                            <p className="text-[11px] text-neutral-500">PAN: {fleetProfile.pan}</p>
-                            <h2 className="mt-2 text-[13px] font-bold tracking-[2px]">TRANSACTION LEDGER</h2>
+                            <p className="text-[0.6875rem] text-neutral-500">{fleetProfile.address}</p>
+                            <p className="text-[0.6875rem] text-neutral-500">PAN: {fleetProfile.pan}</p>
+                            <h2 className="mt-2 text-[0.8125rem] font-bold tracking-[2px]">TRANSACTION LEDGER</h2>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 mb-4 text-[10px]">
+                        <div className="grid grid-cols-2 gap-4 mb-4 text-[0.625rem]">
                             <div className="space-y-0.5">
-                                <p><span className="font-bold uppercase text-[9px] text-neutral-500">Period:</span> {filters.period}</p>
-                                <p><span className="font-bold uppercase text-[9px] text-neutral-500">Entities:</span> {filters.parties} | {filters.vehicles}</p>
-                                {filters.paymentModes && <p><span className="font-bold uppercase text-[9px] text-neutral-500">Payment modes:</span> {filters.paymentModes}</p>}
+                                <p><span className="font-bold uppercase text-[0.5625rem] text-neutral-500">Period:</span> {filters.period}</p>
+                                <p><span className="font-bold uppercase text-[0.5625rem] text-neutral-500">Entities:</span> {filters.parties} | {filters.vehicles}</p>
+                                {filters.paymentModes && <p><span className="font-bold uppercase text-[0.5625rem] text-neutral-500">Payment modes:</span> {filters.paymentModes}</p>}
                             </div>
                             <div className="text-right">
-                                <p><span className="font-bold uppercase text-[9px] text-neutral-500">Generated:</span> {format(new Date(), 'PPP p')}</p>
+                                <p><span className="font-bold uppercase text-[0.5625rem] text-neutral-500">Generated:</span> {format(new Date(), 'PPP p')}</p>
                             </div>
                         </div>
 
-                        <table className="w-full border-collapse text-[10px]">
+                        <table className="w-full border-collapse text-[0.625rem]">
                             <thead>
                                 <tr className="bg-neutral-100">
                                     <th className="border border-neutral-300 p-1.5 text-left">Date (BS)</th>
@@ -246,7 +246,7 @@ export function LedgerReportPreview({ isOpen, onOpenChange, ledgerData, fleetPro
                                         <td className="border border-neutral-300 p-1.5 font-mono">{e.refNo}</td>
                                         <td className="border border-neutral-300 p-1.5">
                                             <div className="font-bold">{e.remarks || e.type}</div>
-                                            {e.lineItemsSummary && <div className="text-[8px] text-neutral-500 italic">{e.lineItemsSummary}</div>}
+                                            {e.lineItemsSummary && <div className="text-[0.5rem] text-neutral-500 italic">{e.lineItemsSummary}</div>}
                                         </td>
                                         <td className="border border-neutral-300 p-1.5">{e.vehicleName}</td>
                                         <td className="border border-neutral-300 p-1.5 text-center">{e.categoryDisplay}</td>
@@ -266,7 +266,7 @@ export function LedgerReportPreview({ isOpen, onOpenChange, ledgerData, fleetPro
                             </tfoot>
                         </table>
 
-                        <div className="mt-8 pt-2 border-t border-dashed border-neutral-300 text-center text-[9px] text-neutral-400">
+                        <div className="mt-8 pt-2 border-t border-dashed border-neutral-300 text-center text-[0.5625rem] text-neutral-400">
                             <p>System-generated statement for {fleetProfile.nameEn}. No signature required.</p>
                         </div>
                     </div>

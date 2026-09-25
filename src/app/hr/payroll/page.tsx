@@ -293,7 +293,7 @@ export default function UnifiedWorkforcePage() {
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div className="flex flex-col sm:flex-row items-center gap-3">
                             <div className="flex items-center gap-2">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Fiscal Year</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Fiscal Year</Label>
                                 <Select value={selectedFiscalYear} onValueChange={handleFiscalYearChange} disabled={isLoadingData}>
                                     <SelectTrigger className="w-[110px] h-9 bg-card"><SelectValue placeholder="FY" /></SelectTrigger>
                                     <SelectContent>
@@ -302,7 +302,7 @@ export default function UnifiedWorkforcePage() {
                                 </Select>
                             </div>
                             <div className="flex items-center gap-2">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Month</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Month</Label>
                                 <Select value={selectedFyMonthIndex} onValueChange={handleFyMonthChange} disabled={isLoadingData}>
                                     <SelectTrigger className="w-[140px] h-9 bg-card"><SelectValue placeholder="Month" /></SelectTrigger>
                                     <SelectContent>
@@ -314,7 +314,7 @@ export default function UnifiedWorkforcePage() {
 
                         <div className="flex flex-wrap items-center gap-2">
                             {isHistoricalPeriod ? (
-                                <span className="flex items-center gap-1.5 h-9 px-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-muted/40 rounded-md">
+                                <span className="flex items-center gap-1.5 h-9 px-3 text-[0.625rem] font-black uppercase tracking-widest text-muted-foreground bg-muted/40 rounded-md">
                                     <History className="h-3.5 w-3.5" /> Historical (Imported)
                                 </span>
                             ) : hasPermission('hr', 'edit') && (
@@ -328,7 +328,7 @@ export default function UnifiedWorkforcePage() {
                                             ? 'Locked to conserve database quota - recalculating needs a fiscal year of attendance. An administrator can re-enable it in Settings > System.'
                                             : isLocked ? 'Unlock Calculation first to recalculate.' : 'Recompute payroll from attendance for this period.'
                                     }
-                                    className="h-9 px-4 font-black text-[10px] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5"
+                                    className="h-9 px-4 font-black text-[0.625rem] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5"
                                 >
                                     {isRecalculating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Calculator className="mr-2 h-3.5 w-3.5" />}
                                     Recalculate
@@ -343,8 +343,8 @@ export default function UnifiedWorkforcePage() {
                                     disabled={isLoadingData || isTogglingLock}
                                     title="Sync Metrics and Recalculate are blocked until this period is unlocked. It re-locks automatically after either action completes."
                                     className={isLocked
-                                        ? "h-9 px-4 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20"
-                                        : "h-9 px-4 font-black text-[10px] uppercase tracking-widest border-amber-300 text-amber-700 hover:bg-amber-50"}
+                                        ? "h-9 px-4 font-black text-[0.625rem] uppercase tracking-widest shadow-lg shadow-primary/20"
+                                        : "h-9 px-4 font-black text-[0.625rem] uppercase tracking-widest border-amber-300 text-amber-700 hover:bg-amber-50"}
                                 >
                                     {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : isLocked ? <Lock className="mr-2 h-3.5 w-3.5" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
                                     {isLocked ? 'Unlock Calculation' : 'Lock Calculation'}
@@ -353,7 +353,7 @@ export default function UnifiedWorkforcePage() {
 
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="text-destructive h-9 px-4 font-black text-[10px] uppercase tracking-widest hover:bg-red-50" disabled={isLoadingData || isPurging || isLocked}>
+                                    <Button variant="ghost" size="sm" className="text-destructive h-9 px-4 font-black text-[0.625rem] uppercase tracking-widest hover:bg-red-50" disabled={isLoadingData || isPurging || isLocked}>
                                         {isPurging ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-2 h-3.5 w-3.5" />}
                                         Delete Records
                                     </Button>
@@ -388,7 +388,7 @@ export default function UnifiedWorkforcePage() {
                                                 ? 'Unlock Calculation first to sync.'
                                                 : "Shows this month's behavioral analytics if they already exist, or generates them once if they don't. Only affects the selected month."
                                     }
-                                    className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-border text-muted-foreground hover:text-primary"
+                                    className="h-9 px-4 font-bold text-[0.625rem] uppercase tracking-widest border-border text-muted-foreground hover:text-primary"
                                 >
                                     {isRefreshing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-2 h-3.5 w-3.5" />}
                                     Sync Metrics
@@ -396,7 +396,7 @@ export default function UnifiedWorkforcePage() {
                             )}
 
                             {dataImportEnabled && (
-                                <Button variant="outline" onClick={() => router.push('/hr/attendance/raw')} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5">
+                                <Button variant="outline" onClick={() => router.push('/hr/attendance/raw')} className="h-9 px-4 font-bold text-[0.625rem] uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5">
                                     <Upload className="mr-2 h-3.5 w-3.5" /> Import Data
                                 </Button>
                             )}
@@ -415,16 +415,16 @@ export default function UnifiedWorkforcePage() {
                 className="w-full"
             >
                 <TabsList className="bg-muted/50 p-1 h-12 w-full justify-start gap-4 mb-6 border overflow-x-auto no-scrollbar print:hidden">
-                    <TabsTrigger value="payroll" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <TabsTrigger value="payroll" className="gap-2 px-8 py-2 font-black text-[0.625rem] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
                         <FileText className="h-4 w-4"/>
                         Financial Registry
                     </TabsTrigger>
-                    <TabsTrigger value="bonus" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <TabsTrigger value="bonus" className="gap-2 px-8 py-2 font-black text-[0.625rem] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
                         <Award className="h-4 w-4"/>
                         Bonus Evaluation
                     </TabsTrigger>
                     {payrollAnalyticsEnabled && (
-                        <TabsTrigger value="analytics" className="gap-2 px-8 py-2 font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                        <TabsTrigger value="analytics" className="gap-2 px-8 py-2 font-black text-[0.625rem] uppercase tracking-widest data-[state=active]:bg-card data-[state=active]:shadow-sm">
                             <BarChart2 className="h-4 w-4"/>
                             Behavioral Intelligence
                         </TabsTrigger>
@@ -479,16 +479,16 @@ export default function UnifiedWorkforcePage() {
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-2 py-2">
-                                <p className="text-[10px] font-black uppercase text-muted-foreground">This will:</p>
+                                <p className="text-[0.625rem] font-black uppercase text-muted-foreground">This will:</p>
                                 {pendingCalcAction === 'recalculate' ? (
-                                    <ul className="text-[11px] text-foreground space-y-1.5 list-disc pl-4">
+                                    <ul className="text-[0.6875rem] text-foreground space-y-1.5 list-disc pl-4">
                                         <li>Recompute basic pay, overtime pay, and bonus accrual for every employee with attendance this month, from that attendance.</li>
                                         <li>Apply the wage, TDS, and bonus eligibility rules configured under HR Setting.</li>
                                         <li>Overwrite any existing Payroll and Bonus Ledger records for this month.</li>
                                         <li>Re-lock this period automatically once finished.</li>
                                     </ul>
                                 ) : (
-                                    <ul className="text-[11px] text-foreground space-y-1.5 list-disc pl-4">
+                                    <ul className="text-[0.6875rem] text-foreground space-y-1.5 list-disc pl-4">
                                         <li>Show this month's behavioral analytics if they already exist, or generate them once if they don't.</li>
                                         <li>Only ever touch this month - no other period's analytics are affected.</li>
                                         <li>Re-lock this period automatically once finished.</li>

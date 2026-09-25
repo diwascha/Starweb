@@ -186,17 +186,17 @@ export function LedgerToolbar<T,>({ title, subtitle, columns, rows, filenamePref
                             <div className="text-center border-b-2 border-neutral-800 pb-3 mb-4">
                                 <h1 className="text-xl font-bold uppercase tracking-wide">{fleetProfile.nameEn}</h1>
                                 {fleetProfile.nameNp && <p className="font-semibold text-sm">{fleetProfile.nameNp}</p>}
-                                <p className="text-[11px] text-neutral-500">{fleetProfile.address}</p>
-                                <p className="text-[11px] text-neutral-500">PAN: {fleetProfile.pan}</p>
-                                <h2 className="mt-2 text-[13px] font-bold tracking-[2px]">{title.toUpperCase()}</h2>
+                                <p className="text-[0.6875rem] text-neutral-500">{fleetProfile.address}</p>
+                                <p className="text-[0.6875rem] text-neutral-500">PAN: {fleetProfile.pan}</p>
+                                <h2 className="mt-2 text-[0.8125rem] font-bold tracking-[2px]">{title.toUpperCase()}</h2>
                             </div>
 
-                            <div className="flex justify-between mb-4 text-[10px] text-neutral-500">
+                            <div className="flex justify-between mb-4 text-[0.625rem] text-neutral-500">
                                 <p>{subtitle}</p>
                                 <p>Generated: {format(new Date(), 'PPP p')}</p>
                             </div>
 
-                            <table className="w-full border-collapse text-[10px]">
+                            <table className="w-full border-collapse text-[0.625rem]">
                                 <thead>
                                     <tr className="bg-neutral-100">
                                         {columns.map((c, i) => (
@@ -218,7 +218,7 @@ export function LedgerToolbar<T,>({ title, subtitle, columns, rows, filenamePref
                                 </tbody>
                             </table>
 
-                            <div className="mt-8 pt-2 border-t border-dashed border-neutral-300 text-center text-[9px] text-neutral-400">
+                            <div className="mt-8 pt-2 border-t border-dashed border-neutral-300 text-center text-[0.5625rem] text-neutral-400">
                                 <p>System-generated statement for {fleetProfile.nameEn}. No signature required.</p>
                             </div>
                         </div>

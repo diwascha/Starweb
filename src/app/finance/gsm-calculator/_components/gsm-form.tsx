@@ -236,11 +236,11 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                     </CardHeader>
                     <CardContent className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Report No.</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Report No.</Label>
                             <Input value={voucherNo} readOnly className="bg-muted/50 font-mono text-sm h-10" />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Verification Date</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Verification Date</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className="w-full justify-start h-10 font-normal">
@@ -254,7 +254,7 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                             </Popover>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Supplier / Vendor</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Supplier / Vendor</Label>
                             <Popover open={isVendorPopoverOpen} onOpenChange={setIsVendorPopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" role="combobox" className="w-full justify-between h-10">
@@ -302,9 +302,9 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                             <Calculator className="h-4 w-4" />
                             Measurement Analysis
                         </CardTitle>
-                        <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground mt-1">Multi-reel grammage verification grid.</CardDescription>
+                        <CardDescription className="text-[0.625rem] uppercase font-bold text-muted-foreground mt-1">Multi-reel grammage verification grid.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleAddRow} className="h-8 font-black text-[10px] uppercase tracking-widest bg-card border-primary/20 text-primary hover:bg-primary/5">
+                    <Button variant="outline" size="sm" onClick={handleAddRow} className="h-8 font-black text-[0.625rem] uppercase tracking-widest bg-card border-primary/20 text-primary hover:bg-primary/5">
                         <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Reel Row
                     </Button>
                 </CardHeader>
@@ -312,11 +312,11 @@ export function GsmGeneratorForm({ reportToEdit, onSaveSuccess }: GsmGeneratorFo
                     <Table>
                         <TableHeader className="bg-muted/50 border-b">
                             <TableRow className="hover:bg-transparent h-10">
-                                <TableHead className="pl-6 font-bold uppercase text-[9px]">Reel / Batch #</TableHead>
-                                <TableHead className="font-bold uppercase text-[9px] text-center">Weight (g)</TableHead>
-                                <TableHead className="font-bold uppercase text-[9px] text-center">Length ({unit})</TableHead>
-                                <TableHead className="font-bold uppercase text-[9px] text-center">Width ({unit})</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] text-primary text-center bg-primary/5 border-x">Result (GSM)</TableHead>
+                                <TableHead className="pl-6 font-bold uppercase text-[0.5625rem]">Reel / Batch #</TableHead>
+                                <TableHead className="font-bold uppercase text-[0.5625rem] text-center">Weight (g)</TableHead>
+                                <TableHead className="font-bold uppercase text-[0.5625rem] text-center">Length ({unit})</TableHead>
+                                <TableHead className="font-bold uppercase text-[0.5625rem] text-center">Width ({unit})</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] text-primary text-center bg-primary/5 border-x">Result (GSM)</TableHead>
                                 <TableHead className="w-10 pr-6"></TableHead>
                             </TableRow>
                         </TableHeader>

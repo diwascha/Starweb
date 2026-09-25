@@ -318,31 +318,31 @@ export function QuotationPreviewDialog({
 
                 <div className="grid grid-cols-2 text-sm mb-8">
                     <div>
-                        <p className="text-muted-foreground uppercase font-bold text-[10px] mb-1">To,</p>
+                        <p className="text-muted-foreground uppercase font-bold text-[0.625rem] mb-1">To,</p>
                         <p className="font-bold text-lg">{party?.name}</p>
                         <p className="whitespace-pre-line text-muted-foreground text-xs leading-relaxed">{party?.address}</p>
                         {party?.panNumber && <p className="text-xs font-mono mt-1">PAN/VAT: {party.panNumber}</p>}
                     </div>
                     <div className="text-right space-y-0.5">
-                        <p className="text-sm"><span className="font-semibold text-muted-foreground uppercase text-[10px]">Ref No:</span> {reportNumber}</p>
-                        <p className="text-sm"><span className="font-semibold text-muted-foreground uppercase text-[10px]">Date:</span> {toNepaliDate(reportDate.toISOString())} BS</p>
-                        <p className="text-[10px] text-muted-foreground">({format(reportDate, "MMMM do, yyyy")})</p>
+                        <p className="text-sm"><span className="font-semibold text-muted-foreground uppercase text-[0.625rem]">Ref No:</span> {reportNumber}</p>
+                        <p className="text-sm"><span className="font-semibold text-muted-foreground uppercase text-[0.625rem]">Date:</span> {toNepaliDate(reportDate.toISOString())} BS</p>
+                        <p className="text-[0.625rem] text-muted-foreground">({format(reportDate, "MMMM do, yyyy")})</p>
                     </div>
                 </div>
 
-                <Table className="text-[11px] border border-black/10">
+                <Table className="text-[0.6875rem] border border-black/10">
                     <TableHeader className="bg-muted/5">
                         <TableRow className="hover:bg-transparent border-black/10">
                             {options.showSN && <TableHead className="w-12 text-black font-bold">S.N.</TableHead>}
                             <TableHead className="text-black font-bold">Particulars / Specifications</TableHead>
                             {options.showSpecs && (
                                 <TableHead className="text-black font-bold text-center">
-                                    Size (mm) <br/> <span className="text-[9px] font-normal opacity-70">Ply</span>
+                                    Size (mm) <br/> <span className="text-[0.5625rem] font-normal opacity-70">Ply</span>
                                 </TableHead>
                             )}
                             {options.showComposition && (
                                 <TableHead className="text-black font-bold text-center">
-                                    Composition <br/> <span className="text-[9px] font-normal opacity-70">Grade</span>
+                                    Composition <br/> <span className="text-[0.5625rem] font-normal opacity-70">Grade</span>
                                 </TableHead>
                             )}
                             {options.showGross && <TableHead className="text-black font-bold text-center">Gross</TableHead>}
@@ -359,13 +359,13 @@ export function QuotationPreviewDialog({
                                     {options.showSpecs && (
                                         <TableCell className="text-center leading-tight">
                                             {item.l}x{item.b}x{item.h} <br/>
-                                            <span className="text-[10px] text-muted-foreground font-normal">{item.ply} Ply</span>
+                                            <span className="text-[0.625rem] text-muted-foreground font-normal">{item.ply} Ply</span>
                                         </TableCell>
                                     )}
                                     {options.showComposition && (
                                         <TableCell className="text-center leading-tight">
                                             {getGsmComposition(item)} <br/>
-                                            <span className="text-[10px] text-muted-foreground font-normal">{item.paperType} {normalizeBF(item.paperBf)}</span>
+                                            <span className="text-[0.625rem] text-muted-foreground font-normal">{item.paperType} {normalizeBF(item.paperBf)}</span>
                                         </TableCell>
                                     )}
                                     {options.showGross && <TableCell className="text-center">Rs. {formatAmount2(item.calculated?.paperCost)}</TableCell>}
@@ -380,13 +380,13 @@ export function QuotationPreviewDialog({
                                     {options.showSpecs && (
                                         <TableCell className="text-center text-muted-foreground leading-tight">
                                             {acc.l}x{acc.b}x{acc.h} <br/>
-                                            <span className="text-[9px] font-normal">{acc.ply} Ply</span>
+                                            <span className="text-[0.5625rem] font-normal">{acc.ply} Ply</span>
                                         </TableCell>
                                     )}
                                     {options.showComposition && (
                                         <TableCell className="text-center text-muted-foreground leading-tight">
                                             {getGsmComposition(acc)} <br/>
-                                            <span className="text-[9px] font-normal">{acc.paperType} {normalizeBF(acc.paperBf)}</span>
+                                            <span className="text-[0.5625rem] font-normal">{acc.paperType} {normalizeBF(acc.paperBf)}</span>
                                         </TableCell>
                                     )}
                                     {options.showGross && <TableCell className="text-center text-muted-foreground">Rs. {formatAmount2(acc.calculated?.paperCost)}</TableCell>}
@@ -413,18 +413,18 @@ export function QuotationPreviewDialog({
                 {options.showTerms && selectedTerms.length > 0 && (
                     <div className="mt-16">
                         <p className="font-bold underline text-xs mb-4 uppercase tracking-wide">Terms & Conditions:</p>
-                        <ol className="list-decimal pl-5 text-[10px] space-y-2 text-muted-foreground">
+                        <ol className="list-decimal pl-5 text-[0.625rem] space-y-2 text-muted-foreground">
                             {selectedTerms.map((term, i) => <li key={i}>{term.text}</li>)}
                         </ol>
                     </div>
                 )}
                 
                 <footer className="mt-20 pt-10 border-t border-dashed border-black/10 flex justify-between items-end">
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-[0.625rem] text-muted-foreground">
                         <p>Valid for: 15 Days</p>
                         <p>Issued by: {companyProfile.nameEn}</p>
                     </div>
-                    <div className="text-right text-[9px] text-muted-foreground italic max-w-[200px] leading-tight">
+                    <div className="text-right text-[0.5625rem] text-muted-foreground italic max-w-[200px] leading-tight">
                         <p>This is a computer-generated document and does not require a physical signature.</p>
                     </div>
                 </footer>

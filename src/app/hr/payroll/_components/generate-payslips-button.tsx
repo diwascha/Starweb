@@ -99,7 +99,7 @@ export default function GeneratePayslipsButton({ payrollRecords, employees, bsYe
 
     return (
         <>
-            <Button variant="outline" size="sm" onClick={openSelectDialog} disabled={isGenerating || payrollRecords.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest border-border">
+            <Button variant="outline" size="sm" onClick={openSelectDialog} disabled={isGenerating || payrollRecords.length === 0} className="h-8 font-black text-[0.625rem] uppercase tracking-widest border-border">
                 {isGenerating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileStack className="mr-1.5 h-3.5 w-3.5" />}
                 Generate Payslips
             </Button>
@@ -114,10 +114,10 @@ export default function GeneratePayslipsButton({ payrollRecords, employees, bsYe
                     </DialogHeader>
                     <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase text-muted-foreground">{selectedIds.length} of {sortedRecords.length} selected</span>
+                            <span className="text-[0.625rem] font-black uppercase text-muted-foreground">{selectedIds.length} of {sortedRecords.length} selected</span>
                             <div className="flex items-center gap-3">
-                                <button type="button" className="text-[10px] font-bold uppercase text-primary hover:underline" onClick={() => setSelectedIds(sortedRecords.map(p => p.employeeId))}>Select All</button>
-                                <button type="button" className="text-[10px] font-bold uppercase text-muted-foreground hover:underline" onClick={() => setSelectedIds([])}>Clear</button>
+                                <button type="button" className="text-[0.625rem] font-bold uppercase text-primary hover:underline" onClick={() => setSelectedIds(sortedRecords.map(p => p.employeeId))}>Select All</button>
+                                <button type="button" className="text-[0.625rem] font-bold uppercase text-muted-foreground hover:underline" onClick={() => setSelectedIds([])}>Clear</button>
                             </div>
                         </div>
                         <ScrollArea className="h-[280px] rounded-lg border p-2">

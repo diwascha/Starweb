@@ -133,15 +133,15 @@ export default function GsmCalculatorPage() {
 
             <Tabs value={activeTab} onValueChange={(v) => { if(v === 'calculator' && activeTab !== 'calculator') setReportToEdit(null); setActiveTab(v); }} className="w-full">
                 <TabsList className="bg-muted/50 p-1 mb-6">
-                    <TabsTrigger value="calculator" className="gap-2 px-8 py-2 font-bold text-[10px] uppercase tracking-widest">
+                    <TabsTrigger value="calculator" className="gap-2 px-8 py-2 font-bold text-[0.625rem] uppercase tracking-widest">
                         <Calculator className="h-3.5 w-3.5"/>
                         Verification Form
                     </TabsTrigger>
-                    <TabsTrigger value="history" className="gap-2 px-8 py-2 font-bold text-[10px] uppercase tracking-widest">
+                    <TabsTrigger value="history" className="gap-2 px-8 py-2 font-bold text-[0.625rem] uppercase tracking-widest">
                         <HistoryIcon className="h-3.5 w-3.5"/>
                         Archived Logs
                     </TabsTrigger>
-                    <TabsTrigger value="strength" className="gap-2 px-8 py-2 font-bold text-[10px] uppercase tracking-widest">
+                    <TabsTrigger value="strength" className="gap-2 px-8 py-2 font-bold text-[0.625rem] uppercase tracking-widest">
                         <Layers className="h-3.5 w-3.5"/>
                         Board Strength
                     </TabsTrigger>
@@ -186,18 +186,18 @@ export default function GsmCalculatorPage() {
                     <DialogFooter className="p-6 border-t bg-card shrink-0">
                         <div className="flex w-full justify-between items-center">
                             <div className="flex gap-2">
-                                <Button variant="outline" onClick={handleExportImage} disabled={isExporting} className="h-10 px-6 font-bold text-[10px] uppercase tracking-widest">
+                                <Button variant="outline" onClick={handleExportImage} disabled={isExporting} className="h-10 px-6 font-bold text-[0.625rem] uppercase tracking-widest">
                                     {isExporting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <ImageIcon className="mr-2 h-3.5 w-3.5"/>}
                                     Export Image
                                 </Button>
-                                <Button variant="outline" onClick={handleExportPdf} disabled={isExporting} className="h-10 px-6 font-bold text-[10px] uppercase tracking-widest">
+                                <Button variant="outline" onClick={handleExportPdf} disabled={isExporting} className="h-10 px-6 font-bold text-[0.625rem] uppercase tracking-widest">
                                     {isExporting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <FileDown className="mr-2 h-3.5 w-3.5 text-red-600"/>}
                                     Export PDF
                                 </Button>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="secondary" onClick={() => setIsPrintDialogOpen(false)} className="h-10 px-6 font-bold uppercase text-[10px]">Close Preview</Button>
-                                <Button onClick={executePrint} className="h-10 px-10 font-black uppercase text-[10px] shadow-lg">
+                                <Button variant="secondary" onClick={() => setIsPrintDialogOpen(false)} className="h-10 px-6 font-bold uppercase text-[0.625rem]">Close Preview</Button>
+                                <Button onClick={executePrint} className="h-10 px-10 font-black uppercase text-[0.625rem] shadow-lg">
                                     <Printer className="mr-2 h-4 w-4" /> Direct Print
                                 </Button>
                             </div>

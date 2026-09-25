@@ -67,7 +67,7 @@ export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps
             <CardHeader className="py-4 border-b bg-muted/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <CardTitle className="text-sm font-black uppercase">Report History</CardTitle>
-                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Historical log of paper quality verifications.</CardDescription>
+                    <CardDescription className="text-[0.625rem] uppercase font-bold text-muted-foreground">Historical log of paper quality verifications.</CardDescription>
                 </div>
                 <div className="relative w-full sm:w-64">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -126,7 +126,7 @@ export function GsmReportsList({ reports, onPrint, onEdit }: GsmReportsListProps
             </CardContent>
             {totalPages > 1 && (
                 <CardFooter className="py-3 border-t bg-muted/5 flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Page {currentPage} of {totalPages}</span>
+                    <span className="text-[0.625rem] font-bold text-muted-foreground uppercase">Page {currentPage} of {totalPages}</span>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}><ChevronLeft className="h-4 w-4"/></Button>
                         <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}><ChevronRight className="h-4 w-4"/></Button>

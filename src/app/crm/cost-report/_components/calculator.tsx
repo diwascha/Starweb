@@ -111,9 +111,9 @@ const SetupSection = ({ title, summary, open, onToggle, action, children }: {
                 <button type="button" className="flex-1 min-w-0 flex items-center gap-1.5 px-2.5 py-2 xl:px-0 xl:py-0 text-left hover:bg-muted/40 xl:hover:bg-transparent transition-colors">
                     {open ? <ChevronUp className="h-3 w-3 shrink-0 text-muted-foreground" />
                           : <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />}
-                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground shrink-0">{title}</span>
+                    <span className="text-[0.625rem] font-black uppercase tracking-wider text-muted-foreground shrink-0">{title}</span>
                     {!open && summary && (
-                        <span className="text-[10px] text-muted-foreground/80 truncate">&middot; {summary}</span>
+                        <span className="text-[0.625rem] text-muted-foreground/80 truncate">&middot; {summary}</span>
                     )}
                 </button>
             </CollapsibleTrigger>
@@ -234,7 +234,7 @@ const CostingTableRow = React.memo(({
                         </DropdownMenu>
                         <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" className="h-8 text-[11px] w-full px-2 justify-between font-normal bg-card">
+                                <Button variant="outline" role="combobox" className="h-8 text-[0.6875rem] w-full px-2 justify-between font-normal bg-card">
                                     <span className="truncate">{item.productId ? products.find((p: Product) => p.id === item.productId)?.name : "Select product..."}</span>
                                     <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                                 </Button>
@@ -246,7 +246,7 @@ const CostingTableRow = React.memo(({
                                         <CommandEmpty>
                                             <Button 
                                                 variant="ghost" 
-                                                className="w-full justify-start text-[11px] text-primary font-bold" 
+                                                className="w-full justify-start text-[0.6875rem] text-primary font-bold" 
                                                 onClick={() => {
                                                     onOpenQuickAddProduct(index, quickProductSearch);
                                                     setIsProductPopoverOpen(false);
@@ -264,7 +264,7 @@ const CostingTableRow = React.memo(({
                                                         onItemChange(index, 'productId', p.id);
                                                         setIsProductPopoverOpen(false);
                                                     }}
-                                                    className="text-[11px]"
+                                                    className="text-[0.6875rem]"
                                                 >
                                                     <Check className={cn("mr-2 h-3.5 w-3.5", item.productId === p.id ? "opacity-100" : "opacity-0")} />
                                                     {p.name}
@@ -278,7 +278,7 @@ const CostingTableRow = React.memo(({
                     </div>
                 </TableCell>
                 {collapsedGroups.spec ? (
-                    <TableCell className="border-x px-2 text-[10px] leading-tight text-center bg-blue-50/20">
+                    <TableCell className="border-x px-2 text-[0.625rem] leading-tight text-center bg-blue-50/20">
                         <div className="font-bold tabular-nums">{item.l || 0}&times;{item.b || 0}&times;{item.h || 0}</div>
                         <div className="text-muted-foreground tabular-nums">{item.noOfPcs || 0} pcs &middot; {item.ply || 0} ply &middot; {fluteSummary(item)}</div>
                         <div className="text-muted-foreground truncate">{(item.paperType || '').charAt(0) || '-'} {normalizeBF(item.paperBf) || '-'} &middot; {item.wastagePercent || 0}%</div>
@@ -302,13 +302,13 @@ const CostingTableRow = React.memo(({
                             type="button"
                             onClick={() => onOpenDesigner(index)}
                             title="Mixed flute construction - open the Box Designer to edit each layer"
-                            className="h-8 w-full text-[11px] font-bold rounded border bg-card hover:bg-muted/40"
+                            className="h-8 w-full text-[0.6875rem] font-bold rounded border bg-card hover:bg-muted/40"
                         >
                             {fluteSummary(item)}
                         </button>
                     ) : (
                         <Select value={fluteSummary(item) === '-' ? DEFAULT_FLUTE_PROFILE : fluteSummary(item)} onValueChange={v => onFluteChange(index, v)}>
-                            <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
+                            <SelectTrigger className="h-8 px-2 text-[0.625rem]"><SelectValue/></SelectTrigger>
                             <SelectContent>
                                 {Object.entries(FLUTE_PROFILES).map(([k, p]) => (
                                     <SelectItem key={k} value={k}>{k} &middot; {p.takeUp}x</SelectItem>
@@ -319,7 +319,7 @@ const CostingTableRow = React.memo(({
                 </TableCell>
                 <TableCell className="border-r px-2">
                     <Select value={item.paperType ?? 'KRAFT'} onValueChange={v => onItemChange(index, 'paperType', v)}>
-                        <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
+                        <SelectTrigger className="h-8 px-2 text-[0.625rem]"><SelectValue/></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="KRAFT">Kraft (K)</SelectItem>
                             <SelectItem value="VIRGIN">Virgin (V)</SelectItem>
@@ -336,7 +336,7 @@ const CostingTableRow = React.memo(({
                 <TableCell className="border-r p-0"><Input type="number" value={item.wastagePercent ?? ''} onChange={e => onItemChange(index, 'wastagePercent', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                 </>)}
                 {collapsedGroups.gsm ? (
-                    <TableCell className="border-x px-2 text-[10px] text-center bg-orange-50/20 tabular-nums font-medium">
+                    <TableCell className="border-x px-2 text-[0.625rem] text-center bg-orange-50/20 tabular-nums font-medium">
                         {gsmSummary(item)}
                     </TableCell>
                 ) : (<>
@@ -363,7 +363,7 @@ const CostingTableRow = React.memo(({
                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm ?? ''} onChange={e => onItemChange(index, 'bottomGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                 </>)}
                 {collapsedGroups.calc ? (
-                    <TableCell className={cn("border-x px-2 text-[10px] leading-tight text-center", calc.rateMissing ? "bg-destructive/10 text-destructive" : "bg-primary/5")} title={calc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
+                    <TableCell className={cn("border-x px-2 text-[0.625rem] leading-tight text-center", calc.rateMissing ? "bg-destructive/10 text-destructive" : "bg-primary/5")} title={calc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
                         <div className="text-muted-foreground tabular-nums">{(calc.totalGsm || 0).toFixed(0)} gsm &middot; {(calc.paperWeight || 0).toFixed(0)} g</div>
                         <div className="font-bold tabular-nums">Rs. {formatAmount2((calc.paperCost || 0))}{calc.rateMissing && ' ⚠'}</div>
                         {(calc.transportCost || 0) > 0 && <div className="text-muted-foreground tabular-nums">+ Rs. {formatAmount2((calc.transportCost || 0))} tpt</div>}
@@ -391,10 +391,10 @@ const CostingTableRow = React.memo(({
                     <TableRow key={acc.id} className="h-12 bg-muted/10 border-b border-dashed">
                         <TableCell></TableCell>
                         <TableCell className="border-r pr-2 pl-6">
-                            <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-8 text-[10px] w-full bg-card font-semibold" placeholder="Accessory name..." />
+                            <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-8 text-[0.625rem] w-full bg-card font-semibold" placeholder="Accessory name..." />
                         </TableCell>
                         {collapsedGroups.spec ? (
-                            <TableCell className="border-x px-2 text-[10px] leading-tight text-center text-muted-foreground">
+                            <TableCell className="border-x px-2 text-[0.625rem] leading-tight text-center text-muted-foreground">
                                 <div className="tabular-nums">{acc.l || 0}&times;{acc.b || 0}</div>
                                 <div className="tabular-nums">{acc.noOfPcs || 0} pcs &middot; {acc.ply || 0} ply &middot; {acc.fluteType || DEFAULT_FLUTE_PROFILE}</div>
                             </TableCell>
@@ -411,7 +411,7 @@ const CostingTableRow = React.memo(({
                         </TableCell>
                         <TableCell className="border-r px-2">
                             <Select value={acc.fluteType || DEFAULT_FLUTE_PROFILE} onValueChange={v => onItemChange(index, 'acc_fluteType', { aIdx, v })}>
-                                <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
+                                <SelectTrigger className="h-8 px-2 text-[0.625rem]"><SelectValue/></SelectTrigger>
                                 <SelectContent>
                                     {Object.keys(FLUTE_PROFILES).map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
                                 </SelectContent>
@@ -419,7 +419,7 @@ const CostingTableRow = React.memo(({
                         </TableCell>
                         <TableCell className="border-r px-2">
                             <Select value={acc.paperType ?? 'KRAFT'} onValueChange={v => onItemChange(index, 'acc_paperType', { aIdx, v })}>
-                                <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
+                                <SelectTrigger className="h-8 px-2 text-[0.625rem]"><SelectValue/></SelectTrigger>
                                 <SelectContent><SelectItem value="KRAFT">Kraft (K)</SelectItem><SelectItem value="VIRGIN">Virgin (V)</SelectItem></SelectContent>
                             </Select>
                         </TableCell>
@@ -432,7 +432,7 @@ const CostingTableRow = React.memo(({
                         <TableCell className="border-r p-0"><Input type="number" value={acc.wastagePercent ?? ''} onChange={e => onItemChange(index, 'acc_wastagePercent', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                         </>)}
                         {collapsedGroups.gsm ? (
-                            <TableCell className="border-x px-2 text-[10px] text-center text-muted-foreground tabular-nums">
+                            <TableCell className="border-x px-2 text-[0.625rem] text-center text-muted-foreground tabular-nums">
                                 {gsmSummary(acc)}
                             </TableCell>
                         ) : (<>
@@ -459,7 +459,7 @@ const CostingTableRow = React.memo(({
                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => onItemChange(index, 'acc_bottomGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                         </>)}
                         {collapsedGroups.calc ? (
-                            <TableCell className={cn("border-x px-2 text-[10px] leading-tight text-center", accCalc.rateMissing && "bg-destructive/10 text-destructive")} title={accCalc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
+                            <TableCell className={cn("border-x px-2 text-[0.625rem] leading-tight text-center", accCalc.rateMissing && "bg-destructive/10 text-destructive")} title={accCalc.rateMissing ? "No global rate configured for this paper type/BF - costed at Rs. 0" : undefined}>
                                 <div className="text-muted-foreground tabular-nums">{(accCalc.totalGsm || 0).toFixed(0)} gsm &middot; {(accCalc.paperWeight || 0).toFixed(0)} g</div>
                                 <div className="tabular-nums">Rs. {formatAmount2((accCalc.paperCost || 0))}{accCalc.rateMissing && ' ⚠'}</div>
                             </TableCell>
@@ -542,7 +542,7 @@ const CostingItemCard = React.memo(({
                                     <CommandEmpty>
                                         <Button
                                             variant="ghost"
-                                            className="w-full justify-start text-[11px] text-primary font-bold"
+                                            className="w-full justify-start text-[0.6875rem] text-primary font-bold"
                                             onClick={() => {
                                                 onOpenQuickAddProduct(index, quickProductSearch);
                                                 setIsProductPopoverOpen(false);
@@ -560,7 +560,7 @@ const CostingItemCard = React.memo(({
                                                     onItemChange(index, 'productId', p.id);
                                                     setIsProductPopoverOpen(false);
                                                 }}
-                                                className="text-[11px]"
+                                                className="text-[0.6875rem]"
                                             >
                                                 <Check className={cn("mr-2 h-3.5 w-3.5", item.productId === p.id ? "opacity-100" : "opacity-0")} />
                                                 {p.name}
@@ -579,26 +579,26 @@ const CostingItemCard = React.memo(({
                 </div>
 
                 {isIncomplete && (
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-700"><AlertTriangle className="h-3 w-3" /> Missing Length/Width - this row costs Rs. 0 until filled in</div>
+                    <div className="flex items-center gap-1.5 text-[0.625rem] font-bold text-amber-700"><AlertTriangle className="h-3 w-3" /> Missing Length/Width - this row costs Rs. 0 until filled in</div>
                 )}
 
                 <div className="grid grid-cols-4 gap-2">
-                    <div><Label className="text-[9px]">L (mm)</Label><Input type="number" value={item.l ?? ''} onChange={e => onItemChange(index, 'l', e.target.value)} className="h-9 text-xs" /></div>
-                    <div><Label className="text-[9px]">B (mm)</Label><Input type="number" value={item.b ?? ''} onChange={e => onItemChange(index, 'b', e.target.value)} className="h-9 text-xs" /></div>
-                    <div><Label className="text-[9px]">H (mm)</Label><Input type="number" value={item.h ?? ''} onChange={e => onItemChange(index, 'h', e.target.value)} className="h-9 text-xs" /></div>
-                    <div><Label className="text-[9px]">Pcs</Label><Input type="number" value={item.noOfPcs ?? ''} onChange={e => onItemChange(index, 'noOfPcs', e.target.value)} className="h-9 text-xs" /></div>
+                    <div><Label className="text-[0.5625rem]">L (mm)</Label><Input type="number" value={item.l ?? ''} onChange={e => onItemChange(index, 'l', e.target.value)} className="h-9 text-xs" /></div>
+                    <div><Label className="text-[0.5625rem]">B (mm)</Label><Input type="number" value={item.b ?? ''} onChange={e => onItemChange(index, 'b', e.target.value)} className="h-9 text-xs" /></div>
+                    <div><Label className="text-[0.5625rem]">H (mm)</Label><Input type="number" value={item.h ?? ''} onChange={e => onItemChange(index, 'h', e.target.value)} className="h-9 text-xs" /></div>
+                    <div><Label className="text-[0.5625rem]">Pcs</Label><Input type="number" value={item.noOfPcs ?? ''} onChange={e => onItemChange(index, 'noOfPcs', e.target.value)} className="h-9 text-xs" /></div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
                     <div>
-                        <Label className="text-[9px]">Ply</Label>
+                        <Label className="text-[0.5625rem]">Ply</Label>
                         <Select value={item.ply ?? '3'} onValueChange={v => onItemChange(index, 'ply', v)}>
                             <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
                             <SelectContent>{PLY_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
                         </Select>
                     </div>
                     <div>
-                        <Label className="text-[9px]">Flute</Label>
+                        <Label className="text-[0.5625rem]">Flute</Label>
                         {hasMixedFlutes(item) ? (
                             <button type="button" onClick={() => onOpenDesigner(index)}
                                 title="Mixed flute construction - edit per layer in the Box Designer"
@@ -617,7 +617,7 @@ const CostingItemCard = React.memo(({
                         )}
                     </div>
                     <div>
-                        <Label className="text-[9px]">Paper Type</Label>
+                        <Label className="text-[0.5625rem]">Paper Type</Label>
                         <Select value={item.paperType ?? 'KRAFT'} onValueChange={v => onItemChange(index, 'paperType', v)}>
                             <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
                             <SelectContent>
@@ -631,18 +631,18 @@ const CostingItemCard = React.memo(({
 
                 <div className="grid grid-cols-2 gap-2">
                     <div>
-                        <Label className="text-[9px]">Paper BF</Label>
+                        <Label className="text-[0.5625rem]">Paper BF</Label>
                         <Select value={normalizeBF(item.paperBf)} onValueChange={v => onItemChange(index, 'paperBf', v)}>
                             <SelectTrigger className="h-9 text-xs"><SelectValue/></SelectTrigger>
                             <SelectContent>{BF_OPTIONS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                         </Select>
                     </div>
-                    <div><Label className="text-[9px]">Waste %</Label><Input type="number" value={item.wastagePercent ?? ''} onChange={e => onItemChange(index, 'wastagePercent', e.target.value)} className="h-9 text-xs" /></div>
+                    <div><Label className="text-[0.5625rem]">Waste %</Label><Input type="number" value={item.wastagePercent ?? ''} onChange={e => onItemChange(index, 'wastagePercent', e.target.value)} className="h-9 text-xs" /></div>
                 </div>
 
                 <Collapsible open={isGsmOpen} onOpenChange={setIsGsmOpen}>
                     <CollapsibleTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-full h-8 text-[10px] font-bold uppercase tracking-wide justify-between">
+                        <Button variant="outline" size="sm" className="w-full h-8 text-[0.625rem] font-bold uppercase tracking-wide justify-between">
                             <span className="flex items-center gap-1.5"><Layers className="h-3 w-3" /> GSM Composition</span>
                             {isGsmOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                         </Button>
@@ -650,7 +650,7 @@ const CostingItemCard = React.memo(({
                     <CollapsibleContent className="pt-2">
                         <div className="grid grid-cols-3 gap-2 p-2 bg-orange-50/30 rounded border">
                             {gsmFieldDefs.map(({ key, label }) => (
-                                <div key={key}><Label className="text-[9px]">{label}</Label><Input type="number" value={(item as any)[key] ?? ''} onChange={e => onItemChange(index, key, e.target.value)} className="h-8 text-xs" /></div>
+                                <div key={key}><Label className="text-[0.5625rem]">{label}</Label><Input type="number" value={(item as any)[key] ?? ''} onChange={e => onItemChange(index, key, e.target.value)} className="h-8 text-xs" /></div>
                             ))}
                         </div>
                     </CollapsibleContent>
@@ -658,11 +658,11 @@ const CostingItemCard = React.memo(({
 
                 {(item.accessories || []).length > 0 && (
                     <div className="space-y-1.5 pt-1">
-                        <Label className="text-[9px] text-muted-foreground uppercase">Accessories</Label>
+                        <Label className="text-[0.5625rem] text-muted-foreground uppercase">Accessories</Label>
                         {item.accessories.map((acc: any, aIdx: number) => (
                             <div key={acc.id} className="flex items-center gap-2 bg-muted/20 rounded px-2 py-1.5">
-                                <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-7 text-[10px] flex-1 bg-card" placeholder="Accessory name..." />
-                                <span className="text-[10px] font-bold shrink-0">Rs. {(acc.calculated?.paperCost || 0).toFixed(0)}</span>
+                                <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-7 text-[0.625rem] flex-1 bg-card" placeholder="Accessory name..." />
+                                <span className="text-[0.625rem] font-bold shrink-0">Rs. {(acc.calculated?.paperCost || 0).toFixed(0)}</span>
                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 shrink-0" onClick={() => onItemChange(index, 'acc_remove', aIdx)}><X className="h-3 w-3" /></Button>
                             </div>
                         ))}
@@ -670,7 +670,7 @@ const CostingItemCard = React.memo(({
                 )}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="w-full h-7 text-[10px] font-bold text-muted-foreground"><Plus className="mr-1 h-3 w-3" /> Add Accessory</Button>
+                        <Button variant="ghost" size="sm" className="w-full h-7 text-[0.625rem] font-bold text-muted-foreground"><Plus className="mr-1 h-3 w-3" /> Add Accessory</Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                         <DropdownMenuItem onSelect={() => onAddAccessory(index, 'Honeycomb Partition')}>Honeycomb Partition</DropdownMenuItem>
@@ -681,12 +681,12 @@ const CostingItemCard = React.memo(({
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t text-[10px] text-muted-foreground">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t text-[0.625rem] text-muted-foreground">
                     <span>T.GSM: <span className="font-bold text-foreground">{(calc.totalGsm || 0).toFixed(0)}</span></span>
                     <span className="text-right">Weight: <span className="font-bold text-foreground">{(calc.paperWeight || 0).toFixed(1)}g</span></span>
                 </div>
                 <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Row Total</span>
+                    <span className="text-[0.625rem] font-bold uppercase text-muted-foreground">Row Total</span>
                     <span className="text-base font-black text-primary">Rs. {formatAmount2(totalRowCost)}</span>
                 </div>
             </CardContent>
@@ -1374,7 +1374,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                     <div className="flex items-center gap-2 min-w-0">
                         <span className="text-xs font-bold uppercase tracking-wider shrink-0">Quotation Setup</span>
                         {!isSetupOpen && (
-                            <span className="text-[11px] text-muted-foreground truncate">
+                            <span className="text-[0.6875rem] text-muted-foreground truncate">
                                 &bull; {selectedPartyId ? (parties.find(p => p.id === selectedPartyId)?.name || 'Client selected') : 'No client selected'}
                                 {' '}&bull; {reportNumber}
                                 {validUntilBS && ` · Valid until ${validUntilBS}`}
@@ -1394,11 +1394,11 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                             summary={`${parties.find(p => p.id === selectedPartyId)?.name || 'No client'} · ${reportNumber || '-'}`}
                         >
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1"><Label className="text-[10px] font-bold">Report No</Label><Input value={reportNumber} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
-                                <div className="space-y-1"><Label className="text-[10px] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><CalendarIcon className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
+                                <div className="space-y-1"><Label className="text-[0.625rem] font-bold">Report No</Label><Input value={reportNumber} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
+                                <div className="space-y-1"><Label className="text-[0.625rem] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><CalendarIcon className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-[10px] font-bold">Party Name</Label>
+                                <Label className="text-[0.625rem] font-bold">Party Name</Label>
                                 <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" role="combobox" className="w-full justify-between h-8 text-xs">
@@ -1430,9 +1430,9 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                             </div>
                             {selectedPartyId && (
                                 <div className="space-y-1 animate-in fade-in slide-in-from-top-1">
-                                    <Label className="text-[10px] font-bold flex items-center gap-1.5 text-primary"><Target className="h-3 w-3"/> Link to Opportunity</Label>
+                                    <Label className="text-[0.625rem] font-bold flex items-center gap-1.5 text-primary"><Target className="h-3 w-3"/> Link to Opportunity</Label>
                                     <Select value={selectedDealId} onValueChange={setSelectedDealId}>
-                                        <SelectTrigger className="h-8 text-[10px] bg-card border-primary/20"><SelectValue placeholder="Associate with deal..." /></SelectTrigger>
+                                        <SelectTrigger className="h-8 text-[0.625rem] bg-card border-primary/20"><SelectValue placeholder="Associate with deal..." /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="none">Standalone (No Deal)</SelectItem>
                                             {filteredDeals.map(d => (
@@ -1452,18 +1452,18 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                         >
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2 col-span-2">
-                                    <Label className="text-[10px] font-bold text-muted-foreground">KRAFT BF RATES</Label>
+                                    <Label className="text-[0.625rem] font-bold text-muted-foreground">KRAFT BF RATES</Label>
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                         {BF_OPTIONS.map(bf => (
                                             <div key={bf} className="flex items-center gap-2">
-                                                <span className="text-[10px] w-12 font-medium">{bf}</span>
+                                                <span className="text-[0.625rem] w-12 font-medium">{bf}</span>
                                                 <Input type="number" className="h-8 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => setKraftPaperCosts({...kraftPaperCosts, [normalizeBF(bf)]: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                                <div className="space-y-1"><Label className="text-[10px] font-bold">Virgin Rate</Label><Input type="number" value={virginPaperCost ?? ''} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
-                                <div className="space-y-1"><Label className="text-[10px] font-bold">Conversion</Label><Input type="number" value={conversionCost ?? ''} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
+                                <div className="space-y-1"><Label className="text-[0.625rem] font-bold">Virgin Rate</Label><Input type="number" value={virginPaperCost ?? ''} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
+                                <div className="space-y-1"><Label className="text-[0.625rem] font-bold">Conversion</Label><Input type="number" value={conversionCost ?? ''} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
                             </div>
                             {/* Kraft is priced by BF and virgin has one rate. Anything
                                 else a layer might be made of needs its own rate, or
@@ -1474,7 +1474,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                 costs it with the factors it was quoted at. */}
                             <div>
                                 <div className="flex items-center justify-between gap-2">
-                                    <Label className="text-[10px] font-bold text-muted-foreground">Flute Take-up Factor</Label>
+                                    <Label className="text-[0.625rem] font-bold text-muted-foreground">Flute Take-up Factor</Label>
                                     <Button
                                         type="button"
                                         variant="ghost"
@@ -1483,7 +1483,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                         title={takeUpLocked
                                             ? 'Locked - these are mill parameters and rarely change. Click to edit.'
                                             : 'Unlocked - click to lock again. Locks itself next time the page opens.'}
-                                        className={cn('h-6 px-1.5 text-[9px] font-black uppercase tracking-widest gap-1',
+                                        className={cn('h-6 px-1.5 text-[0.5625rem] font-black uppercase tracking-widest gap-1',
                                             takeUpLocked ? 'text-muted-foreground' : 'text-amber-600')}
                                     >
                                         {takeUpLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
@@ -1496,7 +1496,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                         const isOverridden = effective !== p.takeUp;
                                         return (
                                             <div key={k} className="flex items-center gap-1">
-                                                <span className={cn("text-[10px] w-10 shrink-0 font-bold", isOverridden && "text-primary")} title={`${p.label} - default ${p.takeUp}x`}>
+                                                <span className={cn("text-[0.625rem] w-10 shrink-0 font-bold", isOverridden && "text-primary")} title={`${p.label} - default ${p.takeUp}x`}>
                                                     {k}{isOverridden && '*'}
                                                 </span>
                                                 <Input
@@ -1521,7 +1521,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                         );
                                     })}
                                 </div>
-                                <p className="text-[9px] text-muted-foreground mt-1 leading-tight">
+                                <p className="text-[0.5625rem] text-muted-foreground mt-1 leading-tight">
                                     {takeUpLocked
                                         ? 'Unlock to change. Blank uses the default.'
                                         : 'Blank uses the default. Saved with this quotation, so changing it later won\u2019t reprice past reports.'}
@@ -1529,11 +1529,11 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                             </div>
 
                             <div>
-                                <Label className="text-[10px] font-bold text-muted-foreground">Other Papers (NPR/kg)</Label>
+                                <Label className="text-[0.625rem] font-bold text-muted-foreground">Other Papers (NPR/kg)</Label>
                                 <div className="grid grid-cols-2 gap-1.5 mt-1">
                                     {PAPER_MATERIALS.filter(m => m.rateKey === 'other').map(m => (
                                         <div key={m.value} className="flex items-center gap-1">
-                                            <span className="text-[10px] w-16 shrink-0 truncate" title={m.label}>{m.label}</span>
+                                            <span className="text-[0.625rem] w-16 shrink-0 truncate" title={m.label}>{m.label}</span>
                                             <Input
                                                 type="number"
                                                 className="h-8 text-xs px-2"
@@ -1554,8 +1554,8 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                             action={<Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsManageTermsDialogOpen(true)} title="Manage Master Terms"><Settings2 className="h-3 w-3" /></Button>}
                         >
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1"><Label className="text-[10px] font-bold">Transport</Label><Input type="number" value={transportCost ?? ''} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
-                                <div className="space-y-1"><Label className="text-[10px] font-bold">Basis</Label>
+                                <div className="space-y-1"><Label className="text-[0.625rem] font-bold">Transport</Label><Input type="number" value={transportCost ?? ''} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
+                                <div className="space-y-1"><Label className="text-[0.625rem] font-bold">Basis</Label>
                                     <Select value={transportCostType} onValueChange={(v: any) => setTransportCostType(v)}>
                                         <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
                                         <SelectContent><SelectItem value="Per Piece">Per Piece</SelectItem><SelectItem value="Per Consignment">Lump Sum</SelectItem></SelectContent>
@@ -1563,7 +1563,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                 </div>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Selected Terms</Label>
+                                <Label className="text-[0.625rem] font-bold text-muted-foreground uppercase">Selected Terms</Label>
                                 <ScrollArea className="h-20 border rounded bg-muted/5 p-2">
                                     {termsAndConditions.length > 0 ? (
                                         <div className="space-y-1.5">
@@ -1578,12 +1578,12 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                                                             setTermsAndConditions(next);
                                                         }}
                                                     />
-                                                    <Label htmlFor={`term-${idx}`} className="text-[10px] leading-tight cursor-pointer line-clamp-1">{term.text}</Label>
+                                                    <Label htmlFor={`term-${idx}`} className="text-[0.625rem] leading-tight cursor-pointer line-clamp-1">{term.text}</Label>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-[9px] text-center text-muted-foreground py-4 italic">No terms in master list.</p>
+                                        <p className="text-[0.5625rem] text-center text-muted-foreground py-4 italic">No terms in master list.</p>
                                     )}
                                     <ScrollBar orientation="vertical" />
                                 </ScrollArea>
@@ -1597,15 +1597,15 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                             summary={`${status}${validUntilBS ? ` · valid ${validUntilBS}` : ''}`}
                         >
                             <div className="space-y-1">
-                                <Label className="text-[10px] font-bold">Valid Until (BS)</Label>
+                                <Label className="text-[0.625rem] font-bold">Valid Until (BS)</Label>
                                 <Input value={validUntilBS} onChange={e => setValidUntilBS(e.target.value)} placeholder="YYYY/MM/DD" className="h-8 text-xs font-mono" />
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-[10px] font-bold">Internal Remarks</Label>
+                                <Label className="text-[0.625rem] font-bold">Internal Remarks</Label>
                                 <Textarea value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Pricing logic, discounts..." className="min-h-[60px] text-xs resize-none" />
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-[10px] font-bold">Lifecycle Status</Label>
+                                <Label className="text-[0.625rem] font-bold">Lifecycle Status</Label>
                                 <Select value={status} onValueChange={(v: QuotationStatus) => setStatus(v)}>
                                     <SelectTrigger className="h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
                                     <SelectContent>
@@ -1628,7 +1628,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
             <CardHeader className="flex flex-col sm:flex-row sm:items-center gap-3 bg-muted/20 py-4 px-4 sm:px-6">
                 <div>
                     <CardTitle className="text-base font-bold">Costing Dashboard</CardTitle>
-                    <CardDescription className="text-[11px]">Technical analysis and weight calculation</CardDescription>
+                    <CardDescription className="text-[0.6875rem]">Technical analysis and weight calculation</CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:ml-auto">
                     <Button size="sm" variant="outline" onClick={handleAddItem} className="h-9"><Plus className="mr-2 h-4 w-4" /> Add Item</Button>
@@ -1674,7 +1674,7 @@ export function CostReportCalculator({ reportToEdit, initialPartyId, onSaveSucce
                 {/* Desktop: Excel-style row-per-item table */}
                 <ScrollArea className="w-full hidden md:block">
                     <div className="p-4">
-                        <Table className="text-[11px] border border-collapse" style={{ minWidth: `${tableMinWidth}px` }}>
+                        <Table className="text-[0.6875rem] border border-collapse" style={{ minWidth: `${tableMinWidth}px` }}>
                             <TableHeader className="bg-muted/80">
                                 <TableRow>
                                     <th rowSpan={2} className="w-10 px-2"></th>

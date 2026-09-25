@@ -442,7 +442,7 @@ export default function MachineLogsPage() {
                     <Button
                         variant="outline"
                         onClick={() => { setBulkClockSelectedIds([]); setBulkClockActionType('IN'); setBulkClockTime('08:00'); setIsBulkClockOpen(true); }}
-                        className="h-10 uppercase text-[10px] font-black tracking-widest border-border"
+                        className="h-10 uppercase text-[0.625rem] font-black tracking-widest border-border"
                     >
                         <Users className="mr-2 h-3.5 w-3.5"/> Bulk Clock In/Out
                     </Button>
@@ -456,7 +456,7 @@ export default function MachineLogsPage() {
                     <Button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isImporting}
-                        className="h-10 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20"
+                        className="h-10 font-black text-[0.625rem] uppercase tracking-widest shadow-lg shadow-primary/20"
                     >
                         {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
                         {isImporting ? 'Reading...' : 'Import Machine Logs'}
@@ -472,11 +472,11 @@ export default function MachineLogsPage() {
                             <div className="space-y-1">
                                 <p className="text-sm font-black uppercase text-foreground">Synchronizing Cloud Registry</p>
                                 {currentSheetLabel && (
-                                    <p className="text-[10px] text-primary font-black uppercase tracking-widest">
+                                    <p className="text-[0.625rem] text-primary font-black uppercase tracking-widest">
                                         {currentSheetLabel}
                                     </p>
                                 )}
-                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                                <p className="text-[0.625rem] text-muted-foreground font-bold uppercase tracking-widest">
                                     Processing row {importProgress} of {importTotal}...
                                 </p>
                             </div>
@@ -487,7 +487,7 @@ export default function MachineLogsPage() {
 
             <div className="flex flex-col md:flex-row gap-4 items-end bg-muted/20 p-4 rounded-xl border border-dashed">
                 <div className="space-y-1.5 w-[120px]">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Year (BS)</Label>
+                    <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Year (BS)</Label>
                     <Select value={filterYear} onValueChange={setFilterYear}>
                         <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -496,7 +496,7 @@ export default function MachineLogsPage() {
                     </Select>
                 </div>
                 <div className="space-y-1.5 w-[140px]">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Month (BS)</Label>
+                    <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Month (BS)</Label>
                     <Select value={filterMonth} onValueChange={setFilterMonth}>
                         <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -506,7 +506,7 @@ export default function MachineLogsPage() {
                     </Select>
                 </div>
                 <div className="space-y-1.5 flex-1 min-w-[200px]">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Search Employee / Sheet</Label>
+                    <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Search Employee / Sheet</Label>
                     <div className="relative">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
@@ -519,13 +519,13 @@ export default function MachineLogsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     {(searchQuery || filterMonth !== 'All' || filterEmployeeNames.length > 0 || filterStatuses.length > 0) && (
-                        <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setFilterMonth('All'); setFilterEmployeeNames([]); setFilterStatuses([]); }} className="h-9 text-muted-foreground uppercase font-black text-[9px]">
+                        <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setFilterMonth('All'); setFilterEmployeeNames([]); setFilterStatuses([]); }} className="h-9 text-muted-foreground uppercase font-black text-[0.5625rem]">
                             <FilterX className="mr-1.5 h-3.5 w-3.5" /> Reset
                         </Button>
                     )}
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" disabled={isPurging} className="h-9 text-destructive hover:bg-red-50 uppercase font-black text-[9px]">
+                            <Button variant="ghost" size="sm" disabled={isPurging} className="h-9 text-destructive hover:bg-red-50 uppercase font-black text-[0.5625rem]">
                                 {isPurging ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />} Purge Logs
                             </Button>
                         </AlertDialogTrigger>
@@ -546,7 +546,7 @@ export default function MachineLogsPage() {
             <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-0">
                     <ScrollArea className="w-full">
-                        <Table className="text-[13px]">
+                        <Table className="text-[0.8125rem]">
                             <TableHeader className="bg-muted/50">
                                 <TableRow className="hover:bg-transparent h-11">
                                     <SortableHead label="Work Date" sortKey="date" sortConfig={sortConfig} onSort={requestSort} className="pl-6 text-left" />
@@ -569,7 +569,7 @@ export default function MachineLogsPage() {
                                         <TableCell className="pl-6">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-foreground">{log.dateBS}</span>
-                                                <span className="text-[10px] text-muted-foreground tabular-nums uppercase">{format(new Date(log.date), 'dd MMM yyyy')}</span>
+                                                <span className="text-[0.625rem] text-muted-foreground tabular-nums uppercase">{format(new Date(log.date), 'dd MMM yyyy')}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="font-black text-blue-900 uppercase tracking-tight">{log.employeeName}</TableCell>
@@ -582,7 +582,7 @@ export default function MachineLogsPage() {
                                                         type="button"
                                                         onClick={() => emp && handleOpenShiftAssign(emp.id)}
                                                         disabled={!emp}
-                                                        className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        className="inline-flex items-center gap-1 text-[0.625rem] font-bold uppercase text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                                         title={emp ? 'Reschedule shift' : 'No matching employee record'}
                                                     >
                                                         <CalendarClock className="h-3 w-3" />
@@ -603,7 +603,7 @@ export default function MachineLogsPage() {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <Badge variant="outline" className={cn(
-                                                "text-[9px] uppercase font-black px-2 h-4",
+                                                "text-[0.5625rem] uppercase font-black px-2 h-4",
                                                 log.statusFromMachine === 'Absent' ? "text-red-500 border-red-100 bg-red-50" : "text-emerald-600 border-emerald-100 bg-emerald-50"
                                             )}>
                                                 {log.statusFromMachine}
@@ -611,8 +611,8 @@ export default function MachineLogsPage() {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex flex-col text-right">
-                                                <span className="text-[10px] font-bold text-foreground truncate max-w-[120px]">{log.sourceSheet}</span>
-                                                <span className="text-[8px] text-muted-foreground uppercase">{format(new Date(log.importedAt), 'p, PP')}</span>
+                                                <span className="text-[0.625rem] font-bold text-foreground truncate max-w-[120px]">{log.sourceSheet}</span>
+                                                <span className="text-[0.5rem] text-muted-foreground uppercase">{format(new Date(log.importedAt), 'p, PP')}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right pr-6">
@@ -627,7 +627,7 @@ export default function MachineLogsPage() {
                                         <TableCell colSpan={8} className="h-60 text-center text-muted-foreground italic">
                                             <div className="flex flex-col items-center gap-3">
                                                 <HardDrive className="h-10 w-10 opacity-10"/>
-                                                <p>No raw machine data found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Click 'Import Machine Logs' to ingest biometric data.</span></p>
+                                                <p>No raw machine data found for this period.<br/><span className="text-[0.625rem] font-bold uppercase not-italic">Click 'Import Machine Logs' to ingest biometric data.</span></p>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -639,7 +639,7 @@ export default function MachineLogsPage() {
                 </CardContent>
                 {totalPages > 1 && (
                     <CardFooter className="py-3 border-t bg-muted/5 flex justify-between items-center px-6">
-                         <div className="text-[10px] font-bold text-muted-foreground uppercase">Page {currentPage} of {totalPages}</div>
+                         <div className="text-[0.625rem] font-bold text-muted-foreground uppercase">Page {currentPage} of {totalPages}</div>
                          <div className="flex gap-2">
                             <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}><ChevronLeft className="h-4 w-4"/></Button>
                             <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}><ChevronRight className="h-4 w-4"/></Button>
@@ -658,7 +658,7 @@ export default function MachineLogsPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-1.5 py-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Assigned Shift</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Assigned Shift</Label>
                         <Select value={shiftAssignShiftId} onValueChange={setShiftAssignShiftId}>
                             <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -671,7 +671,7 @@ export default function MachineLogsPage() {
                             </SelectContent>
                         </Select>
                         {shifts.length === 0 && (
-                            <p className="text-[10px] text-muted-foreground italic pt-1">No shifts defined yet. Define shift patterns from HR Settings → Shift Pattern Registry.</p>
+                            <p className="text-[0.625rem] text-muted-foreground italic pt-1">No shifts defined yet. Define shift patterns from HR Settings → Shift Pattern Registry.</p>
                         )}
                     </div>
                     <DialogFooter>
@@ -692,11 +692,11 @@ export default function MachineLogsPage() {
                     </DialogHeader>
                     <div className="grid grid-cols-3 gap-4 py-2">
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Date</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Date</Label>
                             <Input type="date" value={bulkClockDate} onChange={e => setBulkClockDate(e.target.value)} className="h-10" />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Action</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Action</Label>
                             <Select value={bulkClockActionType} onValueChange={(v) => setBulkClockActionType(v as 'IN' | 'OUT')}>
                                 <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -706,21 +706,21 @@ export default function MachineLogsPage() {
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Time</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Time</Label>
                             <Input type="time" value={bulkClockTime} onChange={e => setBulkClockTime(e.target.value)} className="h-10" />
                         </div>
                     </div>
                     <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Select Employees ({bulkClockSelectedIds.length} selected)</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Select Employees ({bulkClockSelectedIds.length} selected)</Label>
                             <div className="flex items-center gap-3">
-                                <button type="button" className="text-[10px] font-bold uppercase text-primary hover:underline" onClick={() => setBulkClockSelectedIds(activeEmployeesForBulkClock.map(e => e.id))}>Select All</button>
-                                <button type="button" className="text-[10px] font-bold uppercase text-muted-foreground hover:underline" onClick={() => setBulkClockSelectedIds([])}>Clear</button>
+                                <button type="button" className="text-[0.625rem] font-bold uppercase text-primary hover:underline" onClick={() => setBulkClockSelectedIds(activeEmployeesForBulkClock.map(e => e.id))}>Select All</button>
+                                <button type="button" className="text-[0.625rem] font-bold uppercase text-muted-foreground hover:underline" onClick={() => setBulkClockSelectedIds([])}>Clear</button>
                             </div>
                         </div>
                         <ScrollArea className="h-[240px] rounded-lg border p-2">
                             {activeEmployeesForBulkClock.length === 0 ? (
-                                <p className="text-[10px] text-muted-foreground italic px-2 py-2">No active employees found.</p>
+                                <p className="text-[0.625rem] text-muted-foreground italic px-2 py-2">No active employees found.</p>
                             ) : activeEmployeesForBulkClock.map(e => {
                                 const shift = e.shiftId ? shiftMap.get(e.shiftId) : undefined;
                                 return (
@@ -729,7 +729,7 @@ export default function MachineLogsPage() {
                                             <Checkbox checked={bulkClockSelectedIds.includes(e.id)} onCheckedChange={() => toggleBulkClockEmployee(e.id)} />
                                             <span className="font-bold">{e.name}</span>
                                         </span>
-                                        <span className="text-[10px] text-muted-foreground uppercase">{shift ? shift.name : 'Standard'}</span>
+                                        <span className="text-[0.625rem] text-muted-foreground uppercase">{shift ? shift.name : 'Standard'}</span>
                                     </label>
                                 );
                             })}

@@ -49,14 +49,14 @@ export function MultiSelectFilter({ label, options, selected, onChange, classNam
             </PopoverTrigger>
             <PopoverContent className="w-[220px] p-0" align="start" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-3 py-2 border-b">
-                    <span className="text-[10px] font-black uppercase text-muted-foreground">{label}</span>
+                    <span className="text-[0.625rem] font-black uppercase text-muted-foreground">{label}</span>
                     {selected.length > 0 && (
-                        <button onClick={() => onChange([])} className="text-[9px] font-bold uppercase text-primary hover:underline">Clear</button>
+                        <button onClick={() => onChange([])} className="text-[0.5625rem] font-bold uppercase text-primary hover:underline">Clear</button>
                     )}
                 </div>
                 <ScrollArea className="max-h-[240px] p-2">
                     {options.length === 0 ? (
-                        <p className="text-[10px] text-muted-foreground italic px-2 py-2">No options.</p>
+                        <p className="text-[0.625rem] text-muted-foreground italic px-2 py-2">No options.</p>
                     ) : options.map(opt => (
                         <label key={opt.value} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-xs">
                             <Checkbox checked={selected.includes(opt.value)} onCheckedChange={() => toggle(opt.value)} />

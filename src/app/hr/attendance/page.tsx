@@ -708,25 +708,25 @@ export default function AttendanceRegistryPage() {
                 </div>
             </div>
             <div className="flex items-center gap-2">
-                <Button variant="outline" asChild className="h-10 uppercase text-[10px] font-black tracking-widest">
+                <Button variant="outline" asChild className="h-10 uppercase text-[0.625rem] font-black tracking-widest">
                     <Link href="/hr/attendance/raw"><HardDrive className="mr-2 h-3.5 w-3.5"/> View Raw Dump</Link>
                 </Button>
                 <LedgerImportButton />
                 <Button
                     variant="outline"
                     onClick={() => { setBulkClockSelectedIds([]); setBulkClockActionType('IN'); setBulkClockTime('08:00'); setIsBulkClockOpen(true); }}
-                    className="h-10 uppercase text-[10px] font-black tracking-widest border-border"
+                    className="h-10 uppercase text-[0.625rem] font-black tracking-widest border-border"
                 >
                     <Users className="mr-2 h-3.5 w-3.5"/> Bulk Clock In/Out
                 </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="h-10 uppercase text-[10px] font-black tracking-widest border-border">
+                        <Button variant="outline" className="h-10 uppercase text-[0.625rem] font-black tracking-widest border-border">
                             <Columns3 className="mr-2 h-3.5 w-3.5"/> Columns
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuLabel className="text-[10px] font-black uppercase text-muted-foreground">Toggle Columns</DropdownMenuLabel>
+                        <DropdownMenuLabel className="text-[0.625rem] font-black uppercase text-muted-foreground">Toggle Columns</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         {COLUMN_LABELS.map(c => (
                             <DropdownMenuCheckboxItem
@@ -746,7 +746,7 @@ export default function AttendanceRegistryPage() {
                     onClick={() => setBulkLockConfirm('lock')}
                     disabled={isTogglingLock}
                     title={`Lock Attendance and Payroll for every month of FY ${formatFiscalYear(fyStart)}.`}
-                    className="h-10 uppercase text-[10px] font-black tracking-widest border-border text-amber-700 hover:bg-amber-50"
+                    className="h-10 uppercase text-[0.625rem] font-black tracking-widest border-border text-amber-700 hover:bg-amber-50"
                 >
                     {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Lock className="mr-2 h-3.5 w-3.5" />}
                     Lock All
@@ -756,7 +756,7 @@ export default function AttendanceRegistryPage() {
                     onClick={() => setBulkLockConfirm('unlock')}
                     disabled={isTogglingLock}
                     title={`Unlock Attendance and Payroll for every month of FY ${formatFiscalYear(fyStart)}.`}
-                    className="h-10 uppercase text-[10px] font-black tracking-widest border-border text-muted-foreground hover:text-primary"
+                    className="h-10 uppercase text-[0.625rem] font-black tracking-widest border-border text-muted-foreground hover:text-primary"
                 >
                     {isTogglingLock ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <LockOpen className="mr-2 h-3.5 w-3.5" />}
                     Unlock All
@@ -771,7 +771,7 @@ export default function AttendanceRegistryPage() {
                         setCalcResult(null);
                         setIsCalcDialogOpen(true);
                     }}
-                    className="h-10 uppercase text-[10px] font-black tracking-widest shadow-lg shadow-primary/20"
+                    className="h-10 uppercase text-[0.625rem] font-black tracking-widest shadow-lg shadow-primary/20"
                 >
                     <Calculator className="mr-2 h-3.5 w-3.5"/> Run Calculation
                 </Button>
@@ -780,14 +780,14 @@ export default function AttendanceRegistryPage() {
 
         <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-end bg-muted/20 p-4 rounded-xl border border-dashed">
             <div className="space-y-1.5 w-[110px]">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
+                <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
                 <Select value={selectedFiscalYear} onValueChange={setSelectedFiscalYear}>
                     <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                     <SelectContent>{availableFiscalYears.map(y => <SelectItem key={`fy-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}</SelectContent>
                 </Select>
             </div>
             <div className="space-y-1.5 w-[150px]">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month</Label>
+                <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Month</Label>
                 <Select value={selectedFyMonthIndex} onValueChange={setSelectedFyMonthIndex}>
                     <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -797,7 +797,7 @@ export default function AttendanceRegistryPage() {
                 </Select>
             </div>
             <div className="space-y-1.5 w-[180px]">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employee</Label>
+                <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Employee</Label>
                 <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}>
                     <SelectTrigger className="h-9 bg-card"><SelectValue placeholder="All Employees" /></SelectTrigger>
                     <SelectContent>
@@ -807,7 +807,7 @@ export default function AttendanceRegistryPage() {
                 </Select>
             </div>
             <div className="space-y-1.5 w-[150px]">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Status</Label>
+                <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Status</Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                     <SelectTrigger className="h-9 bg-card"><SelectValue placeholder="All Status" /></SelectTrigger>
                     <SelectContent>
@@ -824,7 +824,7 @@ export default function AttendanceRegistryPage() {
                 </Select>
             </div>
             <div className="space-y-1.5 flex-1 min-w-[150px]">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Quick Search</Label>
+                <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Quick Search</Label>
                 <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search employee..." className="pl-8 h-9 text-xs bg-card" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
@@ -833,7 +833,7 @@ export default function AttendanceRegistryPage() {
             
             <div className="flex items-center gap-2">
                 {(hasActiveColumnFilters || searchQuery !== '') && (
-                    <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-9 text-muted-foreground hover:text-foreground font-bold uppercase text-[10px]">
+                    <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-9 text-muted-foreground hover:text-foreground font-bold uppercase text-[0.625rem]">
                         <FilterX className="mr-1.5 h-3.5 w-3.5" /> Reset
                     </Button>
                 )}
@@ -844,7 +844,7 @@ export default function AttendanceRegistryPage() {
                             size="sm"
                             disabled={selectedFyMonthIndex === 'All' || isCurrentViewLocked}
                             title={selectedFyMonthIndex === 'All' ? 'Select a specific month to clear.' : isCurrentViewLocked ? 'Unlock this period before deleting it.' : undefined}
-                            className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]"
+                            className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[0.625rem]"
                         >
                             <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete Records
                         </Button>
@@ -866,7 +866,7 @@ export default function AttendanceRegistryPage() {
                             variant="ghost"
                             size="sm"
                             disabled={isDeletingFiscalYear}
-                            className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[10px]"
+                            className="h-9 text-destructive hover:bg-red-50 font-bold uppercase text-[0.625rem]"
                         >
                             {isDeletingFiscalYear ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />} Clear Fiscal Year
                         </Button>
@@ -1002,7 +1002,7 @@ export default function AttendanceRegistryPage() {
                                 const highlight = getAttendanceRowHighlight(r);
                                 return (
                                 <TableRow key={r.id} className="h-14 hover:bg-muted/20 transition-colors" style={highlight ? { backgroundColor: highlight } : undefined}>
-                                    <TableCell className="pl-6 font-mono text-muted-foreground text-[10px]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
+                                    <TableCell className="pl-6 font-mono text-muted-foreground text-[0.625rem]">{formatDate(new Date(r.date), 'yyyy-MM-dd')}</TableCell>
                                     {isColVisible('bsDate') && <TableCell className="font-mono font-bold text-blue-900">{r.dateBS}</TableCell>}
                                     <TableCell className="font-black text-foreground">{r.employeeName}</TableCell>
                                     {isColVisible('shift') && (
@@ -1015,7 +1015,7 @@ export default function AttendanceRegistryPage() {
                                                         type="button"
                                                         onClick={() => emp && handleOpenShiftAssign(emp.id)}
                                                         disabled={!emp}
-                                                        className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        className="inline-flex items-center gap-1 text-[0.625rem] font-bold uppercase text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                                         title={emp ? 'Reschedule shift' : 'Employee not found'}
                                                     >
                                                         <CalendarClock className="h-3 w-3" />
@@ -1025,15 +1025,15 @@ export default function AttendanceRegistryPage() {
                                             })()}
                                         </TableCell>
                                     )}
-                                    {isColVisible('weekday') && <TableCell className="text-[10px] text-muted-foreground uppercase">{r.weekday || '—'}</TableCell>}
-                                    {isColVisible('onDuty') && <TableCell className="text-center text-[11px] text-muted-foreground">{formatTimeForDisplay(r.onDuty)}</TableCell>}
-                                    {isColVisible('offDuty') && <TableCell className="text-center text-[11px] text-muted-foreground">{formatTimeForDisplay(r.offDuty)}</TableCell>}
+                                    {isColVisible('weekday') && <TableCell className="text-[0.625rem] text-muted-foreground uppercase">{r.weekday || '—'}</TableCell>}
+                                    {isColVisible('onDuty') && <TableCell className="text-center text-[0.6875rem] text-muted-foreground">{formatTimeForDisplay(r.onDuty)}</TableCell>}
+                                    {isColVisible('offDuty') && <TableCell className="text-center text-[0.6875rem] text-muted-foreground">{formatTimeForDisplay(r.offDuty)}</TableCell>}
                                     {isColVisible('clockIn') && <TableCell className="text-center font-medium text-blue-800">{formatTimeForDisplay(r.clockIn)}</TableCell>}
                                     {isColVisible('clockOut') && <TableCell className="text-center font-medium text-blue-800">{formatTimeForDisplay(r.clockOut)}</TableCell>}
                                     {isColVisible('absent') && (
                                         <TableCell className="text-center">
                                             <div className="flex flex-col items-center gap-1">
-                                                {r.absent ? <Badge variant="destructive" className="text-[9px] font-black uppercase h-5">Yes</Badge> : <span className="text-[10px] text-muted-foreground">No</span>}
+                                                {r.absent ? <Badge variant="destructive" className="text-[0.5625rem] font-black uppercase h-5">Yes</Badge> : <span className="text-[0.625rem] text-muted-foreground">No</span>}
                                                 {(() => {
                                                     const rawLog = r.sourceLogId ? rawLogMap.get(r.sourceLogId) : undefined;
                                                     const otOk = Boolean(rawLog?.otApproved);
@@ -1044,14 +1044,14 @@ export default function AttendanceRegistryPage() {
                                                             disabled={!r.sourceLogId}
                                                         >
                                                             <SelectTrigger
-                                                                className={cn("h-5 w-[74px] text-[8px] font-black uppercase tracking-wide px-1.5", otOk ? "border-emerald-300 text-emerald-700 bg-emerald-50" : "text-muted-foreground")}
+                                                                className={cn("h-5 w-[74px] text-[0.5rem] font-black uppercase tracking-wide px-1.5", otOk ? "border-emerald-300 text-emerald-700 bg-emerald-50" : "text-muted-foreground")}
                                                                 title="OT Ok: pays for time worked outside the assigned shift window"
                                                             >
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="no" className="text-[10px] font-bold uppercase">OT Ok: No</SelectItem>
-                                                                <SelectItem value="yes" className="text-[10px] font-bold uppercase">OT Ok: Yes</SelectItem>
+                                                                <SelectItem value="no" className="text-[0.625rem] font-bold uppercase">OT Ok: No</SelectItem>
+                                                                <SelectItem value="yes" className="text-[0.625rem] font-bold uppercase">OT Ok: Yes</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     );
@@ -1059,14 +1059,14 @@ export default function AttendanceRegistryPage() {
                                             </div>
                                         </TableCell>
                                     )}
-                                    {isColVisible('gTime') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.gTime != null ? r.gTime.toFixed(2) : '—'}</TableCell>}
-                                    {isColVisible('breakHours') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.breakHours != null ? r.breakHours.toFixed(2) : '—'}</TableCell>}
-                                    {isColVisible('gHours') && <TableCell className="text-right text-[11px] text-muted-foreground">{r.gHours != null ? r.gHours.toFixed(2) : '—'}</TableCell>}
+                                    {isColVisible('gTime') && <TableCell className="text-right text-[0.6875rem] text-muted-foreground">{r.gTime != null ? r.gTime.toFixed(2) : '—'}</TableCell>}
+                                    {isColVisible('breakHours') && <TableCell className="text-right text-[0.6875rem] text-muted-foreground">{r.breakHours != null ? r.breakHours.toFixed(2) : '—'}</TableCell>}
+                                    {isColVisible('gHours') && <TableCell className="text-right text-[0.6875rem] text-muted-foreground">{r.gHours != null ? r.gHours.toFixed(2) : '—'}</TableCell>}
                                     <TableCell className="text-right font-bold text-foreground">{r.grossHours.toFixed(1)}</TableCell>
                                     {isColVisible('overtime') && <TableCell className="text-right font-black text-emerald-700">+{r.overtimeHours.toFixed(1)}</TableCell>}
                                     {isColVisible('regularHours') && <TableCell className="text-right font-black text-foreground">{r.regularHours.toFixed(1)}</TableCell>}
                                     {isColVisible('remarks') && (
-                                        <TableCell className="max-w-[200px] truncate text-[10px] text-muted-foreground italic" title={getDisplayRemark(r)}>
+                                        <TableCell className="max-w-[200px] truncate text-[0.625rem] text-muted-foreground italic" title={getDisplayRemark(r)}>
                                             {getDisplayRemark(r)}
                                         </TableCell>
                                     )}
@@ -1081,7 +1081,7 @@ export default function AttendanceRegistryPage() {
                                     <TableCell colSpan={visibleColCount} className="h-60 text-center text-muted-foreground italic">
                                         <div className="flex flex-col items-center gap-3">
                                             <AlertCircle className="h-10 w-10 opacity-10"/>
-                                            <p>No processed records found for this period.<br/><span className="text-[10px] font-bold uppercase not-italic">Run the Hourly Calculation Logic to generate records.</span></p>
+                                            <p>No processed records found for this period.<br/><span className="text-[0.625rem] font-bold uppercase not-italic">Run the Hourly Calculation Logic to generate records.</span></p>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -1156,11 +1156,11 @@ export default function AttendanceRegistryPage() {
                     <DialogDescription>Adjust work hours for {editingRecord?.employeeName}.</DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-5 py-4">
-                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Clock In</Label><Input value={editForm.clockIn} onChange={e => setEditForm({...editForm, clockIn: e.target.value})} className="h-10" /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Clock Out</Label><Input value={editForm.clockOut} onChange={e => setEditForm({...editForm, clockOut: e.target.value})} className="h-10" /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Regular Hrs</Label><Input type="number" step="0.5" value={editForm.regularHours} onChange={e => setEditForm({...editForm, regularHours: Number(e.target.value)})} className="h-10 font-bold" /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Overtime Hrs</Label><Input type="number" step="0.5" value={editForm.overtimeHours} onChange={e => setEditForm({...editForm, overtimeHours: Number(e.target.value)})} className="h-10 font-bold text-emerald-600" /></div>
-                    <div className="space-y-1.5 col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Status / Remarks</Label><Input value={editForm.remarks} onChange={e => setEditForm({...editForm, remarks: e.target.value})} className="h-10" /></div>
+                    <div className="space-y-1.5"><Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Clock In</Label><Input value={editForm.clockIn} onChange={e => setEditForm({...editForm, clockIn: e.target.value})} className="h-10" /></div>
+                    <div className="space-y-1.5"><Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Clock Out</Label><Input value={editForm.clockOut} onChange={e => setEditForm({...editForm, clockOut: e.target.value})} className="h-10" /></div>
+                    <div className="space-y-1.5"><Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Regular Hrs</Label><Input type="number" step="0.5" value={editForm.regularHours} onChange={e => setEditForm({...editForm, regularHours: Number(e.target.value)})} className="h-10 font-bold" /></div>
+                    <div className="space-y-1.5"><Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Overtime Hrs</Label><Input type="number" step="0.5" value={editForm.overtimeHours} onChange={e => setEditForm({...editForm, overtimeHours: Number(e.target.value)})} className="h-10 font-bold text-emerald-600" /></div>
+                    <div className="space-y-1.5 col-span-2"><Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Status / Remarks</Label><Input value={editForm.remarks} onChange={e => setEditForm({...editForm, remarks: e.target.value})} className="h-10" /></div>
                 </div>
                 <DialogFooter><Button onClick={handleSaveEdit} className="w-full h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">Confirm Adjustments</Button></DialogFooter>
             </DialogContent>
@@ -1178,8 +1178,8 @@ export default function AttendanceRegistryPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-2 py-2">
-                            <p className="text-[10px] font-black uppercase text-muted-foreground">This will:</p>
-                            <ul className="text-[11px] text-foreground space-y-1.5 list-disc pl-4">
+                            <p className="text-[0.625rem] font-black uppercase text-muted-foreground">This will:</p>
+                            <ul className="text-[0.6875rem] text-foreground space-y-1.5 list-disc pl-4">
                                 <li>Delete and regenerate every processed attendance record for this month from the raw machine logs.</li>
                                 <li>Apply each employee's assigned shift, break window, and the HR Operational Rules configured under HR Setting.</li>
                                 <li>Overwrite any manual tweaks made to this month's attendance records.</li>
@@ -1189,7 +1189,7 @@ export default function AttendanceRegistryPage() {
                         {isCalcTargetLocked && (
                             <div className="p-3 rounded-lg bg-amber-50 border-2 border-amber-200 flex gap-3">
                                 <Lock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                                <p className="text-[10px] text-amber-800 leading-relaxed font-medium italic">This period is locked. Unlock it from the Attendance Logs header before re-running the calculation.</p>
+                                <p className="text-[0.625rem] text-amber-800 leading-relaxed font-medium italic">This period is locked. Unlock it from the Attendance Logs header before re-running the calculation.</p>
                             </div>
                         )}
                         <DialogFooter>
@@ -1211,7 +1211,7 @@ export default function AttendanceRegistryPage() {
                             <UserCheck className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                             <div className="space-y-1">
                                 <p className="text-sm font-black text-emerald-900">{calcResult?.processed ?? 0} attendance record(s) processed.</p>
-                                <p className="text-[10px] text-emerald-800 font-medium italic">The period has been re-locked to protect this result. Unlock it from the header if you need to run it again.</p>
+                                <p className="text-[0.625rem] text-emerald-800 font-medium italic">The period has been re-locked to protect this result. Unlock it from the header if you need to run it again.</p>
                             </div>
                         </div>
                         <DialogFooter>
@@ -1234,7 +1234,7 @@ export default function AttendanceRegistryPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-1.5 py-2">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground">Assigned Shift</Label>
+                    <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Assigned Shift</Label>
                     <Select value={shiftAssignShiftId} onValueChange={setShiftAssignShiftId}>
                         <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1247,7 +1247,7 @@ export default function AttendanceRegistryPage() {
                         </SelectContent>
                     </Select>
                     {shifts.length === 0 && (
-                        <p className="text-[10px] text-muted-foreground italic pt-1">No shifts defined yet. Define shift patterns from HR Settings → Shift Pattern Registry.</p>
+                        <p className="text-[0.625rem] text-muted-foreground italic pt-1">No shifts defined yet. Define shift patterns from HR Settings → Shift Pattern Registry.</p>
                     )}
                 </div>
                 <DialogFooter>
@@ -1268,11 +1268,11 @@ export default function AttendanceRegistryPage() {
                 </DialogHeader>
                 <div className="grid grid-cols-3 gap-4 py-2">
                     <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Date</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Date</Label>
                         <Input type="date" value={bulkClockDate} onChange={e => setBulkClockDate(e.target.value)} className="h-10" />
                     </div>
                     <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Action</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Action</Label>
                         <Select value={bulkClockActionType} onValueChange={(v) => setBulkClockActionType(v as 'IN' | 'OUT')}>
                             <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -1282,21 +1282,21 @@ export default function AttendanceRegistryPage() {
                         </Select>
                     </div>
                     <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Time</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Time</Label>
                         <Input type="time" value={bulkClockTime} onChange={e => setBulkClockTime(e.target.value)} className="h-10" />
                     </div>
                 </div>
                 <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Select Employees ({bulkClockSelectedIds.length} selected)</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Select Employees ({bulkClockSelectedIds.length} selected)</Label>
                         <div className="flex items-center gap-3">
-                            <button type="button" className="text-[10px] font-bold uppercase text-primary hover:underline" onClick={() => setBulkClockSelectedIds(activeEmployeesForBulkClock.map(e => e.id))}>Select All</button>
-                            <button type="button" className="text-[10px] font-bold uppercase text-muted-foreground hover:underline" onClick={() => setBulkClockSelectedIds([])}>Clear</button>
+                            <button type="button" className="text-[0.625rem] font-bold uppercase text-primary hover:underline" onClick={() => setBulkClockSelectedIds(activeEmployeesForBulkClock.map(e => e.id))}>Select All</button>
+                            <button type="button" className="text-[0.625rem] font-bold uppercase text-muted-foreground hover:underline" onClick={() => setBulkClockSelectedIds([])}>Clear</button>
                         </div>
                     </div>
                     <ScrollArea className="h-[240px] rounded-lg border p-2">
                         {activeEmployeesForBulkClock.length === 0 ? (
-                            <p className="text-[10px] text-muted-foreground italic px-2 py-2">No active employees found.</p>
+                            <p className="text-[0.625rem] text-muted-foreground italic px-2 py-2">No active employees found.</p>
                         ) : activeEmployeesForBulkClock.map(e => {
                             const shift = e.shiftId ? shiftMap.get(e.shiftId) : undefined;
                             return (
@@ -1305,7 +1305,7 @@ export default function AttendanceRegistryPage() {
                                         <Checkbox checked={bulkClockSelectedIds.includes(e.id)} onCheckedChange={() => toggleBulkClockEmployee(e.id)} />
                                         <span className="font-bold">{e.name}</span>
                                     </span>
-                                    <span className="text-[10px] text-muted-foreground uppercase">{shift ? shift.name : 'Standard'}</span>
+                                    <span className="text-[0.625rem] text-muted-foreground uppercase">{shift ? shift.name : 'Standard'}</span>
                                 </label>
                             );
                         })}

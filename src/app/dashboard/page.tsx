@@ -135,7 +135,7 @@ function LiveDateTime() {
           <div className="text-xl font-black tabular-nums tracking-tighter leading-none">
             {format(now, 'HH:mm:ss')}
           </div>
-          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+          <div className="text-[0.625rem] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
             <CalendarIcon className="h-3 w-3" />
             {toNepaliDate(now.toISOString())} BS
           </div>
@@ -143,12 +143,12 @@ function LiveDateTime() {
       
       {nextQuarter && (
         <div className="mt-3 w-full space-y-1.5">
-            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b border-dashed pb-1">Immediate Quarter Closing</p>
+            <p className="text-[0.5rem] font-black uppercase text-muted-foreground tracking-[0.2em] border-b border-dashed pb-1">Immediate Quarter Closing</p>
             <div className="flex flex-col p-2 rounded border bg-primary/5 border-primary/40 shadow-sm">
-                <span className="text-[7px] font-black uppercase leading-none text-muted-foreground mb-1">{nextQuarter.name} End</span>
+                <span className="text-[0.4375rem] font-black uppercase leading-none text-muted-foreground mb-1">{nextQuarter.name} End</span>
                 <div className="flex items-baseline gap-1">
                     <span className="text-sm font-black leading-none text-primary">{nextQuarter.days}</span>
-                    <span className="text-[8px] font-bold uppercase text-muted-foreground">Days remaining</span>
+                    <span className="text-[0.5rem] font-bold uppercase text-muted-foreground">Days remaining</span>
                 </div>
             </div>
         </div>
@@ -160,7 +160,7 @@ function LiveDateTime() {
 function DeltaBadge({ current, previous }: { current: number; previous: number }) {
   if (previous <= 0) {
     return (
-      <span className="text-[10px] font-bold text-muted-foreground uppercase">
+      <span className="text-[0.625rem] font-bold text-muted-foreground uppercase">
         No prior data
       </span>
     );
@@ -173,7 +173,7 @@ function DeltaBadge({ current, previous }: { current: number; previous: number }
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 text-[10px] font-bold tabular-nums',
+        'inline-flex items-center gap-1 text-[0.625rem] font-bold tabular-nums',
         flat ? 'text-muted-foreground' : up ? 'text-emerald-600' : 'text-destructive'
       )}
     >
@@ -233,7 +233,7 @@ function RevenueSplit({ revenue }: { revenue: { mfg: number; fleet: number; rent
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
       {parts.map(p => (
-        <span key={p.label} className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+        <span key={p.label} className="text-[0.5625rem] font-bold uppercase tracking-wider text-muted-foreground">
           {p.label}{' '}
           <span className="tabular-nums text-foreground/70">Rs.{nf(p.value)}</span>
         </span>
@@ -267,13 +267,13 @@ function ValueTile({
     <TileShell href={href} accent={accent}>
       <div className="flex items-start justify-between gap-2">
         <div className="w-full min-w-0 space-y-1">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
+          <p className="text-[0.625rem] font-bold text-muted-foreground uppercase tracking-wider truncate">
             {label}
           </p>
           <div className="flex items-baseline gap-1.5 flex-wrap">
             <span className="text-lg font-black tabular-nums leading-none">{value}</span>
             {sub && (
-              <span className="text-[10px] text-muted-foreground uppercase font-semibold">
+              <span className="text-[0.625rem] text-muted-foreground uppercase font-semibold">
                 {sub}
               </span>
             )}
@@ -281,7 +281,7 @@ function ValueTile({
           {progress !== undefined && (
             <div className="space-y-1 py-0.5">
                 <Progress value={Math.min(100, progress)} className="h-1 bg-muted" />
-                <p className="text-[8px] font-black uppercase tracking-tighter text-muted-foreground/70">
+                <p className="text-[0.5rem] font-black uppercase tracking-tighter text-muted-foreground/70">
                     {progress >= 100 ? 'Target Surpassed' : `${progress.toFixed(0)}% of last month`}
                 </p>
             </div>
@@ -311,7 +311,7 @@ function TripleTile({
     <TileShell href={href} accent={accent}>
       <div className="flex items-start justify-between gap-2">
         <div className="w-full min-w-0 space-y-1">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          <p className="text-[0.625rem] font-bold text-muted-foreground uppercase tracking-wider">
             {label}
           </p>
           <div className="grid grid-cols-3 gap-1">
@@ -323,7 +323,7 @@ function TripleTile({
                 <span className={cn('text-base font-bold tabular-nums leading-none', s.c)}>
                   {s.v}
                 </span>
-                <span className="text-[9px] text-muted-foreground uppercase leading-tight mt-1">
+                <span className="text-[0.5625rem] text-muted-foreground uppercase leading-tight mt-1">
                   {s.l}
                 </span>
               </div>
@@ -728,7 +728,7 @@ export default function DashboardPage() {
           <h2 className="text-sm md:text-base font-bold text-muted-foreground truncate">
             {companyProfile.nameNp}
           </h2>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] truncate">
+          <p className="text-[0.625rem] font-bold text-muted-foreground uppercase tracking-[0.15em] truncate">
             {companyProfile.address}
           </p>
         </div>
@@ -740,13 +740,13 @@ export default function DashboardPage() {
                 size="sm"
                 variant="outline"
                 className={cn(
-                  "h-10 shrink-0 text-[11px] font-black uppercase tracking-wider px-4 border shadow-sm",
+                  "h-10 shrink-0 text-[0.6875rem] font-black uppercase tracking-wider px-4 border shadow-sm",
                   includedModules.size < DASHBOARD_MODULES.length && "border-primary text-primary"
                 )}
               >
                 <SlidersHorizontal className="mr-2 h-4 w-4" /> Modules
                 {includedModules.size < DASHBOARD_MODULES.length && (
-                  <span className="ml-1.5 rounded-full bg-primary text-primary-foreground text-[9px] px-1.5 leading-4">
+                  <span className="ml-1.5 rounded-full bg-primary text-primary-foreground text-[0.5625rem] px-1.5 leading-4">
                     {includedModules.size}
                   </span>
                 )}
@@ -754,9 +754,9 @@ export default function DashboardPage() {
             </PopoverTrigger>
             <PopoverContent className="w-64 p-0" align="end">
               <div className="flex items-center justify-between px-3 py-2 border-b">
-                <span className="text-[10px] font-black uppercase text-muted-foreground">Include in Summary</span>
+                <span className="text-[0.625rem] font-black uppercase text-muted-foreground">Include in Summary</span>
                 <button
-                  className="text-[9px] font-bold uppercase text-primary hover:underline"
+                  className="text-[0.5625rem] font-bold uppercase text-primary hover:underline"
                   onClick={() => setIncludedModules(new Set(DASHBOARD_MODULES.map((m) => m.key)))}
                 >
                   Reset
@@ -770,7 +770,7 @@ export default function DashboardPage() {
                   </label>
                 ))}
               </div>
-              <p className="text-[9px] text-muted-foreground px-3 pb-2 leading-snug">
+              <p className="text-[0.5625rem] text-muted-foreground px-3 pb-2 leading-snug">
                 Excluded modules are left out of Revenue, Alerts and every other combined figure below - not just hidden visually.
               </p>
             </PopoverContent>
@@ -780,7 +780,7 @@ export default function DashboardPage() {
               asChild
               size="sm"
               variant="secondary"
-              className="h-10 shrink-0 text-[11px] font-black uppercase tracking-wider px-4 border shadow-sm"
+              className="h-10 shrink-0 text-[0.6875rem] font-black uppercase tracking-wider px-4 border shadow-sm"
             >
               <Link href="/fleet/trip-sheets/new">
                 <Truck className="mr-2 h-4 w-4" /> Sales Entry
@@ -792,7 +792,7 @@ export default function DashboardPage() {
               asChild
               size="sm"
               variant="secondary"
-              className="h-10 shrink-0 text-[11px] font-black uppercase tracking-wider px-4 border shadow-sm"
+              className="h-10 shrink-0 text-[0.6875rem] font-black uppercase tracking-wider px-4 border shadow-sm"
             >
               <Link href="/finance/estimate-invoice">
                 <FileText className="mr-2 h-4 w-4" /> New Estimate
@@ -804,7 +804,7 @@ export default function DashboardPage() {
               asChild
               size="sm"
               variant="secondary"
-              className="h-10 shrink-0 text-[11px] font-black uppercase tracking-wider px-4 border shadow-sm"
+              className="h-10 shrink-0 text-[0.6875rem] font-black uppercase tracking-wider px-4 border shadow-sm"
             >
               <Link href="/purchase-orders/new">
                 <ShoppingCart className="mr-2 h-4 w-4" /> New PO
@@ -919,7 +919,7 @@ export default function DashboardPage() {
                 icon={Package}
                 iconClass="text-blue-400"
                 footer={
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase">{stats.costReportCount} Cost Reports</p>
+                  <p className="text-[0.625rem] font-bold text-muted-foreground uppercase">{stats.costReportCount} Cost Reports</p>
                 }
               />
             )}
@@ -987,7 +987,7 @@ export default function DashboardPage() {
           ) : (
             urgentActions.length > 0 && (
               <div className="space-y-3">
-                <p className="text-[10px] font-black uppercase text-destructive tracking-widest px-1">
+                <p className="text-[0.625rem] font-black uppercase text-destructive tracking-widest px-1">
                   Attention Required
                 </p>
                 <div className="flex flex-col gap-3">
@@ -997,7 +997,7 @@ export default function DashboardPage() {
                         <CardContent className="p-4 flex flex-col justify-between h-full">
                           <div className="space-y-1">
                             <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-black text-destructive uppercase">
+                                <p className="text-[0.625rem] font-black text-destructive uppercase">
                                 {action.count} Items pending
                                 </p>
                                 <ChevronRight className="h-4 w-4 text-destructive/50 shrink-0" />
@@ -1007,20 +1007,20 @@ export default function DashboardPage() {
                           
                           {action.items && action.items.length > 0 && (
                               <div className="mt-3 pt-3 border-t border-destructive/10 space-y-1.5">
-                                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Top cases:</p>
+                                  <p className="text-[0.5625rem] font-bold text-muted-foreground uppercase">Top cases:</p>
                                   {action.items.map((item, idx) => (
-                                      <div key={idx} className="flex items-center justify-between gap-2 text-[10px] font-medium text-foreground">
+                                      <div key={idx} className="flex items-center justify-between gap-2 text-[0.625rem] font-medium text-foreground">
                                           <div className="flex items-center gap-2 overflow-hidden">
                                             <div className="w-1 h-1 rounded-full bg-destructive/40 shrink-0" />
                                             <span className="truncate">{item.text}</span>
                                           </div>
-                                          <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-black uppercase whitespace-nowrap", item.tagColor)}>
+                                          <span className={cn("px-1.5 py-0.5 rounded text-[0.5625rem] font-black uppercase whitespace-nowrap", item.tagColor)}>
                                             {item.tag}
                                           </span>
                                       </div>
                                   ))}
                                   {action.count > action.items.length && (
-                                      <p className="text-[9px] italic text-muted-foreground mt-1 text-center">
+                                      <p className="text-[0.5625rem] italic text-muted-foreground mt-1 text-center">
                                           + {action.count - action.items.length} more cases...
                                       </p>
                                   )}
@@ -1039,7 +1039,7 @@ export default function DashboardPage() {
         {/* ---------------- Right rail ---------------- */}
         <div className="space-y-5 w-full">
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">
+            <p className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">
               Control Tower
             </p>
             <div className="p-4 rounded-xl border bg-card shadow-sm">
@@ -1049,7 +1049,7 @@ export default function DashboardPage() {
 
           {/* Calendar */}
           <div className="space-y-2">
-            <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">
+            <span className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">
                 Nepali Calendar
             </span>
             <Card className="overflow-hidden shadow-sm border-none ring-1 ring-black/5 bg-card">

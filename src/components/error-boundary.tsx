@@ -50,7 +50,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="text-xs text-muted-foreground">
               We encountered a glitch while loading this section. This issue has been reported automatically for resolution.
             </p>
-            <div className="mt-2 p-2 bg-black/5 rounded text-[10px] font-mono overflow-auto max-h-24 whitespace-pre-wrap">
+            <div className="mt-2 p-2 bg-black/5 rounded text-[0.625rem] font-mono overflow-auto max-h-24 whitespace-pre-wrap">
               {this.state.error?.message}
             </div>
           </CardContent>

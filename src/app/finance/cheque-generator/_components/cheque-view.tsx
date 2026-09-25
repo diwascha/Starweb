@@ -34,10 +34,10 @@ const money = (n: number) =>
 function MetaField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[8px] font-bold uppercase tracking-[0.18em]" style={{ color: SUB }}>
+      <div className="text-[0.5rem] font-bold uppercase tracking-[0.18em]" style={{ color: SUB }}>
         {label}
       </div>
-      <div className="mt-0.5 text-[11px] font-semibold leading-snug">{children}</div>
+      <div className="mt-0.5 text-[0.6875rem] font-semibold leading-snug">{children}</div>
     </div>
   );
 }
@@ -77,19 +77,19 @@ export function ChequeView({
         style={{ borderBottom: `2px solid ${RULE}` }}
       >
         <div className="min-w-0">
-          <h1 className="text-[17px] font-bold uppercase leading-tight tracking-tight">
+          <h1 className="text-[1.0625rem] font-bold uppercase leading-tight tracking-tight">
             {companyProfile.nameEn}
           </h1>
           {companyProfile.nameNp && (
-            <h2 className="text-[15px] font-semibold mt-0.5">
+            <h2 className="text-[0.9375rem] font-semibold mt-0.5">
               {companyProfile.nameNp}
             </h2>
           )}
-          <p className="mt-1 text-[10px] leading-relaxed" style={{ color: SUB }}>
+          <p className="mt-1 text-[0.625rem] leading-relaxed" style={{ color: SUB }}>
             {companyProfile.address}
           </p>
           {companyProfile.pan && (
-            <p className="text-[9px] font-mono mt-0.5" style={{ color: SUB }}>
+            <p className="text-[0.5625rem] font-mono mt-0.5" style={{ color: SUB }}>
               PAN: {companyProfile.pan}
             </p>
           )}
@@ -97,13 +97,13 @@ export function ChequeView({
 
         <div className="shrink-0 text-right">
           <div
-            className="inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em]"
+            className="inline-block px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-[0.2em]"
             style={{ border: `1px solid ${RULE}` }}
           >
             Payment Voucher
           </div>
-          <div className="mt-2 font-mono text-[13px] font-bold tracking-tight">#{voucherNo}</div>
-          <div className="text-[9px] uppercase tracking-widest" style={{ color: SUB }}>
+          <div className="mt-2 font-mono text-[0.8125rem] font-bold tracking-tight">#{voucherNo}</div>
+          <div className="text-[0.5625rem] uppercase tracking-widest" style={{ color: SUB }}>
             {nepaliDate} BS &middot; {adDate}
           </div>
         </div>
@@ -117,9 +117,9 @@ export function ChequeView({
         <div className="col-span-2">
           <MetaField label="Paid to">
             <div className="flex flex-col">
-              <span className="text-[13px] font-bold uppercase tracking-tight">{payeeName}</span>
-              {payeeAddress && <span className="text-[10px] leading-tight mt-0.5 text-neutral-600">{payeeAddress}</span>}
-              {payeePan && <span className="text-[9px] font-mono mt-0.5 text-neutral-500">PAN: {payeePan}</span>}
+              <span className="text-[0.8125rem] font-bold uppercase tracking-tight">{payeeName}</span>
+              {payeeAddress && <span className="text-[0.625rem] leading-tight mt-0.5 text-neutral-600">{payeeAddress}</span>}
+              {payeePan && <span className="text-[0.5625rem] font-mono mt-0.5 text-neutral-500">PAN: {payeePan}</span>}
             </div>
           </MetaField>
         </div>
@@ -142,20 +142,20 @@ export function ChequeView({
 
       {/* Instrument schedule — ruled rows, no striping */}
       <section className="mt-6">
-        <div className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: SUB }}>
+        <div className="text-[0.5625rem] font-bold uppercase tracking-[0.2em]" style={{ color: SUB }}>
           Instrument schedule
         </div>
 
-        <table className="mt-2 w-full border-collapse text-[11px]">
+        <table className="mt-2 w-full border-collapse text-[0.6875rem]">
           <thead>
             <tr style={{ borderTop: `1px solid ${RULE}`, borderBottom: `1px solid ${RULE}` }}>
-              <th className="px-2 py-2 text-left text-[9px] font-bold uppercase tracking-widest" style={{ width: '8%' }}>
+              <th className="px-2 py-2 text-left text-[0.5625rem] font-bold uppercase tracking-widest" style={{ width: '8%' }}>
                 #
               </th>
-              <th className="px-2 py-2 text-left text-[9px] font-bold uppercase tracking-widest">Cheque no.</th>
-              <th className="px-2 py-2 text-left text-[9px] font-bold uppercase tracking-widest">Cheque date (BS)</th>
-              <th className="px-2 py-2 text-left text-[9px] font-bold uppercase tracking-widest">Cheque date (AD)</th>
-              <th className="px-2 py-2 text-right text-[9px] font-bold uppercase tracking-widest">Amount (NPR)</th>
+              <th className="px-2 py-2 text-left text-[0.5625rem] font-bold uppercase tracking-widest">Cheque no.</th>
+              <th className="px-2 py-2 text-left text-[0.5625rem] font-bold uppercase tracking-widest">Cheque date (BS)</th>
+              <th className="px-2 py-2 text-left text-[0.5625rem] font-bold uppercase tracking-widest">Cheque date (AD)</th>
+              <th className="px-2 py-2 text-right text-[0.5625rem] font-bold uppercase tracking-widest">Amount (NPR)</th>
             </tr>
           </thead>
 
@@ -177,10 +177,10 @@ export function ChequeView({
 
           <tfoot>
             <tr style={{ borderBottom: `2px solid ${RULE}` }}>
-              <td colSpan={4} className="px-2 py-3 text-right text-[9px] font-bold uppercase tracking-[0.2em]">
+              <td colSpan={4} className="px-2 py-3 text-right text-[0.5625rem] font-bold uppercase tracking-[0.2em]">
                 Total payable
               </td>
-              <td className="px-2 py-3 text-right text-[15px] font-bold tabular-nums">Rs. {money(totalAmount)}</td>
+              <td className="px-2 py-3 text-right text-[0.9375rem] font-bold tabular-nums">Rs. {money(totalAmount)}</td>
             </tr>
           </tfoot>
         </table>
@@ -188,19 +188,19 @@ export function ChequeView({
 
       {/* Amount in words */}
       <section className="mt-5 py-3 pl-3" style={{ borderLeft: `3px solid ${RULE}` }}>
-        <div className="text-[8px] font-bold uppercase tracking-[0.18em]" style={{ color: SUB }}>
+        <div className="text-[0.5rem] font-bold uppercase tracking-[0.18em]" style={{ color: SUB }}>
           Amount in words
         </div>
-        <div className="mt-1 text-[11px] font-semibold leading-snug">{amountInWords}</div>
+        <div className="mt-1 text-[0.6875rem] font-semibold leading-snug">{amountInWords}</div>
       </section>
 
       {/* Remarks */}
       {remarks && (
         <section className="mt-5 pt-3" style={{ borderTop: `1px solid ${RULE}` }}>
-          <div className="text-[8px] font-bold uppercase tracking-[0.18em]" style={{ color: SUB }}>
+          <div className="text-[0.5rem] font-bold uppercase tracking-[0.18em]" style={{ color: SUB }}>
             Remarks / Notes
           </div>
-          <div className="mt-1 text-[10px] leading-relaxed italic">{remarks}</div>
+          <div className="mt-1 text-[0.625rem] leading-relaxed italic">{remarks}</div>
         </section>
       )}
 
@@ -209,8 +209,8 @@ export function ChequeView({
         {["Receiver's signature", 'Authorised signature'].map((label) => (
           <div key={label} className="text-center">
             <div style={{ borderTop: `1px solid ${RULE}` }} />
-            <div className="mt-1.5 text-[9px] font-bold uppercase tracking-[0.15em]">{label}</div>
-            <div className="mt-3 text-[8px]" style={{ color: SUB }}>
+            <div className="mt-1.5 text-[0.5625rem] font-bold uppercase tracking-[0.15em]">{label}</div>
+            <div className="mt-3 text-[0.5rem]" style={{ color: SUB }}>
               Name / Date
             </div>
           </div>
@@ -219,7 +219,7 @@ export function ChequeView({
 
       {/* Footer */}
       <footer
-        className="mt-8 flex items-center justify-between pt-3 text-[8px] uppercase tracking-widest"
+        className="mt-8 flex items-center justify-between pt-3 text-[0.5rem] uppercase tracking-widest"
         style={{ borderTop: `1px solid ${RULE}`, color: SUB }}
       >
         <span>

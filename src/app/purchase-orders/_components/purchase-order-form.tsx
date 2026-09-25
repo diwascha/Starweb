@@ -859,7 +859,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                         <FormItem className="w-[100px]">
                                                             <Select onValueChange={field.onChange} value={field.value}>
                                                                 <FormControl>
-                                                                    <SelectTrigger className="h-9 text-[10px] px-2">
+                                                                    <SelectTrigger className="h-9 text-[0.625rem] px-2">
                                                                         <SelectValue placeholder="Unit" />
                                                                     </SelectTrigger>
                                                                 </FormControl>

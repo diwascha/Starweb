@@ -70,9 +70,9 @@ const preset = (ply: number, gsmLiner = '120', gsmFlute = '100', bf = '18 BF'): 
 
 const Field = ({ label, children, hint }: any) => (
     <div className="space-y-1">
-        <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</Label>
+        <Label className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">{label}</Label>
         {children}
-        {hint && <p className="text-[10px] text-muted-foreground leading-tight">{hint}</p>}
+        {hint && <p className="text-[0.625rem] text-muted-foreground leading-tight">{hint}</p>}
     </div>
 );
 
@@ -91,16 +91,16 @@ const LayerRow = ({ layer, info, weightPerBox, index, total, onUpdate, onRemove,
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-xs font-bold">Layer {index + 1} &mdash; {info.roleLabel}</span>
-                                    {isFlute && <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">{layer.fluteProfile || 'B'} flute</Badge>}
-                                    {layer.rctKnPerM && <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-emerald-400 text-emerald-700">RCT set</Badge>}
+                                    {isFlute && <Badge variant="outline" className="text-[0.5625rem] px-1.5 py-0 h-4">{layer.fluteProfile || 'B'} flute</Badge>}
+                                    {layer.rctKnPerM && <Badge variant="outline" className="text-[0.5625rem] px-1.5 py-0 h-4 border-emerald-400 text-emerald-700">RCT set</Badge>}
                                 </div>
-                                <div className="text-[11px] text-muted-foreground truncate">
+                                <div className="text-[0.6875rem] text-muted-foreground truncate">
                                     {materialLabel(layer.paperType)}{layer.bf ? ` · ${layer.bf}` : ''} · {layer.gsm || 0} GSM
                                 </div>
                             </div>
                             <div className="text-right shrink-0">
                                 <div className="text-xs font-bold tabular-nums">{n1(weightPerBox)} g</div>
-                                <div className="text-[10px] text-muted-foreground">per box</div>
+                                <div className="text-[0.625rem] text-muted-foreground">per box</div>
                             </div>
                         </div>
                     </button>
@@ -300,7 +300,7 @@ export function BoardStrengthTester() {
                                     <DropdownMenuItem onClick={() => addLayer('flute')}>Flute (corrugated medium)</DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[0.625rem] text-muted-foreground">
                                 {layers.length} ply &middot; {n1(totalGsm)} g/m&sup2; &middot; {n1(boxWeight)} g/box
                             </span>
                         </div>
@@ -366,12 +366,12 @@ export function BoardStrengthTester() {
                     <VerdictIcon className="h-4 w-4 shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className={cn('text-[9px] font-bold text-white px-1.5 py-0.5 rounded', style.chip)}>
+                            <span className={cn('text-[0.5625rem] font-bold text-white px-1.5 py-0.5 rounded', style.chip)}>
                                 {VERDICT_LABEL[recommendation.verdict]}
                             </span>
                             <span className="text-xs font-bold">{recommendation.headline}</span>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{recommendation.detail}</p>
+                        <p className="text-[0.6875rem] text-muted-foreground mt-0.5 leading-snug">{recommendation.detail}</p>
                     </div>
                 </div>
 
@@ -383,11 +383,11 @@ export function BoardStrengthTester() {
                         { label: 'Compression', value: n0(strength.bctKgf), unit: 'kgf (BCT)', conf: strength.bctConfidence },
                     ].map(s => (
                         <div key={s.label} className="border rounded-md px-2 py-1.5 bg-background">
-                            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
+                            <div className="text-[0.5625rem] uppercase tracking-wider text-muted-foreground">{s.label}</div>
                             <div className="text-base font-bold tabular-nums">{s.value}</div>
-                            <div className="text-[9px] text-muted-foreground">{s.unit}</div>
+                            <div className="text-[0.5625rem] text-muted-foreground">{s.unit}</div>
                             <Badge variant="outline" className={cn(
-                                'text-[8px] px-1 py-0 h-3.5 mt-0.5',
+                                'text-[0.5rem] px-1 py-0 h-3.5 mt-0.5',
                                 s.conf === 'measured' ? 'border-emerald-400 text-emerald-700' : 'border-amber-400 text-amber-700'
                             )}>
                                 {s.conf === 'measured' ? 'calculated' : s.conf === 'unavailable' ? 'n/a' : 'estimated'}
@@ -403,13 +403,13 @@ export function BoardStrengthTester() {
                     </CardHeader>
                     <CardContent className="px-4 pb-4 space-y-1">
                         {strength.derating.map(d => (
-                            <div key={d.label} className="flex items-start gap-2 text-[10px]">
+                            <div key={d.label} className="flex items-start gap-2 text-[0.625rem]">
                                 <span className="font-bold tabular-nums w-10 shrink-0">{d.factor.toFixed(2)}&times;</span>
                                 <span className="font-semibold w-24 sm:w-28 shrink-0">{d.label}</span>
                                 <span className="text-muted-foreground">{d.note}</span>
                             </div>
                         ))}
-                        <div className="flex items-center gap-2 text-[11px] border-t pt-2 mt-1 font-bold">
+                        <div className="flex items-center gap-2 text-[0.6875rem] border-t pt-2 mt-1 font-bold">
                             <Scale className="h-3.5 w-3.5 shrink-0" />
                             <span className="tabular-nums">
                                 {n0(strength.bctKgf)} kgf &divide; {n1(strength.safetyDivisor)} = {n1(strength.workingLoadKg)} kg safe working load
@@ -424,7 +424,7 @@ export function BoardStrengthTester() {
                         <CardContent className="px-4 pb-4">
                             <ul className="space-y-1">
                                 {recommendation.suggestions.map((sg, i) => (
-                                    <li key={i} className="text-[11px] flex items-start gap-1.5 leading-snug">
+                                    <li key={i} className="text-[0.6875rem] flex items-start gap-1.5 leading-snug">
                                         <span className="text-muted-foreground mt-0.5">&rarr;</span><span>{sg}</span>
                                     </li>
                                 ))}
@@ -436,12 +436,12 @@ export function BoardStrengthTester() {
                 <Collapsible open={showDetails} onOpenChange={setShowDetails}>
                     <CollapsibleTrigger asChild>
                         <button type="button" className="w-full flex items-center justify-between px-3 py-2 border rounded-md bg-muted/20 hover:bg-muted/40 text-left">
-                            <span className="text-[10px] font-black uppercase tracking-wider">Calculation Details</span>
+                            <span className="text-[0.625rem] font-black uppercase tracking-wider">Calculation Details</span>
                             {showDetails ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                         </button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                        <div className="border border-t-0 rounded-b-md px-3 py-2 space-y-2 text-[10px]">
+                        <div className="border border-t-0 rounded-b-md px-3 py-2 space-y-2 text-[0.625rem]">
                             <div className="text-muted-foreground">
                                 Sheet {n0(geometry.sheetSizeL)} &times; {n0(geometry.sheetSizeB)} mm = <b>{geometry.sheetArea.toFixed(4)} m&sup2;</b> per box
                                 &middot; perimeter {n0(strength.perimeterMm)} mm
@@ -469,12 +469,12 @@ export function BoardStrengthTester() {
 
                 {strength.limitations.length > 0 && (
                     <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2">
-                        <div className="text-[10px] font-black uppercase tracking-wider text-amber-800 mb-1 flex items-center gap-1">
+                        <div className="text-[0.625rem] font-black uppercase tracking-wider text-amber-800 mb-1 flex items-center gap-1">
                             <Info className="h-3 w-3" /> Limits of this estimate
                         </div>
                         <ul className="space-y-1">
                             {strength.limitations.map((l, i) => (
-                                <li key={i} className="text-[10px] text-amber-900 leading-snug">&bull; {l}</li>
+                                <li key={i} className="text-[0.625rem] text-amber-900 leading-snug">&bull; {l}</li>
                             ))}
                         </ul>
                     </div>

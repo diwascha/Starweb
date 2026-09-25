@@ -198,7 +198,7 @@ export function TruckPnlView() {
                                     <TableCell>
                                         <div className="flex flex-wrap gap-1">
                                             {Object.entries(p.categoryBreakdown).map(([cat, amt]) => (
-                                                <Badge key={cat} variant="outline" className="text-[9px] font-normal">{cat}: Rs. {amt.toLocaleString('en-IN')}</Badge>
+                                                <Badge key={cat} variant="outline" className="text-[0.5625rem] font-normal">{cat}: Rs. {amt.toLocaleString('en-IN')}</Badge>
                                             ))}
                                         </div>
                                     </TableCell>

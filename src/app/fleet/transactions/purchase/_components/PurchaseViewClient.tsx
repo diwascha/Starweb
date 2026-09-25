@@ -192,7 +192,7 @@ export default function PurchaseViewClient({
         </div>
         
          <div className="mt-16 text-center pt-8 border-t border-dashed border-gray-200">
-            <p className="text-[9px] font-bold text-gray-400 uppercase italic">
+            <p className="text-[0.5625rem] font-bold text-gray-400 uppercase italic">
                 This is a computer-generated document authorized by {companyProfile.nameEn}. 
                 Produced via StarSutra and valid without manual signature.
             </p>

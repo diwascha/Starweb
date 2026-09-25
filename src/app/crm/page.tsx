@@ -176,10 +176,10 @@ export default function CrmDashboardPage() {
             <p className="text-muted-foreground text-sm font-medium italic mt-1">Real-time sales funnel and relationship analytics.</p>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-9 font-bold text-[10px] uppercase tracking-widest" asChild>
+            <Button variant="outline" size="sm" className="h-9 font-bold text-[0.625rem] uppercase tracking-widest" asChild>
                 <Link href="/crm/deals">Pipeline</Link>
             </Button>
-            <Button size="sm" className="h-9 font-black text-[10px] uppercase tracking-widest shadow-lg" asChild>
+            <Button size="sm" className="h-9 font-black text-[0.625rem] uppercase tracking-widest shadow-lg" asChild>
                 <Link href="/crm/deals?tab=followups">Manage Tasks</Link>
             </Button>
         </div>
@@ -221,7 +221,7 @@ export default function CrmDashboardPage() {
             <Card className="shadow-sm border-border">
                 <CardHeader className="py-4 border-b bg-muted/5">
                     <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Sales Funnel Analysis</CardTitle>
-                    <CardDescription className="text-[10px] uppercase font-bold">Open opportunities by stage and aggregate value.</CardDescription>
+                    <CardDescription className="text-[0.625rem] uppercase font-bold">Open opportunities by stage and aggregate value.</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6">
                     <div className="h-[300px] w-full">
@@ -242,7 +242,7 @@ export default function CrmDashboardPage() {
                                             const data = payload[0].payload;
                                             return (
                                                 <div className="bg-card p-3 border rounded-lg shadow-xl space-y-1">
-                                                    <p className="text-[10px] font-black uppercase text-muted-foreground">{data.name}</p>
+                                                    <p className="text-[0.625rem] font-black uppercase text-muted-foreground">{data.name}</p>
                                                     <p className="text-xs font-black">{data.count} Deals</p>
                                                     <p className="text-xs font-black text-primary">Rs. {data.value.toLocaleString('en-IN')}</p>
                                                 </div>
@@ -267,13 +267,13 @@ export default function CrmDashboardPage() {
                 <Card className="shadow-sm border-border">
                     <CardHeader className="py-4 border-b bg-muted/5">
                         <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Annual Conversion</CardTitle>
-                        <CardDescription className="text-[10px] uppercase font-bold">Closed outcomes for BS {new NepaliDate().getYear()}.</CardDescription>
+                        <CardDescription className="text-[0.625rem] uppercase font-bold">Closed outcomes for BS {new NepaliDate().getYear()}.</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-around">
                             {winLossData.map(item => (
                                 <div key={item.name} className="text-center space-y-1">
-                                    <p className="text-[9px] font-black uppercase text-muted-foreground">{item.name}</p>
+                                    <p className="text-[0.5625rem] font-black uppercase text-muted-foreground">{item.name}</p>
                                     <p className={cn("text-4xl font-black tabular-nums", item.name === 'Won' ? "text-emerald-600" : "text-red-500")}>
                                         {item.count}
                                     </p>
@@ -281,7 +281,7 @@ export default function CrmDashboardPage() {
                             ))}
                             <div className="h-16 w-px bg-muted" />
                             <div className="text-center space-y-1">
-                                <p className="text-[9px] font-black uppercase text-muted-foreground">Win Rate</p>
+                                <p className="text-[0.5625rem] font-black uppercase text-muted-foreground">Win Rate</p>
                                 <p className="text-4xl font-black tabular-nums text-primary">
                                     {winLossData[0].count + winLossData[1].count > 0 
                                         ? Math.round((winLossData[0].count / (winLossData[0].count + winLossData[1].count)) * 100) 
@@ -295,7 +295,7 @@ export default function CrmDashboardPage() {
                 <Card className="shadow-sm border-border">
                     <CardHeader className="py-4 border-b bg-muted/5">
                         <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Upcoming Agenda</CardTitle>
-                        <CardDescription className="text-[10px] uppercase font-bold">Immediate priorities from follow-up registry.</CardDescription>
+                        <CardDescription className="text-[0.625rem] uppercase font-bold">Immediate priorities from follow-up registry.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="divide-y">
@@ -303,20 +303,20 @@ export default function CrmDashboardPage() {
                                 <div key={f.id} className="flex items-center justify-between p-4 hover:bg-muted/10 transition-colors">
                                     <div className="space-y-0.5">
                                         <p className="text-xs font-black text-foreground leading-tight">{f.action}</p>
-                                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{f.partyName}</p>
+                                        <p className="text-[0.625rem] text-muted-foreground uppercase font-bold">{f.partyName}</p>
                                     </div>
-                                    <Badge variant="outline" className="text-[9px] font-black tabular-nums h-5">
+                                    <Badge variant="outline" className="text-[0.5625rem] font-black tabular-nums h-5">
                                         {f.dueDateBS}
                                     </Badge>
                                 </div>
                             ))}
                             {upcomingFollowups.length === 0 && (
-                                <div className="py-12 text-center text-[10px] font-bold uppercase text-muted-foreground opacity-30 italic">No scheduled tasks.</div>
+                                <div className="py-12 text-center text-[0.625rem] font-bold uppercase text-muted-foreground opacity-30 italic">No scheduled tasks.</div>
                             )}
                         </div>
                     </CardContent>
                     <CardFooter className="p-3 border-t bg-muted/5">
-                        <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest h-8" asChild>
+                        <Button variant="ghost" className="w-full text-[0.625rem] font-black uppercase tracking-widest h-8" asChild>
                             <Link href="/crm/deals?tab=followups">Go to Calendar <ChevronRight className="ml-1 h-3 w-3"/></Link>
                         </Button>
                     </CardFooter>
@@ -331,15 +331,15 @@ export default function CrmDashboardPage() {
                         <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-red-600 flex items-center gap-2">
                             <Clock className="h-3.5 w-3.5" /> Stale Accounts
                         </CardTitle>
-                        <CardDescription className="text-[10px] uppercase font-bold">Clients with no interaction logged in over 30 days.</CardDescription>
+                        <CardDescription className="text-[0.625rem] uppercase font-bold">Clients with no interaction logged in over 30 days.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader className="bg-muted/30">
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead className="text-[9px] font-black uppercase pl-6">Company</TableHead>
-                                    <TableHead className="text-[9px] font-black uppercase">Last Interaction</TableHead>
-                                    <TableHead className="text-right text-[9px] font-black uppercase pr-6">Action</TableHead>
+                                    <TableHead className="text-[0.5625rem] font-black uppercase pl-6">Company</TableHead>
+                                    <TableHead className="text-[0.5625rem] font-black uppercase">Last Interaction</TableHead>
+                                    <TableHead className="text-right text-[0.5625rem] font-black uppercase pr-6">Action</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -349,11 +349,11 @@ export default function CrmDashboardPage() {
                                         <TableCell>
                                             {a.lastInteractionDate ? (
                                                 <div className="flex flex-col">
-                                                    <span className="text-[10px] font-bold text-red-600">{format(a.lastInteractionDate, "PP")}</span>
-                                                    <span className="text-[8px] text-muted-foreground uppercase">{formatDistanceToNow(a.lastInteractionDate, { addSuffix: true })}</span>
+                                                    <span className="text-[0.625rem] font-bold text-red-600">{format(a.lastInteractionDate, "PP")}</span>
+                                                    <span className="text-[0.5rem] text-muted-foreground uppercase">{formatDistanceToNow(a.lastInteractionDate, { addSuffix: true })}</span>
                                                 </div>
                                             ) : (
-                                                <span className="text-[10px] font-black uppercase text-muted-foreground opacity-40">No activity logged</span>
+                                                <span className="text-[0.625rem] font-black uppercase text-muted-foreground opacity-40">No activity logged</span>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right pr-6">
@@ -364,7 +364,7 @@ export default function CrmDashboardPage() {
                                     </TableRow>
                                 ))}
                                 {staleAccounts.length === 0 && (
-                                    <TableRow><TableCell colSpan={3} className="py-20 text-center text-[10px] font-bold uppercase text-muted-foreground opacity-30 italic">All client relationships are active.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={3} className="py-20 text-center text-[0.625rem] font-bold uppercase text-muted-foreground opacity-30 italic">All client relationships are active.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>
@@ -395,9 +395,9 @@ function StatCard({ title, value, icon: Icon, color, desc }: any) {
         <Card className={cn("shadow-none border-none ring-1 ring-black/5 overflow-hidden", colors[color])}>
             <CardContent className="p-4 flex items-center justify-between">
                 <div className="space-y-1">
-                    <p className="text-[9px] font-black uppercase tracking-widest opacity-60">{title}</p>
+                    <p className="text-[0.5625rem] font-black uppercase tracking-widest opacity-60">{title}</p>
                     <p className="text-xl font-black leading-none tracking-tight">{value}</p>
-                    <p className="text-[8px] font-bold uppercase opacity-50">{desc}</p>
+                    <p className="text-[0.5rem] font-bold uppercase opacity-50">{desc}</p>
                 </div>
                 <div className="p-2 rounded-xl bg-card shadow-inner shrink-0">
                     <Icon className="h-4 w-4 opacity-80" />
@@ -417,8 +417,8 @@ function ModuleCard({ href, title, desc, icon: Icon }: any) {
                             <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
                         <div className="space-y-0.5">
-                            <p className="text-[11px] font-black uppercase tracking-wider text-foreground">{title}</p>
-                            <p className="text-[9px] text-muted-foreground uppercase font-medium leading-tight line-clamp-1">{desc}</p>
+                            <p className="text-[0.6875rem] font-black uppercase tracking-wider text-foreground">{title}</p>
+                            <p className="text-[0.5625rem] text-muted-foreground uppercase font-medium leading-tight line-clamp-1">{desc}</p>
                         </div>
                     </div>
                     <ChevronRight className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5" />

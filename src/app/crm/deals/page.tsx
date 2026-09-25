@@ -234,7 +234,7 @@ function ClientActivityPageContent() {
             'Won': 'bg-emerald-50 text-emerald-700 border-emerald-200',
             'Lost': 'bg-red-50 text-red-700 border-red-200'
         };
-        return <Badge variant="outline" className={cn("text-[9px] font-black uppercase tracking-widest px-2 h-5 shadow-none", variants[stage])}>{stage}</Badge>;
+        return <Badge variant="outline" className={cn("text-[0.5625rem] font-black uppercase tracking-widest px-2 h-5 shadow-none", variants[stage])}>{stage}</Badge>;
     };
 
     /* ============ Follow-ups ============ */
@@ -384,14 +384,14 @@ function ClientActivityPageContent() {
                 <TabsContent value="pipeline" className="space-y-6 mt-6">
                     <div className="flex flex-col sm:flex-row gap-3 items-end bg-muted/20 p-4 rounded-xl border border-dashed">
                         <div className="space-y-1.5 flex-1 min-w-[200px]">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Quick Search</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Quick Search</Label>
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input placeholder="Filter by title or client..." className="pl-8 h-9 text-xs bg-card" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                             </div>
                         </div>
                         <div className="space-y-1.5 w-[160px]">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Pipeline Stage</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Pipeline Stage</Label>
                             <Select value={stageFilter} onValueChange={setStageFilter}>
                                 <SelectTrigger className="h-9 bg-card text-xs font-bold uppercase"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -401,7 +401,7 @@ function ClientActivityPageContent() {
                             </Select>
                         </div>
                         {(searchQuery || stageFilter !== 'All') && (
-                            <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setStageFilter('All'); }} className="h-9 text-muted-foreground font-black text-[9px] uppercase">
+                            <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setStageFilter('All'); }} className="h-9 text-muted-foreground font-black text-[0.5625rem] uppercase">
                                 <FilterX className="mr-1.5 h-3.5 w-3.5" /> Clear Filters
                             </Button>
                         )}
@@ -415,12 +415,12 @@ function ClientActivityPageContent() {
                             <Table>
                                 <TableHeader className="bg-muted/50">
                                     <TableRow className="hover:bg-transparent h-11 border-b">
-                                        <TableHead className="pl-6 font-black uppercase text-[10px] tracking-widest">Opportunity Title</TableHead>
-                                        <TableHead className="font-black uppercase text-[10px] tracking-widest">Client Organization</TableHead>
-                                        <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Stage</TableHead>
-                                        <TableHead className="font-black uppercase text-[10px] tracking-widest text-right">Value (NPR)</TableHead>
-                                        <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Exp. Close</TableHead>
-                                        <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest">Actions</TableHead>
+                                        <TableHead className="pl-6 font-black uppercase text-[0.625rem] tracking-widest">Opportunity Title</TableHead>
+                                        <TableHead className="font-black uppercase text-[0.625rem] tracking-widest">Client Organization</TableHead>
+                                        <TableHead className="font-black uppercase text-[0.625rem] tracking-widest text-center">Stage</TableHead>
+                                        <TableHead className="font-black uppercase text-[0.625rem] tracking-widest text-right">Value (NPR)</TableHead>
+                                        <TableHead className="font-black uppercase text-[0.625rem] tracking-widest text-center">Exp. Close</TableHead>
+                                        <TableHead className="text-right pr-6 font-black uppercase text-[0.625rem] tracking-widest">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -431,7 +431,7 @@ function ClientActivityPageContent() {
                                             <TableCell className="pl-6">
                                                 <div className="flex flex-col">
                                                     <span className="font-black text-foreground leading-tight uppercase tracking-tight">{deal.title}</span>
-                                                    <span className="text-[10px] text-muted-foreground font-bold">{format(new Date(deal.createdAt), "PP")}</span>
+                                                    <span className="text-[0.625rem] text-muted-foreground font-bold">{format(new Date(deal.createdAt), "PP")}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
@@ -442,15 +442,15 @@ function ClientActivityPageContent() {
                                             </TableCell>
                                             <TableCell className="text-center">{getStageBadge(deal.stage)}</TableCell>
                                             <TableCell className="text-right font-black tabular-nums text-blue-700">Rs. {deal.value?.toLocaleString('en-IN')}</TableCell>
-                                            <TableCell className="text-center font-mono text-[11px] text-muted-foreground">{deal.expectedCloseDateBS || '—'}</TableCell>
+                                            <TableCell className="text-center font-mono text-[0.6875rem] text-muted-foreground">{deal.expectedCloseDateBS || '—'}</TableCell>
                                             <TableCell className="text-right pr-6">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-56">
-                                                        <DropdownMenuLabel className="text-[9px] uppercase font-black tracking-widest text-muted-foreground">Manage Deal</DropdownMenuLabel>
+                                                        <DropdownMenuLabel className="text-[0.5625rem] uppercase font-black tracking-widest text-muted-foreground">Manage Deal</DropdownMenuLabel>
                                                         <DropdownMenuItem onSelect={() => handleOpenEditDeal(deal)}><Edit className="mr-2 h-4 w-4" /> Edit Details</DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuLabel className="text-[9px] uppercase font-black tracking-widest text-muted-foreground">Move Stage</DropdownMenuLabel>
+                                                        <DropdownMenuLabel className="text-[0.5625rem] uppercase font-black tracking-widest text-muted-foreground">Move Stage</DropdownMenuLabel>
                                                         {STAGES.filter(s => s !== deal.stage).map(s => (
                                                             <DropdownMenuItem key={s} onSelect={() => handleMoveStage(deal, s)} className="capitalize">{s}</DropdownMenuItem>
                                                         ))}
@@ -520,7 +520,7 @@ function ClientActivityPageContent() {
                                     <Button variant="ghost" className="w-full justify-between hover:bg-transparent">
                                         <div className="flex items-center gap-2">
                                             <History className="h-4 w-4 text-muted-foreground" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Recent Activity (Last 20)</span>
+                                            <span className="text-[0.625rem] font-black uppercase tracking-widest text-muted-foreground">Recent Activity (Last 20)</span>
                                         </div>
                                         <ChevronDown className={cn("h-4 w-4 transition-transform", isHistoryOpen && "rotate-180")} />
                                     </Button>
@@ -528,11 +528,11 @@ function ClientActivityPageContent() {
                             </div>
                             <CollapsibleContent>
                                 <CardContent className="p-0">
-                                    <Table className="text-[11px]">
+                                    <Table className="text-[0.6875rem]">
                                         <TableBody>
                                             {sortedFollowupHistory.map(f => (
                                                 <TableRow key={f.id} className="h-10 hover:bg-transparent">
-                                                    <TableCell className="pl-6 w-8"><Badge variant="outline" className={cn("text-[8px] uppercase font-black px-1.5 h-4", f.status === 'Done' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-muted text-muted-foreground border-border")}>{f.status}</Badge></TableCell>
+                                                    <TableCell className="pl-6 w-8"><Badge variant="outline" className={cn("text-[0.5rem] uppercase font-black px-1.5 h-4", f.status === 'Done' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-muted text-muted-foreground border-border")}>{f.status}</Badge></TableCell>
                                                     <TableCell className="font-bold text-foreground">{f.action}</TableCell>
                                                     <TableCell className="text-muted-foreground uppercase">{f.partyName}</TableCell>
                                                     <TableCell className="text-right pr-6 font-mono text-muted-foreground">{f.completedAt ? format(new Date(f.completedAt), "PP") : toNepaliDate(f.dueDate)}</TableCell>
@@ -551,7 +551,7 @@ function ClientActivityPageContent() {
                 <TabsContent value="log" className="space-y-6 mt-6">
                     <div className="flex flex-col sm:flex-row gap-3 items-end bg-muted/20 p-4 rounded-xl border border-dashed">
                         <div className="space-y-1.5 w-[220px]">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Client</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Client</Label>
                             <Select value={clientLogFilter} onValueChange={setClientLogFilter}>
                                 <SelectTrigger className="h-9 bg-card text-xs font-bold"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -576,19 +576,19 @@ function ClientActivityPageContent() {
                                 <CardContent className="p-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-2">
-                                            <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.type === 'Incident' ? "bg-red-600 text-white" : "bg-blue-600 text-white")}>{log.type}</Badge>
+                                            <Badge className={cn("text-[0.5rem] font-black uppercase h-4 px-1.5", log.type === 'Incident' ? "bg-red-600 text-white" : "bg-blue-600 text-white")}>{log.type}</Badge>
                                             {log.type === 'Incident' && log.severity && (
-                                                <Badge variant="outline" className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.severity === 'High' ? "bg-red-50 text-red-700 border-red-200" : log.severity === 'Medium' ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-muted text-muted-foreground border-border")}>{log.severity}</Badge>
+                                                <Badge variant="outline" className={cn("text-[0.5rem] font-black uppercase h-4 px-1.5", log.severity === 'High' ? "bg-red-50 text-red-700 border-red-200" : log.severity === 'Medium' ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-muted text-muted-foreground border-border")}>{log.severity}</Badge>
                                             )}
                                             {log.type === 'Feedback' && log.sentiment && (
-                                                <Badge variant="outline" className={cn("text-[8px] font-black uppercase h-4 px-1.5", log.sentiment === 'Positive' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : log.sentiment === 'Negative' ? "bg-red-50 text-red-700 border-red-200" : "bg-muted text-muted-foreground border-border")}>{log.sentiment}</Badge>
+                                                <Badge variant="outline" className={cn("text-[0.5rem] font-black uppercase h-4 px-1.5", log.sentiment === 'Positive' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : log.sentiment === 'Negative' ? "bg-red-50 text-red-700 border-red-200" : "bg-muted text-muted-foreground border-border")}>{log.sentiment}</Badge>
                                             )}
                                             <span className="text-xs font-black text-foreground">{log.subject}</span>
                                         </div>
-                                        <span className="text-[9px] font-bold text-muted-foreground uppercase">{format(new Date(log.date), "PP")}</span>
+                                        <span className="text-[0.5625rem] font-bold text-muted-foreground uppercase">{format(new Date(log.date), "PP")}</span>
                                     </div>
-                                    <p className="text-[11px] text-muted-foreground leading-relaxed italic border-l-2 border-primary/20 pl-3">{log.description}</p>
-                                    <div className="mt-2 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
+                                    <p className="text-[0.6875rem] text-muted-foreground leading-relaxed italic border-l-2 border-primary/20 pl-3">{log.description}</p>
+                                    <div className="mt-2 flex items-center gap-2 text-[0.5625rem] font-black uppercase tracking-widest text-muted-foreground/60">
                                         <Building2 className="h-2.5 w-2.5" /> {parties.find(p => p.id === log.partyId)?.name || 'Unknown Client'}
                                     </div>
                                 </CardContent>
@@ -610,11 +610,11 @@ function ClientActivityPageContent() {
                     </DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Deal Title <span className="text-destructive">*</span></Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Deal Title <span className="text-destructive">*</span></Label>
                             <Input value={dealForm.title} onChange={e => setDealForm({...dealForm, title: e.target.value})} placeholder="e.g. Bulk Supply Contract" className="h-10 font-bold" />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Client Organization <span className="text-destructive">*</span></Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Client Organization <span className="text-destructive">*</span></Label>
                             <Popover open={isCompanyPopoverOpen} onOpenChange={setIsCompanyPopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" role="combobox" className="w-full justify-between h-10 font-normal">
@@ -641,16 +641,16 @@ function ClientActivityPageContent() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Value (रु)</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Value (रु)</Label>
                                 <Input type="number" value={dealForm.value} onChange={e => setDealForm({...dealForm, value: Number(e.target.value)})} className="h-10 font-black" />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Close Date (BS)</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Close Date (BS)</Label>
                                 <Input value={dealForm.expectedCloseDateBS} onChange={e => setDealForm({...dealForm, expectedCloseDateBS: e.target.value})} placeholder="YYYY/MM/DD" className="h-10 font-mono" />
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Notes</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Notes</Label>
                             <Textarea value={dealForm.notes} onChange={e => setDealForm({...dealForm, notes: e.target.value})} placeholder="..." className="min-h-[100px] text-sm resize-none" />
                         </div>
                     </div>
@@ -672,14 +672,14 @@ function ClientActivityPageContent() {
                     </DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Primary Reason</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Primary Reason</Label>
                             <Select value={lostForm.reason} onValueChange={v => setLostForm({...lostForm, reason: v})}>
                                 <SelectTrigger className="h-10"><SelectValue placeholder="Select reason..."/></SelectTrigger>
                                 <SelectContent>{LOST_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
                         {lostForm.reason === 'Other' && (
-                            <div className="space-y-1.5 animate-in slide-in-from-top-2"><Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Detail</Label><Input value={lostForm.otherText} onChange={e => setLostForm({...lostForm, otherText: e.target.value})} className="h-10" /></div>
+                            <div className="space-y-1.5 animate-in slide-in-from-top-2"><Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Detail</Label><Input value={lostForm.otherText} onChange={e => setLostForm({...lostForm, otherText: e.target.value})} className="h-10" /></div>
                         )}
                     </div>
                     <DialogFooter><Button variant="destructive" onClick={handleConfirmLost} disabled={!lostForm.reason} className="w-full h-11 font-black text-xs uppercase shadow-xl shadow-red-500/20">Close as Lost</Button></DialogFooter>
@@ -697,7 +697,7 @@ function ClientActivityPageContent() {
                     </DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Client Account <span className="text-destructive">*</span></Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Client Account <span className="text-destructive">*</span></Label>
                             <Popover open={isFuCompanyPopoverOpen} onOpenChange={setIsFuCompanyPopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" role="combobox" className="w-full justify-between h-10 font-normal text-xs">
@@ -725,14 +725,14 @@ function ClientActivityPageContent() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Target Date (BS) <span className="text-destructive">*</span></Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Target Date (BS) <span className="text-destructive">*</span></Label>
                                 <div className="relative">
                                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground opacity-50" />
                                     <Input value={followUpForm.dueDateBS} onChange={e => setFollowUpForm({...followUpForm, dueDateBS: e.target.value})} placeholder="YYYY/MM/DD" className="pl-9 h-10 font-mono text-sm" />
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Linked Deal (Optional)</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Linked Deal (Optional)</Label>
                                 <Select value={followUpForm.dealId} onValueChange={v => setFollowUpForm({...followUpForm, dealId: v})}>
                                     <SelectTrigger className="h-10"><SelectValue placeholder="Select context..."/></SelectTrigger>
                                     <SelectContent>
@@ -744,7 +744,7 @@ function ClientActivityPageContent() {
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Action Required <span className="text-destructive">*</span></Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Action Required <span className="text-destructive">*</span></Label>
                             <Input value={followUpForm.action} onChange={e => setFollowUpForm({...followUpForm, action: e.target.value})} placeholder="e.g. Discuss revised pricing terms" className="h-10 font-bold" />
                         </div>
                     </div>
@@ -766,7 +766,7 @@ function ClientActivityPageContent() {
                     </DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Client Account <span className="text-destructive">*</span></Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Client Account <span className="text-destructive">*</span></Label>
                             <Popover open={isLogCompanyPopoverOpen} onOpenChange={setIsLogCompanyPopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" role="combobox" className="w-full justify-between h-10 font-normal text-xs">
@@ -793,12 +793,12 @@ function ClientActivityPageContent() {
                             </Popover>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Subject <span className="text-destructive">*</span></Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Subject <span className="text-destructive">*</span></Label>
                             <Input value={logForm.subject} onChange={e => setLogForm({...logForm, subject: e.target.value})} placeholder="Short headline" className="h-10 font-bold" />
                         </div>
                         {logForm.type === 'Incident' ? (
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-red-700">Severity</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-red-700">Severity</Label>
                                 <Select value={logForm.severity} onValueChange={(v: any) => setLogForm({...logForm, severity: v})}>
                                     <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
                                     <SelectContent>
@@ -810,7 +810,7 @@ function ClientActivityPageContent() {
                             </div>
                         ) : (
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-blue-700">Sentiment</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-blue-700">Sentiment</Label>
                                 <Select value={logForm.sentiment} onValueChange={(v: any) => setLogForm({...logForm, sentiment: v})}>
                                     <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
                                     <SelectContent>
@@ -822,7 +822,7 @@ function ClientActivityPageContent() {
                             </div>
                         )}
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Details</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Details</Label>
                             <Textarea value={logForm.description} onChange={e => setLogForm({...logForm, description: e.target.value})} placeholder="What happened..." className="min-h-[100px] text-sm resize-none" />
                         </div>
                     </div>
@@ -841,14 +841,14 @@ function ClientActivityPageContent() {
 function SectionHeader({ title, count, color }: { title: string, count: number, color: string }) {
     return (
         <div className="flex items-center justify-between border-b pb-2 px-1">
-            <h2 className={cn("text-[10px] font-black uppercase tracking-[0.2em]", color)}>{title}</h2>
-            <Badge variant="outline" className="h-5 text-[9px] font-black">{count}</Badge>
+            <h2 className={cn("text-[0.625rem] font-black uppercase tracking-[0.2em]", color)}>{title}</h2>
+            <Badge variant="outline" className="h-5 text-[0.5625rem] font-black">{count}</Badge>
         </div>
     );
 }
 
 function EmptyState({ text }: { text: string }) {
-    return <div className="py-8 text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-30 italic">{text}</div>;
+    return <div className="py-8 text-center text-[0.625rem] font-black uppercase tracking-widest text-muted-foreground opacity-30 italic">{text}</div>;
 }
 
 function FollowUpCard({ f, onStatus, onEdit, onDelete, priority }: { f: FollowUp, onStatus: any, onEdit: any, onDelete: any, priority?: 'High' | 'Medium' }) {
@@ -863,9 +863,9 @@ function FollowUpCard({ f, onStatus, onEdit, onDelete, priority }: { f: FollowUp
                     <div className="space-y-1 overflow-hidden">
                         <h4 className="font-black text-sm text-foreground leading-tight">{f.action}</h4>
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-blue-700 uppercase truncate">{f.partyName}</span>
+                            <span className="text-[0.625rem] font-bold text-blue-700 uppercase truncate">{f.partyName}</span>
                             <div className="w-1 h-1 rounded-full bg-gray-300" />
-                            <span className="text-[10px] font-black text-muted-foreground uppercase">{f.dueDateBS}</span>
+                            <span className="text-[0.625rem] font-black text-muted-foreground uppercase">{f.dueDateBS}</span>
                         </div>
                     </div>
                     <div className="flex gap-1 shrink-0">

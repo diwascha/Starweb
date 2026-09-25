@@ -286,7 +286,7 @@ export default function LoginPage() {
             <div className="space-y-1">
                 <h1 className="text-3xl font-black tracking-tight text-foreground">{appBranding.appName}</h1>
                 {appBranding.appMotto && (
-                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{appBranding.appMotto}</p>
+                    <p className="text-[0.625rem] font-black text-primary uppercase tracking-[0.2em]">{appBranding.appMotto}</p>
                 )}
             </div>
         </div>
@@ -310,7 +310,7 @@ export default function LoginPage() {
                     <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input id="loginString" type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} {...register('loginString')} disabled={isSubmitting} className="flex h-11 w-full rounded-lg border-2 border-muted bg-background pl-10 pr-3 py-2 text-sm font-semibold transition-all focus:border-primary focus:ring-0 outline-none" />
                 </div>
-                {errors.loginString && <p className="text-[10px] text-destructive font-black uppercase">{errors.loginString.message}</p>}
+                {errors.loginString && <p className="text-[0.625rem] text-destructive font-black uppercase">{errors.loginString.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-xs font-bold uppercase text-muted-foreground">Secure Password</Label>
@@ -318,7 +318,7 @@ export default function LoginPage() {
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input id="password" type="password" autoComplete="current-password" placeholder="••••••••" {...register('password')} disabled={isSubmitting} className="flex h-11 w-full rounded-lg border-2 border-muted bg-background pl-10 pr-3 py-2 text-sm font-semibold transition-all focus:border-primary focus:ring-0 outline-none" />
                 </div>
-                {errors.password && <p className="text-[10px] text-destructive font-black uppercase">{errors.password.message}</p>}
+                {errors.password && <p className="text-[0.625rem] text-destructive font-black uppercase">{errors.password.message}</p>}
               </div>
 
               {lockoutRemaining > 0 && (
@@ -332,7 +332,7 @@ export default function LoginPage() {
               {lockoutRemaining <= 0 && failedAttempts >= 3 && (
                 <div className="space-y-3 p-4 bg-amber-50 rounded-xl border-2 border-amber-200 animate-in slide-in-from-top-2">
                     <div className="flex items-center justify-between">
-                        <Label className="text-[10px] font-black uppercase text-amber-800 tracking-widest">Challenge</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-amber-800 tracking-widest">Challenge</Label>
                         <Button type="button" variant="ghost" size="icon" className="h-3 w-3 text-amber-700" onClick={generateCaptcha}><RefreshCw className="h-3 w-3" /></Button>
                     </div>
                     <div className="flex items-center gap-3">
@@ -369,7 +369,7 @@ export default function LoginPage() {
                     <p className="text-xs font-black uppercase tracking-wider text-primary">
                       Signing you in
                     </p>
-                    <span className="text-[10px] font-black tabular-nums text-primary/70">
+                    <span className="text-[0.625rem] font-black tabular-nums text-primary/70">
                       Step {LOGIN_STAGES.findIndex(s => s.key === currentStage.key) + 1} of {LOGIN_STAGES.length}
                     </span>
                   </div>
@@ -392,7 +392,7 @@ export default function LoginPage() {
                       return (
                         <li
                           key={s.key}
-                          className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                          className={`flex items-center gap-2 text-[0.625rem] font-bold uppercase tracking-wider transition-colors ${
                             done ? 'text-primary/60' : active ? 'text-primary' : 'text-muted-foreground/40'
                           }`}
                         >
@@ -410,7 +410,7 @@ export default function LoginPage() {
                   </ol>
 
                   {isSlow && (
-                    <p className="text-[10px] font-semibold leading-relaxed text-muted-foreground animate-in fade-in">
+                    <p className="text-[0.625rem] font-semibold leading-relaxed text-muted-foreground animate-in fade-in">
                       This is taking longer than usual - the connection may be slow. Still working.
                     </p>
                   )}
@@ -427,7 +427,7 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
-        <p className="mt-8 text-center text-[10px] text-muted-foreground font-medium uppercase tracking-widest">StarSutra Integrated Enterprise Suite</p>
+        <p className="mt-8 text-center text-[0.625rem] text-muted-foreground font-medium uppercase tracking-widest">StarSutra Integrated Enterprise Suite</p>
       </div>
     </div>
   );

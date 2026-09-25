@@ -65,9 +65,9 @@ const VERDICT_LABEL: Record<FitVerdict, string> = {
 
 const Field = ({ label, children, hint }: any) => (
   <div className="space-y-1">
-    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</Label>
+    <Label className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">{label}</Label>
     {children}
-    {hint && <p className="text-[10px] text-muted-foreground leading-tight">{hint}</p>}
+    {hint && <p className="text-[0.625rem] text-muted-foreground leading-tight">{hint}</p>}
   </div>
 );
 
@@ -104,18 +104,18 @@ const LayerCard = ({
                     Layer {index + 1} &mdash; {breakdown?.roleLabel || (isFlute ? 'Flute' : 'Liner')}
                   </span>
                   {isFlute && (
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                    <Badge variant="outline" className="text-[0.5625rem] px-1.5 py-0 h-4">
                       {layer.fluteProfile || 'B'} flute
                     </Badge>
                   )}
                   {breakdown?.rateMissing && (
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-amber-400 text-amber-700">
+                    <Badge variant="outline" className="text-[0.5625rem] px-1.5 py-0 h-4 border-amber-400 text-amber-700">
                       no rate
                     </Badge>
                   )}
                 </div>
                 {/* Collapsed summary: the three things worth seeing at a glance. */}
-                <div className="text-[11px] text-muted-foreground truncate">
+                <div className="text-[0.6875rem] text-muted-foreground truncate">
                   {materialLabel(layer.paperType)}
                   {layer.bf ? ` · ${layer.bf}` : ''}
                   {` · ${layer.gsm || 0} GSM`}
@@ -123,7 +123,7 @@ const LayerCard = ({
               </div>
               <div className="text-right shrink-0">
                 <div className="text-xs font-bold tabular-nums">{n1(breakdown?.weightPerBox || 0)} g</div>
-                <div className="text-[10px] text-muted-foreground">per box</div>
+                <div className="text-[0.625rem] text-muted-foreground">per box</div>
               </div>
             </div>
           </button>
@@ -182,7 +182,7 @@ const LayerCard = ({
                 strength estimate into a real calculation, so the hint says so. */}
             <Collapsible>
               <CollapsibleTrigger asChild>
-                <button type="button" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground flex items-center gap-1">
+                <button type="button" className="text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground flex items-center gap-1">
                   <ChevronDown className="h-3 w-3" /> Lab data &amp; rate override (optional)
                 </button>
               </CollapsibleTrigger>
@@ -206,7 +206,7 @@ const LayerCard = ({
             </Collapsible>
 
             <div className="flex items-center justify-between gap-2 pt-1 border-t">
-              <div className="text-[10px] text-muted-foreground">
+              <div className="text-[0.625rem] text-muted-foreground">
                 {n1(breakdown?.effectiveGsm || 0)} g/m&sup2; effective
                 {breakdown?.takeUp > 1 && ` (${layer.gsm} × ${breakdown.takeUp})`}
                 {' · '}Rs. {n2(breakdown?.cost || 0)}
@@ -243,34 +243,34 @@ const BoxSummary = ({ analysis }: { analysis: BoxAnalysis }) => {
       <div className="px-4 py-3 space-y-2.5">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2">
           <div>
-            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Construction</div>
+            <div className="text-[0.5625rem] uppercase tracking-wider text-muted-foreground">Construction</div>
             <div className="text-sm font-bold">{analysis.layers.length} Ply</div>
-            <div className="text-[10px] text-muted-foreground tabular-nums">
+            <div className="text-[0.625rem] text-muted-foreground tabular-nums">
               {geometry.l || 0} &times; {geometry.b || 0} &times; {geometry.h || 0}
             </div>
           </div>
           <div>
-            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Box Weight</div>
+            <div className="text-[0.5625rem] uppercase tracking-wider text-muted-foreground">Box Weight</div>
             <div className="text-sm font-bold tabular-nums">{n1(analysis.boxWeightGross)} g</div>
-            <div className="text-[10px] text-muted-foreground tabular-nums">
+            <div className="text-[0.625rem] text-muted-foreground tabular-nums">
               {n1(analysis.boxWeightNet)} g + {n1(analysis.conversionLossPerBox)} g loss
             </div>
           </div>
           <div>
-            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Cost / Box</div>
+            <div className="text-[0.5625rem] uppercase tracking-wider text-muted-foreground">Cost / Box</div>
             <div className={cn('text-sm font-bold tabular-nums', analysis.rateMissing && 'text-amber-600')}>
               Rs. {n2(analysis.costPerBox)}
             </div>
-            <div className="text-[10px] text-muted-foreground tabular-nums">
+            <div className="text-[0.625rem] text-muted-foreground tabular-nums">
               Rs. {n0(analysis.totalCost)} for {n0(geometry.pcs)}
             </div>
           </div>
           <div>
-            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Safe Working Load</div>
+            <div className="text-[0.5625rem] uppercase tracking-wider text-muted-foreground">Safe Working Load</div>
             <div className="text-sm font-bold tabular-nums">
               {strength.bctConfidence === 'unavailable' ? '—' : `${n1(strength.workingLoadKg)} kg`}
             </div>
-            <div className="text-[10px] text-muted-foreground tabular-nums">
+            <div className="text-[0.625rem] text-muted-foreground tabular-nums">
               {strength.bctConfidence === 'unavailable' ? 'needs dimensions' : `BCT ${n0(strength.bctKgf)} kg ÷ ${n1(strength.safetyDivisor)}`}
             </div>
           </div>
@@ -280,12 +280,12 @@ const BoxSummary = ({ analysis }: { analysis: BoxAnalysis }) => {
           <Icon className="h-4 w-4 shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={cn('text-[9px] font-bold text-white px-1.5 py-0.5 rounded', style.chip)}>
+              <span className={cn('text-[0.5625rem] font-bold text-white px-1.5 py-0.5 rounded', style.chip)}>
                 {VERDICT_LABEL[recommendation.verdict]}
               </span>
               <span className="text-xs font-bold">{recommendation.headline}</span>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{recommendation.detail}</p>
+            <p className="text-[0.6875rem] text-muted-foreground mt-0.5 leading-snug">{recommendation.detail}</p>
           </div>
         </div>
       </div>
@@ -407,7 +407,7 @@ export const BoxDesigner = ({
                     <DropdownMenuItem onClick={() => addLayer('flute')}>Flute (corrugated medium)</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <div className="text-[10px] text-muted-foreground self-center">
+                <div className="text-[0.625rem] text-muted-foreground self-center">
                   Board grammage {n1(analysis.totalGsm)} g/m&sup2; &middot; sheet {n0(analysis.geometry.sheetSizeL)} &times; {n0(analysis.geometry.sheetSizeB)} mm
                 </div>
               </div>
@@ -416,11 +416,11 @@ export const BoxDesigner = ({
             {/* ---------------- Materials ---------------- */}
             <TabsContent value="materials" className="px-4 py-3 space-y-3 mt-0">
               <div>
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5 mb-2">
+                <h3 className="text-[0.625rem] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5 mb-2">
                   Material Requirement &mdash; {n0(analysis.geometry.pcs)} boxes
                 </h3>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[11px] border-collapse">
+                  <table className="w-full text-[0.6875rem] border-collapse">
                     <thead>
                       <tr className="border-b bg-muted/40">
                         <th className="text-left py-1.5 px-2 font-bold">Material</th>
@@ -437,7 +437,7 @@ export const BoxDesigner = ({
                           <td className="py-1.5 px-2">
                             <div className="font-semibold">{materialLabel(m.paperType)}</div>
                             {/* Consolidation never hides which layers it came from. */}
-                            <div className="text-[9px] text-muted-foreground">{m.roleLabels.join(' + ')}</div>
+                            <div className="text-[0.5625rem] text-muted-foreground">{m.roleLabels.join(' + ')}</div>
                           </td>
                           <td className="text-center py-1.5 px-2 tabular-nums">{m.bf || '—'}</td>
                           <td className="text-center py-1.5 px-2 tabular-nums">{n0(m.gsm)}</td>
@@ -462,7 +462,7 @@ export const BoxDesigner = ({
                   </table>
                 </div>
                 {analysis.rateMissing && (
-                  <p className="text-[10px] text-amber-700 mt-2 flex items-start gap-1">
+                  <p className="text-[0.625rem] text-amber-700 mt-2 flex items-start gap-1">
                     <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
                     One or more materials have no rate configured. Their cost reads as zero, which understates the total &mdash; set a global rate, or a per-layer rate override on that layer.
                   </p>
@@ -473,12 +473,12 @@ export const BoxDesigner = ({
               <Collapsible open={showDetails} onOpenChange={setShowDetails}>
                 <CollapsibleTrigger asChild>
                   <button type="button" className="w-full flex items-center justify-between px-3 py-2 border rounded-md bg-muted/20 hover:bg-muted/40 text-left">
-                    <span className="text-[10px] font-black uppercase tracking-wider">Calculation Details</span>
+                    <span className="text-[0.625rem] font-black uppercase tracking-wider">Calculation Details</span>
                     {showDetails ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="border border-t-0 rounded-b-md px-3 py-2 space-y-2 text-[10px]">
+                  <div className="border border-t-0 rounded-b-md px-3 py-2 space-y-2 text-[0.625rem]">
                     <div className="text-muted-foreground">
                       Sheet {n0(analysis.geometry.sheetSizeL)} &times; {n0(analysis.geometry.sheetSizeB)} mm
                       = <b>{analysis.geometry.sheetArea.toFixed(4)} m&sup2;</b> per box
@@ -525,7 +525,7 @@ export const BoxDesigner = ({
               </div>
 
               <div>
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5 mb-2">
+                <h3 className="text-[0.625rem] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5 mb-2">
                   Service Conditions
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -570,11 +570,11 @@ export const BoxDesigner = ({
                   { label: 'Compression', value: n0(strength.bctKgf), unit: 'kgf (BCT)', conf: strength.bctConfidence },
                 ].map(s => (
                   <div key={s.label} className="border rounded-md px-2 py-1.5">
-                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
+                    <div className="text-[0.5625rem] uppercase tracking-wider text-muted-foreground">{s.label}</div>
                     <div className="text-sm font-bold tabular-nums">{s.value}</div>
-                    <div className="text-[9px] text-muted-foreground">{s.unit}</div>
+                    <div className="text-[0.5625rem] text-muted-foreground">{s.unit}</div>
                     <Badge variant="outline" className={cn(
-                      'text-[8px] px-1 py-0 h-3.5 mt-0.5',
+                      'text-[0.5rem] px-1 py-0 h-3.5 mt-0.5',
                       s.conf === 'measured' ? 'border-emerald-400 text-emerald-700' : 'border-amber-400 text-amber-700'
                     )}>
                       {s.conf === 'measured' ? 'calculated' : s.conf === 'unavailable' ? 'n/a' : 'estimated'}
@@ -585,18 +585,18 @@ export const BoxDesigner = ({
 
               {/* Why the safe number is far below the lab number. */}
               <div>
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5 mb-2">
+                <h3 className="text-[0.625rem] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5 mb-2">
                   Safety Derating &mdash; {n1(strength.safetyDivisor)}&times; total
                 </h3>
                 <div className="space-y-1">
                   {strength.derating.map(d => (
-                    <div key={d.label} className="flex items-start gap-2 text-[10px]">
+                    <div key={d.label} className="flex items-start gap-2 text-[0.625rem]">
                       <span className="font-bold tabular-nums w-10 shrink-0">{d.factor.toFixed(2)}&times;</span>
                       <span className="font-semibold w-28 shrink-0">{d.label}</span>
                       <span className="text-muted-foreground">{d.note}</span>
                     </div>
                   ))}
-                  <div className="flex items-center gap-2 text-[11px] border-t pt-1.5 font-bold">
+                  <div className="flex items-center gap-2 text-[0.6875rem] border-t pt-1.5 font-bold">
                     <Scale className="h-3.5 w-3.5" />
                     {n0(strength.bctKgf)} kgf BCT &divide; {n1(strength.safetyDivisor)} = {n1(strength.workingLoadKg)} kg safe working load
                   </div>
@@ -605,12 +605,12 @@ export const BoxDesigner = ({
 
               {analysis.recommendation.suggestions.length > 0 && (
                 <div>
-                  <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5 mb-2">
+                  <h3 className="text-[0.625rem] font-black uppercase tracking-wider text-muted-foreground border-b pb-1.5 mb-2">
                     Recommendation
                   </h3>
                   <ul className="space-y-1">
                     {analysis.recommendation.suggestions.map((s, i) => (
-                      <li key={i} className="text-[11px] flex items-start gap-1.5 leading-snug">
+                      <li key={i} className="text-[0.6875rem] flex items-start gap-1.5 leading-snug">
                         <span className="text-muted-foreground mt-0.5">&rarr;</span>
                         <span>{s}</span>
                       </li>
@@ -621,12 +621,12 @@ export const BoxDesigner = ({
 
               {strength.limitations.length > 0 && (
                 <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2">
-                  <div className="text-[10px] font-black uppercase tracking-wider text-amber-800 mb-1 flex items-center gap-1">
+                  <div className="text-[0.625rem] font-black uppercase tracking-wider text-amber-800 mb-1 flex items-center gap-1">
                     <Info className="h-3 w-3" /> Limits of this estimate
                   </div>
                   <ul className="space-y-1">
                     {strength.limitations.map((l, i) => (
-                      <li key={i} className="text-[10px] text-amber-900 leading-snug">&bull; {l}</li>
+                      <li key={i} className="text-[0.625rem] text-amber-900 leading-snug">&bull; {l}</li>
                     ))}
                   </ul>
                 </div>

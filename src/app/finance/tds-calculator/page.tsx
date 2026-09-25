@@ -377,14 +377,14 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                 <CardHeader className="bg-muted/30 border-b"><CardTitle className="text-sm font-black uppercase">Input</CardTitle></CardHeader>
                 <CardContent className="p-6 space-y-6">
                     <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-muted-foreground">Voucher No.</Label><Input value={voucherNo} readOnly className="bg-muted/50 h-10 font-mono text-sm" /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-muted-foreground">Date</Label>
+                        <div className="space-y-1.5"><Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Voucher No.</Label><Input value={voucherNo} readOnly className="bg-muted/50 h-10 font-mono text-sm" /></div>
+                        <div className="space-y-1.5"><Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Date</Label>
                             <Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start h-10 font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{toNepaliDate(date.toISOString())}</Button></PopoverTrigger>
                             <PopoverContent className="w-auto p-0"><DualCalendar selected={date} onSelect={d => d && setDate(d)} /></PopoverContent></Popover>
                         </div>
                     </div>
                     <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Beneficiary</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Beneficiary</Label>
                         <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
                             <PopoverTrigger asChild><Button variant="outline" className="w-full justify-between h-10">{partyName || "Select beneficiary..."}<ChevronsUpDown className="ml-2 h-4 w-4 opacity-30" /></Button></PopoverTrigger>
                             <PopoverContent className="p-0"><Command><CommandInput placeholder="Search..." onValueChange={setPartySearch} /><CommandList><CommandEmpty><Button variant="ghost" className="w-full justify-start text-xs" onClick={() => handleOpenPartyDialog(null, 'Vendor', partySearch)}><PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"</Button></CommandEmpty><CommandGroup>
@@ -393,8 +393,8 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                         </Popover>
                     </div>
                     <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-muted-foreground">Taxable Base</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-11 font-black text-lg" /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-muted-foreground">TDS Rate</Label>
+                        <div className="space-y-1.5"><Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Taxable Base</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-11 font-black text-lg" /></div>
+                        <div className="space-y-1.5"><Label className="text-[0.625rem] font-black uppercase text-muted-foreground">TDS Rate</Label>
                             <Select value={selectedRateValue} onValueChange={setSelectedRateValue}>
                                 <SelectTrigger className="h-11 font-bold"><SelectValue /></SelectTrigger>
                                 <SelectContent>{tdsRates.map(r => <SelectItem key={r.value} value={r.value}>{r.label} ({r.value}%)</SelectItem>)}</SelectContent>
@@ -416,7 +416,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                     <CardContent className="p-0"><ScrollArea className="h-[400px]">
                         {tdsRates.map(r => (
                             <div key={r.value} className="flex items-center justify-between p-4 border-b hover:bg-muted/30">
-                                <div className="space-y-0.5"><div className="font-black text-xs">{r.label} <Badge variant="outline" className="text-[9px] h-4 bg-blue-50">{r.value}%</Badge></div><p className="text-[9px] text-muted-foreground uppercase">{r.description}</p></div>
+                                <div className="space-y-0.5"><div className="font-black text-xs">{r.label} <Badge variant="outline" className="text-[0.5625rem] h-4 bg-blue-50">{r.value}%</Badge></div><p className="text-[0.5625rem] text-muted-foreground uppercase">{r.description}</p></div>
                                 <div className="flex gap-1"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingRate(r); setRateForm(r); setIsRateDialogOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setTdsRates(rates => rates.filter(x => x.value !== r.value))}><Trash2 className="h-3.5 w-3.5" /></Button></div>
                             </div>
                         ))}
@@ -428,10 +428,10 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
             <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle className="text-xl font-black uppercase">{editingParty ? 'Edit Beneficiary' : 'New Beneficiary'}</DialogTitle></DialogHeader>
                 <div className="grid gap-5 py-4">
-                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Entity Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} className="h-10 font-bold" /></div>
+                    <div className="space-y-1.5"><Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Entity Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} className="h-10 font-bold" /></div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Type</Label><Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="space-y-1.5"><Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Type</Label><Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
+                        <div className="space-y-1.5"><Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: any) => setPartyForm({...partyForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{allowedOwnerships.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                     </div>
                 </div>
                 <DialogFooter><Button onClick={async () => {
@@ -455,11 +455,11 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                         console.error('TDS voucher export failed', error);
                         toast({ title: 'Export Failed', description: 'The voucher PDF could not be created.', variant: 'destructive' });
                     }
-                }} className="h-10 px-6 uppercase font-bold text-[10px]">Save PDF</Button><Button onClick={() => {
+                }} className="h-10 px-6 uppercase font-bold text-[0.625rem]">Save PDF</Button><Button onClick={() => {
                     if (!printElement(printRef.current, { title: `TDS Voucher ${voucherNo}` })) {
                         toast({ title: 'Could not open the print window', description: 'Allow pop-ups for this site and try again.', variant: 'destructive' });
                     }
-                }} className="h-10 px-10 font-black uppercase text-[10px] shadow-lg shadow-primary/20"><Printer className="mr-2 h-4 w-4" /> Print Voucher</Button></DialogFooter>
+                }} className="h-10 px-10 font-black uppercase text-[0.625rem] shadow-lg shadow-primary/20"><Printer className="mr-2 h-4 w-4" /> Print Voucher</Button></DialogFooter>
             </DialogContent>
         </Dialog>
     </div>
