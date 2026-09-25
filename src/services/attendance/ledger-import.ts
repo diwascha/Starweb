@@ -67,6 +67,8 @@ const parseDurationHours = (raw: any): number | null => {
 export interface CalculatedAttendanceImportResult {
     attendanceRecords: number;
     newEmployees: number;
+    /** Names of employees created because no existing one matched - shown so a typo can be merged. */
+    newEmployeeNames: string[];
     skippedRows: number;
 }
 
@@ -85,7 +87,7 @@ const importCalculatedAttendanceSheet = async (
     sourceSheet: string,
     importedBy: string
 ): Promise<CalculatedAttendanceImportResult> => {
-    const result: CalculatedAttendanceImportResult = { attendanceRecords: 0, newEmployees: 0, skippedRows: 0 };
+    const result: CalculatedAttendanceImportResult = { attendanceRecords: 0, newEmployees: 0, newEmployeeNames: [], skippedRows: 0 };
     const { processedData, skippedCount } = processAttendanceImport(grid);
     result.skippedRows = skippedCount;
     if (processedData.length === 0) return result;
@@ -125,6 +127,7 @@ const importCalculatedAttendanceSheet = async (
         const employee = { id: empRef.id, ...newEmp } as Employee;
         employeeMap.set(lowerName, employee);
         result.newEmployees++;
+        result.newEmployeeNames.push(newEmp.name);
         return employee;
     };
 
@@ -247,6 +250,8 @@ export interface LedgerWorkbookImportResult {
     attendanceRecords: number;
     payrollRecords: number;
     newEmployees: number;
+    /** Names of employees created because no existing one matched - shown so a typo can be merged. */
+    newEmployeeNames: string[];
     bonusSummaries: number;
     behaviorLedger: number;
     behaviorAnalytics: number;
@@ -270,7 +275,7 @@ export const importLedgerWorkbook = async (
     onProgress: (label: string) => void
 ): Promise<LedgerWorkbookImportResult> => {
     const result: LedgerWorkbookImportResult = {
-        attendanceRecords: 0, payrollRecords: 0, newEmployees: 0,
+        attendanceRecords: 0, payrollRecords: 0, newEmployees: 0, newEmployeeNames: [],
         bonusSummaries: 0, behaviorLedger: 0, behaviorAnalytics: 0,
         skippedSheets: [],
     };
@@ -298,6 +303,7 @@ export const importLedgerWorkbook = async (
                 const attResult = await importCalculatedAttendanceSheet(grid, mapping.sheetName, importedBy);
                 result.attendanceRecords += attResult.attendanceRecords;
                 result.newEmployees += attResult.newEmployees;
+                result.newEmployeeNames.push(...attResult.newEmployeeNames);
                 if (attResult.attendanceRecords > 0) markImported(mapping.year, mapping.month);
             } catch (error: any) {
                 console.error(`Ledger import: attendance block failed for sheet "${mapping.sheetName}"`, error);
@@ -314,6 +320,7 @@ export const importLedgerWorkbook = async (
                     );
                     result.payrollRecords += payResult.payrollRecords;
                     result.newEmployees += payResult.newEmployees;
+                    result.newEmployeeNames.push(...payResult.newEmployeeNames);
                     if (payResult.payrollRecords > 0) markImported(mapping.year, mapping.month);
                 }
             } catch (error: any) {

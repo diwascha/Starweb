@@ -35,14 +35,31 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): SystemLog
     };
 };
 
+/**
+ * Who a log entry is attributed to. The uid comes from the live Firebase
+ * session - never from localStorage, which the user can edit - and the rules
+ * reject any entry whose userId is not the caller's. The username is only a
+ * display label: taken from the cached profile when it belongs to this same
+ * uid, otherwise from the sign-in email. Returns null when nobody is signed
+ * in, since such a write would be rejected anyway.
+ */
+const currentActor = (): { uid: string; username: string } | null => {
+    const { auth } = getFirebase();
+    const firebaseUser = auth?.currentUser;
+    if (!firebaseUser) return null;
+    let username = firebaseUser.email || firebaseUser.uid;
+    try {
+        const cached = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user_session') || 'null') : null;
+        if (cached?.id === firebaseUser.uid && cached?.username) username = cached.username;
+    } catch { /* fall back to the email */ }
+    return { uid: firebaseUser.uid, username };
+};
+
 export const logError = async (error: Error | any, moduleName: string, context?: any) => {
     try {
         const { db } = getFirebase();
-        let user = null;
-        try {
-            const userSession = typeof window !== 'undefined' ? localStorage.getItem('user_session') : null;
-            user = userSession ? JSON.parse(userSession) : null;
-        } catch (e) {}
+        const actor = currentActor();
+        if (!actor) return;
 
         const errorMessage = error?.message || (typeof error === 'string' ? error : 'Unknown Error');
         const errorStack = error?.stack || null;
@@ -53,8 +70,8 @@ export const logError = async (error: Error | any, moduleName: string, context?:
             module: moduleName || 'Unknown',
             message: errorMessage,
             stack: errorStack,
-            username: user?.username || 'staradmin',
-            userId: user?.id || 'anonymous',
+            username: actor.username,
+            userId: actor.uid,
             context: context ?? null,
             createdAt: serverTimestamp()
         };
@@ -71,19 +88,16 @@ export const logError = async (error: Error | any, moduleName: string, context?:
 export const logAudit = async (action: string, moduleName: string, context?: any) => {
     try {
         const { db } = getFirebase();
-        let user = null;
-        try {
-            const userSession = typeof window !== 'undefined' ? localStorage.getItem('user_session') : null;
-            user = userSession ? JSON.parse(userSession) : null;
-        } catch (e) {}
+        const actor = currentActor();
+        if (!actor) return;
 
         const payload = {
             timestamp: new Date().toISOString(),
             level: 'info',
             module: moduleName || 'Audit',
             message: action,
-            username: user?.username || 'staradmin',
-            userId: user?.id || 'anonymous',
+            username: actor.username,
+            userId: actor.uid,
             context: context ?? null,
             createdAt: serverTimestamp()
         };

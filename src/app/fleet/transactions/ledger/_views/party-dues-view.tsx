@@ -102,9 +102,9 @@ export function PartyDuesView() {
     const exportColumns: LedgerColumn<PartyDue>[] = [
         { header: 'Party', value: p => p.party.name },
         { header: 'Type', value: p => p.party.type },
-        { header: 'Debit', align: 'right', value: p => p.debit.toLocaleString() },
-        { header: 'Credit', align: 'right', value: p => p.credit.toLocaleString() },
-        { header: 'Balance', align: 'right', value: p => Math.abs(p.balance).toLocaleString() },
+        { header: 'Debit', align: 'right', value: p => p.debit.toLocaleString('en-IN') },
+        { header: 'Credit', align: 'right', value: p => p.credit.toLocaleString('en-IN') },
+        { header: 'Balance', align: 'right', value: p => Math.abs(p.balance).toLocaleString('en-IN') },
         { header: 'Status', value: p => p.balance > 0.5 ? 'Receivable' : p.balance < -0.5 ? 'Payable' : 'Settled' },
     ];
 
@@ -125,8 +125,8 @@ export function PartyDuesView() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Card><CardHeader className="pb-2"><CardDescription className="flex items-center gap-1"><ArrowDownCircle className="h-3.5 w-3.5 text-emerald-600" /> Total Receivable (owed to us)</CardDescription><CardTitle className="text-2xl text-emerald-600">Rs. {totals.receivable.toLocaleString()}</CardTitle></CardHeader></Card>
-                <Card><CardHeader className="pb-2"><CardDescription className="flex items-center gap-1"><ArrowUpCircle className="h-3.5 w-3.5 text-destructive" /> Total Payable (we owe)</CardDescription><CardTitle className="text-2xl text-destructive">Rs. {totals.payable.toLocaleString()}</CardTitle></CardHeader></Card>
+                <Card><CardHeader className="pb-2"><CardDescription className="flex items-center gap-1"><ArrowDownCircle className="h-3.5 w-3.5 text-emerald-600" /> Total Receivable (owed to us)</CardDescription><CardTitle className="text-2xl text-emerald-600">Rs. {totals.receivable.toLocaleString('en-IN')}</CardTitle></CardHeader></Card>
+                <Card><CardHeader className="pb-2"><CardDescription className="flex items-center gap-1"><ArrowUpCircle className="h-3.5 w-3.5 text-destructive" /> Total Payable (we owe)</CardDescription><CardTitle className="text-2xl text-destructive">Rs. {totals.payable.toLocaleString('en-IN')}</CardTitle></CardHeader></Card>
             </div>
 
             <Card>
@@ -179,9 +179,9 @@ export function PartyDuesView() {
                                 <TableRow key={p.party.id}>
                                     <TableCell className="font-semibold">{p.party.name}</TableCell>
                                     <TableCell><Badge variant="outline" className="text-[9px]">{p.party.type}</Badge></TableCell>
-                                    <TableCell className="text-right tabular-nums">Rs. {p.debit.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right tabular-nums">Rs. {p.credit.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right tabular-nums font-bold">Rs. {Math.abs(p.balance).toLocaleString()}</TableCell>
+                                    <TableCell className="text-right tabular-nums">Rs. {p.debit.toLocaleString('en-IN')}</TableCell>
+                                    <TableCell className="text-right tabular-nums">Rs. {p.credit.toLocaleString('en-IN')}</TableCell>
+                                    <TableCell className="text-right tabular-nums font-bold">Rs. {Math.abs(p.balance).toLocaleString('en-IN')}</TableCell>
                                     <TableCell>
                                         {p.balance > 0.5 ? (
                                             <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px]">Receivable</Badge>

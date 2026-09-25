@@ -362,7 +362,7 @@ export function VouchersView() {
         { header: 'Vehicles', value: v => v.vehicleIds.map(id => vehiclesById.get(id) || id).join(', ') },
         { header: 'Ledgers', value: v => v.partyIds.map(id => partiesById.get(id) || id).join(', ') },
         { header: 'Mode / Account', value: v => v.accountName ? `${v.billingType} (${v.accountName})` : v.billingType },
-        { header: 'Total Amount', align: 'right', value: v => v.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+        { header: 'Total Amount', align: 'right', value: v => v.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) },
     ];
 
     return (
@@ -553,7 +553,7 @@ export function VouchersView() {
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-right font-black text-[11px] tabular-nums">
-                                    Rs. {v.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    Rs. {v.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>

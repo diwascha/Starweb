@@ -1,5 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
 import { doc, writeBatch, getDocs, query, where } from 'firebase/firestore';
+import { deleteDocsInChunks } from '@/lib/service-utils';
 import { startOfDay, isEqual, isWithinInterval, format, getWeek } from 'date-fns';
 import type { AttendanceRecord, HrConfig, HrShift } from '@/lib/types';
 import { getEmployees } from '../employee-service';
@@ -73,11 +74,6 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         throw err;
     });
 
-    if (!processedSnap.empty) {
-        const deleteBatch = writeBatch(db);
-        processedSnap.forEach(d => deleteBatch.delete(d.ref));
-        await deleteBatch.commit();
-    }
 
     const rawLogs = rawSnap.docs.map(d => fromFirestoreLog(d as any)).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const results: Omit<AttendanceRecord, 'id'>[] = [];
@@ -186,16 +182,38 @@ export const runHourlyCalculation = async (year: number, month: number, calculat
         });
     }
 
+    // Write first, with an id derived from the source raw log, then remove
+    // only the rows this run did not rewrite. The old order - delete the whole
+    // month, then write under random ids - left the month partly empty if a
+    // write failed half-way (e.g. on the daily quota), and deleted in a single
+    // batch that fails outright past Firestore's 500-write limit. Re-running
+    // is now idempotent: the same raw log always lands on the same document.
+    const idFor = (r: { sourceLogId?: string }, index: number) =>
+        r.sourceLogId ? `calc_${r.sourceLogId}` : `calc_${year}_${month}_${index}`;
+    const writtenIds = new Set(results.map((r, i) => idFor(r, i)));
+
     const CHUNK = 400;
     for (let i = 0; i < results.length; i += CHUNK) {
         const batch = writeBatch(db);
-        results.slice(i, i + CHUNK).forEach(r => batch.set(doc(getAttendanceCollection()), r));
+        results.slice(i, i + CHUNK).forEach((r, j) => batch.set(doc(getAttendanceCollection(), idFor(r, i + j)), r));
         await batch.commit().catch(err => {
             if (err.code === 'permission-denied') {
                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ATTENDANCE, operation: 'write' }));
             }
             throw err;
         });
+    }
+
+    const stale = processedSnap.docs.filter(d => !writtenIds.has(d.id)).map(d => d.ref);
+    if (stale.length > 0) {
+        try {
+            await deleteDocsInChunks(stale);
+        } catch (err: any) {
+            if (err.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ATTENDANCE, operation: 'delete' }));
+            }
+            throw err;
+        }
     }
     return { processed: results.length };
 };

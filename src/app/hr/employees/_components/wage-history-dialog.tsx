@@ -28,7 +28,7 @@ interface WageHistoryDialogProps {
 const monthName = (bsMonth: number) =>
     NEPALI_MONTHS.find(m => m.value === bsMonth)?.name || String(bsMonth);
 
-const money = (value: number | undefined) => `Rs. ${(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+const money = (value: number | undefined) => `Rs. ${(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 /** Direction of a revision against the one before it, for the arrow badge. */
 const revisionDelta = (revisions: WageRevision[], index: number): number => {
@@ -118,7 +118,7 @@ export function WageHistoryDialog({ open, onOpenChange, employee }: WageHistoryD
                                                                         {delta > 0
                                                                             ? <TrendingUp className="mr-1 h-3 w-3" />
                                                                             : <TrendingDown className="mr-1 h-3 w-3" />}
-                                                                        {delta > 0 ? '+' : ''}{delta.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                                                        {delta > 0 ? '+' : ''}{delta.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                                                                     </Badge>
                                                                 )}
                                                             </span>
@@ -169,7 +169,7 @@ export function WageHistoryDialog({ open, onOpenChange, employee }: WageHistoryD
                                                     </TableCell>
                                                     <TableCell className="text-xs">{record.base || '—'}</TableCell>
                                                     <TableCell className="text-right font-mono text-xs">
-                                                        {(record.rate || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                                        {(record.rate || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                                                     </TableCell>
                                                     <TableCell className="text-right font-mono text-xs">{money(record.regularPay)}</TableCell>
                                                     <TableCell className="text-right font-mono text-xs">{money(record.totalPay)}</TableCell>

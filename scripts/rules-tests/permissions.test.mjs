@@ -48,7 +48,15 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   // Legacy permission shape: actions stored as a bare list, which the browser
   // still honours. The rules must agree or these accounts break.
   await setDoc(doc(db,'system_users/legacy'), { username:'legacy', isApproved:true, isAdmin:false, permissions:{ hr:['view'] } });
+  // Settings-page permissions, as granted in Settings > System.
+  await setDoc(doc(db,'system_users/setview'), { username:'setview', isApproved:true, isAdmin:false,
+    permissions:{ settings:{actions:['view'],ownerships:[]} } });
+  await setDoc(doc(db,'system_users/setedit'), { username:'setedit', isApproved:true, isAdmin:false,
+    permissions:{ settings:{actions:['view','edit'],ownerships:[]} } });
+  await setDoc(doc(db,'system_users/crmedit'), { username:'crmedit', isApproved:true, isAdmin:false,
+    permissions:{ crm:{actions:['view','edit'],ownerships:[]} } });
   for (const c of ALL) await setDoc(doc(db, `${c}/seed`), { v: 1 });
+  await setDoc(doc(db,'unknown_collection/seed'), { v: 1 });
   await setDoc(doc(db,'settings/companyProfile'), { nameEn:'X' });
   await setDoc(doc(db,'sessions/boss_dev'), { userId:'boss' });
   await setDoc(doc(db,'sessions/hrview_dev'), { userId:'hrview' });
@@ -57,7 +65,8 @@ await env.withSecurityRulesDisabled(async (ctx) => {
 const as = id => env.authenticatedContext(id).firestore();
 const anon = env.unauthenticatedContext().firestore();
 const boss = as('boss'), hrview = as('hrview'), hrfull = as('hrfull'),
-      finedit = as('finedit'), nobody = as('nobody'), pending = as('pending');
+      finedit = as('finedit'), nobody = as('nobody'), pending = as('pending'),
+      setview = as('setview'), setedit = as('setedit'), crmedit = as('crmedit');
 
 console.log('\n=== 1. The escalation that was open ===');
 await deny('non-admin sets isAdmin on self', () => updateDoc(doc(hrview,'system_users/hrview'), { isAdmin:true }));
@@ -130,6 +139,48 @@ await deny ('user reads other session',() => getDoc(doc(hrview,'sessions/boss_de
 await deny ('user deletes other session', () => deleteDoc(doc(hrview,'sessions/boss_dev')));
 await deny ('user lists all sessions', () => getDocs(collection(hrview,'sessions')));
 await allow('admin lists sessions',    () => getDocs(collection(boss,'sessions')));
+
+console.log('\n=== 10. Settings documents follow the screen that saves them ===');
+for (const id of ['companyProfile','fleetCompanyProfile','personalProfile','appBranding','documentPrefixes','ownership_categories'])
+  await allow(`settings editor saves ${id}`, () => setDoc(doc(setedit, `settings/${id}`), { value: 1 }));
+for (const id of ['companyProfile','documentPrefixes'])
+  await deny (`settings view-only saves ${id}`, () => setDoc(doc(setview, `settings/${id}`), { value: 1 }));
+await allow('settings view-only reads companyProfile', () => getDoc(doc(setview, 'settings/companyProfile')));
+for (const id of ['session_config','hr_feature_locks','hr_config','chequeLayout','costing'])
+  await deny (`settings editor saves ${id}`, () => setDoc(doc(setedit, `settings/${id}`), { value: 1 }));
+await allow('hr editor saves hr_config',        () => setDoc(doc(hrfull, 'settings/hr_config'), { value: 1 }));
+await deny ('hr view-only saves hr_config',     () => setDoc(doc(hrview, 'settings/hr_config'), { value: 1 }));
+await allow('finance editor saves chequeLayout',() => setDoc(doc(finedit, 'settings/chequeLayout'), { value: 1 }));
+await deny ('finance editor saves companyProfile', () => setDoc(doc(finedit, 'settings/companyProfile'), { value: 1 }));
+await allow('crm editor saves costing',         () => setDoc(doc(crmedit, 'settings/costing'), { value: 1 }));
+await deny ('crm editor saves hr_config',       () => setDoc(doc(crmedit, 'settings/hr_config'), { value: 1 }));
+await allow('admin saves session_config',       () => setDoc(doc(boss, 'settings/session_config'), { value: 1 }));
+
+// Settings > Finance manages parties, accounts and period locks; Settings > General manages units.
+for (const c of ['parties','accounts','uom','payroll_periods','attendance_periods']) {
+  await allow(`settings editor edits ${c}`,   () => updateDoc(doc(setedit, `${c}/seed`), { v: 2 }));
+  await deny (`settings view-only edits ${c}`, () => updateDoc(doc(setview, `${c}/seed`), { v: 3 }));
+}
+for (const c of ['employees','payroll','attendance'])
+  await deny (`settings editor edits HR ${c}`, () => updateDoc(doc(setedit, `${c}/seed`), { v: 2 }));
+await allow('hr editor still edits payroll_periods', () => updateDoc(doc(hrfull, 'payroll_periods/seed'), { v: 4 }));
+
+console.log('\n=== 11. Unmapped collections are admin-only ===');
+for (const [name, db] of [['approved no-perm user', nobody], ['hr full user', hrfull], ['settings editor', setedit]]) {
+  await deny (`${name} reads unknown collection`,  () => getDoc(doc(db, 'unknown_collection/seed')));
+  await deny (`${name} writes unknown collection`, () => setDoc(doc(db, 'unknown_collection/x'), { v: 1 }));
+}
+await allow('admin writes unknown collection', () => setDoc(doc(boss, 'unknown_collection/adm'), { v: 1 }));
+
+console.log('\n=== 12. Settings need approval; logs are attributed to the caller ===');
+await allow('approved user reads a settings doc',    () => getDoc(doc(nobody, 'settings/hr_config')));
+await deny ('unapproved user reads a settings doc',  () => getDoc(doc(pending, 'settings/hr_config')));
+await allow('unapproved user reads companyProfile (login screen)', () => getDoc(doc(pending, 'settings/companyProfile')));
+await allow('anonymous reads companyProfile (login screen)',       () => getDoc(doc(anon, 'settings/companyProfile')));
+await allow('user logs as themselves',  () => setDoc(doc(hrview, 'logs/own'), { userId: 'hrview', message: 'x' }));
+await deny ('user logs as someone else',() => setDoc(doc(hrview, 'logs/forged'), { userId: 'boss', message: 'x' }));
+await deny ('user logs without userId', () => setDoc(doc(hrview, 'logs/blank'), { message: 'x' }));
+await deny ('anonymous writes a log',   () => setDoc(doc(anon, 'logs/anon'), { userId: '', message: 'x' }));
 
 console.log('\n=== 9. Admin still has everything ===');
 for (const c of ALL) await allow(`admin writes ${c}`, () => setDoc(doc(boss, `${c}/adm`), { v:1 }));

@@ -74,25 +74,25 @@ export function InvoiceView({
                         <TableCell className="px-2 py-1 text-xs">{index + 1}</TableCell>
                         <TableCell className="px-2 py-1 text-xs">{item.productName}</TableCell>
                         <TableCell className="px-2 py-1 text-right">{item.quantity}</TableCell>
-                        <TableCell className="px-2 py-1 text-right">{item.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                        <TableCell className="px-2 py-1 text-right">{item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                        <TableCell className="px-2 py-1 text-right">{item.rate.toLocaleString('en-IN', {minimumFractionDigits: 2})}</TableCell>
+                        <TableCell className="px-2 py-1 text-right">{item.gross.toLocaleString('en-IN', {minimumFractionDigits: 2})}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
             <TableFooter>
                 <TableRow>
                     <TableCell colSpan={2} className="text-right font-bold">Total Quantity</TableCell>
-                    <TableCell className="font-bold text-right">{totalQuantity.toLocaleString()}</TableCell>
+                    <TableCell className="font-bold text-right">{totalQuantity.toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-right font-bold">Gross Total</TableCell>
-                    <TableCell className="text-right font-bold">{grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                    <TableCell className="text-right font-bold">{grossTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</TableCell>
                 </TableRow>
                  <TableRow>
                     <TableCell colSpan={4} className="text-right font-bold">VAT (13%)</TableCell>
-                    <TableCell className="text-right font-bold">{vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                    <TableCell className="text-right font-bold">{vatTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</TableCell>
                 </TableRow>
                  <TableRow className="border-t-2 border-black font-bold text-base">
                     <TableCell colSpan={4} className="text-right">Net Total</TableCell>
-                    <TableCell className="text-right">{netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                    <TableCell className="text-right">{netTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</TableCell>
                 </TableRow>
             </TableFooter>
         </Table>

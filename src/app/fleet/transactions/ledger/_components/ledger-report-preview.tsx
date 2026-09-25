@@ -29,7 +29,7 @@ interface LedgerReportPreviewProps {
     filters: { period: string; parties: string; vehicles: string; paymentModes?: string };
 }
 
-const money = (n: number) => Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2 });
+const money = (n: number) => Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 const drcr = (n: number) => (n >= 0 ? 'Dr' : 'Cr');
 
 export function LedgerReportPreview({ isOpen, onOpenChange, ledgerData, fleetProfile, filters }: LedgerReportPreviewProps) {

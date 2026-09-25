@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { onProductsUpdate, updateProduct } from '@/services/product-service';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { InvoiceView } from './_components/invoice-view';
@@ -84,8 +85,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
-    const { getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+    const { allowedOwnerships, inScope } = useOwnershipScope('finance');
     
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -127,7 +127,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     };
 
     const sortedAndFilteredInvoices = useMemo(() => {
-        let filtered = invoices.filter(inv => inv.ownership === 'Both' || allowedOwnerships.includes(inv.ownership));
+        let filtered = invoices.filter(inv => inScope(inv.ownership));
         
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
@@ -247,8 +247,8 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                     index + 1,
                     item.productName,
                     item.quantity,
-                    item.rate.toLocaleString(undefined, {minimumFractionDigits: 2}),
-                    item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})
+                    item.rate.toLocaleString('en-IN', {minimumFractionDigits: 2}),
+                    item.gross.toLocaleString('en-IN', {minimumFractionDigits: 2})
                 ]),
                 theme: 'grid',
                 headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
@@ -259,13 +259,13 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                     doc.setFontSize(10);
                     
                     doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
-                    doc.text(invoice.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
+                    doc.text(invoice.grossTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
                     doc.text('VAT (13%)', 140, finalY + 15, { align: 'right' });
-                    doc.text(invoice.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 15, { align: 'right' });
+                    doc.text(invoice.vatTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), 200, finalY + 15, { align: 'right' });
                     
                     doc.setFont('Helvetica', 'bold');
                     doc.text('Net Total', 140, finalY + 22, { align: 'right' });
-                    doc.text(invoice.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
+                    doc.text(invoice.netTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
                     
                     doc.setFont('Helvetica', 'normal');
                     doc.text(`In Words: ${invoice.amountInWords}`, 14, finalY + 30);
@@ -402,7 +402,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                        <TableCell>{toNepaliDate(inv.date)}</TableCell>
                        <TableCell className="font-mono text-xs">{inv.invoiceNumber}</TableCell>
                        <TableCell>{inv.partyName}</TableCell>
-                       <TableCell className="font-mono text-xs">Rs. {inv.netTotal.toLocaleString()}</TableCell>
+                       <TableCell className="font-mono text-xs">Rs. {inv.netTotal.toLocaleString('en-IN')}</TableCell>
                        <TableCell className="text-right pr-6">
                          <DropdownMenu>
                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -573,8 +573,8 @@ function SavedRatesList() {
     const [newRate, setNewRate] = useState<string>('');
     const [newName, setNewName] = useState<string>('');
     const { toast } = useToast();
-    const { user, getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+    const { user } = useAuth();
+    const { allowedOwnerships, inScope } = useOwnershipScope('finance');
 
     useEffect(() => {
         const unsubP = onProductsUpdate(setProducts);
@@ -643,7 +643,7 @@ function SavedRatesList() {
         let filtered = products.filter(prod => {
              // Basic product filtering by allowed ownership of its associated party
              const partyOwnership = prod.partyName ? parties.find(x => x.name === prod.partyName)?.ownership : 'Both';
-             return partyOwnership === 'Both' || allowedOwnerships.includes(partyOwnership || 'Both');
+             return inScope(partyOwnership || 'Both');
         });
 
         if (searchQuery) {
@@ -758,7 +758,7 @@ function SavedRatesList() {
                                <TableRow key={prod.id} className="h-14">
                                    <TableCell className="pl-6 font-bold">{prod.name}</TableCell>
                                    <TableCell>{prod.partyName}</TableCell>
-                                   <TableCell className="font-mono text-xs">Rs. {prod.rate ? prod.rate.toLocaleString() : 'Not Set'}</TableCell>
+                                   <TableCell className="font-mono text-xs">Rs. {prod.rate ? prod.rate.toLocaleString('en-IN') : 'Not Set'}</TableCell>
                                    <TableCell className="text-right pr-6 space-x-1">
                                        <Button variant="ghost" size="sm" onClick={() => handleOpenHistoryDialog(prod)} className="h-8 text-[10px] uppercase font-black">
                                            <History className="mr-1.5 h-3.5 w-3.5" /> History
@@ -889,7 +889,7 @@ function SavedRatesList() {
                                 {[...selectedHistory].reverse().map((entry, index) => (
                                     <TableRow key={index} className="h-11 border-b transition-colors hover:bg-muted/10">
                                         <TableCell className="pl-6 text-muted-foreground font-mono">{toNepaliDate(entry.date)}</TableCell>
-                                        <TableCell className="font-black text-foreground tabular-nums">Rs. {entry.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell className="font-black text-foreground tabular-nums">Rs. {entry.rate.toLocaleString('en-IN', {minimumFractionDigits: 2})}</TableCell>
                                         <TableCell className="font-bold text-primary uppercase text-[10px]">{entry.setBy}</TableCell>
                                     </TableRow>
                                 ))}

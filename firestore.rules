@@ -91,11 +91,14 @@ service cloud.firestore {
              (mods.hasAny(['reports'])        && actionsFor('reports').hasAny(['all', action])) ||
              (mods.hasAny(['hr'])             && actionsFor('hr').hasAny(['all', action])) ||
              (mods.hasAny(['fleet'])          && actionsFor('fleet').hasAny(['all', action])) ||
-             (mods.hasAny(['rental'])         && actionsFor('rental').hasAny(['all', action])));
+             (mods.hasAny(['rental'])         && actionsFor('rental').hasAny(['all', action])) ||
+             (mods.hasAny(['settings'])       && actionsFor('settings').hasAny(['all', action])));
     }
 
-    // Which module owns a collection. Anything not listed falls through to the
-    // catch-all at the bottom.
+    // Which module owns a collection. A collection in neither this map nor
+    // sharedModulesOf is admin-only - every collection the app uses is mapped,
+    // so an unmapped name is a typo or something new that must be added here
+    // deliberately rather than silently open to every approved user.
     function moduleOf(col) {
       return {
         // HR
@@ -103,7 +106,6 @@ service cloud.firestore {
         'raw_machine_logs': 'hr', 'bonus_ledger': 'hr', 'bonus_summaries': 'hr',
         'behavior_ledger': 'hr', 'behavior_analytics': 'hr', 'analytics_reports': 'hr',
         'hr_shifts': 'hr', 'leave_requests': 'hr', 'public_holidays': 'hr',
-        'attendance_periods': 'hr', 'payroll_periods': 'hr',
         // Finance
         'tdsCalculations': 'finance',
         'cheques': 'finance', 'expenses': 'finance', 'payment_tracker': 'finance',
@@ -139,9 +141,12 @@ service cloud.firestore {
         // Estimate invoices read and WRITE products (the invoice calculator
         // calls addProduct/updateProduct), so finance belongs here.
         'products': ['reports', 'crm', 'finance', 'purchaseOrders'],
-        'parties': ['finance', 'purchaseOrders', 'crm', 'fleet', 'rental'],
-        'uom': ['purchaseOrders', 'fleet', 'reports'],
-        'accounts': ['finance', 'fleet', 'rental'],
+        // Settings > Finance manages parties, accounts and period locks.
+        'parties': ['finance', 'purchaseOrders', 'crm', 'fleet', 'rental', 'settings'],
+        'uom': ['purchaseOrders', 'fleet', 'reports', 'settings'],
+        'accounts': ['finance', 'fleet', 'rental', 'settings'],
+        'attendance_periods': ['hr', 'settings'],
+        'payroll_periods': ['hr', 'settings'],
         'estimatedInvoices': ['finance', 'crm'],
         'transactions': ['fleet', 'finance'],
         // Document-number reservation: every module that issues a numbered
@@ -164,9 +169,31 @@ service cloud.firestore {
     match /settings/appBranding { allow read: if true; }
     match /settings/ownership_categories { allow read: if true; }
 
+    // Each settings document is saved from one screen, so it takes that
+    // screen's permission: Edit saves, View only reads (the UI disables the
+    // save controls to match). Anything not listed here (session_config,
+    // hr_feature_locks, ...) belongs to the admin-only System page.
+    function settingWriteModule(settingId) {
+      return {
+        'hr_config': 'hr',
+        'chequeLayout': 'finance',
+        'costing': 'crm',
+        'companyProfile': 'settings',
+        'fleetCompanyProfile': 'settings',
+        'personalProfile': 'settings',
+        'appBranding': 'settings',
+        'documentPrefixes': 'settings',
+        'ownership_categories': 'settings'
+      }.get(settingId, '');
+    }
+
     match /settings/{settingId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      // Approved accounts only. Anyone can create a sign-in against the public
+      // API key, and costing, HR rules and numbering are not public. The
+      // login screen's documents are public by their own blocks above.
+      allow read: if isApproved();
+      allow write: if isAdmin() ||
+                      (settingWriteModule(settingId) != '' && can(settingWriteModule(settingId), 'edit'));
     }
 
     // --- Identity & access ---
@@ -230,7 +257,10 @@ service cloud.firestore {
 
     match /logs/{logId} {
       // Was `if true`: any anonymous caller could create unlimited documents.
-      allow create: if isAuthenticated();
+      // Entries must be attributed to the caller: the audit trail was
+      // forgeable when the client could write any userId it liked.
+      allow create: if isAuthenticated() &&
+                       request.resource.data.get('userId', '') == request.auth.uid;
       allow read, delete: if isAdmin();
     }
 
@@ -240,41 +270,41 @@ service cloud.firestore {
       allow read:   if !isIdentityCollection(col) && (
                        moduleOf(col) != '' ? can(moduleOf(col), 'view')
                      : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'view')
-                     : isApproved());
+                     : isAdmin());
 
       allow create: if !isIdentityCollection(col) && (
                        moduleOf(col) != '' ? can(moduleOf(col), 'add')
                      : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'add')
-                     : isApproved());
+                     : isAdmin());
 
       allow update: if !isIdentityCollection(col) && (
                        moduleOf(col) != '' ? can(moduleOf(col), 'edit')
                      : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'edit')
-                     : isApproved());
+                     : isAdmin());
 
       allow delete: if !isIdentityCollection(col) && (
                        moduleOf(col) != '' ? can(moduleOf(col), 'delete')
                      : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'delete')
-                     : isApproved());
+                     : isAdmin());
 
       // Subcollections inherit the parent collection's module.
       match /{allPaths=**} {
         allow read:   if !isIdentityCollection(col) && (
                          moduleOf(col) != '' ? can(moduleOf(col), 'view')
                        : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'view')
-                       : isApproved());
+                       : isAdmin());
         allow create: if !isIdentityCollection(col) && (
                          moduleOf(col) != '' ? can(moduleOf(col), 'add')
                        : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'add')
-                       : isApproved());
+                       : isAdmin());
         allow update: if !isIdentityCollection(col) && (
                          moduleOf(col) != '' ? can(moduleOf(col), 'edit')
                        : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'edit')
-                       : isApproved());
+                       : isAdmin());
         allow delete: if !isIdentityCollection(col) && (
                          moduleOf(col) != '' ? can(moduleOf(col), 'delete')
                        : sharedModulesOf(col).size() > 0 ? canAny(sharedModulesOf(col), 'delete')
-                       : isApproved());
+                       : isAdmin());
       }
     }
   }

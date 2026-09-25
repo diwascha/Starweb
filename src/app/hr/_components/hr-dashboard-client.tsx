@@ -282,7 +282,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{summary.totalNetPayroll.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                    <div className="text-2xl font-bold">{summary.totalNetPayroll.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
                 </CardContent>
             </Card>
        </div>
@@ -326,8 +326,8 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                                     <TableCell className="text-center tabular-nums px-3 text-muted-foreground">{r.trend !== 'N/A' ? `±${r.volatility.toFixed(1)}%` : '—'}</TableCell>
                                     <TableCell className="text-center tabular-nums px-3 font-bold text-amber-700">{r.lateArrivals}</TableCell>
                                     <TableCell className="text-right tabular-nums px-3 font-bold text-blue-700">+{r.overtimeHours.toFixed(1)}</TableCell>
-                                    <TableCell className="text-right tabular-nums px-3 font-bold">{r.totalNet.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="text-right tabular-nums px-3">{r.bonusAccrued > 0 ? r.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3 font-bold">{r.totalNet.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3">{r.bonusAccrued > 0 ? r.bonusAccrued.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}</TableCell>
                                     <TableCell className="px-3 pr-6">
                                         {r.flags.length > 0 ? (
                                             <div className="flex items-center gap-1 text-red-600">
@@ -348,8 +348,8 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                                     <TableCell colSpan={2}></TableCell>
                                     <TableCell className="text-center tabular-nums px-3">{overviewTotals.lateArrivals}</TableCell>
                                     <TableCell className="text-right tabular-nums px-3">+{overviewTotals.overtimeHours.toFixed(1)}</TableCell>
-                                    <TableCell className="text-right tabular-nums px-3">{overviewTotals.totalNet.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="text-right tabular-nums px-3">{overviewTotals.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3">{overviewTotals.totalNet.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3">{overviewTotals.bonusAccrued.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="pr-6"></TableCell>
                                 </TableRow>
                             </TableFooter>
@@ -372,8 +372,8 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                                 <TableRow key={r.employeeId} className="hover:bg-muted/20 h-12 border-b">
                                     <TableCell className="sticky left-0 bg-background z-10 border-r pl-6 font-black text-foreground uppercase tracking-tighter">{r.employeeName}</TableCell>
                                     <TableCell className="text-center tabular-nums px-3">{r.monthsPaid}</TableCell>
-                                    <TableCell className="text-right tabular-nums px-3 font-bold">{r.totalNet.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="text-right tabular-nums px-3 pr-6">{r.bonusAccrued > 0 ? r.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3 font-bold">{r.totalNet.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3 pr-6">{r.bonusAccrued > 0 ? r.bonusAccrued.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -382,8 +382,8 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                                 <TableRow>
                                     <TableCell className="sticky left-0 bg-background z-20 border-r pl-6 text-foreground uppercase tracking-tighter">Total (Headcount: {slimOverviewTotals.headcount})</TableCell>
                                     <TableCell></TableCell>
-                                    <TableCell className="text-right tabular-nums px-3">{slimOverviewTotals.totalNet.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="text-right tabular-nums px-3 pr-6">{slimOverviewTotals.bonusAccrued.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3">{slimOverviewTotals.totalNet.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums px-3 pr-6">{slimOverviewTotals.bonusAccrued.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         )}

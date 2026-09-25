@@ -294,7 +294,7 @@ export function ExpensesView() {
         { header: 'Type', value: e => e.expenseType },
         { header: 'Settlement', value: e => e.paymentMode },
         { header: 'Payee / Detail', value: e => e.partyId ? (partiesById.get(e.partyId) || '') : e.destination ? `To ${e.destination}` : 'Direct Cash' },
-        { header: 'Total NPR', align: 'right', value: e => (e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+        { header: 'Total NPR', align: 'right', value: e => (e.amount + (e.extraAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 }) },
     ];
 
     return (
@@ -375,7 +375,7 @@ export function ExpensesView() {
                                     <TableCell><Badge variant="outline" className={cn("text-[9px] uppercase font-bold", e.expenseType === 'Maintenance' && "bg-amber-50 text-amber-700", e.expenseType === 'Advance' && "bg-emerald-50 text-emerald-700", e.expenseType === 'Loan Repayment' && "bg-orange-50 text-orange-700", e.expenseType === 'Fuel' && "bg-yellow-50 text-yellow-700", e.expenseType === 'Insurance' && "bg-purple-50 text-purple-700", e.expenseType === 'Tax/Renewal' && "bg-cyan-50 text-cyan-700", e.expenseType === 'Transport' && "bg-teal-50 text-teal-700", e.expenseType === 'Other' && "bg-slate-50 text-slate-700")}>{e.expenseType}</Badge></TableCell>
                                     <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/50 border-none">{e.paymentMode}</Badge></TableCell>
                                     <TableCell className="py-3"><div className="flex flex-col"><span className="text-[11px] font-semibold text-gray-900">{e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}</span>{e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}</div></TableCell>
-                                    <TableCell className="text-right font-black text-red-600 text-[11px] tabular-nums">Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right font-black text-red-600 text-[11px] tabular-nums">Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right pr-6">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

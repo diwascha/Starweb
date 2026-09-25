@@ -33,7 +33,6 @@ const collectionsToBackup = [
     'cheques',
     'expenses',
     'logs',
-    'files',
     'rentalProperties',
     'rentalUnits',
     'rentalAgreements',
@@ -47,12 +46,31 @@ const collectionsToBackup = [
     'behavior_analytics',
     'analytics_reports',
     'hr_shifts',
-    'leave_requests'
+    'leave_requests',
+    // Previously missing, so a backup could not bring these back.
+    'public_holidays',
+    'attendance_periods',
+    'payroll_periods',
+    'numberCounters',
+    'crm_contacts',
+    'crm_deals',
+    'crm_followups',
+    'crm_interactions',
+    'costReports',
+    'gsm_reports',
+    'payment_tracker'
 ];
 
-export const exportData = async (): Promise<Record<string, any[]>> => {
+/** Written into every backup so a partial one can never pass for complete. */
+export interface BackupMeta {
+    createdAt: string;
+    skipped: { collection: string; reason: string }[];
+}
+
+export const exportData = async (): Promise<Record<string, any>> => {
     const { db } = getFirebase();
-    const data: Record<string, any[]> = {};
+    const data: Record<string, any> = {};
+    const skipped: BackupMeta['skipped'] = [];
 
     for (const collectionName of collectionsToBackup) {
         try {
@@ -61,11 +79,14 @@ export const exportData = async (): Promise<Record<string, any[]>> => {
                 ? await getDocs(query(collection(db, collectionName), orderBy('createdAt', 'desc'), limit(cap)))
                 : await getDocs(collection(db, collectionName));
             data[collectionName] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        } catch (error) {
-            console.error(`Error fetching collection ${collectionName}:`, error);
+        } catch (error: any) {
+            // Recorded rather than swallowed: a collection this user cannot
+            // read (or that failed mid-export) must not look like an empty one.
+            skipped.push({ collection: collectionName, reason: error?.code || error?.message || 'unknown' });
         }
     }
 
+    data._meta = { createdAt: new Date().toISOString(), skipped } satisfies BackupMeta;
     return data;
 };
 
@@ -100,8 +121,17 @@ export const readBackupFile = async (file: File): Promise<Record<string, any[]>>
     return JSON.parse(jsonText);
 };
 
-export const importData = async (data: Record<string, any[]>): Promise<void> => {
+export const importData = async (data: Record<string, any>): Promise<void> => {
     const { db } = getFirebase();
+    // Restore clears every listed collection before importing, so refuse a
+    // file that does not contain all of them - otherwise anything missing
+    // from it (an older or partial backup) would simply be deleted.
+    const missing = collectionsToBackup.filter(c => !Array.isArray(data?.[c]));
+    const skipped: BackupMeta['skipped'] = data?._meta?.skipped || [];
+    if (missing.length > 0 || skipped.length > 0) {
+        const names = [...new Set([...missing, ...skipped.map(s => s.collection)])];
+        throw new Error(`This backup is incomplete (${names.join(', ')}). Restoring it would delete that data, so it was not started.`);
+    }
     // First, delete all existing data in the collections
     for (const collectionName of collectionsToBackup) {
         try {

@@ -118,10 +118,10 @@ function PaymentCollection() {
 
                         {tenantSummary && (
                             <div className="p-4 rounded-xl bg-muted/30 border space-y-3 animate-in fade-in zoom-in-95">
-                                <div className="flex justify-between text-sm italic"><span>Rent Outstanding</span><span>Rs. {tenantSummary.rentTotal.toLocaleString()}</span></div>
-                                <div className="flex justify-between text-sm italic"><span>Utilities / Other</span><span>Rs. {tenantSummary.utilityTotal.toLocaleString()}</span></div>
+                                <div className="flex justify-between text-sm italic"><span>Rent Outstanding</span><span>Rs. {tenantSummary.rentTotal.toLocaleString('en-IN')}</span></div>
+                                <div className="flex justify-between text-sm italic"><span>Utilities / Other</span><span>Rs. {tenantSummary.utilityTotal.toLocaleString('en-IN')}</span></div>
                                 <Separator />
-                                <div className="flex justify-between font-black text-xl text-red-600"><span>Total Outstanding</span><span>Rs. {tenantSummary.totalDue.toLocaleString()}</span></div>
+                                <div className="flex justify-between font-black text-xl text-red-600"><span>Total Outstanding</span><span>Rs. {tenantSummary.totalDue.toLocaleString('en-IN')}</span></div>
                             </div>
                         )}
                     </CardContent>

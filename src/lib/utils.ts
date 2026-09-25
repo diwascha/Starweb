@@ -111,11 +111,19 @@ export const resolveNumberingRule = async (
   let matchedRule: NumberingRule | undefined;
 
   if (documentDate) {
-    const docDate = new Date(documentDate);
+    // Compare calendar days, not instants. Document dates come from the date
+    // picker at LOCAL midnight (Nepal is UTC+5:45, so 2026-07-17 local is
+    // 2026-07-16T18:15Z), while rule bounds are saved from a YYYY-MM-DD input
+    // as UTC midnight. Comparing the raw instants put a document dated on a
+    // rule's first day under the previous rule.
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const d = new Date(documentDate);
+    const docDay = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const ruleDay = (iso: string) => iso.slice(0, 10);
     matchedRule = rules.find(r => {
-        const from = new Date(r.effectiveFrom);
-        const to = r.effectiveTo ? new Date(r.effectiveTo) : null;
-        return docDate >= from && (!to || docDate <= to);
+        const from = ruleDay(r.effectiveFrom);
+        const to = r.effectiveTo ? ruleDay(r.effectiveTo) : null;
+        return docDay >= from && (!to || docDay <= to);
     });
   }
 
@@ -332,3 +340,7 @@ export const toWords = (num: number): string => {
     // the absolute value as though it were a payment.
     return `${num < 0 ? 'Minus ' : ''}${words} Only.`;
 };
+
+/** Rupee amount with Nepali lakh grouping and two decimals, e.g. 1,25,000.50. */
+export const formatAmount2 = (value: number | null | undefined): string =>
+  (Number(value) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

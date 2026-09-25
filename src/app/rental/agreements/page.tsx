@@ -218,7 +218,7 @@ export default function AgreementsPage() {
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right font-black tabular-nums text-blue-700">Rs. {a.monthlyRent.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-black tabular-nums text-blue-700">Rs. {a.monthlyRent.toLocaleString('en-IN')}</TableCell>
                                     <TableCell className="text-center">
                                         <div className="flex flex-col">
                                             <span className="font-mono text-[11px] text-foreground font-bold">{toNepaliDate(a.startDate)}</span>

@@ -37,10 +37,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
+import { onPeriodLocksUpdate } from '@/services/payroll/period-lock';
+import { setCombinedPeriodLock } from '@/services/period-lock';
+import { getAttendanceYears } from '@/services/attendance/data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPartiesUpdate, addParty, updateParty, deleteParty, mergeParties } from '@/services/party-service';
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
-import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
@@ -122,7 +125,12 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
 }
 
 export default function FinanceSettingsPage() {
-  const { user, getAllowedOwnerships } = useAuth();
+  const { user, hasPermission } = useAuth();
+  // Mirrors the Settings permission the admin granted: add / edit / delete
+  // each unlock only their own buttons, view alone is read-only.
+  const canAdd = hasPermission('settings', 'add');
+  const canEdit = hasPermission('settings', 'edit');
+  const canDelete = hasPermission('settings', 'delete');
   const { toast } = useToast();
   
   const [parties, setParties] = useState<Party[]>([]);
@@ -132,7 +140,7 @@ export default function FinanceSettingsPage() {
   const [selectedLockYear, setSelectedLockYear] = useState<string>('');
   const [selectedLockMonth, setSelectedLockMonth] = useState<string>('');
   
-  const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+  const { allowedOwnerships, inScope } = useOwnershipScope('finance');
 
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
@@ -147,19 +155,20 @@ export default function FinanceSettingsPage() {
     const unsubs = [
         onPartiesUpdate(setParties),
         onAccountsUpdate(setAccounts),
-        onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {})),
+        // The same lock HR uses (payroll_periods / attendance_periods), which
+        // recalculation and purges actually check. This tab used to save a
+        // separate `payrollLocks` setting that nothing ever read.
+        onPeriodLocksUpdate(locks => setPayrollLocks(Object.fromEntries(locks.map(l => [l.id, l.locked])))),
     ];
-    
-    import('@/services/payroll-service').then(m => {
-        if (typeof m?.getPayrollYears === 'function') {
-            m.getPayrollYears().then(years => {
-                const currentYear = new NepaliDate().getYear();
-                const allYears = Array.from(new Set([...(years || []), currentYear])).sort((a,b) => b-a);
-                setBsYears(allYears);
-                setSelectedLockYear(String(allYears[0] || currentYear));
-                setSelectedLockMonth(String(new NepaliDate().getMonth()));
-            });
-        }
+
+    // Bounded probe (one limit(1) read per candidate year) instead of reading
+    // the whole payroll collection just to list years.
+    getAttendanceYears().then(years => {
+        const currentYear = new NepaliDate().getYear();
+        const allYears = Array.from(new Set([...(years || []), currentYear])).sort((a,b) => b-a);
+        setBsYears(allYears);
+        setSelectedLockYear(String(allYears[0] || currentYear));
+        setSelectedLockMonth(String(new NepaliDate().getMonth()));
     });
 
     return () => unsubs.forEach(u => u());
@@ -168,21 +177,21 @@ export default function FinanceSettingsPage() {
   // Centralized filtering for tables
   const filteredParties = useMemo(() => {
     return parties
-        .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
+        .filter(p => inScope(p.ownership))
         .sort((a, b) => a.name.localeCompare(b.name));
   }, [parties, allowedOwnerships]);
 
   const filteredAccounts = useMemo(() => {
-    return accounts.filter(a => a.ownership === 'Both' || allowedOwnerships.includes(a.ownership));
+    return accounts.filter(a => inScope(a.ownership));
   }, [accounts, allowedOwnerships]);
 
   const handleTogglePayrollLock = async () => {
     if (!selectedLockYear || !selectedLockMonth) return;
-    const lockKey = `${selectedLockYear}-${selectedLockMonth}`;
-    const newLocks = { ...payrollLocks, [lockKey]: !payrollLocks[lockKey] };
+    if (!user) return;
+    const nextLocked = !payrollLocks[`${selectedLockYear}-${selectedLockMonth}`];
     try {
-        await setSetting('payrollLocks', newLocks);
-        toast({ title: `Payroll ${newLocks[lockKey] ? 'Locked' : 'Unlocked'}` });
+        await setCombinedPeriodLock(Number(selectedLockYear), Number(selectedLockMonth), nextLocked, user.username);
+        toast({ title: `Payroll ${nextLocked ? 'Locked' : 'Unlocked'}` });
     } catch {
         toast({ title: 'Lock Error', variant: 'destructive' });
     }
@@ -251,8 +260,8 @@ export default function FinanceSettingsPage() {
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Partner Registry</CardTitle>
                         <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setIsMergeDialogOpen(true)} className="h-8 uppercase font-black text-[10px] tracking-widest"><GitMerge className="mr-2 h-3.5 w-3.5"/> Merge Duplicates</Button>
-                            <Button size="sm" onClick={() => { setEditingParty(null); setPartyForm({name:'', type:'Vendor', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), address: '', panNumber: ''}); setIsPartyDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Partner</Button>
+                            <Button variant="outline" size="sm" onClick={() => setIsMergeDialogOpen(true)} disabled={!canEdit} className="h-8 uppercase font-black text-[10px] tracking-widest"><GitMerge className="mr-2 h-3.5 w-3.5"/> Merge Duplicates</Button>
+                            <Button size="sm" disabled={!canAdd} onClick={() => { setEditingParty(null); setPartyForm({name:'', type:'Vendor', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), address: '', panNumber: ''}); setIsPartyDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Partner</Button>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -272,7 +281,7 @@ export default function FinanceSettingsPage() {
                                     <TableCell><Badge variant="secondary" className="text-[9px] uppercase">{party.type}</Badge></TableCell>
                                     <TableCell><Badge variant="outline" className="text-[9px] uppercase">{party.ownership}</Badge></TableCell>
                                     <TableCell className="text-right pr-6 space-x-1">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { 
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canEdit} onClick={() => { 
                                             setEditingParty(party); 
                                             setPartyForm({
                                                 name: party.name || '',
@@ -285,7 +294,7 @@ export default function FinanceSettingsPage() {
                                         }}><Edit className="h-3.5 w-3.5"/></Button>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" disabled={!canDelete}><Trash2 className="h-3.5 w-3.5"/></Button>
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
@@ -312,7 +321,7 @@ export default function FinanceSettingsPage() {
                 <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Financial Accounts</CardTitle>
-                        <Button size="sm" onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
+                        <Button size="sm" disabled={!canAdd} onClick={() => { setEditingAccount(null); setAccountForm({name:'', type:'Bank', ownership: allowedOwnerships.includes('Shivam') ? 'Shivam' : (allowedOwnerships[0] || 'Both'), accountNumber:'', bankName:'', branch:'', bankAccountType:'Saving'}); setIsAccountDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Account Name</TableHead><TableHead>Type</TableHead><TableHead>Bank</TableHead><TableHead>Ownership</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader>
@@ -324,7 +333,7 @@ export default function FinanceSettingsPage() {
                                 <TableCell className="text-muted-foreground">{acc.bankName || '-'}</TableCell>
                                 <TableCell><Badge variant="outline" className="text-[9px] uppercase">{acc.ownership}</Badge></TableCell>
                                 <TableCell className="text-right pr-6 space-x-1">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { 
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canEdit} onClick={() => { 
                                         setEditingAccount(acc); 
                                         setAccountForm({
                                             name: acc.name || '',
@@ -339,7 +348,7 @@ export default function FinanceSettingsPage() {
                                     }}><Edit className="h-3.5 w-3.5" /></Button>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" disabled={!canDelete}><Trash2 className="h-3.5 w-3.5"/></Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
@@ -374,7 +383,7 @@ export default function FinanceSettingsPage() {
                         <div className="flex flex-wrap gap-4 items-end bg-card p-4 rounded-xl border-2 border-dashed border-amber-200">
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label><Select value={selectedLockYear} onValueChange={setSelectedLockYear}><SelectTrigger className="w-[120px] h-9"><SelectValue /></SelectTrigger><SelectContent>{bsYears.map(y => <SelectItem key={`lock-y-${y}`} value={String(y)}>{y}</SelectItem>)}</SelectContent></Select></div>
                             <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label><Select value={selectedLockMonth} onValueChange={setSelectedLockMonth}><SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger><SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={`lock-m-${m.value}`} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent></Select></div>
-                            <Button onClick={handleTogglePayrollLock} variant={isCurrentPeriodLocked ? 'destructive' : 'default'} className="h-9 px-8 font-black text-xs uppercase">
+                            <Button onClick={handleTogglePayrollLock} disabled={!canAdd || !canEdit} title={!canAdd || !canEdit ? 'Locking needs Settings add and edit permission' : undefined} variant={isCurrentPeriodLocked ? 'destructive' : 'default'} className="h-9 px-8 font-black text-xs uppercase">
                                 {isCurrentPeriodLocked ? 'Unlock Period' : 'Lock Cycle'}
                             </Button>
                         </div>

@@ -153,19 +153,19 @@ function ExpenseViewContent() {
                                         <div className="font-black text-gray-900 uppercase tracking-tight">{party?.name || expense.destination || 'Cash Settlement'}</div>
                                         <div className="text-[10px] text-muted-foreground italic font-medium mt-1">Ref: {expense.remarks || 'No narration provided'}</div>
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums font-black text-base">{(expense.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums font-black text-base">{(expense.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                                 </TableRow>
                                 {expense.extraAmount ? (
                                     <TableRow className="h-12 hover:bg-transparent text-muted-foreground italic bg-muted/5 border-t border-dashed">
                                         <TableCell className="pl-10 text-[11px]">Extra combined charge: {expense.extraRemarks || 'Logistics/Commission'}</TableCell>
-                                        <TableCell className="text-right tabular-nums font-bold text-xs">{(expense.extraAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right tabular-nums font-bold text-xs">{(expense.extraAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                                     </TableRow>
                                 ) : null}
                             </TableBody>
                             <TableFooter className="bg-muted/30 border-t-2 border-neutral-900">
                                 <TableRow className="font-black h-12 hover:bg-transparent">
                                     <TableCell className="text-right uppercase text-[10px] tracking-widest">Total Voucher Outflow</TableCell>
-                                    <TableCell className="text-right tabular-nums text-lg">Rs. {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right tabular-nums text-lg">Rs. {totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>

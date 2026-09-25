@@ -84,7 +84,7 @@ export default function RentBillingPage() {
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium uppercase text-muted-foreground">Total Value</CardTitle></CardHeader>
                     <CardContent>
-                        <p className="text-2xl font-black">Rs. {pendingAgreements.reduce((sum, a) => sum + a.monthlyRent, 0).toLocaleString()}</p>
+                        <p className="text-2xl font-black">Rs. {pendingAgreements.reduce((sum, a) => sum + a.monthlyRent, 0).toLocaleString('en-IN')}</p>
                     </CardContent>
                 </Card>
             </div>
@@ -110,7 +110,7 @@ export default function RentBillingPage() {
                                     <TableCell className="font-bold">{bill.unitNumber}</TableCell>
                                     <TableCell>{bill.tenantName}</TableCell>
                                     <TableCell className="text-xs uppercase">{NEPALI_MONTHS[bill.billingMonth].name} {bill.billingYear}</TableCell>
-                                    <TableCell className="font-mono">Rs. {bill.amount.toLocaleString()}</TableCell>
+                                    <TableCell className="font-mono">Rs. {bill.amount.toLocaleString('en-IN')}</TableCell>
                                     <TableCell>
                                         <Badge variant={bill.status === 'Paid' ? 'default' : 'destructive'} className={bill.status === 'Paid' ? 'bg-green-600' : ''}>
                                             {bill.status}

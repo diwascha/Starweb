@@ -245,7 +245,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
     // ended up printed under "Remarks". Rendering all four from this one list
     // makes that impossible - a column either exists everywhere or nowhere.
     const money = (v: number | undefined | null) =>
-        (v || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+        (v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
     type PayrollColumn = {
         key: ColumnKey;
@@ -302,7 +302,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
             key: 'base', label: 'Base (Salary or Rate)', sortKey: 'rate',
             headClassName: 'text-muted-foreground',
             cellClassName: 'text-right tabular-nums px-3 text-muted-foreground font-medium',
-            cell: p => p.base || (p.rate || 0).toLocaleString(),
+            cell: p => p.base || (p.rate || 0).toLocaleString('en-IN'),
             exportValue: p => p.base || p.rate,
         },
         {
@@ -463,7 +463,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                 const v = col.exportValue(p);
                 if (v === undefined || v === null || v === '') return '';
                 return isNumericCol(col.key) && typeof v === 'number'
-                    ? v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    ? v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                     : String(v);
             };
 
@@ -477,7 +477,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                     c.key === 'employee' ? 'TOTAL'
                     : isNumericCol(c.key)
                         ? (monthlyPayroll.reduce((sum, p) => sum + (Number(c.exportValue(p)) || 0), 0))
-                            .toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         : ''
                 ))],
                 theme: 'grid',

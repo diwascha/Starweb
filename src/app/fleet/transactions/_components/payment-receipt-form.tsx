@@ -154,7 +154,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                     ))}
                 </TableBody>
                 <TableFooter className="bg-muted/50">
-                    <TableRow><TableCell colSpan={2} className="text-right font-bold">Totals</TableCell><TableCell className="font-mono font-bold text-emerald-600">{totals.rec.toLocaleString()}</TableCell><TableCell className="font-mono font-bold text-red-600">{totals.pay.toLocaleString()}</TableCell><TableCell colSpan={2}></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={2} className="text-right font-bold">Totals</TableCell><TableCell className="font-mono font-bold text-emerald-600">{totals.rec.toLocaleString('en-IN')}</TableCell><TableCell className="font-mono font-bold text-red-600">{totals.pay.toLocaleString('en-IN')}</TableCell><TableCell colSpan={2}></TableCell></TableRow>
                 </TableFooter>
             </Table>
         </div>

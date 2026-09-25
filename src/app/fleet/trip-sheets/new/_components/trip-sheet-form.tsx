@@ -1016,7 +1016,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                     <div className="flex flex-col justify-end space-y-2">
                                                         <Label>Balance Income</Label>
                                                         <div className="p-2 border rounded-md h-10 flex items-center text-sm font-medium">
-                                                             <span>{balance.toLocaleString()}</span>
+                                                             <span>{balance.toLocaleString('en-IN')}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1030,23 +1030,23 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                             <Card className="sticky top-8">
                                 <CardHeader><CardTitle>Financial Summary</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Freight</span><span>{totalFreight.toLocaleString()}</span></div>
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Drop-off Charge</span><span>+ {dropOffCharge.toLocaleString()}</span></div>
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Detention Charge</span><span>+ {detentionCharge.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Freight</span><span>{totalFreight.toLocaleString('en-IN')}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Drop-off Charge</span><span>+ {dropOffCharge.toLocaleString('en-IN')}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Detention Charge</span><span>+ {detentionCharge.toLocaleString('en-IN')}</span></div>
                                     <Separator />
-                                    <div className="flex justify-between text-sm font-medium"><span className="text-muted-foreground">Total Taxable</span><span>{totalTaxable.toLocaleString()}</span></div>
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">VAT (13%)</span><span>{vatAmount.toLocaleString()}</span></div>
-                                    <div className="flex justify-between font-medium"><span className="text-muted-foreground">Gross Amount</span><span>{grossAmount.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-sm font-medium"><span className="text-muted-foreground">Total Taxable</span><span>{totalTaxable.toLocaleString('en-IN')}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">VAT (13%)</span><span>{vatAmount.toLocaleString('en-IN')}</span></div>
+                                    <div className="flex justify-between font-medium"><span className="text-muted-foreground">Gross Amount</span><span>{grossAmount.toLocaleString('en-IN')}</span></div>
                                     <Separator />
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">TDS (1.5%)</span><span>- {tdsAmount.toLocaleString()}</span></div>
-                                    <div className="flex justify-between text-lg font-bold"><span className="text-muted-foreground">Net Bank Pay</span><span>{netPay.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">TDS (1.5%)</span><span>- {tdsAmount.toLocaleString('en-IN')}</span></div>
+                                    <div className="flex justify-between text-lg font-bold"><span className="text-muted-foreground">Net Bank Pay</span><span>{netPay.toLocaleString('en-IN')}</span></div>
                                     <Separator />
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Expenses</span><span>- {totalExpenses.toLocaleString()}</span></div>
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Return Load</span><span>+ {totalReturnLoadIncome.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Expenses</span><span>- {totalExpenses.toLocaleString('en-IN')}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Return Load</span><span>+ {totalReturnLoadIncome.toLocaleString('en-IN')}</span></div>
                                     <Separator />
-                                    <div className="flex justify-between text-xl font-bold text-green-600"><span className="text-muted-foreground">Net Amount</span><span>{netAmount.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-xl font-bold text-green-600"><span className="text-muted-foreground">Net Amount</span><span>{netAmount.toLocaleString('en-IN')}</span></div>
                                     <Separator />
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Distance</span><span>{totalDistance.toLocaleString()} KM</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Distance</span><span>{totalDistance.toLocaleString('en-IN')} KM</span></div>
                                     <div className="flex justify-between text-sm"><span className="text-muted-foreground">Fuel Efficiency</span><span>{fuelEfficiency} KM/L</span></div>
 
                                 </CardContent>

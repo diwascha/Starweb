@@ -172,7 +172,7 @@ export default function FleetDashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className={cn("text-2xl font-bold", stats.netThisMonth >= 0 ? 'text-emerald-600' : 'text-red-600')}>
-                            Rs. {stats.netThisMonth.toLocaleString()}
+                            Rs. {stats.netThisMonth.toLocaleString('en-IN')}
                         </div>
                     </CardContent>
                 </Card>
@@ -265,7 +265,7 @@ export default function FleetDashboardPage() {
                                             <p className="text-sm text-muted-foreground">{new Date(t.date).toLocaleDateString()}</p>
                                         </div>
                                         <p className={cn("font-medium", ['Income', 'Sales', 'Receipt'].includes(t.type as any) ? 'text-emerald-600' : 'text-red-600')}>
-                                            {['Expense', 'Purchase', 'Payment'].includes(t.type as any) && '-'}{t.amount.toLocaleString()}
+                                            {['Expense', 'Purchase', 'Payment'].includes(t.type as any) && '-'}{t.amount.toLocaleString('en-IN')}
                                         </p>
                                     </div>
                                 ))}

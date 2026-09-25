@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Printer, Image as ImageIcon, FileDown, Loader2, Settings2, CheckCircle2 } from 'lucide-react';
-import { toNepaliDate, normalizeBF } from '@/lib/utils';
+import { toNepaliDate, normalizeBF, formatAmount2 } from '@/lib/utils';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -147,9 +147,9 @@ export function QuotationPreviewDialog({
             row.push(getProductDisplayName(item.productId));
             if (options.showSpecs) row.push(`${item.l}x${item.b}x${item.h}\n${item.ply} Ply`);
             if (options.showComposition) row.push(`${getGsmComposition(item)}\n${item.paperType} ${normalizeBF(item.paperBf)}`);
-            if (options.showGross) row.push(`Rs. ${item.calculated?.paperCost?.toFixed(2) || '0.00'}`);
-            if (options.showTransport) row.push(`Rs. ${item.calculated?.transportCost?.toFixed(2) || '0.00'}`);
-            if (options.showRate) row.push(`Rs. ${item.totalItemCost?.toFixed(2) || '0.00'}`);
+            if (options.showGross) row.push(`Rs. ${formatAmount2(item.calculated?.paperCost)}`);
+            if (options.showTransport) row.push(`Rs. ${formatAmount2(item.calculated?.transportCost)}`);
+            if (options.showRate) row.push(`Rs. ${formatAmount2(item.totalItemCost)}`);
 
             const accs = options.showAccessories ? (item.accessories || []).map((acc: any) => {
                 const accRow = [];
@@ -157,7 +157,7 @@ export function QuotationPreviewDialog({
                 accRow.push(`-- ${acc.name}`);
                 if (options.showSpecs) accRow.push(`${acc.l}x${acc.b}x${acc.h}\n${acc.ply} Ply`);
                 if (options.showComposition) accRow.push(`${getGsmComposition(acc)}\n${acc.paperType} ${normalizeBF(acc.paperBf)}`);
-                if (options.showGross) accRow.push(`Rs. ${acc.calculated?.paperCost?.toFixed(2) || '0.00'}`);
+                if (options.showGross) accRow.push(`Rs. ${formatAmount2(acc.calculated?.paperCost)}`);
                 if (options.showTransport) accRow.push('');
                 if (options.showRate) accRow.push('');
                 return accRow;
@@ -175,7 +175,7 @@ export function QuotationPreviewDialog({
             if (options.showComposition) transportRow.push('');
             if (options.showGross) transportRow.push('');
             if (options.showTransport) transportRow.push('');
-            if (options.showRate) transportRow.push(`Rs. ${transportCost.toFixed(2)}`);
+            if (options.showRate) transportRow.push(`Rs. ${formatAmount2(transportCost)}`);
             tableData.push(transportRow);
         }
 
@@ -368,9 +368,9 @@ export function QuotationPreviewDialog({
                                             <span className="text-[10px] text-muted-foreground font-normal">{item.paperType} {normalizeBF(item.paperBf)}</span>
                                         </TableCell>
                                     )}
-                                    {options.showGross && <TableCell className="text-center">Rs. {item.calculated?.paperCost?.toFixed(2) || '0.00'}</TableCell>}
-                                    {options.showTransport && <TableCell className="text-center">Rs. {item.calculated?.transportCost?.toFixed(2) || '0.00'}</TableCell>}
-                                    {options.showRate && <TableCell className="text-right font-bold">Rs. {item.totalItemCost?.toFixed(2) || '0.00'}</TableCell>}
+                                    {options.showGross && <TableCell className="text-center">Rs. {formatAmount2(item.calculated?.paperCost)}</TableCell>}
+                                    {options.showTransport && <TableCell className="text-center">Rs. {formatAmount2(item.calculated?.transportCost)}</TableCell>}
+                                    {options.showRate && <TableCell className="text-right font-bold">Rs. {formatAmount2(item.totalItemCost)}</TableCell>}
                                 </TableRow>
                             );
                             const accRows = options.showAccessories ? (item.accessories || []).map((acc: any) => (
@@ -389,7 +389,7 @@ export function QuotationPreviewDialog({
                                             <span className="text-[9px] font-normal">{acc.paperType} {normalizeBF(acc.paperBf)}</span>
                                         </TableCell>
                                     )}
-                                    {options.showGross && <TableCell className="text-center text-muted-foreground">Rs. {acc.calculated?.paperCost?.toFixed(2) || '0.00'}</TableCell>}
+                                    {options.showGross && <TableCell className="text-center text-muted-foreground">Rs. {formatAmount2(acc.calculated?.paperCost)}</TableCell>}
                                     {options.showTransport && <TableCell className="text-center"></TableCell>}
                                     {options.showRate && <TableCell className="text-right text-muted-foreground"></TableCell>}
                                 </TableRow>
@@ -404,7 +404,7 @@ export function QuotationPreviewDialog({
                                 {options.showComposition && <TableCell></TableCell>}
                                 {options.showGross && <TableCell></TableCell>}
                                 {options.showTransport && <TableCell></TableCell>}
-                                <TableCell className="text-right font-bold">Rs. {transportCost.toFixed(2)}</TableCell>
+                                <TableCell className="text-right font-bold">Rs. {formatAmount2(transportCost)}</TableCell>
                             </TableRow>
                         )}
                     </TableBody>

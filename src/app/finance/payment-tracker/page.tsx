@@ -127,14 +127,14 @@ function VoucherReportView({
                                     <TableCell className="text-center font-bold text-muted-foreground">{i + 1}</TableCell>
                                     <TableCell className="font-black uppercase tracking-tight">{e.partyName}</TableCell>
                                     <TableCell className="italic text-muted-foreground">{e.description || '—'}</TableCell>
-                                    <TableCell className="text-right font-black tabular-nums pr-4">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right font-black tabular-nums pr-4">{e.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                         <TableFooter className="bg-emerald-50/30 border-t border-black/10">
                             <TableRow className="h-10 hover:bg-transparent">
                                 <TableCell colSpan={3} className="text-right text-[10px] font-black uppercase tracking-widest text-emerald-800">Section Subtotal</TableCell>
-                                <TableCell className="text-right font-black text-emerald-700 pr-4">Rs. {totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right font-black text-emerald-700 pr-4">Rs. {totalReceived.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>
@@ -160,14 +160,14 @@ function VoucherReportView({
                                     <TableCell className="text-center font-bold text-muted-foreground">{i + 1}</TableCell>
                                     <TableCell className="font-black uppercase tracking-tight">{e.partyName}</TableCell>
                                     <TableCell className="italic text-muted-foreground">{e.description || '—'}</TableCell>
-                                    <TableCell className="text-right font-black tabular-nums pr-4">{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right font-black tabular-nums pr-4">{e.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                         <TableFooter className="bg-red-50/30 border-t border-black/10">
                             <TableRow className="h-10 hover:bg-transparent">
                                 <TableCell colSpan={3} className="text-right text-[10px] font-black uppercase tracking-widest text-red-800">Section Subtotal</TableCell>
-                                <TableCell className="text-right font-black text-red-700 pr-4">Rs. {totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right font-black text-red-700 pr-4">Rs. {totalOutflow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>
@@ -180,7 +180,7 @@ function VoucherReportView({
                     )}>
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Final Net Balance</p>
                         <p className={cn("text-2xl font-black tabular-nums", netBalance >= 0 ? "text-emerald-800" : "text-red-800")}>
-                            Rs. {netBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            Rs. {netBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </p>
                     </div>
                 </div>
@@ -440,7 +440,7 @@ export default function PaymentTrackerPage() {
                     e.type, 
                     e.partyName, 
                     e.description || '-', 
-                    e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })
+                    e.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })
                 ])
             });
 
@@ -613,7 +613,7 @@ export default function PaymentTrackerPage() {
                                         <TableRow className="bg-muted/10 h-[22px] border-b">
                                             <TableCell className="border-r px-2"></TableCell>
                                             <TableCell colSpan={2} className="text-[10px] font-black uppercase text-muted-foreground border-r px-4 text-right align-middle leading-none">Subtotal Inflow</TableCell>
-                                            <TableCell className="text-right tabular-nums text-[14px] font-black px-4 border-r align-middle text-emerald-700 leading-none">Rs. {totals.rec.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell className="text-right tabular-nums text-[14px] font-black px-4 border-r align-middle text-emerald-700 leading-none">Rs. {totals.rec.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell />
                                         </TableRow>
                                     </TableBody>
@@ -679,7 +679,7 @@ export default function PaymentTrackerPage() {
                                         <TableRow className="bg-muted/10 h-[22px] border-b">
                                             <TableCell className="border-r px-2"></TableCell>
                                             <TableCell colSpan={2} className="text-[10px] font-black uppercase text-muted-foreground border-r px-4 text-right align-middle leading-none">Subtotal Outflow</TableCell>
-                                            <TableCell className="text-right tabular-nums text-[14px] font-black px-4 border-r align-middle text-red-700 leading-none">Rs. {totals.pay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell className="text-right tabular-nums text-[14px] font-black px-4 border-r align-middle text-red-700 leading-none">Rs. {totals.pay.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell />
                                         </TableRow>
                                     </TableBody>
@@ -699,7 +699,7 @@ export default function PaymentTrackerPage() {
                                                 "text-right tabular-nums text-[18px] px-4 font-black border-r align-middle leading-none",
                                                 totals.net >= 0 ? "text-emerald-700" : "text-amber-700"
                                             )}>
-                                                Rs. {totals.net.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                Rs. {totals.net.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </TableCell>
                                             <TableCell />
                                         </TableRow>
@@ -766,7 +766,7 @@ export default function PaymentTrackerPage() {
                                             <TableCell className="pl-6 text-muted-foreground font-mono text-[12px] font-bold">{toNepaliDate(v.date)}</TableCell>
                                             <TableCell className="font-black text-primary text-[14px] tracking-tight">{v.voucherNo}</TableCell>
                                             <TableCell className="text-right tabular-nums text-red-700 font-black text-[14px]">
-                                                Rs. {v.totalPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                Rs. {v.totalPayment.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </TableCell>
                                             <TableCell className="text-right pr-6">
                                                 <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">

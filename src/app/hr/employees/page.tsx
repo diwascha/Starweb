@@ -576,7 +576,7 @@ export default function EmployeesPage() {
                     <TableCell className="text-xs font-medium font-mono text-blue-900">{employee.joiningDate ? toNepaliDate(employee.joiningDate) : '—'}</TableCell>
                     <TableCell className="text-right">
                         <div className="flex flex-col">
-                            <span className="font-black text-xs text-foreground">Rs. {(employee.wageAmount || 0).toLocaleString()}</span>
+                            <span className="font-black text-xs text-foreground">Rs. {(employee.wageAmount || 0).toLocaleString('en-IN')}</span>
                             <span className="text-[9px] text-muted-foreground uppercase tracking-tighter font-black">{employee.wageBasis}</span>
                         </div>
                     </TableCell>

@@ -64,6 +64,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onPurchaseOrdersUpdate, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -158,8 +159,8 @@ export default function PurchaseOrdersListPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const { hasPermission, user, getAllowedOwnerships } = useAuth();
-  const allowedOwnerships = useMemo(() => getAllowedOwnerships('purchaseOrders'), [getAllowedOwnerships]);
+  const { hasPermission, user } = useAuth();
+  const { allowedOwnerships, inScope } = useOwnershipScope('purchaseOrders');
 
   // Status Update Dialog States
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -303,7 +304,7 @@ export default function PurchaseOrdersListPage() {
   };
   
   const filteredAndSortedPOs = useMemo(() => {
-    let filtered = purchaseOrders.filter(po => po.ownership === 'Both' || allowedOwnerships.includes(po.ownership));
+    let filtered = purchaseOrders.filter(po => inScope(po.ownership));
 
     if (filterBsYears.length > 0) {
       filtered = filtered.filter(purchaseOrder => {

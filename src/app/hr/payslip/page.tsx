@@ -109,7 +109,7 @@ function PayslipContent() {
                                     {nepaliMonths[p.bsMonth]?.name || p.bsMonth} {p.bsYear}
                                 </span>
                                 <span className="font-mono text-xs text-muted-foreground">
-                                    Rs. {(p.roundedNet ?? p.netPayment ?? 0).toLocaleString()}
+                                    Rs. {(p.roundedNet ?? p.netPayment ?? 0).toLocaleString('en-IN')}
                                 </span>
                             </Link>
                         ))}

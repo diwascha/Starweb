@@ -353,7 +353,7 @@ export function SalesView() {
     { header: 'Vehicle', value: trip => trip.vehicleName },
     { header: 'Customer', value: trip => trip.customerName },
     { header: 'Destination', value: trip => trip.finalDestination },
-    { header: 'Net Bank Pay (NPR)', align: 'right', value: trip => trip.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+    { header: 'Net Bank Pay (NPR)', align: 'right', value: trip => trip.netAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) },
     { header: 'Posted By', value: trip => trip.lastModifiedBy || trip.createdBy },
   ];
 
@@ -426,7 +426,7 @@ export function SalesView() {
                         <TableCell className="text-[11px] uppercase text-muted-foreground">{trip.finalDestination}</TableCell>
                         <TableCell>
                             <Button variant="link" className="p-0 h-auto font-bold text-[11px]" onClick={() => openCalcDialog(trip)}>
-                                Rs. {trip.netAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                                Rs. {trip.netAmount.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
                             </Button>
                         </TableCell>
                         <TableCell>
@@ -500,7 +500,7 @@ export function SalesView() {
                 <TableFooter>
                     <TableRow className="bg-muted/50 font-bold">
                         <TableCell colSpan={4} className="text-right text-[11px]">Total for Filtered Period ({filteredAndSortedTrips.length} Trips)</TableCell>
-                        <TableCell className="text-[11px]">Rs. {filteredAndSortedTrips.reduce((sum, t) => sum + t.netAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-[11px]">Rs. {filteredAndSortedTrips.reduce((sum, t) => sum + t.netAmount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell colSpan={2}></TableCell>
                     </TableRow>
                 </TableFooter>
@@ -670,38 +670,38 @@ export function SalesView() {
                 <div className="space-y-4 py-4 text-sm">
                     <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Total Freight</span>
-                        <span>{selectedTripDetails.totalFreight.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span>{selectedTripDetails.totalFreight.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Drop-off Charge</span>
-                        <span>+ {selectedTripDetails.dropOffCharge.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span>+ {selectedTripDetails.dropOffCharge.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Detention Charge</span>
-                        <span>+ {selectedTripDetails.detentionCharge.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span>+ {selectedTripDetails.detentionCharge.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between items-center font-medium">
                         <span className="text-muted-foreground">Total Taxable Amount</span>
-                        <span>{selectedTripDetails.totalTaxable.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span>{selectedTripDetails.totalTaxable.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">VAT (13%)</span>
-                        <span>+ {selectedTripDetails.vatAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span>+ {selectedTripDetails.vatAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between items-center font-medium">
                         <span className="text-muted-foreground">Gross Amount</span>
-                        <span>{selectedTripDetails.grossAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span>{selectedTripDetails.grossAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                     </div>
                     <Separator />
                      <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">TDS (1.5%)</span>
-                        <span>- {selectedTripDetails.tdsAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span>- {selectedTripDetails.tdsAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                     </div>
                      <Separator />
                     <div className="flex justify-between items-center text-lg font-bold">
                         <span>Net Bank Pay</span>
-                        <span>{selectedTripDetails.netPay.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span>{selectedTripDetails.netPay.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                     </div>
                 </div>
             )}

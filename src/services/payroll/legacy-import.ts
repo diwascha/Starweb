@@ -23,6 +23,7 @@ import { getHeaderMap } from './generator';
 export interface LegacyPayrollImportResult {
     payrollRecords: number;
     newEmployees: number;
+    newEmployeeNames: string[];
 }
 
 /** How many rows below the attendance header to search for the payroll block's own header row. */
@@ -141,7 +142,7 @@ export const importLegacyPayrollSheet = async (
     importedBy: string,
     source: Payroll['source'] = 'legacy-import'
 ): Promise<LegacyPayrollImportResult> => {
-    const result: LegacyPayrollImportResult = { payrollRecords: 0, newEmployees: 0 };
+    const result: LegacyPayrollImportResult = { payrollRecords: 0, newEmployees: 0, newEmployeeNames: [] };
     const block = findPayrollBlockStart(grid, headerIndex);
     if (block === null) return result;
     const { rowIndex: payrollHeaderRowIndex, colIndex: startCol } = block;
@@ -185,6 +186,7 @@ export const importLegacyPayrollSheet = async (
         const employee = { id: empRef.id, ...newEmp } as Employee;
         employeeMap.set(lowerName, employee);
         result.newEmployees++;
+        result.newEmployeeNames.push(newEmp.name);
         return employee;
     };
 

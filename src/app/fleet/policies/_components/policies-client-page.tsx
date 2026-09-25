@@ -492,7 +492,7 @@ export default function PoliciesClientPage({
                                             </span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums text-xs font-mono">Rs. {policy.cost.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right tabular-nums text-xs font-mono">Rs. {policy.cost.toLocaleString('en-IN')}</TableCell>
                                     <TableCell>{getStatusBadge(policy)}</TableCell>
                                     <TableCell>
                                         <TooltipProvider>
@@ -617,7 +617,7 @@ export default function PoliciesClientPage({
                         <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Total Cost</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">Rs. {totalFilteredCost.toLocaleString()}</div>
+                        <div className="text-2xl font-bold">Rs. {totalFilteredCost.toLocaleString('en-IN')}</div>
                         <p className="text-xs text-muted-foreground">Premium / Membership Total</p>
                     </CardContent>
                 </Card>
@@ -871,7 +871,7 @@ export default function PoliciesClientPage({
                                 </div>
                                 <div>
                                     <Label className="text-muted-foreground">Premium / Cost</Label>
-                                    <p className="font-medium">Rs. {viewingPolicy.cost.toLocaleString()}</p>
+                                    <p className="font-medium">Rs. {viewingPolicy.cost.toLocaleString('en-IN')}</p>
                                 </div>
                                 <div>
                                     <Label className="text-muted-foreground">Start Date (BS)</Label>

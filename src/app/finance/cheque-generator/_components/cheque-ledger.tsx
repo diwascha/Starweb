@@ -31,7 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
-import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Badge } from '@/components/ui/badge';
 
 const money = (n: number) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -48,8 +48,7 @@ export function ChequeLedger() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(15);
 
-    const { getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+    const { allowedOwnerships, inScope } = useOwnershipScope('finance');
 
     useEffect(() => {
         const unsubs = [
@@ -81,7 +80,7 @@ export function ChequeLedger() {
     }, [cheques]);
 
     const filteredPayments = useMemo(() => {
-        let filtered = allPayments.filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership));
+        let filtered = allPayments.filter(p => inScope(p.ownership));
 
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
@@ -121,7 +120,7 @@ export function ChequeLedger() {
     }, [allPayments]);
 
     const filteredBankAccounts = useMemo(() => {
-        return accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Both' || allowedOwnerships.includes(a.ownership)))
+        return accounts.filter(a => a.type === 'Bank' && (inScope(a.ownership)))
             .sort((a, b) => (a.bankName || a.name).localeCompare(b.bankName || b.name));
     }, [accounts, allowedOwnerships]);
 

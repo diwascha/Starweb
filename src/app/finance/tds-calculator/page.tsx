@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { 
     onTdsCalculationsUpdate, 
     addTdsCalculation, 
@@ -88,8 +89,7 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
-    const { getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+    const { allowedOwnerships, inScope } = useOwnershipScope('finance');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [isVoucherViewOpen, setIsVoucherViewOpen] = useState(false);
@@ -108,7 +108,7 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
     };
 
     const filtered = useMemo(() => {
-        let res = savedCalculations.filter(calc => calc.ownership === 'Both' || allowedOwnerships.includes(calc.ownership));
+        let res = savedCalculations.filter(calc => inScope(calc.ownership));
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             res = res.filter(calc => (calc.voucherNo || '').toLowerCase().includes(q) || (calc.partyName || '').toLowerCase().includes(q));
@@ -269,8 +269,8 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const [partySearch, setPartySearch] = useState('');
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
   const { toast } = useToast();
-  const { user, getAllowedOwnerships } = useAuth();
-  const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+  const { user } = useAuth();
+  const { allowedOwnerships, inScope } = useOwnershipScope('finance');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   
@@ -312,7 +312,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   }, [calculationToEdit]);
 
   const filteredParties = useMemo(() => {
-    return parties.filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership)).sort((a, b) => a.name.localeCompare(b.name));
+    return parties.filter(p => inScope(p.ownership)).sort((a, b) => a.name.localeCompare(b.name));
   }, [parties, allowedOwnerships]);
 
   const { tds, netAmount, vat, totalWithVat, calculationData } = useMemo(() => {
@@ -403,10 +403,10 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                     </div>
                     <div className="flex items-center space-x-3 p-4 rounded-xl bg-muted/20 border"><Switch id="include-vat" checked={includeVat} onCheckedChange={setIncludeVat} /><Label htmlFor="include-vat" className="text-xs font-bold uppercase cursor-pointer">Include VAT (13%)</Label></div>
                     <div className="rounded-2xl border-2 border-primary/20 bg-primary/[0.02] p-6 space-y-4">
-                        <div className="flex justify-between text-xs font-black uppercase"><span className="opacity-70">Total with VAT</span><span>Rs. {totalWithVat.toLocaleString()}</span></div>
-                        <div className="flex justify-between text-xs font-black uppercase text-red-600"><span>TDS Withholding</span><span>- Rs. {tds.toLocaleString()}</span></div>
+                        <div className="flex justify-between text-xs font-black uppercase"><span className="opacity-70">Total with VAT</span><span>Rs. {totalWithVat.toLocaleString('en-IN')}</span></div>
+                        <div className="flex justify-between text-xs font-black uppercase text-red-600"><span>TDS Withholding</span><span>- Rs. {tds.toLocaleString('en-IN')}</span></div>
                         <Separator className="h-0.5 bg-primary/20" />
-                        <div className="flex justify-between items-center"><span className="text-xs font-black uppercase tracking-widest">Net Payable</span><span className="text-2xl font-black tabular-nums">Rs. {netAmount.toLocaleString()}</span></div>
+                        <div className="flex justify-between items-center"><span className="text-xs font-black uppercase tracking-widest">Net Payable</span><span className="text-2xl font-black tabular-nums">Rs. {netAmount.toLocaleString('en-IN')}</span></div>
                     </div>
                 </CardContent>
             </Card>

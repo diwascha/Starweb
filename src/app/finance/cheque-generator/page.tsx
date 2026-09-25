@@ -43,6 +43,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Badge } from '@/components/ui/badge';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -239,8 +240,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   // lib/cheque-layout for why.
   const [chequeLayout, setChequeLayout] = useState<ChequeLayout>(LEGACY_LAYOUT);
   const [isCalibrationOpen, setIsCalibrationOpen] = useState(false);
-  const { user, getAllowedOwnerships } = useAuth();
-  const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+  const { user } = useAuth();
+  const { allowedOwnerships, inScope } = useOwnershipScope('finance');
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -297,7 +298,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   }, [cheques]);
 
   const sijanBankAccounts = useMemo(() => {
-    return accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Both' || allowedOwnerships.includes(a.ownership)))
+    return accounts.filter(a => a.type === 'Bank' && (inScope(a.ownership)))
         .sort((a, b) => (a.bankName || a.name).localeCompare(b.bankName || b.name));
   }, [accounts, allowedOwnerships]);
 
@@ -309,7 +310,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   const allSplits = useMemo<AugmentedChequeSplit[]>(() => {
     const today = startOfToday().getTime();
     return cheques.flatMap((c) => {
-      if (c.ownership !== 'Both' && !allowedOwnerships.includes(c.ownership)) return [];
+      if (!inScope(c.ownership)) return [];
       return (c.splits || []).map((s) => {
         const paid = (s.partialPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
         const total = Number(s.amount) || 0;

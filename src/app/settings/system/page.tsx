@@ -350,7 +350,16 @@ export default function SystemSettingsPage() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        toast({ title: 'Success', description: `Backup file generated${gzipped ? ' (compressed)' : ''}.` });
+        const skipped: { collection: string; reason: string }[] = data?._meta?.skipped || [];
+        if (skipped.length > 0) {
+            toast({
+                title: 'Backup incomplete',
+                description: `Saved, but ${skipped.length} collection(s) could not be read: ${skipped.map(s => s.collection).join(', ')}. This file cannot be used for a restore.`,
+                variant: 'destructive',
+            });
+        } else {
+            toast({ title: 'Success', description: `Backup file generated${gzipped ? ' (compressed)' : ''}.` });
+        }
     } catch {
         toast({ title: 'Backup Failed', variant: 'destructive' });
     } finally {
@@ -471,7 +480,13 @@ export default function SystemSettingsPage() {
   const handleRevoke = async (id: string) => {
     try {
         await revokeSession(id);
-        toast({ title: 'Session Revoked' });
+        // Revoking signs the app out on that device; the person's sign-in
+        // itself stays valid. Unapproving the account is what the security
+        // rules act on, so say so rather than imply access is gone.
+        toast({
+            title: 'Session Revoked',
+            description: 'That device is signed out of the app. To stop this person using the app at all, set their account to Pending in Access Control.',
+        });
     } catch {
         toast({ title: 'Error', variant: 'destructive' });
     }
@@ -964,7 +979,7 @@ export default function SystemSettingsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-3xl font-black text-foreground tabular-nums">
-                                {totalUsageViews.toLocaleString()}
+                                {totalUsageViews.toLocaleString('en-IN')}
                                 <span className="text-xs font-bold text-muted-foreground ml-2 uppercase tracking-tighter">Total Views</span>
                             </div>
                         </CardContent>
@@ -977,7 +992,7 @@ export default function SystemSettingsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-3xl font-black text-foreground tabular-nums">
-                                {aggregatedVisits.length.toLocaleString()}
+                                {aggregatedVisits.length.toLocaleString('en-IN')}
                                 <span className="text-xs font-bold text-muted-foreground ml-2 uppercase tracking-tighter">Mapped Routes</span>
                             </div>
                         </CardContent>
@@ -1045,7 +1060,7 @@ export default function SystemSettingsPage() {
                                                         style={{ width: `${Math.min(100, (visit.count / totalUsageViews) * 500)}%` }} 
                                                     />
                                                 </div>
-                                                <span className="font-black tabular-nums text-blue-900">{visit.count.toLocaleString()}</span>
+                                                <span className="font-black tabular-nums text-blue-900">{visit.count.toLocaleString('en-IN')}</span>
                                             </div>
                                         </TableCell>
                                     </TableRow>
