@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { onProductsUpdate, updateProduct } from '@/services/product-service';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { toNepaliDate, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { InvoiceView } from './_components/invoice-view';
@@ -84,8 +85,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
-    const { getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+    const { allowedOwnerships, inScope } = useOwnershipScope('finance');
     
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -127,7 +127,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
     };
 
     const sortedAndFilteredInvoices = useMemo(() => {
-        let filtered = invoices.filter(inv => inv.ownership === 'Both' || allowedOwnerships.includes(inv.ownership));
+        let filtered = invoices.filter(inv => inScope(inv.ownership));
         
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
@@ -573,8 +573,8 @@ function SavedRatesList() {
     const [newRate, setNewRate] = useState<string>('');
     const [newName, setNewName] = useState<string>('');
     const { toast } = useToast();
-    const { user, getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+    const { user } = useAuth();
+    const { allowedOwnerships, inScope } = useOwnershipScope('finance');
 
     useEffect(() => {
         const unsubP = onProductsUpdate(setProducts);
@@ -643,7 +643,7 @@ function SavedRatesList() {
         let filtered = products.filter(prod => {
              // Basic product filtering by allowed ownership of its associated party
              const partyOwnership = prod.partyName ? parties.find(x => x.name === prod.partyName)?.ownership : 'Both';
-             return partyOwnership === 'Both' || allowedOwnerships.includes(partyOwnership || 'Both');
+             return inScope(partyOwnership || 'Both');
         });
 
         if (searchQuery) {

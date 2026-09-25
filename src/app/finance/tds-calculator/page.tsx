@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { 
     onTdsCalculationsUpdate, 
     addTdsCalculation, 
@@ -88,8 +89,7 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
-    const { getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+    const { allowedOwnerships, inScope } = useOwnershipScope('finance');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [isVoucherViewOpen, setIsVoucherViewOpen] = useState(false);
@@ -108,7 +108,7 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
     };
 
     const filtered = useMemo(() => {
-        let res = savedCalculations.filter(calc => calc.ownership === 'Both' || allowedOwnerships.includes(calc.ownership));
+        let res = savedCalculations.filter(calc => inScope(calc.ownership));
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             res = res.filter(calc => (calc.voucherNo || '').toLowerCase().includes(q) || (calc.partyName || '').toLowerCase().includes(q));
@@ -269,8 +269,8 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const [partySearch, setPartySearch] = useState('');
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
   const { toast } = useToast();
-  const { user, getAllowedOwnerships } = useAuth();
-  const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+  const { user } = useAuth();
+  const { allowedOwnerships, inScope } = useOwnershipScope('finance');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   
@@ -312,7 +312,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   }, [calculationToEdit]);
 
   const filteredParties = useMemo(() => {
-    return parties.filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership)).sort((a, b) => a.name.localeCompare(b.name));
+    return parties.filter(p => inScope(p.ownership)).sort((a, b) => a.name.localeCompare(b.name));
   }, [parties, allowedOwnerships]);
 
   const { tds, netAmount, vat, totalWithVat, calculationData } = useMemo(() => {

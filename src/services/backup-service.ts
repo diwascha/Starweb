@@ -33,7 +33,6 @@ const collectionsToBackup = [
     'cheques',
     'expenses',
     'logs',
-    'files',
     'rentalProperties',
     'rentalUnits',
     'rentalAgreements',

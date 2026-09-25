@@ -17,6 +17,7 @@ import { onProductsUpdate, addProduct } from '@/services/product-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList, CommandItem } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -43,8 +44,8 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
 
     const { toast } = useToast();
     const companyProfile = useBusinessProfile();
-    const { user, getAllowedOwnerships } = useAuth();
-    const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+    const { user } = useAuth();
+    const { allowedOwnerships, inScope } = useOwnershipScope('finance');
 
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
     const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, ownership: '' as AccountOwnership, address: '', panNumber: '' });
@@ -101,7 +102,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     
     const filteredParties = useMemo(() => {
         return parties
-            .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
+            .filter(p => inScope(p.ownership))
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [parties, allowedOwnerships]);
 

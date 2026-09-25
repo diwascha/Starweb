@@ -76,25 +76,6 @@ export const onPayrollUpdate = (
 ): () => void =>
     streamByBsYear(getPayrollCollection, scope, fromFirestore, COLLECTIONS.PAYROLL, callback);
 
-export const getPayrollYears = async (): Promise<number[]> => {
-    const years = new Set<number>();
-    try {
-        const snapshot = await getDocs(getPayrollCollection());
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            if (data.bsYear) {
-                years.add(Number(data.bsYear));
-            }
-        });
-    } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: COLLECTIONS.PAYROLL,
-            operation: 'list',
-        }));
-    }
-    return Array.from(years).sort((a, b) => b - a);
-};
-
 /**
  * Every payroll row for one employee, newest period first. Backs the wage
  * history view: what the person was actually paid each month, which is the

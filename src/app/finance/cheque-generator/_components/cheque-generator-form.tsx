@@ -26,6 +26,7 @@ import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account, Bank
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addCheque, onChequesUpdate, updateCheque } from '@/services/cheque-service';
@@ -97,8 +98,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
   const { toast } = useToast();
-  const { user, getAllowedOwnerships } = useAuth();
-  const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+  const { user } = useAuth();
+  const { allowedOwnerships, inScope } = useOwnershipScope('finance');
 
   /**
    * Set while loading an existing voucher. The recompute effects below check
@@ -227,13 +228,13 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
   const filteredParties = useMemo(
     () =>
       parties
-        .filter((p) => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
+        .filter((p) => inScope(p.ownership))
         .sort((a, b) => a.name.localeCompare(b.name)),
     [parties, allowedOwnerships]
   );
 
   const bankAccounts = useMemo(
-    () => accounts.filter((a) => a.type === 'Bank' && (a.ownership === 'Both' || allowedOwnerships.includes(a.ownership))),
+    () => accounts.filter((a) => a.type === 'Bank' && (inScope(a.ownership))),
     [accounts, allowedOwnerships]
   );
 

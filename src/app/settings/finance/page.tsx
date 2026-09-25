@@ -37,10 +37,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
+import { onPeriodLocksUpdate } from '@/services/payroll/period-lock';
+import { setCombinedPeriodLock } from '@/services/period-lock';
+import { getAttendanceYears } from '@/services/attendance/data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPartiesUpdate, addParty, updateParty, deleteParty, mergeParties } from '@/services/party-service';
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
-import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NEPALI_MONTHS } from '@/lib/constants';
@@ -122,7 +125,7 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
 }
 
 export default function FinanceSettingsPage() {
-  const { user, getAllowedOwnerships } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   
   const [parties, setParties] = useState<Party[]>([]);
@@ -132,7 +135,7 @@ export default function FinanceSettingsPage() {
   const [selectedLockYear, setSelectedLockYear] = useState<string>('');
   const [selectedLockMonth, setSelectedLockMonth] = useState<string>('');
   
-  const allowedOwnerships = useMemo(() => getAllowedOwnerships('finance'), [getAllowedOwnerships]);
+  const { allowedOwnerships, inScope } = useOwnershipScope('finance');
 
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
@@ -147,19 +150,20 @@ export default function FinanceSettingsPage() {
     const unsubs = [
         onPartiesUpdate(setParties),
         onAccountsUpdate(setAccounts),
-        onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {})),
+        // The same lock HR uses (payroll_periods / attendance_periods), which
+        // recalculation and purges actually check. This tab used to save a
+        // separate `payrollLocks` setting that nothing ever read.
+        onPeriodLocksUpdate(locks => setPayrollLocks(Object.fromEntries(locks.map(l => [l.id, l.locked])))),
     ];
-    
-    import('@/services/payroll-service').then(m => {
-        if (typeof m?.getPayrollYears === 'function') {
-            m.getPayrollYears().then(years => {
-                const currentYear = new NepaliDate().getYear();
-                const allYears = Array.from(new Set([...(years || []), currentYear])).sort((a,b) => b-a);
-                setBsYears(allYears);
-                setSelectedLockYear(String(allYears[0] || currentYear));
-                setSelectedLockMonth(String(new NepaliDate().getMonth()));
-            });
-        }
+
+    // Bounded probe (one limit(1) read per candidate year) instead of reading
+    // the whole payroll collection just to list years.
+    getAttendanceYears().then(years => {
+        const currentYear = new NepaliDate().getYear();
+        const allYears = Array.from(new Set([...(years || []), currentYear])).sort((a,b) => b-a);
+        setBsYears(allYears);
+        setSelectedLockYear(String(allYears[0] || currentYear));
+        setSelectedLockMonth(String(new NepaliDate().getMonth()));
     });
 
     return () => unsubs.forEach(u => u());
@@ -168,21 +172,21 @@ export default function FinanceSettingsPage() {
   // Centralized filtering for tables
   const filteredParties = useMemo(() => {
     return parties
-        .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
+        .filter(p => inScope(p.ownership))
         .sort((a, b) => a.name.localeCompare(b.name));
   }, [parties, allowedOwnerships]);
 
   const filteredAccounts = useMemo(() => {
-    return accounts.filter(a => a.ownership === 'Both' || allowedOwnerships.includes(a.ownership));
+    return accounts.filter(a => inScope(a.ownership));
   }, [accounts, allowedOwnerships]);
 
   const handleTogglePayrollLock = async () => {
     if (!selectedLockYear || !selectedLockMonth) return;
-    const lockKey = `${selectedLockYear}-${selectedLockMonth}`;
-    const newLocks = { ...payrollLocks, [lockKey]: !payrollLocks[lockKey] };
+    if (!user) return;
+    const nextLocked = !payrollLocks[`${selectedLockYear}-${selectedLockMonth}`];
     try {
-        await setSetting('payrollLocks', newLocks);
-        toast({ title: `Payroll ${newLocks[lockKey] ? 'Locked' : 'Unlocked'}` });
+        await setCombinedPeriodLock(Number(selectedLockYear), Number(selectedLockMonth), nextLocked, user.username);
+        toast({ title: `Payroll ${nextLocked ? 'Locked' : 'Unlocked'}` });
     } catch {
         toast({ title: 'Lock Error', variant: 'destructive' });
     }

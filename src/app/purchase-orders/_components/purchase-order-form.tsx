@@ -23,6 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
+import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onRawMaterialsUpdate, addRawMaterial, renameCategory, deleteCategory } from '@/services/raw-material-service';
 import { onPurchaseOrdersUpdate, addPurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 import { onUomsUpdate, addUom } from '@/services/uom-service';
@@ -93,8 +94,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
   const router = useRouter();
   const { toast } = useToast();
-  const { user, getAllowedOwnerships } = useAuth();
-  const allowedOwnerships = useMemo(() => getAllowedOwnerships('purchaseOrders'), [getAllowedOwnerships]);
+  const { user } = useAuth();
+  const { allowedOwnerships, inScope } = useOwnershipScope('purchaseOrders');
   const [isClient, setIsClient] = useState(false);
   
   const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
@@ -207,7 +208,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 
   const companies = useMemo(() => {
     return parties
-        .filter(p => p.ownership === 'Both' || allowedOwnerships.includes(p.ownership))
+        .filter(p => inScope(p.ownership))
         .sort((a,b) => a.name.localeCompare(b.name));
   }, [parties, allowedOwnerships]);
 
