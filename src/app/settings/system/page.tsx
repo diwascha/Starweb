@@ -70,7 +70,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
-import { exportData, compressBackup, readBackupFile, planRestore, applyRestore, type RestorePlan } from '@/services/backup-service';
+import { exportData, RAW_LOGS_COLLECTION, compressBackup, readBackupFile, planRestore, applyRestore, type RestorePlan } from '@/services/backup-service';
 import { Separator } from '@/components/ui/separator';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { logAudit } from '@/services/log-service';
@@ -128,6 +128,7 @@ export default function SystemSettingsPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restorePassword, setRestorePassword] = useState('');
+  const [backupIncludeRawLogs, setBackupIncludeRawLogs] = useState(false);
   const [restorePlan, setRestorePlan] = useState<RestorePlan | null>(null);
   const [isPlanningRestore, setIsPlanningRestore] = useState(false);
   const [restoreDeleteExtra, setRestoreDeleteExtra] = useState(false);
@@ -343,7 +344,7 @@ export default function SystemSettingsPage() {
   const handleManualBackup = async () => {
     setIsExporting(true);
     try {
-        const data = await exportData();
+        const data = await exportData({ exclude: backupIncludeRawLogs ? [] : [RAW_LOGS_COLLECTION] });
         const { blob, gzipped } = await compressBackup(data);
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -357,7 +358,7 @@ export default function SystemSettingsPage() {
         if (skipped.length > 0) {
             toast({
                 title: 'Backup incomplete',
-                description: `Saved, but ${skipped.length} collection(s) could not be read: ${skipped.map(s => s.collection).join(', ')}. This file cannot be used for a restore.`,
+                description: `Saved, but ${skipped.length} collection(s) could not be read: ${skipped.map(s => s.collection).join(', ')}. A restore from this file leaves those collections as they are.`,
                 variant: 'destructive',
             });
         } else {
@@ -1141,9 +1142,13 @@ export default function SystemSettingsPage() {
                             <Download className="h-4 w-4 text-primary" />
                             Data Preservation
                         </CardTitle>
-                        <CardDescription>Download a full snapshot of the system database for local archiving.</CardDescription>
+                        <CardDescription>Download a snapshot of the database for local archiving. Only administrators get the automatic weekly copy; this button is for any time.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-3">
+                        <label className="flex items-start gap-2 text-xs">
+                            <Checkbox checked={backupIncludeRawLogs} onCheckedChange={(v) => setBackupIncludeRawLogs(v === true)} className="mt-0.5" />
+                            <span>Include raw machine logs (fingerprint punches). This is the largest collection and uses many of the free daily reads; attendance already calculated from them is always included.</span>
+                        </label>
                         <Button onClick={handleManualBackup} disabled={isExporting} className="h-10 px-8 font-black text-xs uppercase tracking-widest shadow-lg">
                             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                             Download System Snapshot

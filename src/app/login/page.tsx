@@ -17,7 +17,7 @@ import { useAuthService } from '@/firebase';
 import { getUserById, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { logAudit } from '@/services/log-service';
-import { runDailyAutoBackup } from '@/lib/auto-backup';
+import { runAutoBackup } from '@/lib/auto-backup';
 import { queueFailedLogin, flushFailedLogins } from '@/lib/login-audit';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
@@ -237,12 +237,9 @@ export default function LoginPage() {
         );
       }
 
-      // Automatic backup, once per day per user rather than on every login.
-      // This used to run unconditionally AND be awaited, so each sign-in read
-      // every document in ~30 collections, waited for the whole database to
-      // serialise, and dropped another near-identical file in Downloads.
-      // Not awaited: the user is already signed in and should not wait on it.
-      void runDailyAutoBackup(cloudUser.username, cloudUser.id).catch(err => {
+      // Automatic backup: administrators only, at most weekly (see
+      // lib/auto-backup). Not awaited: the user is already signed in.
+      void runAutoBackup(cloudUser.username, cloudUser.id, !!cloudUser.isAdmin).catch(err => {
         console.error('Auto-backup download failed:', err);
       });
 

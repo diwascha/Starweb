@@ -1,38 +1,27 @@
 /**
- * @fileOverview Throttling the automatic backup download.
+ * @fileOverview The automatic backup download.
  *
- * The login page used to call exportData() on EVERY successful sign-in. That
- * reads every document in ~30 collections, serialises the lot to JSON, and
- * drops a file in the user's Downloads folder. Three things were wrong with
- * it, and they get worse as the database grows:
+ * This used to run for EVERY user on their first login of the day, in every
+ * browser. Each run read every document in the database - on the free plan
+ * that alone could use up most of the 50,000 daily reads - and saved a copy
+ * of all payroll and staff data into that PC's Downloads folder.
  *
- *   - Cost and time. It is a full read of the entire database, per login,
- *     per user. Five staff signing in three times a day is fifteen complete
- *     exports, billed per document read.
- *   - It blocked the login. The call was awaited before the session was
- *     handed over, so sign-in waited for the whole database to download.
- *   - It littered Downloads with a near-identical file every single time.
- *
- * The backup itself is worth keeping - it is the only copy the business
- * controls - so this throttles it to once per calendar day per user, per
- * browser, and lets it run after the user is already inside the app.
- *
- * NOTE ON SCOPE: this is a client-side safety net, not a backup strategy. It
- * still costs one full database read per user per day, and it only captures
- * what that browser can see. A scheduled `gcloud firestore export` runs
- * server-side, costs nothing on the client, and is the thing to move to when
- * the dataset gets large.
+ * Now it runs only for administrators, at most once a week per browser, and
+ * leaves out the raw machine logs (the largest collection, and only the
+ * source of attendance that is already stored). Anyone who needs a full
+ * snapshot, or one right now, uses Settings > System > Backup.
  */
 
-import { exportData, gzipString } from '@/services/backup-service';
+import { exportData, gzipString, RAW_LOGS_COLLECTION } from '@/services/backup-service';
 
 const STORAGE_PREFIX = 'starsutra:lastAutoBackup:';
+const INTERVAL_DAYS = 7;
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 const storageKey = (userId: string) => `${STORAGE_PREFIX}${userId}`;
 
-/** The date of this user's last successful auto-backup in this browser. */
+/** The date of this user's last automatic backup in this browser. */
 export const lastAutoBackupDate = (userId: string): string | null => {
     try {
         return localStorage.getItem(storageKey(userId));
@@ -43,20 +32,23 @@ export const lastAutoBackupDate = (userId: string): string | null => {
 };
 
 /**
- * True when this user has not had an automatic backup in this browser today.
- *
- * When storage is unavailable this returns FALSE rather than true: without
- * somewhere to record the run we cannot throttle it, and silently downloading
- * the whole database on every single login is the behaviour being fixed.
+ * True when an administrator has had no automatic backup in this browser for
+ * a week. When storage is unavailable this returns FALSE: without somewhere
+ * to record the run it could not be throttled, and a full export on every
+ * login is the behaviour being fixed.
  */
-export const isAutoBackupDue = (userId: string): boolean => {
+export const isAutoBackupDue = (userId: string, isAdmin: boolean): boolean => {
+    if (!isAdmin) return false;
     try {
         localStorage.setItem(`${STORAGE_PREFIX}probe`, '1');
         localStorage.removeItem(`${STORAGE_PREFIX}probe`);
     } catch {
         return false;
     }
-    return lastAutoBackupDate(userId) !== today();
+    const last = lastAutoBackupDate(userId);
+    if (!last) return true;
+    const ageDays = (Date.parse(today()) - Date.parse(last)) / 86_400_000;
+    return !(ageDays >= 0 && ageDays < INTERVAL_DAYS);
 };
 
 const markDone = (userId: string) => {
@@ -68,20 +60,17 @@ const markDone = (userId: string) => {
 };
 
 /**
- * Download a full backup if one is due today.
- *
- * Deliberately NOT awaited by the caller - the user is already signed in and
- * should not wait on this. Returns true if a backup was taken.
+ * Download a backup if one is due. Deliberately NOT awaited by the caller -
+ * the user is already signed in and should not wait on it. Returns true if a
+ * backup was taken.
  */
-export const runDailyAutoBackup = async (username: string, userId: string): Promise<boolean> => {
-    if (!isAutoBackupDue(userId)) return false;
+export const runAutoBackup = async (username: string, userId: string, isAdmin: boolean): Promise<boolean> => {
+    if (!isAutoBackupDue(userId, isAdmin)) return false;
 
-    const data = await exportData();
+    const data = await exportData({ exclude: [RAW_LOGS_COLLECTION] });
 
-    // Compact JSON, then gzip where the platform has CompressionStream.
-    // The pretty-printed export was ~16 MB and growing; this brings it to
-    // roughly a fifth of that. Falls back to plain .json so a webview
-    // without CompressionStream still gets its backup.
+    // Compact JSON, gzipped where the platform has CompressionStream; plain
+    // .json otherwise so a webview without it still gets its backup.
     const json = JSON.stringify(data);
     const gz = await gzipString(json);
     const blob = gz ?? new Blob([json], { type: 'application/json' });
@@ -99,8 +88,8 @@ export const runDailyAutoBackup = async (username: string, userId: string): Prom
         URL.revokeObjectURL(url);
     }
 
-    // Recorded only after the download actually started, so a failure is
-    // retried at the next login rather than skipped for the day.
+    // Recorded only after the download started, so a failure is retried at
+    // the next login rather than skipped for the week.
     markDone(userId);
     return true;
 };

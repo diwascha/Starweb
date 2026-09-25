@@ -66,14 +66,24 @@ const collectionsToBackup = [
 export interface BackupMeta {
     createdAt: string;
     skipped: { collection: string; reason: string }[];
+    /** Left out on purpose. A restore leaves these collections untouched. */
+    excluded?: string[];
 }
 
-export const exportData = async (): Promise<Record<string, any>> => {
+/**
+ * Raw fingerprint-machine punches: by far the largest collection, and only
+ * the source for attendance that is already calculated and stored.
+ */
+export const RAW_LOGS_COLLECTION = 'raw_machine_logs';
+
+export const exportData = async (options: { exclude?: string[] } = {}): Promise<Record<string, any>> => {
     const { db } = getFirebase();
     const data: Record<string, any> = {};
     const skipped: BackupMeta['skipped'] = [];
+    const excluded = collectionsToBackup.filter(c => options.exclude?.includes(c));
 
     for (const collectionName of collectionsToBackup) {
+        if (excluded.includes(collectionName)) continue;
         try {
             const cap = CAPPED_COLLECTIONS[collectionName];
             const querySnapshot = cap
@@ -87,7 +97,7 @@ export const exportData = async (): Promise<Record<string, any>> => {
         }
     }
 
-    data._meta = { createdAt: new Date().toISOString(), skipped } satisfies BackupMeta;
+    data._meta = { createdAt: new Date().toISOString(), skipped, excluded } satisfies BackupMeta;
     return data;
 };
 
