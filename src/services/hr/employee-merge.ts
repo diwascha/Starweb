@@ -28,6 +28,7 @@
  * matched and re-keyed on the name instead.
  */
 
+import { getLockedPeriodKeys } from '../period-lock';
 import { getFirebase } from '@/lib/firebase';
 import {
     collection,
@@ -195,11 +196,36 @@ export const mergeEmployees = async (
     primary: Employee,
     duplicates: Employee[],
     performedBy: string,
+    options: { isAdmin?: boolean } = {},
 ): Promise<MergeResult> => {
     const { db } = getFirebase();
     const realDuplicates = duplicates.filter(d => d.id !== primary.id);
     if (realDuplicates.length === 0) {
         throw new Error('Select at least one record to merge into the surviving employee.');
+    }
+
+    // Payroll document ids contain the employee id, so merging MOVES those
+    // rows (create + delete). In a locked month only an administrator may do
+    // that (see firestore.rules). Check before writing anything, so a merge
+    // is refused cleanly instead of failing half-way through.
+    if (!options.isAdmin) {
+        const lockedPeriods = await getLockedPeriodKeys();
+        const payrollLink = EMPLOYEE_LINKS.find(l => l.collection === COLLECTIONS.PAYROLL);
+        const lockedMonths = new Set<string>();
+        if (payrollLink && lockedPeriods.size > 0) {
+            for (const duplicate of realDuplicates) {
+                for (const d of await findLinkedDocs(payrollLink, duplicate)) {
+                    const key = `${d.data().bsYear}-${d.data().bsMonth}`;
+                    if (lockedPeriods.has(key)) lockedMonths.add(key);
+                }
+            }
+        }
+        if (lockedMonths.size > 0) {
+            throw new Error(
+                `The duplicate has payroll in ${lockedMonths.size} locked month(s) (${Array.from(lockedMonths).sort().join(', ')}). ` +
+                'Ask an administrator to do this merge, or unlock those months first.'
+            );
+        }
     }
 
     let moved = 0;

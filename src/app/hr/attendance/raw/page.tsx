@@ -18,7 +18,7 @@ import {
 } from '@/services/attendance/data';
 import { addRawMachineLogs, addBulkManualLogs, bulkClockInOut } from '@/services/attendance/import';
 import { importLegacyPayrollSheet } from '@/services/payroll/legacy-import';
-import { setFiscalYearPeriodLock } from '@/services/period-lock';
+import { setFiscalYearPeriodLock, getLockedPeriodKeys } from '@/services/period-lock';
 import { resolvePeriodFromSheetName } from '@/lib/attendance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -291,6 +291,7 @@ export default function MachineLogsPage() {
                 const totals = { created: 0, updated: 0, newEmployees: 0, payroll: 0 };
                 const newEmployeeNames: string[] = [];
                 const skippedSheets: string[] = [];
+                const lockedPayrollSheets: string[] = [];
                 const failedSheets: string[] = [];
                 // Every period a legacy payroll block actually lands in gets
                 // locked by default once the import finishes - historical
@@ -300,6 +301,7 @@ export default function MachineLogsPage() {
                 try {
                     const data = new Uint8Array(event.target?.result as ArrayBuffer);
                     const workbook = await readUploadedWorkbook(data, { sheetjs: { cellDates: true } });
+                    const lockedPeriods = await getLockedPeriodKeys();
                     const dataSheets = workbook.SheetNames.filter(
                         name => !NON_ATTENDANCE_SHEETS.has(name.trim().toLowerCase())
                     );
@@ -327,7 +329,11 @@ export default function MachineLogsPage() {
                             newEmployeeNames.push(...result.newEmployeeNames);
 
                             const period = result.dominantPeriod || resolvePeriodFromSheetName(sheetName);
-                            if (period && result.headerIndex >= 0) {
+                            // Raw punch logs are always imported; payroll for a
+                            // locked (finalized) month is not - the rules reject it.
+                            if (period && result.headerIndex >= 0 && lockedPeriods.has(`${period.year}-${period.month}`)) {
+                                lockedPayrollSheets.push(sheetName);
+                            } else if (period && result.headerIndex >= 0) {
                                 const payrollResult = await importLegacyPayrollSheet(
                                     jsonData,
                                     result.headerRow,
@@ -371,7 +377,7 @@ export default function MachineLogsPage() {
                     } else {
                         toast({
                             title: 'Import Successful',
-                            description: `${dataSheets.length - skippedSheets.length} sheet(s) processed - ${totals.created} created, ${totals.updated} updated attendance logs, ${totals.payroll} payroll records imported${totals.newEmployees ? `, ${totals.newEmployees} new employees onboarded` : ''}.${skippedSheets.length ? ` Skipped: ${skippedSheets.join(', ')}.` : ''}`,
+                            description: `${dataSheets.length - skippedSheets.length} sheet(s) processed - ${totals.created} created, ${totals.updated} updated attendance logs, ${totals.payroll} payroll records imported${totals.newEmployees ? `, ${totals.newEmployees} new employees onboarded` : ''}.${skippedSheets.length ? ` Skipped: ${skippedSheets.join(', ')}.` : ''}${lockedPayrollSheets.length ? ` Payroll not imported for locked month(s): ${lockedPayrollSheets.join(', ')} - unlock them to re-import.` : ''}`,
                         });
                     }
 

@@ -195,6 +195,53 @@ await deny ('approved user adds extra fields',    () => setDoc(doc(nobody, 'page
 await deny ('approved user reads visit stats',    () => getDoc(doc(nobody, 'pageVisits/dash')));
 await deny ('unapproved user records a visit',    () => setDoc(doc(pending, 'pageVisits/p'), { path: '/x', count: 1, lastVisited: 1 }));
 
+console.log('\n=== 14. Username mappings cannot be hijacked ===');
+await env.withSecurityRulesDisabled(async c => {
+  await setDoc(doc(c.firestore(),'usernames/bossname'), { uid:'boss', email:'boss@x', username:'bossname' });
+  await setDoc(doc(c.firestore(),'usernames/hrviewname'), { uid:'hrview', email:'hr@x', username:'hrviewname' });
+});
+await deny ('user overwrites admin username mapping', () => setDoc(doc(hrview,'usernames/bossname'), { uid:'hrview', email:'evil@x' }, { merge: true }));
+await deny ('user creates a new username mapping',    () => setDoc(doc(hrview,'usernames/newname'), { uid:'hrview', email:'hr@x' }));
+await deny ('user hands own mapping to someone else', () => updateDoc(doc(hrview,'usernames/hrviewname'), { uid:'boss' }));
+await allow('user updates own mapping, stays own',    () => updateDoc(doc(hrview,'usernames/hrviewname'), { email:'hr2@x' }));
+await deny ('user lists all usernames/emails',        () => getDocs(collection(hrview,'usernames')));
+await deny ('user deletes a username mapping',        () => deleteDoc(doc(hrview,'usernames/bossname')));
+await allow('admin lists usernames',                  () => getDocs(collection(boss,'usernames')));
+await allow('admin provisions a username',            () => setDoc(doc(boss,'usernames/fresh'), { email:'f@x', username:'fresh' }));
+await allow('admin attaches uid to it',               () => setDoc(doc(boss,'usernames/fresh'), { uid:'nobody' }, { merge: true }));
+await allow('anyone resolves one username at login',  () => getDoc(doc(anon,'usernames/bossname')));
+
+console.log('\n=== 15. Locked months cannot be rewritten (H5) ===');
+await env.withSecurityRulesDisabled(async c => {
+  const db = c.firestore();
+  await setDoc(doc(db,'payroll_periods/2082-5'),    { bsYear:2082, bsMonth:5, locked:true });
+  await setDoc(doc(db,'attendance_periods/2082-5'), { bsYear:2082, bsMonth:5, locked:true });
+  await setDoc(doc(db,'attendance_periods/2082-6'), { bsYear:2082, bsMonth:6, locked:true }); // one side locked is enough
+  await setDoc(doc(db,'payroll_periods/2082-7'),    { bsYear:2082, bsMonth:7, locked:false });
+  await setDoc(doc(db,'payroll/2082-5-e1'),   { bsYear:2082, bsMonth:5, employeeId:'e1', employeeName:'A', netPayment:100 });
+  await setDoc(doc(db,'payroll/2082-6-e1'),   { bsYear:2082, bsMonth:6, employeeId:'e1', employeeName:'A', netPayment:100 });
+  await setDoc(doc(db,'payroll/2082-7-e1'),   { bsYear:2082, bsMonth:7, employeeId:'e1', employeeName:'A', netPayment:100 });
+  await setDoc(doc(db,'attendance/locked1'),  { bsYear:2082, bsMonth:5, employeeId:'e1', employeeName:'A', regularHours:8 });
+});
+await deny ('hr editor changes pay in a locked month',          () => updateDoc(doc(hrfull,'payroll/2082-5-e1'), { netPayment: 999 }));
+await deny ('hr editor changes pay when only attendance side locked', () => updateDoc(doc(hrfull,'payroll/2082-6-e1'), { netPayment: 999 }));
+await allow('hr editor changes pay in an unlocked month',       () => updateDoc(doc(hrfull,'payroll/2082-7-e1'), { netPayment: 150 }));
+await deny ('hr editor moves a record into a locked month',     () => updateDoc(doc(hrfull,'payroll/2082-7-e1'), { bsMonth: 5 }));
+await deny ('admin changes pay in a locked month',              () => updateDoc(doc(boss,'payroll/2082-5-e1'), { netPayment: 999 }));
+await allow('hr editor re-points locked payroll (merge)',       () => updateDoc(doc(hrfull,'payroll/2082-5-e1'), { employeeId:'e2', employeeName:'B' }));
+await allow('hr editor re-points locked attendance (merge)',    () => updateDoc(doc(hrfull,'attendance/locked1'), { employeeId:'e2', employeeName:'B', ownership:'Both' }));
+await deny ('hr editor edits hours in a locked month',          () => updateDoc(doc(hrfull,'attendance/locked1'), { regularHours: 12 }));
+await deny ('hr editor creates payroll in a locked month',      () => setDoc(doc(hrfull,'payroll/2082-5-e9'), { bsYear:2082, bsMonth:5, employeeId:'e9', netPayment:1 }));
+await deny ('hr editor creates attendance in a locked month',   () => setDoc(doc(hrfull,'attendance/new1'), { bsYear:2082, bsMonth:5, employeeId:'e9' }));
+await allow('hr editor creates payroll in an unlocked month',   () => setDoc(doc(hrfull,'payroll/2082-7-e9'), { bsYear:2082, bsMonth:7, employeeId:'e9', netPayment:1 }));
+await deny ('hr editor deletes locked attendance',              () => deleteDoc(doc(hrfull,'attendance/locked1')));
+await allow('admin creates payroll in a locked month (merge move)', () => setDoc(doc(boss,'payroll/2082-5-e2'), { bsYear:2082, bsMonth:5, employeeId:'e2', netPayment:100 }));
+await allow('admin deletes locked attendance (purge)',          () => deleteDoc(doc(boss,'attendance/locked1')));
+await allow('hr editor unlocks the month',                      () => updateDoc(doc(hrfull,'payroll_periods/2082-5'), { locked:false }));
+await deny ('...but attendance side still locks it',            () => updateDoc(doc(hrfull,'payroll/2082-5-e1'), { netPayment: 999 }));
+await allow('hr editor unlocks attendance side too',            () => updateDoc(doc(hrfull,'attendance_periods/2082-5'), { locked:false }));
+await allow('now the month can be edited',                      () => updateDoc(doc(hrfull,'payroll/2082-5-e1'), { netPayment: 999 }));
+
 console.log('\n=== 9. Admin still has everything ===');
 for (const c of ALL) await allow(`admin writes ${c}`, () => setDoc(doc(boss, `${c}/adm`), { v:1 }));
 

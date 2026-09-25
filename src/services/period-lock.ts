@@ -13,7 +13,7 @@
  * services themselves - not just to disable a button in the UI.
  */
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { createTimestamp } from '@/lib/service-utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -67,4 +67,27 @@ export const setFiscalYearPeriodLock = async (
             throw err;
         }
     }
+};
+
+/**
+ * Every locked period, as `${bsYear}-${bsMonth}` keys (either collection
+ * saying locked counts, same as isPeriodLocked). Importers check this BEFORE
+ * writing: the security rules reject any payroll/attendance write into a
+ * locked month, and a multi-batch import that hits one half-way would leave
+ * the other months written and this one not.
+ */
+export const getLockedPeriodKeys = async (): Promise<Set<string>> => {
+    const { db } = getFirebase();
+    const [att, pay] = await Promise.all([
+        getDocs(query(collection(db, 'attendance_periods'), where('locked', '==', true))),
+        getDocs(query(collection(db, 'payroll_periods'), where('locked', '==', true))),
+    ]);
+    const keys = new Set<string>();
+    for (const snap of [att, pay]) {
+        snap.docs.forEach(d => {
+            const data = d.data();
+            keys.add(periodId(Number(data.bsYear), Number(data.bsMonth)));
+        });
+    }
+    return keys;
 };

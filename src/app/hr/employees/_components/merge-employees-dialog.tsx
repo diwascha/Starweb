@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { suggestSurvivor } from '@/lib/employee-duplicates';
 import {
@@ -43,6 +44,7 @@ export function MergeEmployeesDialog({
     onMerged,
 }: MergeEmployeesDialogProps) {
     const { toast } = useToast();
+    const { user } = useAuth();
     const [survivorId, setSurvivorId] = useState<string>('');
     const [preview, setPreview] = useState<MergePreview | null>(null);
     const [isPreviewing, setIsPreviewing] = useState(false);
@@ -94,7 +96,7 @@ export function MergeEmployeesDialog({
         if (!survivor || duplicates.length === 0) return;
         setIsMerging(true);
         try {
-            const result = await mergeEmployees(survivor, duplicates, performedBy);
+            const result = await mergeEmployees(survivor, duplicates, performedBy, { isAdmin: !!user?.isAdmin });
             toast({
                 title: 'Records merged',
                 description: `${result.moved} linked record(s) moved to ${survivor.name}. `
