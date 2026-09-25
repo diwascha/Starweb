@@ -31,11 +31,9 @@ import { onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
 import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { onChequesUpdate } from '@/services/cheque-service';
-import { onTripsUpdate } from '@/services/trip-service';
+import { onTripsSinceUpdate } from '@/services/trip-service';
+import { countInOwnershipScope } from '@/services/count-service';
 import { onRentalBillsUpdate } from '@/services/rental-billing-service';
-import { onProductsUpdate } from '@/services/product-service';
-import { onCostReportsUpdate } from '@/services/cost-report-service';
-import { onGsmReportsUpdate } from '@/services/gsm-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
 import type {
@@ -47,9 +45,6 @@ import type {
   Cheque,
   Trip,
   RentalBill,
-  Product,
-  CostReport,
-  GsmReport,
   Vehicle,
   Driver
 } from '@/lib/types';
@@ -351,7 +346,7 @@ export default function DashboardPage() {
   const { inScope: inScopeFleet } = useOwnershipScope('fleet');
   const { inScope: inScopeRental } = useOwnershipScope('rental');
   const { inScope: inScopePO } = useOwnershipScope('purchaseOrders');
-  const { inScope: inScopeReports } = useOwnershipScope('reports');
+  const { inScope: inScopeReports, allowedOwnerships: reportsOwnerships } = useOwnershipScope('reports');
 
   const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -360,9 +355,11 @@ export default function DashboardPage() {
   const [cheques, setCheques] = useState<Cheque[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [rentalBills, setRentalBills] = useState<RentalBill[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [costReports, setCostReports] = useState<CostReport[]>([]);
-  const [gsmReports, setGsmReports] = useState<GsmReport[]>([]);
+  // Only the totals are shown, so these are counted by Firestore rather than
+  // downloading every product / cost report / GSM report to take `.length`.
+  const [productCount, setProductCount] = useState(0);
+  const [costReportCount, setCostReportCount] = useState(0);
+  const [gsmReportCount, setGsmReportCount] = useState(0);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
@@ -411,6 +408,17 @@ export default function DashboardPage() {
       return () => {};
     };
 
+    // Trips feed only this and last BS month's revenue, so stream from the
+    // start of last BS month (minus a small margin) instead of all history.
+    const nowBs = new NepaliDate();
+    const prevMonthStart = new NepaliDate(
+      nowBs.getMonth() === 0 ? nowBs.getYear() - 1 : nowBs.getYear(),
+      nowBs.getMonth() === 0 ? 11 : nowBs.getMonth() - 1,
+      1,
+    ).toJsDate();
+    prevMonthStart.setDate(prevMonthStart.getDate() - 2);
+    const tripsSinceIso = prevMonthStart.toISOString();
+
     const canFinanceView = hasPermission('finance', 'view');
     const canFleetView = hasPermission('fleet', 'view');
     const canPOView = hasPermission('purchaseOrders', 'view');
@@ -425,11 +433,8 @@ export default function DashboardPage() {
       when(canFinanceView, () => onEstimatedInvoicesUpdate(wrap('invoices', (v: EstimatedInvoice[]) => setInvoices(isIncluded('finance') ? v.filter((i) => inScopeFinance(i.ownership)) : []))), 'invoices'),
       when(canSettingsView,() => onPageVisitsUpdate(wrap('visits', setPageVisits)), 'visits'),
       when(canFinanceView, () => onChequesUpdate(wrap('cheques', (v: Cheque[]) => setCheques(isIncluded('finance') ? v.filter((c) => inScopeFinance(c.ownership)) : []))), 'cheques'),
-      when(canFleetView,   () => onTripsUpdate(wrap('trips', (v: Trip[]) => setTrips(isIncluded('fleet') ? v.filter((t) => inScopeFleet(t.ownership)) : []))), 'trips'),
+      when(canFleetView,   () => onTripsSinceUpdate(tripsSinceIso, wrap('trips', (v: Trip[]) => setTrips(isIncluded('fleet') ? v.filter((t) => inScopeFleet(t.ownership)) : []))), 'trips'),
       when(canRentalView,  () => onRentalBillsUpdate(wrap('rental', (v: RentalBill[]) => setRentalBills(isIncluded('rental') ? v.filter((r) => inScopeRental(r.ownership)) : []))), 'rental'),
-      when(canReportsView, () => onProductsUpdate(wrap('products', (v: Product[]) => setProducts(isIncluded('reports') ? v.filter((p) => inScopeReports(p.ownership)) : []))), 'products'),
-      when(canCRMView,     () => onCostReportsUpdate(wrap('costReports', (v: CostReport[]) => setCostReports(isIncluded('reports') ? v.filter((c) => inScopeReports(c.ownership)) : []))), 'costReports'),
-      when(canFinanceView, () => onGsmReportsUpdate(wrap('gsmReports', (v: GsmReport[]) => setGsmReports(isIncluded('reports') ? v.filter((g) => inScopeReports(g.ownership)) : []))), 'gsmReports'),
       when(canFleetView,   () => onVehiclesUpdate(wrap('vehicles', (v: Vehicle[]) => setVehicles(isIncluded('fleet') ? v.filter((veh) => inScopeFleet(veh.ownership)) : []))), 'vehicles'),
       when(canFleetView,   () => onDriversUpdate(wrap('drivers', (v: Driver[]) => setDrivers(isIncluded('fleet') ? v.filter((d) => inScopeFleet(d.ownership)) : []))), 'drivers'),
       onSettingUpdate('companyProfile', (s: any) => {
@@ -439,6 +444,22 @@ export default function DashboardPage() {
 
     return () => unsubs.forEach((unsub) => unsub?.());
   }, [markReady, hasPermission, inScopeFinance, inScopeFleet, inScopeRental, inScopePO, inScopeReports, isIncluded]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const include = isIncluded('reports');
+    const run = (allowed: boolean, col: string, set: (n: number) => void, key: string) => {
+      if (!allowed || !include) { set(0); markReady(key); return; }
+      countInOwnershipScope(col, reportsOwnerships)
+        .then(n => { if (!cancelled) set(n); })
+        .catch(() => { /* offline or denied: leave the tile at its last value */ })
+        .finally(() => { if (!cancelled) markReady(key); });
+    };
+    run(hasPermission('reports', 'view'), 'products', setProductCount, 'products');
+    run(hasPermission('crm', 'view'), 'costReports', setCostReportCount, 'costReports');
+    run(hasPermission('finance', 'view'), 'gsm_reports', setGsmReportCount, 'gsmReports');
+    return () => { cancelled = true; };
+  }, [markReady, hasPermission, isIncluded, reportsOwnerships]);
 
   const { currentMonthStart, currentMonthEnd, lastMonthStart, lastMonthEnd } = useMemo(() => {
     const now = new Date();
@@ -650,9 +671,9 @@ export default function DashboardPage() {
         totalVisits,
         revenue: currentRev,
         prevRevenue: previousRev,
-        productCount: products.length,
-        costReportCount: costReports.length,
-        gsmReportCount: gsmReports.length,
+        productCount,
+        costReportCount,
+        gsmReportCount,
         unpaidRentCount: unpaidRentBills.length,
       },
       urgentActions: actions,
@@ -665,9 +686,9 @@ export default function DashboardPage() {
     cheques,
     trips,
     rentalBills,
-    products,
-    costReports,
-    gsmReports,
+    productCount,
+    costReportCount,
+    gsmReportCount,
     vehicles,
     drivers,
     currentMonthStart,

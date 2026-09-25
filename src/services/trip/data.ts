@@ -1,5 +1,5 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, doc, onSnapshot, getDoc, orderBy, query } from 'firebase/firestore';
+import { collection, doc, onSnapshot, getDoc, orderBy, query, where } from 'firebase/firestore';
 import type { Trip } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -19,6 +19,23 @@ export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => 
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     }, async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: COLLECTIONS.TRIPS,
+            operation: 'list',
+        }));
+    });
+};
+
+/**
+ * Trips dated on or after `sinceIso` (trip dates are stored as ISO strings).
+ * For views that only need recent months - the dashboard's revenue tiles -
+ * so they don't stream every trip ever recorded.
+ */
+export const onTripsSinceUpdate = (sinceIso: string, callback: (trips: Trip[]) => void): () => void => {
+    const q = query(getTripsCollection(), where('date', '>=', sinceIso), orderBy('date', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    }, async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: COLLECTIONS.TRIPS,
             operation: 'list',
