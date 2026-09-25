@@ -87,47 +87,47 @@ function PurchaseOrderDocument({
     >
         <header className="flex items-start justify-between pb-5 border-b-2 border-neutral-900">
             <div>
-                <h1 className="text-[14px] leading-tight font-extrabold uppercase whitespace-pre">
+                <h1 className="text-[0.875rem] leading-tight font-extrabold uppercase whitespace-pre">
                     {companyProfile.nameEn.split(' ').filter(Boolean).join('  ')}
                 </h1>
-                <h2 className="text-[13px] font-semibold text-neutral-700">{companyProfile.nameNp}</h2>
-                <p className="text-[11px] text-neutral-600 mt-1">{companyProfile.address}</p>
-                <p className="text-[10px] font-mono text-neutral-600">PAN: {companyProfile.pan}</p>
+                <h2 className="text-[0.8125rem] font-semibold text-neutral-700">{companyProfile.nameNp}</h2>
+                <p className="text-[0.6875rem] text-neutral-600 mt-1">{companyProfile.address}</p>
+                <p className="text-[0.625rem] font-mono text-neutral-600">PAN: {companyProfile.pan}</p>
             </div>
             <div className="text-right shrink-0 pl-6">
                 <div className="inline-block border-2 border-neutral-900 px-4 py-2">
-                    <p className="text-[16px] font-extrabold uppercase leading-none">Purchase Order</p>
+                    <p className="text-[1rem] font-extrabold uppercase leading-none">Purchase Order</p>
                 </div>
                 {hasAmendments && amendedDate && (
-                    <p className="text-[9px] font-bold text-amber-700 uppercase mt-2">
+                    <p className="text-[0.5625rem] font-bold text-amber-700 uppercase mt-2">
                         Amended &mdash; Rev. {nepaliAmendedDateString} BS ({amendedDate.toLocaleDateString('en-CA')})
                     </p>
                 )}
             </div>
         </header>
 
-        <div className="grid grid-cols-3 gap-6 py-5 border-b border-neutral-200 text-[11px]">
+        <div className="grid grid-cols-3 gap-6 py-5 border-b border-neutral-200 text-[0.6875rem]">
             <div>
-                <p className="text-[9px] font-bold uppercase text-neutral-500 mb-1">PO Reference</p>
-                <p className="font-extrabold text-[14px]">#{purchaseOrder.poNumber}</p>
-                <p className="text-[9px] font-bold uppercase text-neutral-500 mt-3 mb-1">Status</p>
+                <p className="text-[0.5625rem] font-bold uppercase text-neutral-500 mb-1">PO Reference</p>
+                <p className="font-extrabold text-[0.875rem]">#{purchaseOrder.poNumber}</p>
+                <p className="text-[0.5625rem] font-bold uppercase text-neutral-500 mt-3 mb-1">Status</p>
                 <p className="font-bold uppercase">{purchaseOrder.status || 'Issued'}</p>
             </div>
             <div>
-                <p className="text-[9px] font-bold uppercase text-neutral-500 mb-1">Supplier</p>
-                <p className="font-extrabold text-[13px] leading-snug">{purchaseOrder.companyName}</p>
+                <p className="text-[0.5625rem] font-bold uppercase text-neutral-500 mb-1">Supplier</p>
+                <p className="font-extrabold text-[0.8125rem] leading-snug">{purchaseOrder.companyName}</p>
                 <p className="text-neutral-600 mt-0.5">{purchaseOrder.companyAddress}</p>
                 {purchaseOrder.panNumber && (
-                    <p className="font-mono text-[10px] mt-1">PAN: {purchaseOrder.panNumber}</p>
+                    <p className="font-mono text-[0.625rem] mt-1">PAN: {purchaseOrder.panNumber}</p>
                 )}
             </div>
             <div className="text-right">
-                <p className="text-[9px] font-bold uppercase text-neutral-500 mb-1">Issue Date</p>
-                <p className="font-extrabold text-[13px]">{nepaliPoDateString} BS</p>
-                <p className="text-[10px] text-neutral-500">{new Date(purchaseOrder.poDate).toLocaleDateString('en-CA')} AD</p>
+                <p className="text-[0.5625rem] font-bold uppercase text-neutral-500 mb-1">Issue Date</p>
+                <p className="font-extrabold text-[0.8125rem]">{nepaliPoDateString} BS</p>
+                <p className="text-[0.625rem] text-neutral-500">{new Date(purchaseOrder.poDate).toLocaleDateString('en-CA')} AD</p>
                 {purchaseOrder.deliveryDate && (
                     <>
-                        <p className="text-[9px] font-bold uppercase text-neutral-500 mt-3 mb-1">Delivery By</p>
+                        <p className="text-[0.5625rem] font-bold uppercase text-neutral-500 mt-3 mb-1">Delivery By</p>
                         <p className="font-bold">{new Date(purchaseOrder.deliveryDate).toLocaleDateString('en-CA')}</p>
                     </>
                 )}
@@ -138,10 +138,10 @@ function PurchaseOrderDocument({
             {model.groups.map(group => (
                 <div key={group.type}>
                     <div className="flex items-baseline justify-between mb-1.5">
-                        <h3 className="text-[11px] font-extrabold uppercase">{group.type}</h3>
-                        <span className="text-[9px] font-bold uppercase text-neutral-400">{group.lineItemLabel}</span>
+                        <h3 className="text-[0.6875rem] font-extrabold uppercase">{group.type}</h3>
+                        <span className="text-[0.5625rem] font-bold uppercase text-neutral-400">{group.lineItemLabel}</span>
                     </div>
-                    <table className="w-full text-[11px] border-collapse">
+                    <table className="w-full text-[0.6875rem] border-collapse">
                         <thead>
                             <tr className="border-y border-neutral-900 text-left">
                                 <th className="py-1.5 w-8 font-bold text-center">#</th>
@@ -174,7 +174,7 @@ function PurchaseOrderDocument({
                         </tbody>
                         <tfoot>
                             <tr className="border-b-2 border-neutral-900">
-                                <td colSpan={group.isPaper ? 5 : 2} className="py-1.5 text-right text-[9px] font-bold uppercase text-neutral-500 pr-4">Subtotal &mdash; {group.type}</td>
+                                <td colSpan={group.isPaper ? 5 : 2} className="py-1.5 text-right text-[0.5625rem] font-bold uppercase text-neutral-500 pr-4">Subtotal &mdash; {group.type}</td>
                                 <td className="py-1.5 text-right font-extrabold">{group.subtotalText}</td>
                             </tr>
                         </tfoot>
@@ -184,22 +184,22 @@ function PurchaseOrderDocument({
 
             <div className="flex justify-end">
                 <div className="border-2 border-neutral-900 px-5 py-2 text-right">
-                    <p className="text-[9px] font-bold uppercase text-neutral-500">Total Order Volume</p>
+                    <p className="text-[0.5625rem] font-bold uppercase text-neutral-500">Total Order Volume</p>
                     {model.grandTotals.map(([unit, total]) => (
-                        <p key={unit} className="text-[15px] font-extrabold">{total.toLocaleString()} {unit}</p>
+                        <p key={unit} className="text-[0.9375rem] font-extrabold">{total.toLocaleString()} {unit}</p>
                     ))}
                 </div>
             </div>
         </div>
 
-        <div className="mt-8 text-[10px]">
+        <div className="mt-8 text-[0.625rem]">
             <div>
-                <p className="font-extrabold uppercase text-[9px] text-neutral-500 mb-1">Delivery Location</p>
+                <p className="font-extrabold uppercase text-[0.5625rem] text-neutral-500 mb-1">Delivery Location</p>
                 <p className="font-semibold">{companyProfile.address}</p>
             </div>
             {purchaseOrder.remarks && (
                 <div className="mt-4">
-                    <p className="font-extrabold uppercase text-[9px] text-neutral-500 mb-1">Remarks</p>
+                    <p className="font-extrabold uppercase text-[0.5625rem] text-neutral-500 mb-1">Remarks</p>
                     <p className="font-semibold whitespace-pre-wrap">{purchaseOrder.remarks}</p>
                 </div>
             )}
@@ -207,10 +207,10 @@ function PurchaseOrderDocument({
 
         {includeAmendments && hasAmendments && (
             <div className="mt-8 border border-amber-200 bg-amber-50/60 rounded-md px-4 py-3">
-                <h3 className="text-[9px] font-extrabold uppercase text-amber-800 mb-2">Amendment History</h3>
+                <h3 className="text-[0.5625rem] font-extrabold uppercase text-amber-800 mb-2">Amendment History</h3>
                 <div className="space-y-1">
                     {amendmentList.map((am: any, i: number) => (
-                        <p key={i} className="text-[9px] text-neutral-600">
+                        <p key={i} className="text-[0.5625rem] text-neutral-600">
                             <span className="font-extrabold text-neutral-900">Rev {i + 1}</span>
                             <span className="mx-1.5 text-neutral-300">|</span>
                             {new Date(am.date).toLocaleString()}
@@ -225,7 +225,7 @@ function PurchaseOrderDocument({
         <div className="flex-1 min-h-[24px]" />
 
         <footer className="pt-4 border-t border-neutral-200 text-center">
-            <p className="text-[8px] text-neutral-400 leading-snug">
+            <p className="text-[0.5rem] text-neutral-400 leading-snug">
                 Computer-generated document. Valid without physical signature or seal. Produced via StarSutra Enterprise Suite.
             </p>
         </footer>
@@ -579,7 +579,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => router.push(`/purchase-orders/edit?id=${purchaseOrder.id}`)} className="h-10 px-4 font-bold text-[10px] uppercase tracking-widest"><Edit className="mr-2 h-3.5 w-3.5"/> Amend Order</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(`/purchase-orders/edit?id=${purchaseOrder.id}`)} className="h-10 px-4 font-bold text-[0.625rem] uppercase tracking-widest"><Edit className="mr-2 h-3.5 w-3.5"/> Amend Order</Button>
 
             <div className="flex items-center gap-2 bg-white rounded-md border shadow-sm h-10 px-2">
                 <TooltipProvider>
@@ -589,11 +589,11 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                 <ZoomOut className="h-4 w-4" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent><p className="text-[10px] uppercase font-black">Zoom Out</p></TooltipContent>
+                        <TooltipContent><p className="text-[0.625rem] uppercase font-black">Zoom Out</p></TooltipContent>
                     </Tooltip>
                     
                     <Select value={String(zoom)} onValueChange={v => setZoom(parseFloat(v))}>
-                        <SelectTrigger className="h-8 w-20 text-[10px] font-black border-none bg-muted/30">
+                        <SelectTrigger className="h-8 w-20 text-[0.625rem] font-black border-none bg-muted/30">
                             <SelectValue>{Math.round(zoom * 100)}%</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -613,7 +613,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                 <ZoomIn className="h-4 w-4" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent><p className="text-[10px] uppercase font-black">Zoom In</p></TooltipContent>
+                        <TooltipContent><p className="text-[0.625rem] uppercase font-black">Zoom In</p></TooltipContent>
                     </Tooltip>
                     
                     <Separator orientation="vertical" className="h-4 mx-1" />
@@ -624,7 +624,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                 <RefreshCcw className="h-3.5 w-3.5" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent><p className="text-[10px] uppercase font-black">Reset Zoom</p></TooltipContent>
+                        <TooltipContent><p className="text-[0.625rem] uppercase font-black">Reset Zoom</p></TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
             </div>
@@ -637,7 +637,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                 {isExporting[`jpg-${purchaseOrder.poNumber}`] ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <ImageIcon className="h-4 w-4"/>}
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent><p className="text-[10px] uppercase font-black">Export Image</p></TooltipContent>
+                        <TooltipContent><p className="text-[0.625rem] uppercase font-black">Export Image</p></TooltipContent>
                     </Tooltip>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -645,7 +645,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                 {isExporting[`pdf-${purchaseOrder.poNumber}`] ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Save className="mr-2 h-4 w-4"/>}
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent><p className="text-[10px] uppercase font-black">Export PDF</p></TooltipContent>
+                        <TooltipContent><p className="text-[0.625rem] uppercase font-black">Export PDF</p></TooltipContent>
                     </Tooltip>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -653,14 +653,14 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                 <Printer className="h-4 w-4" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent><p className="text-[10px] uppercase font-black">Print Document</p></TooltipContent>
+                        <TooltipContent><p className="text-[0.625rem] uppercase font-black">Print Document</p></TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
             </div>
 
             <div className="flex items-center gap-2 px-3 h-10 bg-white rounded-md border shadow-sm">
                 <Switch id="inc-amend" checked={includeAmendments} onCheckedChange={setIncludeAmendments} className="scale-75" />
-                <Label htmlFor="inc-amend" className="text-[9px] font-black uppercase text-muted-foreground cursor-pointer">Append Logs</Label>
+                <Label htmlFor="inc-amend" className="text-[0.5625rem] font-black uppercase text-muted-foreground cursor-pointer">Append Logs</Label>
             </div>
         </div>
       </div>
@@ -708,7 +708,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                         <History className="h-5 w-5 text-muted-foreground"/>
                         <CardTitle className="text-sm font-black uppercase tracking-tight">Version Snapshots</CardTitle>
                     </div>
-                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Immutable states captured before every revision.</CardDescription>
+                    <CardDescription className="text-[0.625rem] font-bold uppercase tracking-widest text-muted-foreground">Immutable states captured before every revision.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     <Table className="text-xs">
@@ -719,11 +719,11 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                         <TableCell className="pl-6">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-gray-900">{format(new Date(version.replacedAt), "PPp")}</span>
-                                                <span className="text-[9px] text-muted-foreground uppercase font-black">Archived by {version.replacedBy}</span>
+                                                <span className="text-[0.5625rem] text-muted-foreground uppercase font-black">Archived by {version.replacedBy}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right pr-6">
-                                            <Button variant="outline" size="sm" onClick={() => { setSelectedVersion(version); setIsVersionDialogOpen(true); }} className="h-7 text-[9px] font-black uppercase tracking-tighter">
+                                            <Button variant="outline" size="sm" onClick={() => { setSelectedVersion(version); setIsVersionDialogOpen(true); }} className="h-7 text-[0.5625rem] font-black uppercase tracking-tighter">
                                                 <Eye className="mr-1 h-3 w-3"/> Review State
                                             </Button>
                                         </TableCell>
@@ -743,7 +743,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                         <FileText className="h-5 w-5 text-amber-600"/>
                         <CardTitle className="text-sm font-black uppercase tracking-tight">Amendment Logs</CardTitle>
                     </div>
-                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Manual revision reasons provided by staff.</CardDescription>
+                    <CardDescription className="text-[0.625rem] font-bold uppercase tracking-widest text-muted-foreground">Manual revision reasons provided by staff.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     <Table className="text-xs">
@@ -804,7 +804,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                         <TooltipTrigger asChild>
                                             <Button variant="outline" size="sm" onClick={() => handleExportJpg(snapshotPrintRef, `Snapshot-${selectedVersion.versionId}`)} disabled={isExporting[`jpg-Snapshot-${selectedVersion.versionId}`]} className="h-10 px-4">
                                                 {isExporting[`jpg-Snapshot-${selectedVersion.versionId}`] ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <ImageIcon className="h-4 w-4 text-blue-600"/>}
-                                                <span className="ml-2 text-[10px] font-black uppercase">Save Image</span>
+                                                <span className="ml-2 text-[0.625rem] font-black uppercase">Save Image</span>
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent><p>Download current snapshot as JPEG</p></TooltipContent>
@@ -813,7 +813,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                         <TooltipTrigger asChild>
                                             <Button variant="outline" size="sm" onClick={() => handleExportPdf(snapshotPrintRef, `Snapshot-${selectedVersion.versionId}`)} disabled={isExporting[`pdf-Snapshot-${selectedVersion.versionId}`]} className="h-10 px-4">
                                                 {isExporting[`pdf-Snapshot-${selectedVersion.versionId}`] ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Save className="mr-2 h-4 w-4 text-red-600"/>}
-                                                <span className="ml-2 text-[10px] font-black uppercase">Save PDF</span>
+                                                <span className="ml-2 text-[0.625rem] font-black uppercase">Save PDF</span>
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent><p>Download current snapshot as PDF</p></TooltipContent>
@@ -822,7 +822,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                         <TooltipTrigger asChild>
                                             <Button variant="outline" size="sm" onClick={() => handlePrint(snapshotPrintRef)} className="h-10 px-4">
                                                 <Printer className="h-4 w-4 text-gray-600"/>
-                                                <span className="ml-2 text-[10px] font-black uppercase">Direct Print</span>
+                                                <span className="ml-2 text-[0.625rem] font-black uppercase">Direct Print</span>
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent><p>Print this historical version</p></TooltipContent>
@@ -830,7 +830,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                 </TooltipProvider>
                             )}
                         </div>
-                        <Button variant="secondary" onClick={() => setIsVersionDialogOpen(false)} className="h-10 px-6 font-black text-[10px] uppercase">Close Audit</Button>
+                        <Button variant="secondary" onClick={() => setIsVersionDialogOpen(false)} className="h-10 px-6 font-black text-[0.625rem] uppercase">Close Audit</Button>
                     </div>
                 </DialogFooter>
             </DialogContent>

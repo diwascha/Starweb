@@ -69,7 +69,7 @@ import { cn, getNormalizedPath } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { useAuthService } from '@/firebase';
+import { useAuthService, useConnectionStatus } from '@/firebase';
 import { exportData, importData, compressBackup, readBackupFile } from '@/services/backup-service';
 import { Separator } from '@/components/ui/separator';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
@@ -102,6 +102,7 @@ export default function SystemSettingsPage() {
   // admin-only listeners below.
   const isAdministrator = !!user?.isAdmin;
   const auth = useAuthService();
+  const isConnected = useConnectionStatus();
   const { toast } = useToast();
   
   const [users, setUsers] = useState<User[]>([]);
@@ -561,21 +562,21 @@ export default function SystemSettingsPage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="bg-muted/50 p-1 mb-6 h-auto flex-wrap">
-                <TabsTrigger value="users" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Access Control</TabsTrigger>
-                <TabsTrigger value="sessions" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
+                <TabsTrigger value="users" className="px-6 py-2 text-[0.625rem] uppercase font-bold tracking-widest">Access Control</TabsTrigger>
+                <TabsTrigger value="sessions" className="px-6 py-2 text-[0.625rem] uppercase font-bold tracking-widest flex items-center gap-2">
                     <Monitor className="h-3.5 w-3.5" /> Active Sessions
-                    <Badge variant="outline" className="h-4 px-1 text-[8px] bg-primary/10">{sessions.length}</Badge>
+                    <Badge variant="outline" className="h-4 px-1 text-[0.5rem] bg-primary/10">{sessions.length}</Badge>
                 </TabsTrigger>
-                <TabsTrigger value="identities" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
+                <TabsTrigger value="identities" className="px-6 py-2 text-[0.625rem] uppercase font-bold tracking-widest flex items-center gap-2">
                     Identity Registry
-                    {orphanedUsernames.length > 0 && <Badge className="bg-red-500 h-4 px-1 text-[8px]">{orphanedUsernames.length}</Badge>}
+                    {orphanedUsernames.length > 0 && <Badge className="bg-red-500 h-4 px-1 text-[0.5rem]">{orphanedUsernames.length}</Badge>}
                 </TabsTrigger>
-                <TabsTrigger value="hr-quota" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
+                <TabsTrigger value="hr-quota" className="px-6 py-2 text-[0.625rem] uppercase font-bold tracking-widest flex items-center gap-2">
                     <Gauge className="h-3.5 w-3.5" /> HR Quota
                 </TabsTrigger>
-                <TabsTrigger value="usage" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Usage Stats</TabsTrigger>
-                <TabsTrigger value="logs" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Audit Logs</TabsTrigger>
-                <TabsTrigger value="backup" className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest">Backup & Recovery</TabsTrigger>
+                <TabsTrigger value="usage" className="px-6 py-2 text-[0.625rem] uppercase font-bold tracking-widest">Usage Stats</TabsTrigger>
+                <TabsTrigger value="logs" className="px-6 py-2 text-[0.625rem] uppercase font-bold tracking-widest">Audit Logs</TabsTrigger>
+                <TabsTrigger value="backup" className="px-6 py-2 text-[0.625rem] uppercase font-bold tracking-widest">Backup & Recovery</TabsTrigger>
             </TabsList>
 
             <TabsContent value="users" className="space-y-6 animate-in fade-in slide-in-from-left-2">
@@ -588,7 +589,7 @@ export default function SystemSettingsPage() {
                                 <Separator className="border-dashed" />
                                 <div className="space-y-4">
                                     <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Label This Workstation</Label>
+                                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Label This Workstation</Label>
                                         <div className="flex gap-2">
                                             <Input 
                                                 value={localWorkstationName} 
@@ -606,7 +607,7 @@ export default function SystemSettingsPage() {
                                                 {isRenamingWorkstation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                             </Button>
                                         </div>
-                                        <p className="text-[9px] text-muted-foreground italic leading-relaxed">Assign a descriptive name to this environment for easier administrative identification.</p>
+                                        <p className="text-[0.5625rem] text-muted-foreground italic leading-relaxed">Assign a descriptive name to this environment for easier administrative identification.</p>
                                     </div>
                                     <Button onClick={() => setIsChangePasswordDialogOpen(true)} variant="outline" className="w-full h-10 text-xs font-bold"><KeyRound className="mr-2 h-4 w-4"/> Update Password</Button>
                                 </div>
@@ -650,28 +651,28 @@ export default function SystemSettingsPage() {
                         </CardHeader>
                         <CardContent className="space-y-6 pt-6">
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Inactivity Timeout (Min)</Label>
+                                <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground tracking-widest">Inactivity Timeout (Min)</Label>
                                 <div className="flex gap-2">
                                     <Input type="number" value={sessionThreshold} onChange={e => setSessionThreshold(Number(e.target.value))} className="font-black h-9" />
                                     <Button size="icon" className="h-9 w-9" onClick={handleUpdateSessionConfig} title="Save Policy"><Save className="h-4 w-4" /></Button>
                                 </div>
-                                <p className="text-[9px] text-muted-foreground leading-relaxed italic">Sessions are isolated per browser profile. If a user logs in on Chrome and Firefox, two sessions will appear.</p>
+                                <p className="text-[0.5625rem] text-muted-foreground leading-relaxed italic">Sessions are isolated per browser profile. If a user logs in on Chrome and Firefox, two sessions will appear.</p>
                             </div>
 
                             <Separator className="border-dashed" />
 
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Database Maintenance</Label>
+                                <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground tracking-widest">Database Maintenance</Label>
                                 <Button 
                                     variant="outline" 
-                                    className="w-full h-9 text-[10px] font-black uppercase tracking-widest text-primary border-primary/20 hover:bg-primary/5"
+                                    className="w-full h-9 text-[0.625rem] font-black uppercase tracking-widest text-primary border-primary/20 hover:bg-primary/5"
                                     disabled={isCleaningSessions}
                                     onClick={handleCleanupSessions}
                                 >
                                     {isCleaningSessions ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-2 h-3.5 w-3.5" />}
                                     Purge Stale Records
                                 </Button>
-                                <p className="text-[9px] text-muted-foreground leading-relaxed italic">Deletes inactive session documents from the registry to optimize performance.</p>
+                                <p className="text-[0.5625rem] text-muted-foreground leading-relaxed italic">Deletes inactive session documents from the registry to optimize performance.</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -679,16 +680,16 @@ export default function SystemSettingsPage() {
                     <Card className="lg:col-span-2 shadow-sm border-border bg-card overflow-hidden">
                         <CardHeader className="py-4 border-b bg-muted/5">
                             <CardTitle className="text-sm font-black uppercase tracking-tight">Active Workstations & Profiles</CardTitle>
-                            <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Real-time monitoring of authenticated cloud sessions.</CardDescription>
+                            <CardDescription className="text-[0.625rem] font-bold uppercase tracking-widest">Real-time monitoring of authenticated cloud sessions.</CardDescription>
                         </CardHeader>
                         <CardContent className="p-0">
                             <Table className="text-xs">
                                 <TableHeader className="bg-muted/30">
                                     <TableRow className="h-10 hover:bg-transparent">
-                                        <TableHead className="pl-6 font-bold uppercase text-[9px]">Environment / App</TableHead>
-                                        <TableHead className="font-bold uppercase text-[9px]">User Identity</TableHead>
-                                        <TableHead className="font-bold uppercase text-[9px] text-center">Status</TableHead>
-                                        <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Security</TableHead>
+                                        <TableHead className="pl-6 font-bold uppercase text-[0.5625rem]">Environment / App</TableHead>
+                                        <TableHead className="font-bold uppercase text-[0.5625rem]">User Identity</TableHead>
+                                        <TableHead className="font-bold uppercase text-[0.5625rem] text-center">Status</TableHead>
+                                        <TableHead className="text-right pr-6 font-bold uppercase text-[0.5625rem]">Security</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -701,13 +702,13 @@ export default function SystemSettingsPage() {
                                                 <TableCell className="pl-6">
                                                     <div className="flex flex-col">
                                                         <span className="font-black text-foreground uppercase tracking-tighter">{s.deviceName || `WS-${s.deviceId.substring(0,4).toUpperCase()}`}</span>
-                                                        <span className="text-[8px] text-muted-foreground font-mono truncate max-w-[180px]" title={s.userAgent}>{s.userAgent}</span>
+                                                        <span className="text-[0.5rem] text-muted-foreground font-mono truncate max-w-[180px]" title={s.userAgent}>{s.userAgent}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
                                                         <span className="font-bold text-foreground uppercase">{s.username}</span>
-                                                        <div className="flex items-center gap-1.5 text-[8px] text-muted-foreground uppercase">
+                                                        <div className="flex items-center gap-1.5 text-[0.5rem] text-muted-foreground uppercase">
                                                             <Timer className="h-2.5 w-2.5" />
                                                             <span>Online {formatDistanceToNow(new Date(s.loginAt))}</span>
                                                         </div>
@@ -716,19 +717,19 @@ export default function SystemSettingsPage() {
                                                 <TableCell className="text-center">
                                                     <div className="flex flex-col items-center">
                                                         <Badge variant="outline" className={cn(
-                                                            "text-[8px] font-black uppercase px-2 h-4 border-none shadow-none",
+                                                            "text-[0.5rem] font-black uppercase px-2 h-4 border-none shadow-none",
                                                             isStale ? "text-red-600 bg-red-50" : "text-emerald-600 bg-emerald-50"
                                                         )}>
                                                             {isStale ? 'STALE' : 'CONNECTED'}
                                                         </Badge>
-                                                        <span className="text-[8px] text-muted-foreground uppercase mt-1">Pulse: {minsInactive}m ago</span>
+                                                        <span className="text-[0.5rem] text-muted-foreground uppercase mt-1">Pulse: {minsInactive}m ago</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">
                                                     <Button 
                                                         variant="ghost" 
                                                         size="sm" 
-                                                        className="text-destructive h-8 px-3 font-black text-[9px] uppercase tracking-widest hover:bg-red-50"
+                                                        className="text-destructive h-8 px-3 font-black text-[0.5625rem] uppercase tracking-widest hover:bg-red-50"
                                                         onClick={() => handleRevoke(s.id)}
                                                     >
                                                         <LogOut className="h-3 w-3 mr-1.5" /> Revoke Access
@@ -754,7 +755,7 @@ export default function SystemSettingsPage() {
                             <div className="p-2 bg-muted/50 rounded-xl"><Fingerprint className="h-5 w-5 text-primary"/></div>
                             <div>
                                 <CardTitle className="text-sm font-black uppercase tracking-tight">Reserved Login Mapping</CardTitle>
-                                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Internal registry used for username-to-email resolution during authentication.</CardDescription>
+                                <CardDescription className="text-[0.625rem] font-bold uppercase tracking-widest text-muted-foreground">Internal registry used for username-to-email resolution during authentication.</CardDescription>
                             </div>
                         </div>
                     </CardHeader>
@@ -762,10 +763,10 @@ export default function SystemSettingsPage() {
                         <Table className="text-xs">
                             <TableHeader className="bg-muted/30">
                                 <TableRow className="hover:bg-transparent h-10">
-                                    <TableHead className="pl-6 font-bold uppercase text-[9px]">Username (Login Key)</TableHead>
-                                    <TableHead className="font-bold uppercase text-[9px]">Linked Email Identifier</TableHead>
-                                    <TableHead className="text-center font-bold uppercase text-[9px]">State</TableHead>
-                                    <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Maintenance</TableHead>
+                                    <TableHead className="pl-6 font-bold uppercase text-[0.5625rem]">Username (Login Key)</TableHead>
+                                    <TableHead className="font-bold uppercase text-[0.5625rem]">Linked Email Identifier</TableHead>
+                                    <TableHead className="text-center font-bold uppercase text-[0.5625rem]">State</TableHead>
+                                    <TableHead className="text-right pr-6 font-bold uppercase text-[0.5625rem]">Maintenance</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -781,11 +782,11 @@ export default function SystemSettingsPage() {
                                             <TableCell className="font-mono text-muted-foreground">{entry.email}</TableCell>
                                             <TableCell className="text-center">
                                                 {isOrphaned ? (
-                                                    <Badge variant="destructive" className="text-[8px] uppercase font-black px-1.5 h-4 flex items-center gap-1 mx-auto w-fit">
+                                                    <Badge variant="destructive" className="text-[0.5rem] uppercase font-black px-1.5 h-4 flex items-center gap-1 mx-auto w-fit">
                                                         <ShieldAlert className="h-2.5 w-2.5"/> Orphaned Entry
                                                     </Badge>
                                                 ) : (
-                                                    <Badge variant="outline" className="text-[8px] uppercase font-black px-1.5 h-4 text-emerald-600 border-emerald-200 mx-auto w-fit">
+                                                    <Badge variant="outline" className="text-[0.5rem] uppercase font-black px-1.5 h-4 text-emerald-600 border-emerald-200 mx-auto w-fit">
                                                         Linked Account
                                                     </Badge>
                                                 )}
@@ -806,8 +807,8 @@ export default function SystemSettingsPage() {
                                                             </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
-                                                            <AlertDialogCancel className="text-[10px] font-bold uppercase">Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => deleteUsernameRecord(entry.username)} className="bg-destructive text-white uppercase text-[10px] font-black">Confirm Purge</AlertDialogAction>
+                                                            <AlertDialogCancel className="text-[0.625rem] font-bold uppercase">Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => deleteUsernameRecord(entry.username)} className="bg-destructive text-white uppercase text-[0.625rem] font-black">Confirm Purge</AlertDialogAction>
                                                         </AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
@@ -826,8 +827,8 @@ export default function SystemSettingsPage() {
                     <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200 flex gap-4 animate-in slide-in-from-top-2">
                         <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
                         <div className="space-y-1">
-                            <p className="text-[10px] font-black uppercase text-amber-900">System Integrity Warning</p>
-                            <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                            <p className="text-[0.625rem] font-black uppercase text-amber-900">System Integrity Warning</p>
+                            <p className="text-[0.6875rem] text-amber-800 leading-relaxed font-medium">
                                 We detected <span className="font-black underline">{orphanedUsernames.length} reserved usernames</span> that do not have matching active user profiles. 
                                 This usually happens when a creation attempt was interrupted. You should delete these orphaned records to allow the usernames to be registered again.
                             </p>
@@ -840,8 +841,8 @@ export default function SystemSettingsPage() {
                 <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200 flex gap-4">
                     <Gauge className="h-5 w-5 text-amber-600 shrink-0" />
                     <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase text-amber-900">Free-Tier Firestore Quota Guard</p>
-                        <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                        <p className="text-[0.625rem] font-black uppercase text-amber-900">Free-Tier Firestore Quota Guard</p>
+                        <p className="text-[0.6875rem] text-amber-800 leading-relaxed font-medium">
                             These HR pages each stream a full fiscal year of attendance data on every visit, which previously exceeded Firestore's free-plan daily read limit and blocked writes across the whole app.
                             They are locked by default. Switching one on resumes its Firestore listeners and consumes reads again &mdash; switch it back off once you are done. No data or code is deleted by locking a feature.
                         </p>
@@ -851,7 +852,7 @@ export default function SystemSettingsPage() {
                 <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="py-4 border-b bg-muted/5">
                         <CardTitle className="text-sm font-black uppercase tracking-tight">HR Feature Locks</CardTitle>
-                        <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Per-feature switches, each independent.</CardDescription>
+                        <CardDescription className="text-[0.625rem] font-bold uppercase tracking-widest">Per-feature switches, each independent.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0 divide-y">
                         {([
@@ -863,7 +864,7 @@ export default function SystemSettingsPage() {
                             <div key={key} className="flex items-center justify-between p-4">
                                 <div className="space-y-0.5">
                                     <Label className="font-bold text-xs uppercase cursor-pointer">{label}</Label>
-                                    <p className="text-[9px] text-muted-foreground uppercase font-medium">{cost}</p>
+                                    <p className="text-[0.5625rem] text-muted-foreground uppercase font-medium">{cost}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {isSavingHrLock === key && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
@@ -892,14 +893,14 @@ export default function SystemSettingsPage() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2 max-w-xs">
                             <div className="flex items-center justify-between">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Fiscal Year</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Fiscal Year</Label>
                                 {isLoadingPurgeYears ? (
                                     <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                                 ) : (
                                     <button
                                         type="button"
                                         onClick={() => (purgeableFiscalYears && purgeableFiscalYears.length > 0) ? setManualFyEntry(v => !v) : loadPurgeableFiscalYears()}
-                                        className="text-[9px] font-bold uppercase text-primary hover:underline"
+                                        className="text-[0.5625rem] font-bold uppercase text-primary hover:underline"
                                     >
                                         {manualFyEntry && purgeableFiscalYears && purgeableFiscalYears.length > 0 ? 'Choose detected year' : (purgeableFiscalYears && purgeableFiscalYears.length > 0 ? 'Enter manually' : 'Retry detection')}
                                     </button>
@@ -925,9 +926,9 @@ export default function SystemSettingsPage() {
                                 />
                             )}
                             {purgeableFiscalYears && purgeableFiscalYears.length === 0 && !isLoadingPurgeYears && (
-                                <p className="text-[9px] text-muted-foreground italic">No fiscal years with attendance data were detected - enter one manually, or retry detection above.</p>
+                                <p className="text-[0.5625rem] text-muted-foreground italic">No fiscal years with attendance data were detected - enter one manually, or retry detection above.</p>
                             )}
-                            <p className="text-[9px] text-muted-foreground italic">FY {formatFiscalYear(purgeFiscalYear)} (Shrawan {purgeFiscalYear} &ndash; Ashadh {purgeFiscalYear + 1})</p>
+                            <p className="text-[0.5625rem] text-muted-foreground italic">FY {formatFiscalYear(purgeFiscalYear)} (Shrawan {purgeFiscalYear} &ndash; Ashadh {purgeFiscalYear + 1})</p>
                         </div>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -958,7 +959,7 @@ export default function SystemSettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card className="bg-primary/5 border-primary/20 border-l-4 border-l-primary shadow-none">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                            <CardTitle className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                                 <BarChart3 className="h-3 w-3" /> System Traffic
                             </CardTitle>
                         </CardHeader>
@@ -971,7 +972,7 @@ export default function SystemSettingsPage() {
                     </Card>
                     <Card className="bg-muted/10 border-border shadow-none">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                            <CardTitle className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                                 <MousePointer2 className="h-3 w-3" /> Unique Paths
                             </CardTitle>
                         </CardHeader>
@@ -984,14 +985,16 @@ export default function SystemSettingsPage() {
                     </Card>
                     <Card className="bg-muted/10 border-border shadow-none">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                <Clock className="h-3 w-3" /> Active Period
+                            <CardTitle className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                <Clock className="h-3 w-3" /> Data Status
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="text-lg font-black text-foreground uppercase">
-                                Real-time
-                                <span className="text-xs font-bold text-emerald-600 ml-2 uppercase tracking-tighter animate-pulse">Monitoring Active</span>
+                                {isConnected ? 'Live' : 'Offline'}
+                                <span className={cn("text-xs font-bold ml-2 uppercase tracking-tighter", isConnected ? "text-emerald-600" : "text-destructive")}>
+                                    {isConnected ? 'Updating as visits happen' : 'Showing last cached figures'}
+                                </span>
                             </div>
                         </CardContent>
                     </Card>
@@ -1000,24 +1003,24 @@ export default function SystemSettingsPage() {
                 <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="border-b py-4 px-6 bg-muted/5">
                         <CardTitle className="text-sm font-black uppercase tracking-tight text-foreground">Granular Route Analysis</CardTitle>
-                        <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Identified modules for development focus. Grouped by canonical normalized path.</CardDescription>
+                        <CardDescription className="text-[0.625rem] font-bold uppercase tracking-widest text-muted-foreground">Identified modules for development focus. Grouped by canonical normalized path.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs">
                             <TableHeader className="bg-muted/30">
                                 <TableRow className="hover:bg-transparent h-10">
-                                    <TableHead className="pl-6 font-bold uppercase text-[9px]">
-                                        <Button variant="ghost" onClick={() => requestTrafficSort('path')} className="-ml-4 h-8 px-2 text-[9px] font-black uppercase tracking-widest text-foreground hover:bg-transparent">
+                                    <TableHead className="pl-6 font-bold uppercase text-[0.5625rem]">
+                                        <Button variant="ghost" onClick={() => requestTrafficSort('path')} className="-ml-4 h-8 px-2 text-[0.5625rem] font-black uppercase tracking-widest text-foreground hover:bg-transparent">
                                             Module / Route Path <ArrowUpDown className={cn("ml-1.5 h-3 w-3", trafficSortConfig.key === 'path' ? "opacity-100 text-primary" : "opacity-30")} />
                                         </Button>
                                     </TableHead>
-                                    <TableHead className="font-bold uppercase text-[9px] text-center">
-                                        <Button variant="ghost" onClick={() => requestTrafficSort('lastVisited')} className="h-8 px-2 text-[9px] font-black uppercase tracking-widest text-foreground hover:bg-transparent mx-auto">
+                                    <TableHead className="font-bold uppercase text-[0.5625rem] text-center">
+                                        <Button variant="ghost" onClick={() => requestTrafficSort('lastVisited')} className="h-8 px-2 text-[0.5625rem] font-black uppercase tracking-widest text-foreground hover:bg-transparent mx-auto">
                                             Last Active <ArrowUpDown className={cn("ml-1.5 h-3 w-3", trafficSortConfig.key === 'lastVisited' ? "opacity-100 text-primary" : "opacity-30")} />
                                         </Button>
                                     </TableHead>
-                                    <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">
-                                        <Button variant="ghost" onClick={() => requestTrafficSort('count')} className="-mr-4 h-8 px-2 text-[9px] font-black uppercase tracking-widest text-foreground hover:bg-transparent ml-auto">
+                                    <TableHead className="text-right pr-6 font-bold uppercase text-[0.5625rem]">
+                                        <Button variant="ghost" onClick={() => requestTrafficSort('count')} className="-mr-4 h-8 px-2 text-[0.5625rem] font-black uppercase tracking-widest text-foreground hover:bg-transparent ml-auto">
                                             Total Engagement (Hits) <ArrowUpDown className={cn("ml-1.5 h-3 w-3", trafficSortConfig.key === 'count' ? "opacity-100 text-primary" : "opacity-30")} />
                                         </Button>
                                     </TableHead>
@@ -1029,12 +1032,12 @@ export default function SystemSettingsPage() {
                                         <TableCell className="pl-6">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary transition-colors" />
-                                                <span className="font-black text-foreground font-mono tracking-tight text-[11px]">
+                                                <span className="font-black text-foreground font-mono tracking-tight text-[0.6875rem]">
                                                     {visit.path === '/' ? '/ROOT' : visit.path}
                                                 </span>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-center font-medium text-muted-foreground text-[10px]">
+                                        <TableCell className="text-center font-medium text-muted-foreground text-[0.625rem]">
                                             {visit.lastVisited ? formatDistanceToNow(new Date(visit.lastVisited), { addSuffix: true }) : 'N/A'}
                                         </TableCell>
                                         <TableCell className="text-right pr-6">
@@ -1051,7 +1054,7 @@ export default function SystemSettingsPage() {
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="h-40 text-center text-muted-foreground italic uppercase text-[10px] font-black tracking-widest">
+                                        <TableCell colSpan={3} className="h-40 text-center text-muted-foreground italic uppercase text-[0.625rem] font-black tracking-widest">
                                             Waiting for data sync...
                                         </TableCell>
                                     </TableRow>
@@ -1066,11 +1069,11 @@ export default function SystemSettingsPage() {
                 <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="py-4 border-b bg-red-50/10"><CardTitle className="text-sm font-black uppercase">System Audit Log</CardTitle></CardHeader>
                     <CardContent className="p-0">
-                        <Table className="text-[10px]"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Time</TableHead><TableHead>Scope</TableHead><TableHead>Message</TableHead></TableRow></TableHeader>
+                        <Table className="text-[0.625rem]"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Time</TableHead><TableHead>Scope</TableHead><TableHead>Message</TableHead></TableRow></TableHeader>
                         <TableBody>{logs.map((log: any, idx) => (
                             <TableRow key={log.id || idx} className="h-10 border-b">
                                 <TableCell className="pl-6 font-mono text-muted-foreground">{log.timestamp ? format(new Date(log.timestamp), 'HH:mm:ss') : '-'}</TableCell>
-                                <TableCell><Badge variant="outline" className="text-[8px] uppercase">{log.module || 'Global'}</Badge></TableCell>
+                                <TableCell><Badge variant="outline" className="text-[0.5rem] uppercase">{log.module || 'Global'}</Badge></TableCell>
                                 <TableCell className="font-medium">{log.message}</TableCell>
                             </TableRow>
                         ))}</TableBody></Table>
@@ -1105,7 +1108,7 @@ export default function SystemSettingsPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select Snapshot File</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Select Snapshot File</Label>
                             <Input type="file" accept=".json,.gz" onChange={handleRestoreFileChange} ref={restoreInputRef} className="max-w-md h-10 border-destructive/20 bg-card" />
                         </div>
                         <AlertDialog onOpenChange={(open) => { if (!open) setRestorePassword(''); }}>
@@ -1124,7 +1127,7 @@ export default function SystemSettingsPage() {
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <div className="space-y-2 py-2">
-                                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Confirm Administrator Password</Label>
+                                    <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Confirm Administrator Password</Label>
                                     <Input
                                         type="password"
                                         autoComplete="current-password"
@@ -1157,29 +1160,29 @@ export default function SystemSettingsPage() {
                     <div className="p-8 space-y-10">
                         {/* 1. Identity Grid */}
                         <section className="space-y-4">
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                            <h3 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                                 <Fingerprint className="h-3.5 w-3.5" />
                                 Authentication Profile
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Login Username</Label>
+                                    <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Login Username</Label>
                                     <div className="relative">
                                         <UserIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
                                         <Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} placeholder="e.g. jdoe" className="h-10 pl-8 font-bold" />
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Email Identifier</Label>
+                                    <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Email Identifier</Label>
                                     <div className="relative">
                                         <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
                                         <Input value={userForm.email} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} placeholder="user@example.com" className="h-10 pl-8" />
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Access Credential</Label>
+                                    <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Access Credential</Label>
                                     <Input type="password" value={userForm.password} onChange={e => { setUserForm(p => ({...p, password: e.target.value})); setPasswordError(null); }} placeholder={editingUser ? "Leave blank to keep" : `${MIN_PASSWORD_LENGTH}+ chars, mixed case, a number`} className="h-10 font-mono" />
-                                    {passwordError && <p className="text-[8px] font-black text-red-600 uppercase tracking-tighter mt-1">{passwordError}</p>}
+                                    {passwordError && <p className="text-[0.5rem] font-black text-red-600 uppercase tracking-tighter mt-1">{passwordError}</p>}
                                 </div>
                             </div>
 
@@ -1188,7 +1191,7 @@ export default function SystemSettingsPage() {
                                     <Switch checked={userForm.isAdmin} onCheckedChange={v => setUserForm(p => ({...p, isAdmin: v}))} />
                                     <div className="space-y-0.5">
                                         <Label className="font-bold text-xs uppercase cursor-pointer">Administrative Access</Label>
-                                        <p className="text-[9px] text-muted-foreground uppercase font-medium">Bypass all modular permission checks.</p>
+                                        <p className="text-[0.5625rem] text-muted-foreground uppercase font-medium">Bypass all modular permission checks.</p>
                                     </div>
                                 </div>
                                 <Separator orientation="vertical" className="h-8 hidden sm:block" />
@@ -1196,7 +1199,7 @@ export default function SystemSettingsPage() {
                                     <Switch checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} />
                                     <div className="space-y-0.5">
                                         <Label className="font-bold text-xs uppercase cursor-pointer">Account Active</Label>
-                                        <p className="text-[9px] text-muted-foreground uppercase font-medium">Toggle login access without deleting record.</p>
+                                        <p className="text-[0.5625rem] text-muted-foreground uppercase font-medium">Toggle login access without deleting record.</p>
                                     </div>
                                 </div>
                             </div>
@@ -1206,15 +1209,15 @@ export default function SystemSettingsPage() {
                         {!userForm.isAdmin && (
                             <section className="space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                                    <h3 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                                         <ListTree className="h-3.5 w-3.5" />
                                         Granular Capability Map
                                     </h3>
-                                    <Badge variant="outline" className="text-[8px] font-black uppercase bg-primary/5">Module Control</Badge>
+                                    <Badge variant="outline" className="text-[0.5rem] font-black uppercase bg-primary/5">Module Control</Badge>
                                 </div>
                                 
                                 <div className="border rounded-xl overflow-hidden shadow-sm bg-card">
-                                    <div className="bg-muted/50 border-b px-4 py-2 flex items-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+                                    <div className="bg-muted/50 border-b px-4 py-2 flex items-center text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">
                                         <div className="flex-1">Functional Module</div>
                                         <div className="w-[180px] text-center">Operational Rights</div>
                                         <div className="w-[200px] text-center">Organizational Scope</div>
@@ -1228,7 +1231,7 @@ export default function SystemSettingsPage() {
                                                     <div key={m} className="flex items-center p-4 hover:bg-muted/5 transition-colors group">
                                                         <div className="flex-1">
                                                             <p className="font-black text-foreground uppercase tracking-tighter text-xs">{getModuleDisplayName(m)}</p>
-                                                            <p className="text-[9px] text-muted-foreground uppercase font-bold">{m}</p>
+                                                            <p className="text-[0.5625rem] text-muted-foreground uppercase font-bold">{m}</p>
                                                         </div>
                                                         
                                                         <div className="w-[180px] flex justify-center gap-3">
@@ -1238,7 +1241,7 @@ export default function SystemSettingsPage() {
                                                                         checked={curr.actions.includes(act as any)} 
                                                                         onCheckedChange={v => handlePermissionChange(m, act as any, !!v)} 
                                                                     />
-                                                                    <span className="text-[7px] font-black uppercase text-muted-foreground/60">{act}</span>
+                                                                    <span className="text-[0.4375rem] font-black uppercase text-muted-foreground/60">{act}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -1254,12 +1257,12 @@ export default function SystemSettingsPage() {
                                                                                 onCheckedChange={v => handleOwnershipChange(m, cat.name, !!v)} 
                                                                                 className="h-3.5 w-3.5"
                                                                             />
-                                                                            <span className="text-[7px] font-black uppercase text-primary/70">{cat.name}</span>
+                                                                            <span className="text-[0.4375rem] font-black uppercase text-primary/70">{cat.name}</span>
                                                                         </div>
                                                                     ))
                                                                 }
                                                                 {ownershipCategories.filter(cat => cat.modules?.includes(m)).length === 0 && (
-                                                                    <span className="text-[8px] text-muted-foreground italic uppercase">Global Only</span>
+                                                                    <span className="text-[0.5rem] text-muted-foreground italic uppercase">Global Only</span>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -1276,8 +1279,8 @@ export default function SystemSettingsPage() {
                 </ScrollArea>
 
                 <DialogFooter className="p-6 border-t bg-card shrink-0">
-                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest h-11 px-8 border-border">Cancel</Button>
-                    <Button onClick={handleUserSubmit} disabled={isSubmittingUser} className="font-black uppercase text-[10px] tracking-widest h-11 px-12 shadow-xl shadow-primary/20">
+                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="font-bold uppercase text-[0.625rem] tracking-widest h-11 px-8 border-border">Cancel</Button>
+                    <Button onClick={handleUserSubmit} disabled={isSubmittingUser} className="font-black uppercase text-[0.625rem] tracking-widest h-11 px-12 shadow-xl shadow-primary/20">
                         {isSubmittingUser ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
                         Authorize & Commit Profile
                     </Button>

@@ -425,7 +425,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                                                                         <Check className={cn("mr-2 h-3 w-3", item.productName === p.name ? "opacity-100" : "opacity-0")} />
                                                                         <span>{p.name}</span>
                                                                     </div>
-                                                                    <span className="text-[10px] text-muted-foreground font-mono">Rs. {p.rate}</span>
+                                                                    <span className="text-[0.625rem] text-muted-foreground font-mono">Rs. {p.rate}</span>
                                                                 </CommandItem>
                                                             ))}
                                                         </CommandGroup>
@@ -447,19 +447,19 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                     <Button variant="outline" size="sm" onClick={() => setItems([...items, { id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }])} className="h-9"><Plus className="mr-2 h-4 w-4" /> Add Row</Button>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-right w-full md:w-auto">
                         <div className="space-y-0.5">
-                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Total Qty</p>
+                            <p className="text-[0.5625rem] text-muted-foreground uppercase font-black tracking-widest">Total Qty</p>
                             <p className="text-sm font-bold tabular-nums">{invoiceData.totalQuantity.toLocaleString()}</p>
                         </div>
                         <div className="space-y-0.5">
-                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Gross Amt</p>
+                            <p className="text-[0.5625rem] text-muted-foreground uppercase font-black tracking-widest">Gross Amt</p>
                             <p className="text-sm font-bold tabular-nums whitespace-nowrap">Rs. {invoiceData.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                         </div>
                         <div className="space-y-0.5">
-                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">VAT (13%)</p>
+                            <p className="text-[0.5625rem] text-muted-foreground uppercase font-black tracking-widest">VAT (13%)</p>
                             <p className="text-sm font-bold tabular-nums text-blue-600 whitespace-nowrap">Rs. {invoiceData.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                         </div>
                         <div className="space-y-0.5">
-                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Net Total</p>
+                            <p className="text-[0.5625rem] text-muted-foreground uppercase font-black tracking-widest">Net Total</p>
                             <p className="text-base font-black text-blue-900 tabular-nums whitespace-nowrap">Rs. {invoiceData.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                         </div>
                     </div>
@@ -510,13 +510,13 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                     </DialogHeader>
                     <div className="grid gap-5 py-4">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Product Name</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Product Name</Label>
                             <Input value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} className="h-10 font-bold" />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Standard Rate (NPR)</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">Standard Rate (NPR)</Label>
                             <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-black text-[10px]">रु</span>
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-black text-[0.625rem]">रु</span>
                                 <Input type="number" value={productForm.rate} onChange={e => setProductForm({...productForm, rate: e.target.value})} className="pl-8 h-10 font-black" />
                             </div>
                         </div>

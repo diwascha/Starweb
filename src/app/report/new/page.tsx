@@ -153,7 +153,7 @@ export default function NewReportPage() {
                         </CardHeader>
                         <CardContent className="p-6">
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Search Manufacturing Catalog</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Search Manufacturing Catalog</Label>
                                 <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" role="combobox" className="w-full justify-between h-11 text-base font-bold bg-card">
@@ -172,7 +172,7 @@ export default function NewReportPage() {
                                                             <Check className={cn("mr-2 h-4 w-4", selectedProduct?.id === p.id ? "opacity-100" : "opacity-0")} />
                                                             <div className="flex flex-col">
                                                                 <span className="font-bold uppercase text-xs">{p.name}</span>
-                                                                <span className="text-[10px] text-muted-foreground uppercase">{p.materialCode} &bull; {p.partyName}</span>
+                                                                <span className="text-[0.625rem] text-muted-foreground uppercase">{p.materialCode} &bull; {p.partyName}</span>
                                                             </div>
                                                         </CommandItem>
                                                     ))}
@@ -193,7 +193,7 @@ export default function NewReportPage() {
                                         <Edit className="h-4 w-4 text-primary"/>
                                         Test Parameters Result
                                     </CardTitle>
-                                    <Badge variant="outline" className="bg-card px-3 font-black text-[9px] uppercase tracking-tighter text-blue-600 border-blue-200">
+                                    <Badge variant="outline" className="bg-card px-3 font-black text-[0.5625rem] uppercase tracking-tighter text-blue-600 border-blue-200">
                                         {selectedProduct.specification.ply} Ply Construction
                                     </Badge>
                                 </div>
@@ -203,8 +203,8 @@ export default function NewReportPage() {
                                     {specKeys.map(key => (
                                         <div key={key} className="space-y-1.5 group">
                                             <div className="flex justify-between items-center px-1">
-                                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{formatLabel(key)}</Label>
-                                                <span className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter opacity-0 group-focus-within:opacity-100 transition-opacity">Expected: {selectedProduct.specification[key as keyof ProductSpecification]}</span>
+                                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">{formatLabel(key)}</Label>
+                                                <span className="text-[0.5625rem] font-bold text-blue-600 uppercase tracking-tighter opacity-0 group-focus-within:opacity-100 transition-opacity">Expected: {selectedProduct.specification[key as keyof ProductSpecification]}</span>
                                             </div>
                                             <Input 
                                                 value={formData.testData[key]?.value || ''} 
@@ -230,11 +230,11 @@ export default function NewReportPage() {
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Report Serial #</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Report Serial #</Label>
                                 <Input value={formData.serialNumber} readOnly className="bg-muted/50 font-mono text-sm h-10 border-2" />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Document Date</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Document Date</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-start h-10 font-bold text-xs border-2 bg-card">
@@ -249,11 +249,11 @@ export default function NewReportPage() {
                             </div>
                             <Separator />
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Tax Invoice Reference</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Tax Invoice Reference</Label>
                                 <Input value={formData.taxInvoiceNumber} onChange={e => setFormData(p => ({...p, taxInvoiceNumber: e.target.value}))} placeholder="e.g. TI-1234" className="h-10" />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground px-1">Dispatch Qty</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Dispatch Qty</Label>
                                 <Input value={formData.quantity} onChange={e => setFormData(p => ({...p, quantity: e.target.value}))} placeholder="e.g. 500 Pcs" className="h-10 font-bold" />
                             </div>
                         </CardContent>
@@ -267,7 +267,7 @@ export default function NewReportPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="p-6">
-                            <p className="text-[10px] text-blue-800 leading-relaxed font-medium mb-6">
+                            <p className="text-[0.625rem] text-blue-800 leading-relaxed font-medium mb-6">
                                 By committing this report, you verify that the test results accurately reflect the technical performance of the manufactured batch.
                             </p>
                             <Button 

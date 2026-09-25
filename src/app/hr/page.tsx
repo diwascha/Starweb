@@ -62,7 +62,7 @@ export default function HRPage() {
                                         <module.icon className="h-5 w-5 text-muted-foreground group-hover:scale-110 transition-transform" />
                                     </CardHeader>
                                     <CardContent>
-                                        <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase">{module.description}</p>
+                                        <p className="text-[0.625rem] text-muted-foreground font-medium leading-relaxed uppercase">{module.description}</p>
                                     </CardContent>
                                 </Card>
                             </Link>

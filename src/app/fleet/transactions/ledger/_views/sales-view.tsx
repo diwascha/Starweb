@@ -111,7 +111,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
 
     return (
         <div className="space-y-1.5 flex-1 min-w-[140px]">
-            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
@@ -414,18 +414,18 @@ export function SalesView() {
                         <SortableHead label="Destination" active={sortConfig.key === 'finalDestination'} onClick={() => requestSort('finalDestination')} />
                         <SortableHead label="Net Bank Pay" active={sortConfig.key === 'netAmount'} onClick={() => requestSort('netAmount')} />
                         <SortableHead label="Authorship" active={sortConfig.key === 'authorship'} onClick={() => requestSort('authorship')} />
-                        <TableHead className="text-right text-[11px]">Actions</TableHead>
+                        <TableHead className="text-right text-[0.6875rem]">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {paginatedTrips.map(trip => (
                     <TableRow key={trip.id} className="hover:bg-muted/30">
-                        <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(trip.date)}</TableCell>
-                        <TableCell className="font-semibold text-[11px]">{trip.vehicleName}</TableCell>
-                        <TableCell className="text-[11px]">{trip.customerName}</TableCell>
-                        <TableCell className="text-[11px] uppercase text-muted-foreground">{trip.finalDestination}</TableCell>
+                        <TableCell className="font-medium text-[0.6875rem] whitespace-nowrap">{toNepaliDate(trip.date)}</TableCell>
+                        <TableCell className="font-semibold text-[0.6875rem]">{trip.vehicleName}</TableCell>
+                        <TableCell className="text-[0.6875rem]">{trip.customerName}</TableCell>
+                        <TableCell className="text-[0.6875rem] uppercase text-muted-foreground">{trip.finalDestination}</TableCell>
                         <TableCell>
-                            <Button variant="link" className="p-0 h-auto font-bold text-[11px]" onClick={() => openCalcDialog(trip)}>
+                            <Button variant="link" className="p-0 h-auto font-bold text-[0.6875rem]" onClick={() => openCalcDialog(trip)}>
                                 Rs. {trip.netAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
                             </Button>
                         </TableCell>
@@ -433,7 +433,7 @@ export function SalesView() {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-default uppercase font-bold">
+                                        <div className="flex items-center gap-1.5 text-[0.625rem] text-muted-foreground cursor-default uppercase font-bold">
                                             {trip.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
                                             <span>{trip.lastModifiedBy || trip.createdBy}</span>
                                         </div>
@@ -499,8 +499,8 @@ export function SalesView() {
                 </TableBody>
                 <TableFooter>
                     <TableRow className="bg-muted/50 font-bold">
-                        <TableCell colSpan={4} className="text-right text-[11px]">Total for Filtered Period ({filteredAndSortedTrips.length} Trips)</TableCell>
-                        <TableCell className="text-[11px]">Rs. {filteredAndSortedTrips.reduce((sum, t) => sum + t.netAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell colSpan={4} className="text-right text-[0.6875rem]">Total for Filtered Period ({filteredAndSortedTrips.length} Trips)</TableCell>
+                        <TableCell className="text-[0.6875rem]">Rs. {filteredAndSortedTrips.reduce((sum, t) => sum + t.netAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell colSpan={2}></TableCell>
                     </TableRow>
                 </TableFooter>
@@ -610,7 +610,7 @@ export function SalesView() {
                     placeholder="Month" 
                 />
                 <div className="space-y-1.5 w-full md:w-[200px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Custom AD Range</Label>
+                    <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Custom AD Range</Label>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
@@ -626,7 +626,7 @@ export function SalesView() {
                     </Popover>
                 </div>
                 <div className="space-y-1.5 w-full md:w-[150px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
+                    <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Vehicle</Label>
                     <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
                         <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
                         <SelectContent>
@@ -636,7 +636,7 @@ export function SalesView() {
                     </Select>
                 </div>
                 <div className="space-y-1.5 w-full md:w-[200px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Customer</Label>
+                    <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Customer</Label>
                     <Select value={filterPartyId} onValueChange={setFilterPartyId}>
                         <SelectTrigger className="bg-white h-9 text-xs">
                             <SelectValue placeholder="All Customers" />

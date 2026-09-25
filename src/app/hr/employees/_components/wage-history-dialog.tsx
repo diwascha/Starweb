@@ -73,7 +73,7 @@ export function WageHistoryDialog({ open, onOpenChange, employee }: WageHistoryD
                 <ScrollArea className="max-h-[60vh] pr-4">
                     <div className="space-y-6">
                         <div>
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            <Label className="text-[0.625rem] font-black uppercase tracking-widest text-muted-foreground">
                                 Rate revisions
                             </Label>
                             {revisions.length === 0 ? (
@@ -86,11 +86,11 @@ export function WageHistoryDialog({ open, onOpenChange, employee }: WageHistoryD
                                     <Table>
                                         <TableHeader className="bg-muted/30">
                                             <TableRow className="hover:bg-transparent">
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">Effective From</TableHead>
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">Basis</TableHead>
-                                                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest">Wage</TableHead>
-                                                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest">Allowance</TableHead>
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">Recorded By</TableHead>
+                                                <TableHead className="text-[0.625rem] font-black uppercase tracking-widest">Effective From</TableHead>
+                                                <TableHead className="text-[0.625rem] font-black uppercase tracking-widest">Basis</TableHead>
+                                                <TableHead className="text-right text-[0.625rem] font-black uppercase tracking-widest">Wage</TableHead>
+                                                <TableHead className="text-right text-[0.625rem] font-black uppercase tracking-widest">Allowance</TableHead>
+                                                <TableHead className="text-[0.625rem] font-black uppercase tracking-widest">Recorded By</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -101,7 +101,7 @@ export function WageHistoryDialog({ open, onOpenChange, employee }: WageHistoryD
                                                         <TableCell className="font-mono text-xs">
                                                             {revision.effectiveFrom ? toNepaliDate(revision.effectiveFrom) : '—'}
                                                             {revision.note && (
-                                                                <span className="ml-2 text-[10px] uppercase text-muted-foreground">{revision.note}</span>
+                                                                <span className="ml-2 text-[0.625rem] uppercase text-muted-foreground">{revision.note}</span>
                                                             )}
                                                         </TableCell>
                                                         <TableCell className="text-xs font-bold uppercase">{revision.wageBasis}</TableCell>
@@ -137,7 +137,7 @@ export function WageHistoryDialog({ open, onOpenChange, employee }: WageHistoryD
                         <Separator />
 
                         <div>
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            <Label className="text-[0.625rem] font-black uppercase tracking-widest text-muted-foreground">
                                 As paid in payroll
                             </Label>
                             {isLoading ? (
@@ -153,12 +153,12 @@ export function WageHistoryDialog({ open, onOpenChange, employee }: WageHistoryD
                                     <Table>
                                         <TableHeader className="bg-muted/30">
                                             <TableRow className="hover:bg-transparent">
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">Period</TableHead>
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">Basis Applied</TableHead>
-                                                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest">Hourly Rate</TableHead>
-                                                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest">Basic Pay</TableHead>
-                                                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest">Gross</TableHead>
-                                                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest">Net</TableHead>
+                                                <TableHead className="text-[0.625rem] font-black uppercase tracking-widest">Period</TableHead>
+                                                <TableHead className="text-[0.625rem] font-black uppercase tracking-widest">Basis Applied</TableHead>
+                                                <TableHead className="text-right text-[0.625rem] font-black uppercase tracking-widest">Hourly Rate</TableHead>
+                                                <TableHead className="text-right text-[0.625rem] font-black uppercase tracking-widest">Basic Pay</TableHead>
+                                                <TableHead className="text-right text-[0.625rem] font-black uppercase tracking-widest">Gross</TableHead>
+                                                <TableHead className="text-right text-[0.625rem] font-black uppercase tracking-widest">Net</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>

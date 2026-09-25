@@ -100,7 +100,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
 
     return (
         <div className="space-y-1.5 flex-1 min-w-[140px]">
-            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-9 bg-card border-border shadow-none font-normal text-xs px-3 text-left">
@@ -457,7 +457,7 @@ export default function PurchaseOrdersListPage() {
                     </TableHead>
                     <TableHead className="text-xs font-bold">Remarks</TableHead>
                     <TableHead>
-                        <Button variant="ghost" onClick={() => requestSort('authorship')} className="text-[10px] font-black uppercase tracking-widest">
+                        <Button variant="ghost" onClick={() => requestSort('authorship')} className="text-[0.625rem] font-black uppercase tracking-widest">
                             Author
                             <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
@@ -475,14 +475,14 @@ export default function PurchaseOrdersListPage() {
                             <TableCell>
                                 {renderStatusBadge(purchaseOrder.status)}
                             </TableCell>
-                            <TableCell className="text-[11px] text-muted-foreground italic truncate max-w-[200px]" title={purchaseOrder.remarks}>
+                            <TableCell className="text-[0.6875rem] text-muted-foreground italic truncate max-w-[200px]" title={purchaseOrder.remarks}>
                                 {purchaseOrder.remarks || '—'}
                             </TableCell>
                             <TableCell>
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground cursor-default uppercase font-black">
+                                            <div className="flex items-center gap-1.5 text-[0.5625rem] text-muted-foreground cursor-default uppercase font-black">
                                                 {purchaseOrder.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
                                                 <span>{purchaseOrder.lastModifiedBy || purchaseOrder.createdBy}</span>
                                             </div>

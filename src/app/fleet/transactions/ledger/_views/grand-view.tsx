@@ -80,7 +80,7 @@ const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, ic
 
     return (
         <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground">{label}</Label>
+            <Label className="text-[0.6875rem] font-medium text-muted-foreground">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-9 font-normal text-xs px-3">
@@ -549,7 +549,7 @@ export function GrandLedgerView() {
                                 <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
                                 Filters
                                 {activeFilterCount > 0 && (
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-semibold">{activeFilterCount}</Badge>
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-[0.625rem] font-semibold">{activeFilterCount}</Badge>
                                 )}
                                 <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', filtersOpen && 'rotate-180')} />
                             </button>
@@ -570,7 +570,7 @@ export function GrandLedgerView() {
                                 items={sourceFilterItems} placeholder="Payment mode" icon={Wallet} />
 
                             <div className="space-y-1.5">
-                                <Label className="text-[11px] font-medium text-muted-foreground">Period (BS)</Label>
+                                <Label className="text-[0.6875rem] font-medium text-muted-foreground">Period (BS)</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-between h-9 font-normal text-xs px-3">
@@ -616,7 +616,7 @@ export function GrandLedgerView() {
                             </div>
 
                             <div className="space-y-1.5">
-                                <Label className="text-[11px] font-medium text-muted-foreground">AD date range</Label>
+                                <Label className="text-[0.6875rem] font-medium text-muted-foreground">AD date range</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-between h-9 font-normal text-xs px-3">
@@ -656,18 +656,18 @@ export function GrandLedgerView() {
                     { label: 'Entries', value: ledgerData.stats.count, count: true },
                 ] as any[]).map((s, i) => (
                     <Card key={i} className="border-border/60 py-3 px-3">
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">{s.label}</p>
+                        <p className="text-[0.625rem] font-medium text-muted-foreground uppercase tracking-wide mb-1">{s.label}</p>
                         <p className="text-sm font-bold tabular-nums">
                             {s.count ? s.value.toLocaleString() : money(s.value)}
-                            {s.dc && <span className="ml-1 text-[10px] font-semibold text-muted-foreground">{s.value >= 0 ? 'Dr' : 'Cr'}</span>}
+                            {s.dc && <span className="ml-1 text-[0.625rem] font-semibold text-muted-foreground">{s.value >= 0 ? 'Dr' : 'Cr'}</span>}
                         </p>
                     </Card>
                 ))}
                 <Card className="py-3 px-3 border-primary/30 bg-primary/5">
-                    <p className="text-[10px] font-medium text-primary/70 uppercase tracking-wide mb-1">Closing</p>
+                    <p className="text-[0.625rem] font-medium text-primary/70 uppercase tracking-wide mb-1">Closing</p>
                     <p className="text-sm font-bold tabular-nums text-primary">
                         {money(ledgerData.stats.closing)}
-                        <span className="ml-1 text-[10px] font-semibold">{ledgerData.stats.closing >= 0 ? 'Dr' : 'Cr'}</span>
+                        <span className="ml-1 text-[0.625rem] font-semibold">{ledgerData.stats.closing >= 0 ? 'Dr' : 'Cr'}</span>
                     </p>
                 </Card>
             </div>
@@ -696,7 +696,7 @@ export function GrandLedgerView() {
                 </div>
 
                 <ScrollArea className="w-full">
-                    <Table className="text-[13px]">
+                    <Table className="text-[0.8125rem]">
                         <TableHeader>
                             <TableRow className="hover:bg-transparent bg-muted/40">
                                 <SortableHead
@@ -725,7 +725,7 @@ export function GrandLedgerView() {
                                     <TableCell className="text-right text-muted-foreground">-</TableCell>
                                     <TableCell className="text-right text-muted-foreground">-</TableCell>
                                     <TableCell className="text-right font-semibold tabular-nums">
-                                        {money(ledgerData.stats.opening)} <span className="text-[10px] text-muted-foreground">{ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}</span>
+                                        {money(ledgerData.stats.opening)} <span className="text-[0.625rem] text-muted-foreground">{ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}</span>
                                     </TableCell>
                                     <TableCell />
                                 </TableRow>
@@ -743,24 +743,24 @@ export function GrandLedgerView() {
                                         <div className="flex flex-col gap-0.5">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className="font-medium">{entry.partyName}</span>
-                                                <span className="text-[11px] text-muted-foreground">{entry.remarks || entry.type}</span>
+                                                <span className="text-[0.6875rem] text-muted-foreground">{entry.remarks || entry.type}</span>
                                                 {entry.legs.length > 1 && (
-                                                    <Badge variant="outline" className="h-4 px-1 text-[9px] font-medium">{entry.modeSummary}</Badge>
+                                                    <Badge variant="outline" className="h-4 px-1 text-[0.5625rem] font-medium">{entry.modeSummary}</Badge>
                                                 )}
                                             </div>
                                             {entry.lineItemsSummary && (
-                                                <div className="text-[11px] text-muted-foreground line-clamp-1 max-w-[380px]">{entry.lineItemsSummary}</div>
+                                                <div className="text-[0.6875rem] text-muted-foreground line-clamp-1 max-w-[380px]">{entry.lineItemsSummary}</div>
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-[12px] font-medium">{entry.vehicleName}</TableCell>
+                                    <TableCell className="text-[0.75rem] font-medium">{entry.vehicleName}</TableCell>
                                     <TableCell>
-                                        <Badge variant="secondary" className="text-[10px] font-medium px-2 py-0.5">{entry.categoryDisplay}</Badge>
+                                        <Badge variant="secondary" className="text-[0.625rem] font-medium px-2 py-0.5">{entry.categoryDisplay}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right tabular-nums">{entry.debit > 0 ? money(entry.debit) : <span className="text-muted-foreground">-</span>}</TableCell>
                                     <TableCell className="text-right tabular-nums">{entry.credit > 0 ? money(entry.credit) : <span className="text-muted-foreground">-</span>}</TableCell>
                                     <TableCell className="text-right font-semibold tabular-nums whitespace-nowrap">
-                                        {money(entry.balance)} <span className="text-[10px] font-medium text-muted-foreground">{entry.balance >= 0 ? 'Dr' : 'Cr'}</span>
+                                        {money(entry.balance)} <span className="text-[0.625rem] font-medium text-muted-foreground">{entry.balance >= 0 ? 'Dr' : 'Cr'}</span>
                                     </TableCell>
                                     <TableCell>
                                         <DropdownMenu>
@@ -796,7 +796,7 @@ export function GrandLedgerView() {
                                 <TableCell className="text-right font-bold tabular-nums text-sm">{money(ledgerData.stats.debit)}</TableCell>
                                 <TableCell className="text-right font-bold tabular-nums text-sm">{money(ledgerData.stats.credit)}</TableCell>
                                 <TableCell className="text-right font-semibold tabular-nums">
-                                    Net {money(ledgerData.stats.net)} <span className="text-[10px] text-muted-foreground">{ledgerData.stats.net >= 0 ? 'Dr' : 'Cr'}</span>
+                                    Net {money(ledgerData.stats.net)} <span className="text-[0.625rem] text-muted-foreground">{ledgerData.stats.net >= 0 ? 'Dr' : 'Cr'}</span>
                                 </TableCell>
                                 <TableCell />
                             </TableRow>

@@ -77,7 +77,7 @@ function TripSheetViewContent() {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)} className="h-10 font-bold uppercase text-[10px] tracking-widest"><Edit className="mr-2 h-3.5 w-3.5"/> Edit</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)} className="h-10 font-bold uppercase text-[0.625rem] tracking-widest"><Edit className="mr-2 h-3.5 w-3.5"/> Edit</Button>
                     <Button onClick={() => window.print()} className="h-10 px-8 font-black text-xs uppercase tracking-widest"><Printer className="mr-2 h-4 w-4"/> Print</Button>
                 </div>
             </header>
@@ -91,13 +91,13 @@ function TripSheetViewContent() {
 
                 <div className="grid grid-cols-2 gap-8 text-sm mb-6">
                     <div className="space-y-1">
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Voucher No:</span> <span className="font-black">{trip.tripNumber}</span></p>
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Truck No:</span> <span className="font-bold">{vehicle?.name || 'N/A'}</span></p>
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Customer:</span> <span className="font-bold">{customer?.name || 'N/A'}</span></p>
+                        <p><span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Voucher No:</span> <span className="font-black">{trip.tripNumber}</span></p>
+                        <p><span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Truck No:</span> <span className="font-bold">{vehicle?.name || 'N/A'}</span></p>
+                        <p><span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Customer:</span> <span className="font-bold">{customer?.name || 'N/A'}</span></p>
                     </div>
                     <div className="text-right space-y-1">
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Date (BS):</span> <span className="font-bold">{toNepaliDate(trip.date)}</span></p>
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Date (AD):</span> <span className="text-muted-foreground">{format(new Date(trip.date), 'yyyy-MM-dd')}</span></p>
+                        <p><span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Date (BS):</span> <span className="font-bold">{toNepaliDate(trip.date)}</span></p>
+                        <p><span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Date (AD):</span> <span className="text-muted-foreground">{format(new Date(trip.date), 'yyyy-MM-dd')}</span></p>
                     </div>
                 </div>
 
@@ -105,7 +105,7 @@ function TripSheetViewContent() {
 
                 <div className="space-y-8">
                     <section>
-                        <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-2">Freight & Destinations</h3>
+                        <h3 className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest mb-2">Freight & Destinations</h3>
                         <Table className="border text-xs">
                             <TableHeader className="bg-muted/50">
                                 <TableRow><TableHead>Destination</TableHead><TableHead className="text-right">Freight Amount (रु)</TableHead></TableRow>
@@ -123,8 +123,8 @@ function TripSheetViewContent() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <section>
-                            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-2">Fuel Logs</h3>
-                            <Table className="border text-[10px]">
+                            <h3 className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest mb-2">Fuel Logs</h3>
+                            <Table className="border text-[0.625rem]">
                                 <TableHeader className="bg-muted/50">
                                     <TableRow><TableHead>Vendor</TableHead><TableHead className="text-right">Amount</TableHead></TableRow>
                                 </TableHeader>
@@ -139,7 +139,7 @@ function TripSheetViewContent() {
                             </Table>
                         </section>
                         <section>
-                            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-2">Internal Outflows</h3>
+                            <h3 className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest mb-2">Internal Outflows</h3>
                             <div className="p-4 bg-muted/20 border rounded-lg space-y-2 text-xs">
                                 <div className="flex justify-between"><span>Truck Advance (Peski)</span><span className="font-bold">Rs. {(Number(trip.truckAdvance) || 0).toLocaleString()}</span></div>
                                 <div className="flex justify-between"><span>Loading/Unloading</span><span className="font-bold">Rs. {Number(trip.transport).toLocaleString()}</span></div>
@@ -149,7 +149,7 @@ function TripSheetViewContent() {
                 </div>
 
                 <footer className="mt-20 pt-10 border-t border-dashed border-gray-200 text-center">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Generated via StarSutra Intelligence. No physical signature required.</p>
+                    <p className="text-[0.625rem] font-bold text-muted-foreground uppercase italic">Generated via StarSutra Intelligence. No physical signature required.</p>
                 </footer>
             </div>
             

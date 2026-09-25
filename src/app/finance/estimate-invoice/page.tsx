@@ -376,7 +376,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                             variant="ghost" 
                             size="sm" 
                             onClick={() => { setFilterParty('All'); setDateRange(undefined); setSearchQuery(''); }} 
-                            className="h-8 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
+                            className="h-8 px-2 text-[0.625rem] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
                         >
                             <FilterX className="h-3.5 w-3.5" />
                         </Button>
@@ -722,7 +722,7 @@ function SavedRatesList() {
                             variant="ghost" 
                             size="sm" 
                             onClick={() => { setFilterPartyId('All'); setSearchQuery(''); }} 
-                            className="h-8 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
+                            className="h-8 px-2 text-[0.625rem] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
                         >
                             <FilterX className="h-3.5 w-3.5" />
                         </Button>
@@ -760,10 +760,10 @@ function SavedRatesList() {
                                    <TableCell>{prod.partyName}</TableCell>
                                    <TableCell className="font-mono text-xs">Rs. {prod.rate ? prod.rate.toLocaleString() : 'Not Set'}</TableCell>
                                    <TableCell className="text-right pr-6 space-x-1">
-                                       <Button variant="ghost" size="sm" onClick={() => handleOpenHistoryDialog(prod)} className="h-8 text-[10px] uppercase font-black">
+                                       <Button variant="ghost" size="sm" onClick={() => handleOpenHistoryDialog(prod)} className="h-8 text-[0.625rem] uppercase font-black">
                                            <History className="mr-1.5 h-3.5 w-3.5" /> History
                                        </Button>
-                                       <Button variant="outline" size="sm" onClick={() => handleOpenRateDialog(prod)} className="h-8 text-[10px] uppercase font-black border-primary/20 text-primary">
+                                       <Button variant="outline" size="sm" onClick={() => handleOpenRateDialog(prod)} className="h-8 text-[0.625rem] uppercase font-black border-primary/20 text-primary">
                                            <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit Info
                                        </Button>
                                    </TableCell>
@@ -840,7 +840,7 @@ function SavedRatesList() {
                 </DialogHeader>
                 <div className="py-6 space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name-input" className="text-[10px] uppercase font-bold text-muted-foreground">Product Name</Label>
+                        <Label htmlFor="name-input" className="text-[0.625rem] uppercase font-bold text-muted-foreground">Product Name</Label>
                         <Input
                             id="name-input"
                             value={newName}
@@ -849,7 +849,7 @@ function SavedRatesList() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="rate-input" className="text-[10px] uppercase font-bold text-muted-foreground">Standard Rate (NPR)</Label>
+                        <Label htmlFor="rate-input" className="text-[0.625rem] uppercase font-bold text-muted-foreground">Standard Rate (NPR)</Label>
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-blue-400">रु</span>
                             <Input
@@ -864,8 +864,8 @@ function SavedRatesList() {
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsRateDialogOpen(false)} className="h-10 font-bold uppercase text-[10px]">Cancel</Button>
-                    <Button onClick={handleSaveRate} className="h-10 px-8 font-black uppercase text-[10px] shadow-lg shadow-primary/20">Commit Changes</Button>
+                    <Button variant="outline" onClick={() => setIsRateDialogOpen(false)} className="h-10 font-bold uppercase text-[0.625rem]">Cancel</Button>
+                    <Button onClick={handleSaveRate} className="h-10 px-8 font-black uppercase text-[0.625rem] shadow-lg shadow-primary/20">Commit Changes</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -890,7 +890,7 @@ function SavedRatesList() {
                                     <TableRow key={index} className="h-11 border-b transition-colors hover:bg-muted/10">
                                         <TableCell className="pl-6 text-muted-foreground font-mono">{toNepaliDate(entry.date)}</TableCell>
                                         <TableCell className="font-black text-foreground tabular-nums">Rs. {entry.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                        <TableCell className="font-bold text-primary uppercase text-[10px]">{entry.setBy}</TableCell>
+                                        <TableCell className="font-bold text-primary uppercase text-[0.625rem]">{entry.setBy}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -902,7 +902,7 @@ function SavedRatesList() {
                     )}
                 </ScrollArea>
                 <DialogFooter className="p-6 border-t bg-card shrink-0">
-                    <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)} className="w-full font-bold uppercase text-[10px]">Close History</Button>
+                    <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)} className="w-full font-bold uppercase text-[0.625rem]">Close History</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

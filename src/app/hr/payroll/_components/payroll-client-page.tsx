@@ -393,7 +393,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
         {
             key: 'remarks', label: 'Remarks',
             headClassName: 'min-w-[150px] text-left',
-            cellClassName: 'text-[10px] text-muted-foreground italic truncate max-w-[150px] px-3',
+            cellClassName: 'text-[0.625rem] text-muted-foreground italic truncate max-w-[150px] px-3',
             cell: p => p.remark,
             exportValue: p => p.remark,
         },
@@ -524,18 +524,18 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                     <div className="flex items-center gap-2">
                         {hasActiveFilters && (
                             <>
-                                <span className="text-[10px] font-bold text-primary">{filterEmployeeIds.length} employee(s) filtered</span>
-                                <Button variant="ghost" size="sm" onClick={() => setFilterEmployeeIds([])} className="h-8 text-[10px] font-bold uppercase text-muted-foreground">
+                                <span className="text-[0.625rem] font-bold text-primary">{filterEmployeeIds.length} employee(s) filtered</span>
+                                <Button variant="ghost" size="sm" onClick={() => setFilterEmployeeIds([])} className="h-8 text-[0.625rem] font-bold uppercase text-muted-foreground">
                                     <X className="mr-1.5 h-3.5 w-3.5" /> Reset Filters
                                 </Button>
                             </>
                         )}
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openExportDialog('xlsx')} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest border-border">
+                        <Button variant="outline" size="sm" onClick={() => openExportDialog('xlsx')} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[0.625rem] uppercase tracking-widest border-border">
                             <Download className="mr-1.5 h-3.5 w-3.5" /> Export XLSX
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => openExportDialog('pdf')} disabled={monthlyPayroll.length === 0 || isExportingPdf} className="h-8 font-black text-[10px] uppercase tracking-widest border-border">
+                        <Button variant="outline" size="sm" onClick={() => openExportDialog('pdf')} disabled={monthlyPayroll.length === 0 || isExportingPdf} className="h-8 font-black text-[0.625rem] uppercase tracking-widest border-border">
                             {isExportingPdf ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileDown className="mr-1.5 h-3.5 w-3.5" />} Export PDF
                         </Button>
                         <GeneratePayslipsButton
@@ -544,7 +544,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                             bsYear={parseInt(selectedBsYear)}
                             bsMonthName={NEPALI_MONTHS[parseInt(selectedBsMonth)]?.name || ''}
                         />
-                        <Button size="sm" onClick={() => openExportDialog('print')} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[10px] uppercase tracking-widest">
+                        <Button size="sm" onClick={() => openExportDialog('print')} disabled={monthlyPayroll.length === 0} className="h-8 font-black text-[0.625rem] uppercase tracking-widest">
                             <Printer className="mr-1.5 h-3.5 w-3.5" /> Print Sheet
                         </Button>
                     </div>
@@ -560,7 +560,7 @@ export default function PayrollClientPage({ selectedBsYear, selectedBsMonth }: P
                     </header>
 
                     <ScrollArea className="w-full whitespace-nowrap border rounded-xl overflow-hidden shadow-inner bg-muted/20">
-                        <Table className="text-[11px] border-collapse">
+                        <Table className="text-[0.6875rem] border-collapse">
                             <TableHeader>
                                 <TableRow className="bg-muted/50 font-black h-11 border-b-2">
                                     {visibleColumns.map(c => c.sortKey ? (

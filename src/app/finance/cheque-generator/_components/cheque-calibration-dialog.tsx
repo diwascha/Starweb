@@ -87,7 +87,7 @@ export function ChequeCalibrationDialog({
 
     const numberField = (label: string, value: number, onChange: (n: number) => void, step = 0.5) => (
         <div className="space-y-1">
-            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
+            <Label className="text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
             <Input
                 type="number"
                 step={step}
@@ -113,7 +113,7 @@ export function ChequeCalibrationDialog({
                     <div className="p-6 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                             <div className="md:col-span-2 space-y-1">
-                                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Starting layout</Label>
+                                <Label className="text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground">Starting layout</Label>
                                 <Select
                                     value={draft.id}
                                     onValueChange={id => {
@@ -137,7 +137,7 @@ export function ChequeCalibrationDialog({
                             {numberField('Whole-sheet nudge X (mm)', draft.offsetXMm, v => setDraft(d => ({ ...d, offsetXMm: v })))}
                             {numberField('Whole-sheet nudge Y (mm)', draft.offsetYMm, v => setDraft(d => ({ ...d, offsetYMm: v })))}
                         </div>
-                        <p className="text-[11px] text-muted-foreground -mt-2">
+                        <p className="text-[0.6875rem] text-muted-foreground -mt-2">
                             Use the whole-sheet nudge when everything is out by the same amount — that is the printer, not the layout.
                         </p>
 
@@ -146,7 +146,7 @@ export function ChequeCalibrationDialog({
                                 const pos = (draft.fields as any)[key];
                                 return (
                                     <div key={key} className="rounded-lg border p-4 space-y-3">
-                                        <div className="text-[11px] font-black uppercase tracking-widest">{CHEQUE_FIELD_LABELS[key]}</div>
+                                        <div className="text-[0.6875rem] font-black uppercase tracking-widest">{CHEQUE_FIELD_LABELS[key]}</div>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                             {numberField('X (mm)', pos.xMm, v => setField(key, 'xMm', v))}
                                             {numberField('Y (mm)', pos.yMm, v => setField(key, 'yMm', v))}
@@ -162,7 +162,7 @@ export function ChequeCalibrationDialog({
                         </div>
 
                         <div className="space-y-2">
-                            <div className="text-[11px] font-black uppercase tracking-widest">Preview (actual size)</div>
+                            <div className="text-[0.6875rem] font-black uppercase tracking-widest">Preview (actual size)</div>
                             <div className="overflow-auto border rounded-lg bg-muted p-4">
                                 <div id="cheque-calibration-preview" className="bg-card shadow-lg inline-block">
                                     <NepalChequeView

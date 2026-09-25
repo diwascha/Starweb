@@ -106,7 +106,7 @@ export default function RentalDashboardPage() {
                       </div>
                       <div className="text-right space-y-1">
                         <p className="font-bold text-red-600">Rs. {bill.amount.toLocaleString()}</p>
-                        <Badge variant="outline" className="text-[10px] uppercase">{bill.type}</Badge>
+                        <Badge variant="outline" className="text-[0.625rem] uppercase">{bill.type}</Badge>
                       </div>
                     </div>
                   ))}
@@ -175,9 +175,9 @@ function SummaryCard({ title, value, subtitle, icon: Icon, color }: any) {
       <CardContent className="pt-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{title}</p>
+            <p className="text-[0.625rem] font-bold text-muted-foreground uppercase tracking-wider">{title}</p>
             <p className="text-2xl font-black">{value}</p>
-            {subtitle && <p className="text-[10px] text-muted-foreground font-medium">{subtitle}</p>}
+            {subtitle && <p className="text-[0.625rem] text-muted-foreground font-medium">{subtitle}</p>}
           </div>
           <Icon className="h-8 w-8 text-muted-foreground opacity-20" />
         </div>

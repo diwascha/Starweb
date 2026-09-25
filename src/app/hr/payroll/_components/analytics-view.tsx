@@ -112,13 +112,13 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
             <Card className="border-dashed border-border bg-muted/10 shadow-none">
                 <CardContent className="py-3 flex items-start gap-2.5">
                     <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <p className="text-[0.6875rem] text-muted-foreground leading-relaxed">
                         Attendance/pattern columns are always live, computed straight from calculated attendance.
                         {' '}
-                        <span className="inline-flex items-center gap-1 font-black text-foreground uppercase text-[9px] mx-1"><FileSpreadsheet className="h-3 w-3" /> Excel</span>
+                        <span className="inline-flex items-center gap-1 font-black text-foreground uppercase text-[0.5625rem] mx-1"><FileSpreadsheet className="h-3 w-3" /> Excel</span>
                         means the Insight row came from the source workbook's own Behavior Ledger.
                         {' '}
-                        <span className="inline-flex items-center gap-1 font-black text-indigo-600 uppercase text-[9px] mx-1"><Cpu className="h-3 w-3" /> Generated</span>
+                        <span className="inline-flex items-center gap-1 font-black text-indigo-600 uppercase text-[0.5625rem] mx-1"><Cpu className="h-3 w-3" /> Generated</span>
                         means it was computed here. Use <span className="font-black text-foreground">Sync Metrics</span> above to populate the Insight tables for this month if blank.
                     </p>
                 </CardContent>
@@ -127,11 +127,11 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
             <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardHeader className="bg-muted/10 border-b py-4 px-6">
                     <CardTitle className="text-sm font-black uppercase tracking-tight">Behavioral Patterns (from attendance data)</CardTitle>
-                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Employees as rows, metrics as columns - derived from calculated attendance for this period.</CardDescription>
+                    <CardDescription className="text-[0.625rem] uppercase font-bold text-muted-foreground">Employees as rows, metrics as columns - derived from calculated attendance for this period.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     <ScrollArea className="w-full">
-                        <Table className="text-[11px] border-collapse">
+                        <Table className="text-[0.6875rem] border-collapse">
                             <TableHeader className="bg-muted/30">
                                 <TableRow className="h-11">
                                     <TableHead className="sticky left-0 bg-background z-20 border-r pl-6 font-black uppercase text-foreground">Employee</TableHead>
@@ -166,7 +166,7 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
                                         <TableCell className="text-center tabular-nums px-3">{r.phWorked}</TableCell>
                                         <TableCell className="text-center tabular-nums px-3">{r.extraOkHours != null ? r.extraOkHours.toFixed(1) : '—'}</TableCell>
                                         <TableCell className="text-center px-3"><SourceBadge source={r.source} /></TableCell>
-                                        <TableCell className="px-3 pr-6 text-[10px] text-muted-foreground italic truncate max-w-[240px]" title={r.behaviorInsight}>{r.behaviorInsight || '—'}</TableCell>
+                                        <TableCell className="px-3 pr-6 text-[0.625rem] text-muted-foreground italic truncate max-w-[240px]" title={r.behaviorInsight}>{r.behaviorInsight || '—'}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -194,7 +194,7 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
             </Card>
 
             {!hasAnyInsightData && rows.length > 0 && (
-                <p className="text-[10px] text-muted-foreground italic px-1">No Enhanced Insight data yet for this month - click <span className="font-bold">Sync Metrics</span> above to generate it.</p>
+                <p className="text-[0.625rem] text-muted-foreground italic px-1">No Enhanced Insight data yet for this month - click <span className="font-bold">Sync Metrics</span> above to generate it.</p>
             )}
 
             {hasAnyInsightData && (
@@ -204,7 +204,7 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
                     </CardHeader>
                     <CardContent className="p-0">
                         <ScrollArea className="w-full">
-                            <Table className="text-[11px] border-collapse">
+                            <Table className="text-[0.6875rem] border-collapse">
                                 <TableHeader className="bg-muted/30">
                                     <TableRow className="h-11">
                                         <TableHead className="sticky left-0 bg-background z-20 border-r pl-6 font-black uppercase text-foreground">Employee</TableHead>
@@ -219,10 +219,10 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
                                     {rows.filter(r => r.performanceInsight).map(r => (
                                         <TableRow key={`insight-${r.employeeId}`} className="hover:bg-muted/20 h-12 border-b">
                                             <TableCell className="sticky left-0 bg-background z-10 border-r pl-6 font-black text-foreground uppercase tracking-tighter">{r.employeeName}</TableCell>
-                                            <TableCell className="px-3 text-[10px]">{r.punctualityTrend}</TableCell>
-                                            <TableCell className="px-3 text-[10px]">{r.absencePattern}</TableCell>
-                                            <TableCell className="px-3 text-[10px]">{r.otImpact}</TableCell>
-                                            <TableCell className="px-3 text-[10px]">{r.shiftEndBehavior}</TableCell>
+                                            <TableCell className="px-3 text-[0.625rem]">{r.punctualityTrend}</TableCell>
+                                            <TableCell className="px-3 text-[0.625rem]">{r.absencePattern}</TableCell>
+                                            <TableCell className="px-3 text-[0.625rem]">{r.otImpact}</TableCell>
+                                            <TableCell className="px-3 text-[0.625rem]">{r.shiftEndBehavior}</TableCell>
                                             <TableCell className="px-3 pr-6">
                                                 <Badge variant="outline" className={insightBadgeClass(r.performanceInsight)}>{r.performanceInsight}</Badge>
                                             </TableCell>
@@ -242,7 +242,7 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
                         <CardHeader className="bg-muted/10 border-b py-4 px-6">
                             <CardTitle className="text-sm font-black uppercase tracking-tight flex items-center gap-2"><CalendarClock className="h-4 w-4" /> Pattern Insights</CardTitle>
                         </CardHeader>
-                        <CardContent className="p-4 space-y-2 text-[11px]">
+                        <CardContent className="p-4 space-y-2 text-[0.6875rem]">
                             <PatternLine label="Highest late arrivals" value={`${patternInsights.highestLateArrivals.day} (${patternInsights.highestLateArrivals.count} days)`} />
                             <PatternLine label="Highest absenteeism" value={`${patternInsights.highestAbsenteeism.day} (${patternInsights.highestAbsenteeism.count} days)`} />
                             <PatternLine label="Most punctual weekday" value={`${patternInsights.mostPunctualWeekday.day} (${patternInsights.mostPunctualWeekday.rate.toFixed(1)}% on-time)`} />
@@ -261,7 +261,7 @@ export default function AnalyticsView({ selectedBsYear, selectedBsMonth, employe
                             <CardTitle className="text-sm font-black uppercase tracking-tight">Day of Week Patterns</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <Table className="text-[11px]">
+                            <Table className="text-[0.6875rem]">
                                 <TableHeader className="bg-muted/30">
                                     <TableRow className="h-10">
                                         <TableHead className="pl-6 font-black uppercase text-foreground">Day</TableHead>
@@ -299,7 +299,7 @@ function PatternLine({ label, value }: { label: string; value: string }) {
 }
 
 function insightBadgeClass(insight?: string): string {
-    const base = 'text-[9px] font-black uppercase h-5 px-2';
+    const base = 'text-[0.5625rem] font-black uppercase h-5 px-2';
     if (!insight) return base;
     if (insight.includes('Strong') || insight.includes('Solid') || insight.includes('Dedicated')) return `${base} border-emerald-200 text-emerald-700`;
     if (insight.includes('Improving') || insight.includes('Meets')) return `${base} border-amber-200 text-amber-700`;
@@ -310,17 +310,17 @@ function insightBadgeClass(insight?: string): string {
 function SourceBadge({ source }: { source?: 'excel-import' | 'generated' }) {
     if (source === 'excel-import') {
         return (
-            <Badge variant="outline" className="text-[7px] font-black uppercase h-4 px-1 gap-0.5 border-border text-muted-foreground">
+            <Badge variant="outline" className="text-[0.4375rem] font-black uppercase h-4 px-1 gap-0.5 border-border text-muted-foreground">
                 <FileSpreadsheet className="h-2.5 w-2.5" /> Excel
             </Badge>
         );
     }
     if (source === 'generated') {
         return (
-            <Badge variant="outline" className="text-[7px] font-black uppercase h-4 px-1 gap-0.5 border-indigo-200 text-indigo-600">
+            <Badge variant="outline" className="text-[0.4375rem] font-black uppercase h-4 px-1 gap-0.5 border-indigo-200 text-indigo-600">
                 <Cpu className="h-2.5 w-2.5" /> Generated
             </Badge>
         );
     }
-    return <Badge variant="outline" className="text-[7px] font-black uppercase h-4 px-1 border-border text-muted-foreground">Not Synced</Badge>;
+    return <Badge variant="outline" className="text-[0.4375rem] font-black uppercase h-4 px-1 border-border text-muted-foreground">Not Synced</Badge>;
 }

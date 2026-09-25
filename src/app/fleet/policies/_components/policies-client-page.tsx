@@ -460,15 +460,15 @@ export default function PoliciesClientPage({
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="text-[11px]">Doc No.</TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="p-0 text-[11px]">Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')} className="p-0 text-[11px]">Policy # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')} className="p-0 text-[11px]">For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')} className="p-0 text-[11px]">Expiry Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('cost')} className="p-0 text-right w-full text-[11px]">Premium <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                <TableHead className="text-[11px]">Status</TableHead>
-                                 <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="p-0 text-[11px]">Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                <TableHead className="text-right text-[11px]">Actions</TableHead>
+                                <TableHead className="text-[0.6875rem]">Doc No.</TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="p-0 text-[0.6875rem]">Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')} className="p-0 text-[0.6875rem]">Policy # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')} className="p-0 text-[0.6875rem]">For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')} className="p-0 text-[0.6875rem]">Expiry Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('cost')} className="p-0 text-right w-full text-[0.6875rem]">Premium <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead className="text-[0.6875rem]">Status</TableHead>
+                                 <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="p-0 text-[0.6875rem]">Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                <TableHead className="text-right text-[0.6875rem]">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -485,7 +485,7 @@ export default function PoliciesClientPage({
                                         <div className="flex flex-col">
                                             <span className="text-xs">{toNepaliDate(policy.endDate)}</span>
                                             <span className={cn(
-                                                "text-[9px] font-bold uppercase",
+                                                "text-[0.5625rem] font-bold uppercase",
                                                 policy.daysRemaining < 0 ? 'text-destructive' : (policy.daysRemaining <= 15 ? 'text-amber-600' : 'text-muted-foreground')
                                             )}>
                                                 {policy.daysRemaining < 0 ? `${-policy.daysRemaining} days ago` : `${policy.daysRemaining} days left`}
@@ -498,7 +498,7 @@ export default function PoliciesClientPage({
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-help uppercase font-bold">
+                                                    <div className="flex items-center gap-1.5 text-[0.625rem] text-muted-foreground cursor-help uppercase font-bold">
                                                         <Info className="h-3 w-3" />
                                                         <span>{policy.lastModifiedBy || policy.createdBy}</span>
                                                     </div>
@@ -628,12 +628,12 @@ export default function PoliciesClientPage({
                     <CardContent className="flex gap-2">
                         <div className="flex flex-col">
                             <span className="text-xl font-bold text-destructive">{policies.filter(p => p.status === 'Active' && isPast(new Date(p.endDate))).length}</span>
-                            <span className="text-[10px] uppercase text-muted-foreground">Expired</span>
+                            <span className="text-[0.625rem] uppercase text-muted-foreground">Expired</span>
                         </div>
                         <Separator orientation="vertical" className="h-10" />
                         <div className="flex flex-col">
                             <span className="text-xl font-bold text-amber-600">{policies.filter(p => p.status === 'Active' && !isPast(new Date(p.endDate)) && differenceInDays(new Date(p.endDate), startOfToday()) <= 15).length}</span>
-                            <span className="text-[10px] uppercase text-muted-foreground">Soon</span>
+                            <span className="text-[0.625rem] uppercase text-muted-foreground">Soon</span>
                         </div>
                     </CardContent>
                 </Card>
@@ -692,7 +692,7 @@ export default function PoliciesClientPage({
                         <div className="space-y-2">
                             <Label htmlFor="documentNumber">Document No.</Label>
                             <Input id="documentNumber" value={formState.documentNumber} readOnly className="bg-muted/50 font-mono text-sm" />
-                            {isRenewal && <p className="text-[10px] text-muted-foreground">A renewal gets its own document number; it does not reuse the expiring record's.</p>}
+                            {isRenewal && <p className="text-[0.625rem] text-muted-foreground">A renewal gets its own document number; it does not reuse the expiring record's.</p>}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div className="space-y-2">
@@ -885,7 +885,7 @@ export default function PoliciesClientPage({
                                 </div>
                             </div>
                             <Separator />
-                            <div className="text-[10px] text-muted-foreground space-y-1">
+                            <div className="text-[0.625rem] text-muted-foreground space-y-1">
                                 <p>Created by: {viewingPolicy.createdBy} on {format(new Date(viewingPolicy.createdAt), "PPp")}</p>
                                 {viewingPolicy.lastModifiedBy && (
                                     <p>Last modified by: {viewingPolicy.lastModifiedBy} on {format(new Date(viewingPolicy.lastModifiedAt || viewingPolicy.createdAt), "PPp")}</p>

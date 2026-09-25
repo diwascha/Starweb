@@ -181,7 +181,7 @@ export default function RawMaterialsPage() {
 
       <div className="flex flex-col sm:flex-row gap-4 items-end bg-muted/20 p-4 rounded-xl border border-dashed">
           <div className="space-y-1.5 w-[200px]">
-              <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Filter Category</Label>
+              <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Filter Category</Label>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                   <SelectTrigger className="h-9 bg-card text-xs font-bold uppercase"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -191,7 +191,7 @@ export default function RawMaterialsPage() {
               </Select>
           </div>
           {categoryFilter !== 'All' && (
-              <Button variant="ghost" size="sm" onClick={() => setCategoryFilter('All')} className="h-9 text-muted-foreground uppercase font-black text-[9px] tracking-widest">
+              <Button variant="ghost" size="sm" onClick={() => setCategoryFilter('All')} className="h-9 text-muted-foreground uppercase font-black text-[0.5625rem] tracking-widest">
                   <FilterX className="mr-1.5 h-3.5 w-3.5" /> Clear filters
               </Button>
           )}
@@ -202,11 +202,11 @@ export default function RawMaterialsPage() {
               <Table>
                   <TableHeader className="bg-muted/50 border-b">
                       <TableRow className="hover:bg-transparent h-11">
-                          <TableHead className="pl-6 font-black uppercase text-[10px] tracking-widest">Material Name / Description</TableHead>
-                          <TableHead className="font-black uppercase text-[10px] tracking-widest">Category</TableHead>
-                          <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Specs (Size/GSM/BF)</TableHead>
-                          <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Units</TableHead>
-                          <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest">Actions</TableHead>
+                          <TableHead className="pl-6 font-black uppercase text-[0.625rem] tracking-widest">Material Name / Description</TableHead>
+                          <TableHead className="font-black uppercase text-[0.625rem] tracking-widest">Category</TableHead>
+                          <TableHead className="font-black uppercase text-[0.625rem] tracking-widest text-center">Specs (Size/GSM/BF)</TableHead>
+                          <TableHead className="font-black uppercase text-[0.625rem] tracking-widest text-center">Units</TableHead>
+                          <TableHead className="text-right pr-6 font-black uppercase text-[0.625rem] tracking-widest">Actions</TableHead>
                       </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -217,15 +217,15 @@ export default function RawMaterialsPage() {
                               <TableCell className="pl-6">
                                   <div className="flex flex-col">
                                       <span className="font-black text-foreground leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{m.name}</span>
-                                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">ID: {m.id.substring(0,8).toUpperCase()}</span>
+                                      <span className="text-[0.625rem] text-muted-foreground font-bold uppercase tracking-tighter">ID: {m.id.substring(0,8).toUpperCase()}</span>
                                   </div>
                               </TableCell>
                               <TableCell>
-                                  <Badge variant="outline" className="text-[9px] font-black uppercase h-5 bg-blue-50 text-blue-700 border-blue-100 px-2 shadow-none">{m.type}</Badge>
+                                  <Badge variant="outline" className="text-[0.5625rem] font-black uppercase h-5 bg-blue-50 text-blue-700 border-blue-100 px-2 shadow-none">{m.type}</Badge>
                               </TableCell>
                               <TableCell className="text-center">
                                   {paperTypes.includes(m.type) ? (
-                                      <div className="flex items-center justify-center gap-2 font-mono text-[11px] text-muted-foreground font-bold">
+                                      <div className="flex items-center justify-center gap-2 font-mono text-[0.6875rem] text-muted-foreground font-bold">
                                           <span>{m.size || '—'}"</span>
                                           <span className="text-muted-foreground opacity-30 font-normal">/</span>
                                           <span>{m.gsm || '—'}g</span>
@@ -233,13 +233,13 @@ export default function RawMaterialsPage() {
                                           <span className="text-blue-700">{m.bf || '—'}</span>
                                       </div>
                                   ) : (
-                                      <span className="text-[10px] text-muted-foreground italic uppercase font-black opacity-30">—</span>
+                                      <span className="text-[0.625rem] text-muted-foreground italic uppercase font-black opacity-30">—</span>
                                   )}
                               </TableCell>
                               <TableCell className="text-center">
                                   <div className="flex justify-center gap-1">
                                       {m.units?.map(u => (
-                                          <Badge key={u} variant="secondary" className="text-[8px] font-black uppercase h-4 px-1 shadow-none">{u}</Badge>
+                                          <Badge key={u} variant="secondary" className="text-[0.5rem] font-black uppercase h-4 px-1 shadow-none">{u}</Badge>
                                       ))}
                                   </div>
                               </TableCell>
@@ -269,7 +269,7 @@ export default function RawMaterialsPage() {
                           </TableRow>
                       ))}
                       {!isLoading && filteredMaterials.length === 0 && (
-                          <TableRow><TableCell colSpan={5} className="h-60 text-center text-muted-foreground italic uppercase font-black text-[10px] tracking-widest opacity-20">No matching materials in catalog.</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={5} className="h-60 text-center text-muted-foreground italic uppercase font-black text-[0.625rem] tracking-widest opacity-20">No matching materials in catalog.</TableCell></TableRow>
                       )}
                   </TableBody>
               </Table>
@@ -287,7 +287,7 @@ export default function RawMaterialsPage() {
                 </div>
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">Rows:</span>
+                        <span className="text-[0.625rem] font-black uppercase text-muted-foreground whitespace-nowrap">Rows:</span>
                         <Select value={String(itemsPerPage)} onValueChange={(v) => {
                             setItemsPerPage(parseInt(v));
                             setCurrentPage(1);
@@ -339,7 +339,7 @@ export default function RawMaterialsPage() {
               </DialogHeader>
               <div className="space-y-6 py-4">
                   <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Material Type / Category</Label>
+                      <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Material Type / Category</Label>
                       <Select value={form.type} onValueChange={v => setForm({...form, type: v})}>
                           <SelectTrigger className="h-10 border-2"><SelectValue placeholder="Select type..."/></SelectTrigger>
                           <SelectContent>
@@ -350,22 +350,22 @@ export default function RawMaterialsPage() {
                       </Select>
                   </div>
                   <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Full Description / Name</Label>
+                      <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Full Description / Name</Label>
                       <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. 180 GSM Kraft" className="h-10 font-bold border-2" />
                   </div>
 
                   {paperTypes.includes(form.type) && (
                       <div className="grid grid-cols-3 gap-4 p-4 bg-primary/5 rounded-xl border-2 border-primary/20 animate-in zoom-in-95">
                           <div className="space-y-1.5">
-                              <Label className="text-[10px] font-black uppercase text-primary tracking-widest">Size (In)</Label>
+                              <Label className="text-[0.625rem] font-black uppercase text-primary tracking-widest">Size (In)</Label>
                               <Input value={form.size} onChange={e => setForm({...form, size: e.target.value})} className="h-9 font-black text-center bg-card" placeholder="0.00" />
                           </div>
                           <div className="space-y-1.5">
-                              <Label className="text-[10px] font-black uppercase text-primary tracking-widest">GSM</Label>
+                              <Label className="text-[0.625rem] font-black uppercase text-primary tracking-widest">GSM</Label>
                               <Input value={form.gsm} onChange={e => setForm({...form, gsm: e.target.value})} className="h-9 font-black text-center bg-card" placeholder="0" />
                           </div>
                           <div className="space-y-1.5">
-                              <Label className="text-[10px] font-black uppercase text-primary tracking-widest">BF</Label>
+                              <Label className="text-[0.625rem] font-black uppercase text-primary tracking-widest">BF</Label>
                               <Select value={form.bf} onValueChange={v => setForm({...form, bf: v})}>
                                   <SelectTrigger className="h-9 bg-card font-black text-xs"><SelectValue/></SelectTrigger>
                                   <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b} className="text-xs font-bold">{b}</SelectItem>)}</SelectContent>
@@ -375,7 +375,7 @@ export default function RawMaterialsPage() {
                   )}
 
                   <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Authorized Units</Label>
+                      <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Authorized Units</Label>
                       <div className="flex flex-wrap gap-2 p-3 border-2 rounded-xl bg-muted/50">
                           {['Kg', 'Ton', 'Piece', 'Roll', 'Packet', 'Set', 'Ltr'].map(u => (
                               <button
@@ -383,7 +383,7 @@ export default function RawMaterialsPage() {
                                   type="button"
                                   onClick={() => setForm(p => ({...p, units: p.units.includes(u) ? p.units.filter(x => x !== u) : [...p.units, u]}))}
                                   className={cn(
-                                      "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight transition-all border-2",
+                                      "px-3 py-1.5 rounded-full text-[0.625rem] font-black uppercase tracking-tight transition-all border-2",
                                       form.units.includes(u) ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" : "bg-card text-muted-foreground border-border hover:border-primary/30"
                                   )}
                               >

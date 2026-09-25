@@ -397,7 +397,7 @@ export default function EmployeesPage() {
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
-                <span className="text-[10px] font-black uppercase text-primary tracking-widest">{selectedIds.size} Selected</span>
+                <span className="text-[0.625rem] font-black uppercase text-primary tracking-widest">{selectedIds.size} Selected</span>
                 {canMerge && selectedIds.size > 1 && (
                     <Button
                         variant="outline"
@@ -448,12 +448,12 @@ export default function EmployeesPage() {
             <Input type="search" placeholder="Search..." className="pl-8 w-64 bg-card" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
           {(searchQuery || filterStatus !== DEFAULT_STATUS_FILTER || filterWageBasis !== 'All') && (
-            <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-10 text-muted-foreground hover:text-foreground font-bold uppercase text-[10px]">
+            <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-10 text-muted-foreground hover:text-foreground font-bold uppercase text-[0.625rem]">
                 Reset
             </Button>
           )}
           {canMerge && (
-            <Button variant="outline" onClick={handleScanForDuplicates} className="h-10 font-black text-[10px] uppercase tracking-widest">
+            <Button variant="outline" onClick={handleScanForDuplicates} className="h-10 font-black text-[0.625rem] uppercase tracking-widest">
                 <Users className="mr-2 h-4 w-4" /> Find Duplicates
             </Button>
           )}
@@ -493,7 +493,7 @@ export default function EmployeesPage() {
                                     </span>
                                 </Badge>
                             ))}
-                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            <span className="text-[0.625rem] font-black uppercase tracking-widest text-muted-foreground">
                                 {Math.round(group.similarity * 100)}% match
                             </span>
                         </div>
@@ -516,16 +516,16 @@ export default function EmployeesPage() {
                             onCheckedChange={toggleAll}
                         />
                     </TableHead>
-                    <TableHead className="w-[300px]"><Button variant="ghost" onClick={() => setSortConfig({ key: 'name', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc' })} className="font-black uppercase text-[10px] tracking-widest">Employee <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                    <TableHead className="text-center font-black uppercase text-[10px] tracking-widest">Status</TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Department / Position</TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Contact</TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Address</TableHead>
-                    <TableHead className="text-center font-black uppercase text-[10px] tracking-widest">Gender</TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Date of Birth</TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Joining Date</TableHead>
-                    <TableHead className="text-right font-black uppercase text-[10px] tracking-widest">Wage Basis</TableHead>
-                    <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest">Actions</TableHead>
+                    <TableHead className="w-[300px]"><Button variant="ghost" onClick={() => setSortConfig({ key: 'name', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc' })} className="font-black uppercase text-[0.625rem] tracking-widest">Employee <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                    <TableHead className="text-center font-black uppercase text-[0.625rem] tracking-widest">Status</TableHead>
+                    <TableHead className="font-black uppercase text-[0.625rem] tracking-widest">Department / Position</TableHead>
+                    <TableHead className="font-black uppercase text-[0.625rem] tracking-widest">Contact</TableHead>
+                    <TableHead className="font-black uppercase text-[0.625rem] tracking-widest">Address</TableHead>
+                    <TableHead className="text-center font-black uppercase text-[0.625rem] tracking-widest">Gender</TableHead>
+                    <TableHead className="font-black uppercase text-[0.625rem] tracking-widest">Date of Birth</TableHead>
+                    <TableHead className="font-black uppercase text-[0.625rem] tracking-widest">Joining Date</TableHead>
+                    <TableHead className="text-right font-black uppercase text-[0.625rem] tracking-widest">Wage Basis</TableHead>
+                    <TableHead className="text-right pr-6 font-black uppercase text-[0.625rem] tracking-widest">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -544,13 +544,13 @@ export default function EmployeesPage() {
                             </Avatar>
                             <div className="flex flex-col">
                                 <span className="font-black text-foreground leading-tight uppercase tracking-tight">{employee.name}</span>
-                                <span className="text-[10px] text-muted-foreground font-bold">{employee.mobileNumber}</span>
+                                <span className="text-[0.625rem] text-muted-foreground font-bold">{employee.mobileNumber}</span>
                             </div>
                         </div>
                     </TableCell>
                     <TableCell className="text-center">
                         <Select value={employee.status || 'Working'} onValueChange={(v) => handleStatusChange(employee.id, v as EmployeeStatus)}>
-                            <SelectTrigger className={cn("h-7 w-[130px] mx-auto text-[10px] font-black uppercase tracking-wide", statusSelectClassName(employee.status))}>
+                            <SelectTrigger className={cn("h-7 w-[130px] mx-auto text-[0.625rem] font-black uppercase tracking-wide", statusSelectClassName(employee.status))}>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -561,23 +561,23 @@ export default function EmployeesPage() {
                     <TableCell>
                         <div className="flex flex-col">
                             <span className="text-xs font-bold text-foreground">{employee.department}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase font-medium">{employee.position}</span>
+                            <span className="text-[0.625rem] text-muted-foreground uppercase font-medium">{employee.position}</span>
                         </div>
                     </TableCell>
                     <TableCell>
                         <div className="flex flex-col">
                             <span className="text-xs font-medium font-mono">{employee.mobileNumber || '—'}</span>
-                            {employee.email && <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">{employee.email}</span>}
+                            {employee.email && <span className="text-[0.625rem] text-muted-foreground truncate max-w-[160px]">{employee.email}</span>}
                         </div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" title={employee.address || ''}>{employee.address || '—'}</TableCell>
-                    <TableCell className="text-center text-[10px] font-bold uppercase text-muted-foreground">{employee.gender || '—'}</TableCell>
+                    <TableCell className="text-center text-[0.625rem] font-bold uppercase text-muted-foreground">{employee.gender || '—'}</TableCell>
                     <TableCell className="text-xs font-medium font-mono text-blue-900">{employee.dateOfBirth ? toNepaliDate(employee.dateOfBirth) : '—'}</TableCell>
                     <TableCell className="text-xs font-medium font-mono text-blue-900">{employee.joiningDate ? toNepaliDate(employee.joiningDate) : '—'}</TableCell>
                     <TableCell className="text-right">
                         <div className="flex flex-col">
                             <span className="font-black text-xs text-foreground">Rs. {(employee.wageAmount || 0).toLocaleString()}</span>
-                            <span className="text-[9px] text-muted-foreground uppercase tracking-tighter font-black">{employee.wageBasis}</span>
+                            <span className="text-[0.5625rem] text-muted-foreground uppercase tracking-tighter font-black">{employee.wageBasis}</span>
                         </div>
                     </TableCell>
                     <TableCell className="text-right pr-6">
@@ -675,12 +675,12 @@ export default function EmployeesPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Full Legal Name</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Full Legal Name</Label>
                             <Input name="name" value={formState.name} onChange={handleFormChange} className="h-11 text-lg font-black bg-muted border-border" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Department</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Department</Label>
                                 {isCustomDepartment ? (
                                     <div className="flex gap-1.5">
                                         <Input
@@ -690,7 +690,7 @@ export default function EmployeesPage() {
                                             placeholder="Type department name"
                                             className="h-10"
                                         />
-                                        <Button type="button" variant="outline" size="sm" className="h-10 px-3 text-[10px] font-black uppercase shrink-0" onClick={() => setIsCustomDepartment(false)}>List</Button>
+                                        <Button type="button" variant="outline" size="sm" className="h-10 px-3 text-[0.625rem] font-black uppercase shrink-0" onClick={() => setIsCustomDepartment(false)}>List</Button>
                                     </div>
                                 ) : (
                                     <Select
@@ -709,7 +709,7 @@ export default function EmployeesPage() {
                                 )}
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Position</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Position</Label>
                                 {isCustomPosition ? (
                                     <div className="flex gap-1.5">
                                         <Input
@@ -719,7 +719,7 @@ export default function EmployeesPage() {
                                             placeholder="Type position name"
                                             className="h-10"
                                         />
-                                        <Button type="button" variant="outline" size="sm" className="h-10 px-3 text-[10px] font-black uppercase shrink-0" onClick={() => setIsCustomPosition(false)}>List</Button>
+                                        <Button type="button" variant="outline" size="sm" className="h-10 px-3 text-[0.625rem] font-black uppercase shrink-0" onClick={() => setIsCustomPosition(false)}>List</Button>
                                     </div>
                                 ) : (
                                     <Select
@@ -740,11 +740,11 @@ export default function EmployeesPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Joining Date (AD)</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Joining Date (AD)</Label>
                                 <Input type="date" name="joiningDate" value={formState.joiningDate.split('T')[0]} onChange={handleFormChange} className="h-10 font-mono" />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Date of Birth (Optional)</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Date of Birth (Optional)</Label>
                                 <Input
                                     type="date"
                                     name="dateOfBirth"
@@ -755,7 +755,7 @@ export default function EmployeesPage() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Address (Optional)</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Address (Optional)</Label>
                             <Input name="address" value={formState.address} onChange={handleFormChange} placeholder="Permanent / temporary address" className="h-10" />
                         </div>
                     </div>
@@ -765,25 +765,25 @@ export default function EmployeesPage() {
                             <h3 className="text-xs font-black uppercase tracking-widest text-blue-900 border-b border-blue-200 pb-2">Wage Structure</h3>
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-bold text-blue-800 uppercase">Wage Basis</Label>
+                                    <Label className="text-[0.625rem] font-bold text-blue-800 uppercase">Wage Basis</Label>
                                     <Select value={formState.wageBasis} onValueChange={v => setFormState(p => ({...p, wageBasis: v as any}))}>
                                         <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                                         <SelectContent><SelectItem value="Monthly">Monthly Salary</SelectItem><SelectItem value="Hourly">Hourly Rate</SelectItem></SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-bold text-blue-800 uppercase">Amount (NPR)</Label>
+                                    <Label className="text-[0.625rem] font-bold text-blue-800 uppercase">Amount (NPR)</Label>
                                     <Input type="number" name="wageAmount" value={formState.wageAmount} onChange={handleFormChange} className="h-10 bg-card font-black text-lg text-blue-900" />
                                 </div>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Contact Number (Optional)</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Contact Number (Optional)</Label>
                                 <Input name="mobileNumber" value={formState.mobileNumber} onChange={handleFormChange} className="h-10" />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Gender</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Gender</Label>
                                 <Select value={formState.gender} onValueChange={v => setFormState(p => ({ ...p, gender: v as Gender }))}>
                                     <SelectTrigger className="h-10 bg-card"><SelectValue placeholder="Select gender" /></SelectTrigger>
                                     <SelectContent>
@@ -797,8 +797,8 @@ export default function EmployeesPage() {
             </ScrollArea>
 
             <DialogFooter className="p-6 border-t bg-card shrink-0">
-                <Button variant="outline" onClick={() => setIsEmployeeDialogOpen(false)} className="font-bold uppercase text-[10px] tracking-widest h-11 px-8">Cancel</Button>
-                <Button onClick={handleEmployeeSubmit} className="font-black uppercase text-[10px] tracking-widest h-11 px-12 shadow-xl shadow-primary/20">Commit Entry</Button>
+                <Button variant="outline" onClick={() => setIsEmployeeDialogOpen(false)} className="font-bold uppercase text-[0.625rem] tracking-widest h-11 px-8">Cancel</Button>
+                <Button onClick={handleEmployeeSubmit} className="font-black uppercase text-[0.625rem] tracking-widest h-11 px-12 shadow-xl shadow-primary/20">Commit Entry</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>

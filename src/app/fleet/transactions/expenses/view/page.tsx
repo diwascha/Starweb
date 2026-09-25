@@ -107,7 +107,7 @@ function ExpenseViewContent() {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => router.push(`/fleet/transactions/expenses/edit?id=${expense.id}`)} className="h-10 px-4 font-bold text-[10px] uppercase tracking-widest"><Edit className="mr-2 h-3.5 w-3.5"/> Edit Record</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push(`/fleet/transactions/expenses/edit?id=${expense.id}`)} className="h-10 px-4 font-bold text-[0.625rem] uppercase tracking-widest"><Edit className="mr-2 h-3.5 w-3.5"/> Edit Record</Button>
                     <Button onClick={() => window.print()} className="h-10 px-8 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20"><Printer className="mr-2 h-4 w-4"/> Print Voucher</Button>
                 </div>
             </header>
@@ -122,17 +122,17 @@ function ExpenseViewContent() {
 
                 <div className="grid grid-cols-2 gap-8 text-sm mb-6">
                     <div className="space-y-1.5">
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Voucher No:</span> <span className="font-black">{expense.voucherNo}</span></p>
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Vehicle:</span> <span className="font-bold text-blue-900">{vehicle?.name || 'N/A'}</span></p>
+                        <p><span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Voucher No:</span> <span className="font-black">{expense.voucherNo}</span></p>
+                        <p><span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Vehicle:</span> <span className="font-bold text-blue-900">{vehicle?.name || 'N/A'}</span></p>
                         <div className="flex items-center gap-2">
-                            <span className="font-bold uppercase text-[10px] text-muted-foreground">Expense Class:</span> 
-                            <Badge variant="outline" className="font-black uppercase text-[10px] h-5">{expense.expenseType}</Badge>
+                            <span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Expense Class:</span> 
+                            <Badge variant="outline" className="font-black uppercase text-[0.625rem] h-5">{expense.expenseType}</Badge>
                         </div>
                     </div>
                     <div className="text-right space-y-1.5">
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Date (BS):</span> <span className="font-black">{toNepaliDate(expense.date)}</span></p>
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Date (AD):</span> <span className="text-muted-foreground">{format(new Date(expense.date), "PP")}</span></p>
-                        <p><span className="font-bold uppercase text-[10px] text-muted-foreground">Settlement:</span> <span className="font-bold uppercase">{expense.paymentMode}</span></p>
+                        <p><span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Date (BS):</span> <span className="font-black">{toNepaliDate(expense.date)}</span></p>
+                        <p><span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Date (AD):</span> <span className="text-muted-foreground">{format(new Date(expense.date), "PP")}</span></p>
+                        <p><span className="font-bold uppercase text-[0.625rem] text-muted-foreground">Settlement:</span> <span className="font-bold uppercase">{expense.paymentMode}</span></p>
                     </div>
                 </div>
 
@@ -143,28 +143,28 @@ function ExpenseViewContent() {
                         <Table className="border text-sm">
                             <TableHeader className="bg-muted/50">
                                 <TableRow className="h-10 hover:bg-transparent border-b-2 border-neutral-900">
-                                    <TableHead className="text-neutral-900 font-black uppercase text-[10px]">Description / Beneficiary</TableHead>
-                                    <TableHead className="text-right text-neutral-900 font-black uppercase text-[10px] w-[180px]">Amount (रु)</TableHead>
+                                    <TableHead className="text-neutral-900 font-black uppercase text-[0.625rem]">Description / Beneficiary</TableHead>
+                                    <TableHead className="text-right text-neutral-900 font-black uppercase text-[0.625rem] w-[180px]">Amount (रु)</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 <TableRow className="h-14 hover:bg-transparent">
                                     <TableCell className="py-4">
                                         <div className="font-black text-gray-900 uppercase tracking-tight">{party?.name || expense.destination || 'Cash Settlement'}</div>
-                                        <div className="text-[10px] text-muted-foreground italic font-medium mt-1">Ref: {expense.remarks || 'No narration provided'}</div>
+                                        <div className="text-[0.625rem] text-muted-foreground italic font-medium mt-1">Ref: {expense.remarks || 'No narration provided'}</div>
                                     </TableCell>
                                     <TableCell className="text-right tabular-nums font-black text-base">{(expense.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                 </TableRow>
                                 {expense.extraAmount ? (
                                     <TableRow className="h-12 hover:bg-transparent text-muted-foreground italic bg-muted/5 border-t border-dashed">
-                                        <TableCell className="pl-10 text-[11px]">Extra combined charge: {expense.extraRemarks || 'Logistics/Commission'}</TableCell>
+                                        <TableCell className="pl-10 text-[0.6875rem]">Extra combined charge: {expense.extraRemarks || 'Logistics/Commission'}</TableCell>
                                         <TableCell className="text-right tabular-nums font-bold text-xs">{(expense.extraAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                     </TableRow>
                                 ) : null}
                             </TableBody>
                             <TableFooter className="bg-muted/30 border-t-2 border-neutral-900">
                                 <TableRow className="font-black h-12 hover:bg-transparent">
-                                    <TableCell className="text-right uppercase text-[10px] tracking-widest">Total Voucher Outflow</TableCell>
+                                    <TableCell className="text-right uppercase text-[0.625rem] tracking-widest">Total Voucher Outflow</TableCell>
                                     <TableCell className="text-right tabular-nums text-lg">Rs. {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                 </TableRow>
                             </TableFooter>
@@ -173,24 +173,24 @@ function ExpenseViewContent() {
 
                     <div className="grid grid-cols-2 gap-8 text-xs">
                         <div className="space-y-2 p-4 bg-muted/10 rounded-lg border border-dashed">
-                            <h4 className="font-black uppercase text-[9px] text-muted-foreground tracking-widest">Authorized Source</h4>
+                            <h4 className="font-black uppercase text-[0.5625rem] text-muted-foreground tracking-widest">Authorized Source</h4>
                             {expense.paymentMode === 'Cash' ? (
                                 <p className="font-black text-gray-900 uppercase">Settled via Petty Cash</p>
                             ) : (
                                 <div className="space-y-1">
                                     <p className="font-black text-gray-900 uppercase">{account?.bankName || 'Cloud Synchronized Account'}</p>
-                                    <p className="text-[10px] font-mono font-bold text-blue-800">A/C: {account?.accountNumber}</p>
+                                    <p className="text-[0.625rem] font-mono font-bold text-blue-800">A/C: {account?.accountNumber}</p>
                                 </div>
                             )}
                         </div>
                         <div className="flex flex-col justify-center">
-                            <p className="font-black uppercase text-[9px] text-muted-foreground tracking-widest mb-1">Amount In Words</p>
+                            <p className="font-black uppercase text-[0.5625rem] text-muted-foreground tracking-widest mb-1">Amount In Words</p>
                             <p className="font-black italic text-gray-900 leading-tight underline decoration-muted/30 underline-offset-4">{toWords(totalAmount)}</p>
                         </div>
                     </div>
                 </div>
 
-                <footer className="mt-32 grid grid-cols-2 gap-12 text-center text-[10px]">
+                <footer className="mt-32 grid grid-cols-2 gap-12 text-center text-[0.625rem]">
                     <div className="space-y-3">
                         <div className="border-t-2 border-neutral-900 w-full" />
                         <p className="font-black uppercase tracking-widest">Authorized Signature</p>

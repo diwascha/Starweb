@@ -93,7 +93,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
 
     return (
         <div className="space-y-1.5 flex-1 min-w-[160px]">
-            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
@@ -444,7 +444,7 @@ export function VouchersView() {
                     icon={Wallet}
                 />
                 <div className="space-y-1.5 w-full md:w-[180px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
+                    <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">AD Range</Label>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
@@ -497,10 +497,10 @@ export function VouchersView() {
                             <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                         ) : paginatedVouchers.map(v => (
                             <TableRow key={v.voucherId} className="hover:bg-muted/30 h-14">
-                                <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(v.date)}</TableCell>
+                                <TableCell className="font-medium text-[0.6875rem] whitespace-nowrap">{toNepaliDate(v.date)}</TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-2">
-                                        <span className="font-mono text-[11px] font-bold text-blue-600">{v.voucherNo}</span>
+                                        <span className="font-mono text-[0.6875rem] font-bold text-blue-600">{v.voucherNo}</span>
                                         <Button 
                                             variant="ghost" 
                                             size="icon" 
@@ -513,7 +513,7 @@ export function VouchersView() {
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant="outline" className={cn(
-                                        "text-[9px] uppercase font-bold",
+                                        "text-[0.5625rem] uppercase font-bold",
                                         v.type === 'Payment' ? "bg-red-50 text-red-700 border-red-200" : 
                                         v.type === 'Receipt' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : 
                                         "bg-amber-50 text-amber-700 border-amber-200"
@@ -524,7 +524,7 @@ export function VouchersView() {
                                 <TableCell>
                                     <div className="flex flex-wrap gap-x-2 gap-y-0.5">
                                         {v.vehicleIds.map(id => (
-                                            <span key={id} className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">
+                                            <span key={id} className="text-[0.6875rem] font-bold text-blue-900 uppercase tracking-tight">
                                                 {vehiclesById.get(id) || id}
                                             </span>
                                         ))}
@@ -534,25 +534,25 @@ export function VouchersView() {
                                     <div className="flex flex-col gap-1">
                                         <div className="flex flex-wrap gap-x-2 gap-y-0.5">
                                             {v.partyIds.map(id => (
-                                                <span key={id} className="text-[11px] font-semibold text-gray-900 leading-tight">
+                                                <span key={id} className="text-[0.6875rem] font-semibold text-gray-900 leading-tight">
                                                     {partiesById.get(id) || id}
                                                 </span>
                                             ))}
                                         </div>
                                         {v.remarks && (
-                                            <span className="text-[10px] text-muted-foreground italic leading-tight line-clamp-1">
+                                            <span className="text-[0.625rem] text-muted-foreground italic leading-tight line-clamp-1">
                                                 {v.remarks}
                                             </span>
                                         )}
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-[11px]">
+                                <TableCell className="text-[0.6875rem]">
                                     <div className="flex flex-col">
                                         <span className="font-medium text-gray-700">{v.billingType}</span>
-                                        {v.accountName && <span className="text-[9px] text-muted-foreground">{v.accountName}</span>}
+                                        {v.accountName && <span className="text-[0.5625rem] text-muted-foreground">{v.accountName}</span>}
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-right font-black text-[11px] tabular-nums">
+                                <TableCell className="text-right font-black text-[0.6875rem] tabular-nums">
                                     Rs. {v.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </TableCell>
                                 <TableCell className="text-right">

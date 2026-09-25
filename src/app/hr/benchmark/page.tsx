@@ -274,14 +274,14 @@ export default function EmployeePerformanceBenchmarkPage() {
             <Card className="shadow-sm border-border bg-card overflow-hidden">
                 <CardContent className="p-4 flex flex-col sm:flex-row flex-wrap gap-4 items-end">
                     <div className="space-y-1.5 w-[110px]">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
+                        <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Fiscal Year</Label>
                         <Select value={selectedFiscalYear} onValueChange={setSelectedFiscalYear} disabled={isLoading}>
                             <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                             <SelectContent>{availableFiscalYears.map(y => <SelectItem key={`bench-fy-${y}`} value={String(y)}>{formatFiscalYear(y)}</SelectItem>)}</SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-1.5 w-[150px]">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Period Type</Label>
+                        <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Period Type</Label>
                         <Select value={periodType} onValueChange={(v) => setPeriodType(v as BenchmarkPeriodType)} disabled={isLoading}>
                             <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                             <SelectContent>{PERIOD_TYPES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
@@ -289,7 +289,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                     </div>
                     {periodType !== 'yearly' && (
                         <div className="space-y-1.5 w-[190px]">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Period</Label>
+                            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Period</Label>
                             <Select value={periodIndex} onValueChange={setPeriodIndex} disabled={isLoading}>
                                 <SelectTrigger className="h-9 bg-card"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -303,7 +303,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                         </div>
                     )}
                     <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Compare Employees</Label>
+                        <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Compare Employees</Label>
                         <Popover open={comparePickerOpen} onOpenChange={setComparePickerOpen}>
                             <PopoverTrigger asChild>
                                 <Button variant="outline" className="h-9 bg-card font-bold text-xs justify-start min-w-[200px]">
@@ -324,19 +324,19 @@ export default function EmployeePerformanceBenchmarkPage() {
                         </Popover>
                     </div>
                     <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Department</Label>
+                        <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Department</Label>
                         <FilterDropdown label="Department" options={departmentFilterOptions} selected={filterDepartments} onChange={setFilterDepartments} />
                     </div>
                     <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Position</Label>
+                        <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Position</Label>
                         <FilterDropdown label="Position" options={positionFilterOptions} selected={filterPositions} onChange={setFilterPositions} />
                     </div>
                     <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Flags</Label>
+                        <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Flags</Label>
                         <FilterDropdown label="Flags" options={[{ value: 'flagged', label: 'Flagged only' }, { value: 'clean', label: 'No flags' }]} selected={filterFlagged} onChange={setFilterFlagged} />
                     </div>
                     {hasActiveFilters && (
-                        <Button variant="ghost" size="sm" onClick={resetFilters} className="h-9 text-[10px] font-bold uppercase text-muted-foreground">
+                        <Button variant="ghost" size="sm" onClick={resetFilters} className="h-9 text-[0.625rem] font-bold uppercase text-muted-foreground">
                             <X className="mr-1.5 h-3.5 w-3.5" /> Reset Filters
                         </Button>
                     )}
@@ -348,13 +348,13 @@ export default function EmployeePerformanceBenchmarkPage() {
                     <CardTitle className="text-sm font-black uppercase tracking-tight">
                         Comparison{selectedGroup ? ` - ${selectedGroup.label || monthLabel(selectedGroup.months[0]?.bsMonth ?? 0)}, FY ${formatFiscalYear(fyStart)}` : ''}
                     </CardTitle>
-                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
+                    <CardDescription className="text-[0.625rem] uppercase font-bold text-muted-foreground">
                         Click a column header to sort, or its funnel icon to filter. Trend and Volatility need 2+ months in the selected period.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     <ScrollArea className="w-full">
-                        <Table className="text-[11px] border-collapse">
+                        <Table className="text-[0.6875rem] border-collapse">
                             <TableHeader className="bg-muted/30">
                                 <TableRow className="h-11">
                                     <SortableHead label="Employee" sortKey="employeeName" sortConfig={sortConfig} onSort={requestSort} className="sticky left-0 bg-background z-20 border-r pl-6">
@@ -396,7 +396,7 @@ export default function EmployeePerformanceBenchmarkPage() {
                                             {r.flags.length > 0 ? (
                                                 <div className="flex items-center gap-1 text-red-600">
                                                     <AlertTriangle className="h-3 w-3 shrink-0" />
-                                                    <span className="text-[10px] font-bold">{r.flags.join('; ')}</span>
+                                                    <span className="text-[0.625rem] font-bold">{r.flags.join('; ')}</span>
                                                 </div>
                                             ) : <span className="text-muted-foreground">—</span>}
                                         </TableCell>
@@ -430,17 +430,17 @@ export default function EmployeePerformanceBenchmarkPage() {
                     <CardHeader className="bg-muted/10 border-b py-4 px-6 flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="text-sm font-black uppercase tracking-tight">Head-to-Head: {compareEmployees.map(e => e.name).join(' vs ')}</CardTitle>
-                            <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
+                            <CardDescription className="text-[0.625rem] uppercase font-bold text-muted-foreground">
                                 Every {PERIOD_TYPES.find(p => p.value === periodType)?.label.toLowerCase()} period in FY {formatFiscalYear(fyStart)}, oldest first.
                             </CardDescription>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => setCompareIds([])} className="h-8 text-[10px] font-bold uppercase text-muted-foreground">
+                        <Button variant="ghost" size="sm" onClick={() => setCompareIds([])} className="h-8 text-[0.625rem] font-bold uppercase text-muted-foreground">
                             <X className="mr-1.5 h-3.5 w-3.5" /> Clear
                         </Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <ScrollArea className="w-full">
-                            <Table className="text-[11px] border-collapse">
+                            <Table className="text-[0.6875rem] border-collapse">
                                 <TableHeader className="bg-muted/30">
                                     <TableRow className="h-9">
                                         <TableHead rowSpan={2} className="align-bottom pl-6 font-black uppercase text-foreground border-r">Period</TableHead>
@@ -484,7 +484,7 @@ export default function EmployeePerformanceBenchmarkPage() {
             )}
 
             {compareEmployees.length === 1 && (
-                <p className="text-[10px] text-muted-foreground italic px-1">Select at least one more employee above to see a head-to-head comparison over time.</p>
+                <p className="text-[0.625rem] text-muted-foreground italic px-1">Select at least one more employee above to see a head-to-head comparison over time.</p>
             )}
         </div>
     );
@@ -496,7 +496,7 @@ function monthLabel(bsMonth: number): string {
 }
 
 function TrendBadge({ trend }: { trend: PeriodPerformanceMetrics['trend'] }) {
-    if (trend === 'N/A') return <span className="text-muted-foreground text-[10px]">—</span>;
+    if (trend === 'N/A') return <span className="text-muted-foreground text-[0.625rem]">—</span>;
     const config = {
         Improving: { icon: TrendingUp, cls: 'border-emerald-200 text-emerald-700' },
         Declining: { icon: TrendingDown, cls: 'border-red-200 text-red-700' },
@@ -504,7 +504,7 @@ function TrendBadge({ trend }: { trend: PeriodPerformanceMetrics['trend'] }) {
     }[trend];
     const Icon = config.icon;
     return (
-        <Badge variant="outline" className={cn("text-[9px] font-black uppercase h-5 px-1.5 gap-1", config.cls)}>
+        <Badge variant="outline" className={cn("text-[0.5625rem] font-black uppercase h-5 px-1.5 gap-1", config.cls)}>
             <Icon className="h-2.5 w-2.5" /> {trend}
         </Badge>
     );
@@ -552,7 +552,7 @@ function FilterDropdown({ label, options, selected, onChange }: {
             <PopoverContent className="w-[200px] p-0" align="start">
                 <ScrollArea className="max-h-[240px] p-2">
                     {options.length === 0 ? (
-                        <p className="text-[10px] text-muted-foreground italic px-2 py-2">No options.</p>
+                        <p className="text-[0.625rem] text-muted-foreground italic px-2 py-2">No options.</p>
                     ) : options.map(opt => (
                         <label key={opt.value} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-xs">
                             <Checkbox checked={selected.includes(opt.value)} onCheckedChange={() => toggle(opt.value)} />

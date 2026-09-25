@@ -14,7 +14,7 @@ export function LedgerFilterBar({ children, className }: { children: React.React
 export function LedgerFilterField({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
     return (
         <div className={cn('space-y-1.5 min-w-[150px]', className)}>
-            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">{label}</Label>
             {children}
         </div>
     );

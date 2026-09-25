@@ -1,4 +1,5 @@
 import type {Config} from 'tailwindcss';
+import { darkPalettePlugin, themedPaletteColors } from './tailwind.dark-palette';
 
 export default {
   darkMode: ['class'],
@@ -10,11 +11,12 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['var(--font-inter)', 'sans-serif'],
-        headline: ['var(--font-inter)', 'sans-serif'],
+        body: ['var(--app-font, var(--font-inter))', 'sans-serif'],
+        headline: ['var(--app-font, var(--font-inter))', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
+        ...themedPaletteColors,
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {
@@ -95,5 +97,5 @@ export default {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [require('tailwindcss-animate'), darkPalettePlugin],
 } satisfies Config;

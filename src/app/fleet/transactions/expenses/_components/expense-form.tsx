@@ -287,7 +287,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {/* 1. Category Selection */}
                 <div className="space-y-4">
-                    <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Payment Type <span className="text-destructive">*</span></FormLabel>
+                    <FormLabel className="text-[0.625rem] uppercase font-bold tracking-widest text-muted-foreground">Select Payment Type <span className="text-destructive">*</span></FormLabel>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {expenseTypes.map((item) => (
                             <button key={item.type} type="button" onClick={() => form.setValue('expenseType', item.type)} className={cn("flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 text-center group", watchedType === item.type ? cn("ring-2 ring-primary border-primary bg-primary/5", item.color.split(' ')[0]) : "border-muted bg-card hover:bg-muted/50 text-muted-foreground")}>
@@ -295,8 +295,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     <item.icon className={cn("h-5 w-5", watchedType === item.type ? item.color.split(' ')[0] : "text-muted-foreground")} />
                                 </div>
                                 <div className="space-y-0.5">
-                                    <span className="text-[11px] font-bold block leading-tight">{item.label}</span>
-                                    <span className="text-[9px] opacity-70 block leading-tight">{item.sub}</span>
+                                    <span className="text-[0.6875rem] font-bold block leading-tight">{item.label}</span>
+                                    <span className="text-[0.5625rem] opacity-70 block leading-tight">{item.sub}</span>
                                 </div>
                             </button>
                         ))}
@@ -416,9 +416,9 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                 <FormLabel>Payment Amount (रु)</FormLabel>
                                 <FormControl><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">Rs.</span><Input {...numFieldProps} className="pl-10 h-10 text-lg font-black" {...field} value={field.value || ''} onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); if (watchedMode === 'Mixed') { const total = val + (watchedExtraAmount || 0); form.setValue('cashAmount', total); form.setValue('bankAmount', 0); } }} /></div></FormControl>
                                 {routeStandardAmount && (
-                                    <p className="text-[10px] text-amber-700 font-bold uppercase mt-1 flex items-center gap-1">
+                                    <p className="text-[0.625rem] text-amber-700 font-bold uppercase mt-1 flex items-center gap-1">
                                         <Lightbulb className="h-3 w-3" /> Standard: Rs. {routeStandardAmount.toLocaleString()} 
-                                        <Button type="button" variant="link" size="sm" className="h-auto p-0 font-black text-[10px] underline ml-2" onClick={() => form.setValue('amount', routeStandardAmount)}>Use</Button>
+                                        <Button type="button" variant="link" size="sm" className="h-auto p-0 font-black text-[0.625rem] underline ml-2" onClick={() => form.setValue('amount', routeStandardAmount)}>Use</Button>
                                     </p>
                                 )}
                                 <FormMessage />
@@ -429,9 +429,9 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
                 {watchedType === 'Advance' && (
                     <div className="bg-muted/30 p-4 rounded-xl border border-dashed space-y-4">
-                        {!showExtraFields ? <Button type="button" variant="outline" size="sm" className="h-8 text-[10px] uppercase font-bold" onClick={() => setShowExtraFields(true)}><Plus className="mr-1 h-3 w-3" /> Add Extra Charge</Button> : (
+                        {!showExtraFields ? <Button type="button" variant="outline" size="sm" className="h-8 text-[0.625rem] uppercase font-bold" onClick={() => setShowExtraFields(true)}><Plus className="mr-1 h-3 w-3" /> Add Extra Charge</Button> : (
                             <div className="animate-in fade-in slide-in-from-top-2">
-                                <div className="flex items-center justify-between mb-3"><h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Extra Combined Charge</h4><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setShowExtraFields(false); form.setValue('extraAmount', 0); }}><X className="h-3 w-3" /></Button></div>
+                                <div className="flex items-center justify-between mb-3"><h4 className="text-[0.625rem] font-bold uppercase text-muted-foreground tracking-widest">Extra Combined Charge</h4><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setShowExtraFields(false); form.setValue('extraAmount', 0); }}><X className="h-3 w-3" /></Button></div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <FormField control={form.control} name="extraAmount" render={({ field }) => (
                                         <FormItem><FormLabel className="text-xs">Extra Amount</FormLabel><FormControl><Input {...numFieldProps} className="h-9 font-semibold text-sm" {...field} value={field.value || ''} onChange={e => { const val = parseFloat(e.target.value) || 0; field.onChange(val); if (watchedMode === 'Mixed') { const total = val + (watchedAmount || 0); form.setValue('cashAmount', total); form.setValue('bankAmount', 0); } }} /></FormControl></FormItem>
@@ -457,8 +457,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 )}
 
                 <div className="p-4 bg-primary/5 rounded-xl border border-primary/20 flex justify-between items-center">
-                    <div><p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Net Outflow</p><h3 className="text-xl font-black tabular-nums">Rs. {totalSettlement.toLocaleString(undefined, {minimumFractionDigits: 2})}</h3></div>
-                    <Badge variant="outline" className="h-fit bg-card px-3 py-1 font-mono text-[10px] uppercase border-none">{watchedMode}</Badge>
+                    <div><p className="text-[0.625rem] font-bold uppercase text-muted-foreground tracking-widest">Net Outflow</p><h3 className="text-xl font-black tabular-nums">Rs. {totalSettlement.toLocaleString(undefined, {minimumFractionDigits: 2})}</h3></div>
+                    <Badge variant="outline" className="h-fit bg-card px-3 py-1 font-mono text-[0.625rem] uppercase border-none">{watchedMode}</Badge>
                 </div>
 
                 <FormField control={form.control} name="remarks" render={({ field }) => (

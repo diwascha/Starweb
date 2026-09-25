@@ -226,7 +226,7 @@ function AssetRegistryContent() {
                             <Card key={p.id} className="hover:shadow-md transition-all border-border group">
                                 <CardHeader className="pb-2">
                                     <div className="flex justify-between items-start">
-                                        <Badge variant="secondary" className="mb-2 uppercase text-[10px] tracking-widest bg-blue-50 text-blue-700 border-blue-100">{p.unitCount} Units</Badge>
+                                        <Badge variant="secondary" className="mb-2 uppercase text-[0.625rem] tracking-widest bg-blue-50 text-blue-700 border-blue-100">{p.unitCount} Units</Badge>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
@@ -246,11 +246,11 @@ function AssetRegistryContent() {
                                 <CardContent className="space-y-4 pt-4">
                                     <div className="grid grid-cols-2 gap-4 text-xs">
                                         <div className="p-3 rounded-xl bg-green-50 border border-green-100">
-                                            <p className="text-green-600 font-bold uppercase text-[9px] mb-1">Occupied</p>
+                                            <p className="text-green-600 font-bold uppercase text-[0.5625rem] mb-1">Occupied</p>
                                             <p className="text-xl font-black text-green-700">{p.occupied}</p>
                                         </div>
                                         <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
-                                            <p className="text-amber-600 font-bold uppercase text-[9px] mb-1">Vacant</p>
+                                            <p className="text-amber-600 font-bold uppercase text-[0.5625rem] mb-1">Vacant</p>
                                             <p className="text-xl font-black text-amber-700">{p.vacant}</p>
                                         </div>
                                     </div>
@@ -274,7 +274,7 @@ function AssetRegistryContent() {
                             <div className="flex-1 text-sm font-medium text-blue-800">
                                 Viewing units for: <span className="font-black underline">{properties.find(p => p.id === propIdFilter)?.name}</span>
                             </div>
-                            <Button variant="ghost" size="sm" onClick={handleClearFilter} className="h-7 text-[10px] uppercase font-black text-blue-700 hover:bg-blue-100">
+                            <Button variant="ghost" size="sm" onClick={handleClearFilter} className="h-7 text-[0.625rem] uppercase font-black text-blue-700 hover:bg-blue-100">
                                 <X className="mr-1 h-3 w-3" /> Clear Filter
                             </Button>
                         </div>
@@ -303,7 +303,7 @@ function AssetRegistryContent() {
                                             <TableCell className="font-mono font-bold text-xs">Rs. {u.monthlyRent.toLocaleString()}</TableCell>
                                             <TableCell className="text-center">
                                                 <Badge variant="outline" className={cn(
-                                                    "uppercase text-[9px] font-black h-5 shadow-sm px-2",
+                                                    "uppercase text-[0.5625rem] font-black h-5 shadow-sm px-2",
                                                     u.status === 'Occupied' ? "bg-green-50 text-green-700 border-green-200" :
                                                     u.status === 'Vacant' ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-muted text-muted-foreground"
                                                 )}>
@@ -429,11 +429,11 @@ function AssetRegistryContent() {
                     </DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Property Name</Label>
+                            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Property Name</Label>
                             <Input value={propForm.name} onChange={e => setPropForm({...propForm, name: e.target.value})} placeholder="e.g. Shivam Heights" className="h-10" />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Location Address</Label>
+                            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Location Address</Label>
                             <Input value={propForm.address} onChange={e => setPropForm({...propForm, address: e.target.value})} placeholder="Full location details" className="h-10" />
                         </div>
                     </div>
@@ -452,30 +452,30 @@ function AssetRegistryContent() {
                     </DialogHeader>
                     <div className="grid grid-cols-2 gap-5 py-4">
                         <div className="space-y-1.5 col-span-2">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Associated Property</Label>
+                            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Associated Property</Label>
                             <Select value={unitForm.propertyId} onValueChange={v => setUnitForm({...unitForm, propertyId: v})}>
                                 <SelectTrigger className="h-10"><SelectValue placeholder="Select Property"/></SelectTrigger>
                                 <SelectContent>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Unit Number / Code</Label>
+                            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Unit Number / Code</Label>
                             <Input value={unitForm.unitNumber} onChange={e => setUnitForm({...unitForm, unitNumber: e.target.value})} placeholder="e.g. 101" className="h-10 font-bold" />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Monthly Rent (NPR)</Label>
+                            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Monthly Rent (NPR)</Label>
                             <Input type="number" value={unitForm.monthlyRent} onChange={e => setUnitForm({...unitForm, monthlyRent: Number(e.target.value)})} className="h-10 font-black text-blue-900" />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Floor Level</Label>
+                            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Floor Level</Label>
                             <Input value={unitForm.floor} onChange={e => setUnitForm({...unitForm, floor: e.target.value})} placeholder="e.g. Ground" className="h-10" />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Space Category</Label>
+                            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Space Category</Label>
                             <Input value={unitForm.type} onChange={e => setUnitForm({...unitForm, type: e.target.value})} placeholder="e.g. Shop" className="h-10" />
                         </div>
                         <div className="space-y-1.5 col-span-2">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Inventory Status</Label>
+                            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Inventory Status</Label>
                             <Select value={unitForm.status} onValueChange={(v: any) => setUnitForm({...unitForm, status: v})}>
                                 <SelectTrigger className="h-10"><SelectValue/></SelectTrigger>
                                 <SelectContent>

@@ -115,10 +115,10 @@ export default function AgreementsPage() {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'Active': return <Badge className="bg-emerald-600 hover:bg-emerald-700 font-black text-[9px] uppercase tracking-wider h-5 px-2">Active</Badge>;
-            case 'Terminated': return <Badge variant="destructive" className="font-black text-[9px] uppercase tracking-wider h-5 px-2">Terminated</Badge>;
-            case 'Pending': return <Badge variant="secondary" className="font-black text-[9px] uppercase tracking-wider h-5 px-2">Pending</Badge>;
-            default: return <Badge variant="outline" className="font-black text-[9px] uppercase tracking-wider h-5 px-2">{status}</Badge>;
+            case 'Active': return <Badge className="bg-emerald-600 hover:bg-emerald-700 font-black text-[0.5625rem] uppercase tracking-wider h-5 px-2">Active</Badge>;
+            case 'Terminated': return <Badge variant="destructive" className="font-black text-[0.5625rem] uppercase tracking-wider h-5 px-2">Terminated</Badge>;
+            case 'Pending': return <Badge variant="secondary" className="font-black text-[0.5625rem] uppercase tracking-wider h-5 px-2">Pending</Badge>;
+            default: return <Badge variant="outline" className="font-black text-[0.5625rem] uppercase tracking-wider h-5 px-2">{status}</Badge>;
         }
     };
 
@@ -140,7 +140,7 @@ export default function AgreementsPage() {
 
             <div className="flex flex-col sm:flex-row gap-4 items-end bg-muted/20 p-4 rounded-xl border border-dashed">
                 <div className="space-y-1.5 flex-1 min-w-[200px]">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] px-1">Global Query</Label>
+                    <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-[0.2em] px-1">Global Query</Label>
                     <div className="relative">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
@@ -152,7 +152,7 @@ export default function AgreementsPage() {
                     </div>
                 </div>
                 <div className="space-y-1.5 w-[160px]">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] px-1">Lease Status</Label>
+                    <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-[0.2em] px-1">Lease Status</Label>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
                         <SelectTrigger className="h-9 bg-card text-xs font-bold uppercase border-border">
                             <SelectValue />
@@ -166,7 +166,7 @@ export default function AgreementsPage() {
                     </Select>
                 </div>
                 {(searchQuery || statusFilter !== 'Active') && (
-                    <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setStatusFilter('Active'); }} className="h-9 text-muted-foreground font-black text-[9px] uppercase tracking-widest">
+                    <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setStatusFilter('Active'); }} className="h-9 text-muted-foreground font-black text-[0.5625rem] uppercase tracking-widest">
                         <FilterX className="mr-1.5 h-3.5 w-3.5" /> Clear filters
                     </Button>
                 )}
@@ -177,12 +177,12 @@ export default function AgreementsPage() {
                     <Table>
                         <TableHeader className="bg-muted/50 border-b">
                             <TableRow className="hover:bg-transparent h-11">
-                                <TableHead className="pl-6 font-black uppercase text-[10px] tracking-[0.2em] text-muted-foreground">Tenant Entity</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-[0.2em] text-muted-foreground">Space / Asset</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-[0.2em] text-muted-foreground text-center">Lifecycle</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-[0.2em] text-muted-foreground text-right">Rent / Mo</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-[0.2em] text-muted-foreground text-center">Duration (BS)</TableHead>
-                                <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-[0.2em] text-muted-foreground">Actions</TableHead>
+                                <TableHead className="pl-6 font-black uppercase text-[0.625rem] tracking-[0.2em] text-muted-foreground">Tenant Entity</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-[0.2em] text-muted-foreground">Space / Asset</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-[0.2em] text-muted-foreground text-center">Lifecycle</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-[0.2em] text-muted-foreground text-right">Rent / Mo</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-[0.2em] text-muted-foreground text-center">Duration (BS)</TableHead>
+                                <TableHead className="text-right pr-6 font-black uppercase text-[0.625rem] tracking-[0.2em] text-muted-foreground">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -193,7 +193,7 @@ export default function AgreementsPage() {
                                     <TableCell className="pl-6">
                                         <div className="flex flex-col">
                                             <span className="font-black text-foreground leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{a.tenantName}</span>
-                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">ID: {a.id.substring(0,8).toUpperCase()}</span>
+                                            <span className="text-[0.625rem] text-muted-foreground font-bold uppercase tracking-tighter">ID: {a.id.substring(0,8).toUpperCase()}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -201,7 +201,7 @@ export default function AgreementsPage() {
                                             <div className="p-1.5 bg-primary/5 rounded-lg"><Home className="h-3.5 w-3.5 text-primary opacity-50"/></div>
                                             <div className="flex flex-col">
                                                 <span className="text-xs font-bold text-foreground uppercase">Unit {a.unitNumber}</span>
-                                                <span className="text-[9px] text-muted-foreground uppercase font-black">{a.propertyName}</span>
+                                                <span className="text-[0.5625rem] text-muted-foreground uppercase font-black">{a.propertyName}</span>
                                             </div>
                                         </div>
                                     </TableCell>
@@ -211,7 +211,7 @@ export default function AgreementsPage() {
                                             {a.status === 'Active' && (
                                                 <div className="w-24 space-y-1">
                                                     <Progress value={getLeaseProgress(a.startDate, a.endDate)} className="h-1 shadow-inner" />
-                                                    <p className="text-[8px] font-black uppercase text-muted-foreground text-center tracking-tighter">
+                                                    <p className="text-[0.5rem] font-black uppercase text-muted-foreground text-center tracking-tighter">
                                                         {Math.round(getLeaseProgress(a.startDate, a.endDate))}% TENURE
                                                     </p>
                                                 </div>
@@ -221,8 +221,8 @@ export default function AgreementsPage() {
                                     <TableCell className="text-right font-black tabular-nums text-blue-700">Rs. {a.monthlyRent.toLocaleString()}</TableCell>
                                     <TableCell className="text-center">
                                         <div className="flex flex-col">
-                                            <span className="font-mono text-[11px] text-foreground font-bold">{toNepaliDate(a.startDate)}</span>
-                                            <span className="font-mono text-[9px] text-muted-foreground uppercase font-black">UNTIL {toNepaliDate(a.endDate)}</span>
+                                            <span className="font-mono text-[0.6875rem] text-foreground font-bold">{toNepaliDate(a.startDate)}</span>
+                                            <span className="font-mono text-[0.5625rem] text-muted-foreground uppercase font-black">UNTIL {toNepaliDate(a.endDate)}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right pr-6">
@@ -252,7 +252,7 @@ export default function AgreementsPage() {
                                 </TableRow>
                             ))}
                             {!isLoading && filteredAgreements.length === 0 && (
-                                <TableRow><TableCell colSpan={6} className="h-60 text-center text-muted-foreground italic uppercase font-black text-[10px] tracking-widest opacity-20">No matching lease records in database.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-60 text-center text-muted-foreground italic uppercase font-black text-[0.625rem] tracking-widest opacity-20">No matching lease records in database.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>

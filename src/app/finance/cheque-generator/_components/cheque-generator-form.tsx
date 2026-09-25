@@ -578,7 +578,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
           <div>
             <h3 className="text-sm font-bold">Cheque schedule</h3>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[0.6875rem] text-muted-foreground">
               Interval is counted from the invoice date, or the voucher date if no invoice date is set.
             </p>
           </div>
@@ -668,11 +668,11 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
 
       <div className="flex justify-end gap-2">
         {chequeToEdit && (
-          <Button variant="ghost" onClick={onSaveSuccess} className="font-bold text-muted-foreground uppercase text-[10px]">
+          <Button variant="ghost" onClick={onSaveSuccess} className="font-bold text-muted-foreground uppercase text-[0.625rem]">
             <X className="mr-2 h-3.5 w-3.5" /> Discard changes
           </Button>
         )}
-        <Button onClick={handleSave} disabled={isSaving || !isBalanced} className="font-black uppercase text-[10px] tracking-widest">
+        <Button onClick={handleSave} disabled={isSaving || !isBalanced} className="font-black uppercase text-[0.625rem] tracking-widest">
           {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
           {chequeToEdit ? 'Save changes' : 'Create voucher'}
         </Button>

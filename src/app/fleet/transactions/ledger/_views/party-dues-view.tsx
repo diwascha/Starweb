@@ -178,17 +178,17 @@ export function PartyDuesView() {
                             {partyDues.map(p => (
                                 <TableRow key={p.party.id}>
                                     <TableCell className="font-semibold">{p.party.name}</TableCell>
-                                    <TableCell><Badge variant="outline" className="text-[9px]">{p.party.type}</Badge></TableCell>
+                                    <TableCell><Badge variant="outline" className="text-[0.5625rem]">{p.party.type}</Badge></TableCell>
                                     <TableCell className="text-right tabular-nums">Rs. {p.debit.toLocaleString()}</TableCell>
                                     <TableCell className="text-right tabular-nums">Rs. {p.credit.toLocaleString()}</TableCell>
                                     <TableCell className="text-right tabular-nums font-bold">Rs. {Math.abs(p.balance).toLocaleString()}</TableCell>
                                     <TableCell>
                                         {p.balance > 0.5 ? (
-                                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px]">Receivable</Badge>
+                                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[0.5625rem]">Receivable</Badge>
                                         ) : p.balance < -0.5 ? (
-                                            <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[9px]">Payable</Badge>
+                                            <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[0.5625rem]">Payable</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-[9px]">Settled</Badge>
+                                            <Badge variant="outline" className="text-[0.5625rem]">Settled</Badge>
                                         )}
                                     </TableCell>
                                 </TableRow>

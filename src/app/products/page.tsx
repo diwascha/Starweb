@@ -122,12 +122,12 @@ export default function ProductsPage() {
                     <Table className="text-xs">
                         <TableHeader className="bg-muted/50 border-b">
                             <TableRow className="hover:bg-transparent h-11">
-                                <TableHead className="pl-6 font-black uppercase text-[10px] tracking-widest text-muted-foreground">Material / Product Name</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Dimensions (mm)</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Construction</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">GSM Composition</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Client Entity</TableHead>
-                                <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest text-muted-foreground">Actions</TableHead>
+                                <TableHead className="pl-6 font-black uppercase text-[0.625rem] tracking-widest text-muted-foreground">Material / Product Name</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-widest text-muted-foreground">Dimensions (mm)</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-widest text-muted-foreground">Construction</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-widest text-muted-foreground">GSM Composition</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-widest text-muted-foreground">Client Entity</TableHead>
+                                <TableHead className="text-right pr-6 font-black uppercase text-[0.625rem] tracking-widest text-muted-foreground">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -138,17 +138,17 @@ export default function ProductsPage() {
                                     <TableCell className="pl-6">
                                         <div className="flex flex-col">
                                             <span className="font-black text-foreground leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{product.name}</span>
-                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Code: {product.materialCode || 'N/A'}</span>
+                                            <span className="text-[0.625rem] text-muted-foreground font-bold uppercase tracking-tighter">Code: {product.materialCode || 'N/A'}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-mono text-muted-foreground font-bold">{product.specification?.dimension || '—'}</TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[9px] font-black uppercase h-5 px-2">
+                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[0.5625rem] font-black uppercase h-5 px-2">
                                             {product.specification?.ply} Ply
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground font-mono text-[10px]">{getGsmDisplay(product.specification)}</TableCell>
-                                    <TableCell className="text-[10px] font-bold text-foreground uppercase">{product.partyName || '—'}</TableCell>
+                                    <TableCell className="text-muted-foreground font-mono text-[0.625rem]">{getGsmDisplay(product.specification)}</TableCell>
+                                    <TableCell className="text-[0.625rem] font-bold text-foreground uppercase">{product.partyName || '—'}</TableCell>
                                     <TableCell className="text-right pr-6">
                                         <div className="flex justify-end gap-1">
                                             <Button variant="ghost" size="icon" asChild className="h-8 w-8">
@@ -187,14 +187,14 @@ export default function ProductsPage() {
                                 </TableRow>
                             ))}
                             {!isLoading && filteredProducts.length === 0 && (
-                                <TableRow><TableCell colSpan={6} className="h-60 text-center text-muted-foreground italic uppercase font-black text-[10px] tracking-widest opacity-20">Catalog is empty.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-60 text-center text-muted-foreground italic uppercase font-black text-[0.625rem] tracking-widest opacity-20">Catalog is empty.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </CardContent>
                 {totalPages > 1 && (
                     <CardFooter className="py-3 border-t bg-muted/5 flex justify-between items-center px-6">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Page {currentPage} of {totalPages}</span>
+                        <span className="text-[0.625rem] font-bold text-muted-foreground uppercase">Page {currentPage} of {totalPages}</span>
                         <div className="flex gap-2">
                             <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}><ChevronLeft className="h-4 w-4"/></Button>
                             <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}><ChevronRight className="h-4 w-4"/></Button>

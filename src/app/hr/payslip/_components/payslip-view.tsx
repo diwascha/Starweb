@@ -37,25 +37,25 @@ export function SlipCopy({ label, employee, payroll, bsYear, bsMonthName, compan
   const fmt = fmtAmount;
 
   return (
-    <div className="paper border-2 border-black text-black text-[11px] px-3 py-2">
-      <p className="text-[8px] font-bold text-gray-500 mb-1">[ {label} ]</p>
+    <div className="paper border-2 border-black text-black text-[0.6875rem] px-3 py-2">
+      <p className="text-[0.5rem] font-bold text-gray-500 mb-1">[ {label} ]</p>
 
       <header className="text-center space-y-0.5 mb-1 pb-1 border-b border-black">
         <h1 className="text-sm font-bold uppercase">{companyProfile.nameEn || 'YOUR COMPANY NAME HERE'}</h1>
-        {companyProfile.address && <p className="text-[10px]">{companyProfile.address}</p>}
-        {companyProfile.addressLine2 && <p className="text-[10px]">{companyProfile.addressLine2}</p>}
-        {companyProfile.phone && <p className="text-[10px]">{companyProfile.phone}</p>}
+        {companyProfile.address && <p className="text-[0.625rem]">{companyProfile.address}</p>}
+        {companyProfile.addressLine2 && <p className="text-[0.625rem]">{companyProfile.addressLine2}</p>}
+        {companyProfile.phone && <p className="text-[0.625rem]">{companyProfile.phone}</p>}
         {(companyProfile.headerNote1 || companyProfile.headerNote2) && (
-          <p className="text-[9px] italic">
+          <p className="text-[0.5625rem] italic">
             {[companyProfile.headerNote1, companyProfile.headerNote2].filter(Boolean).join('   ')}
           </p>
         )}
       </header>
 
-      <div className="text-center font-bold text-[13px] border-b border-black pb-1 mb-1">Salary Slip</div>
-      <div className="text-center italic text-[10px] mb-1">For the Month of: {bsMonthName}, {bsYear} (BS)</div>
+      <div className="text-center font-bold text-[0.8125rem] border-b border-black pb-1 mb-1">Salary Slip</div>
+      <div className="text-center italic text-[0.625rem] mb-1">For the Month of: {bsMonthName}, {bsYear} (BS)</div>
 
-      <div className="grid grid-cols-2 gap-x-4 text-[10px] mb-1 pb-1 border-b border-black">
+      <div className="grid grid-cols-2 gap-x-4 text-[0.625rem] mb-1 pb-1 border-b border-black">
         <div className="space-y-0.5">
           <div><span className="font-bold">Staff Name :</span> {employee.name}</div>
           <div><span className="font-bold">Department :</span> {employee.department || '—'}</div>
@@ -119,19 +119,19 @@ export function SlipCopy({ label, employee, payroll, bsYear, bsMonthName, compan
         </div>
       </div>
 
-      <div className="font-bold text-[12px] border-2 border-t-0 border-black bg-gray-200 px-2 py-1 flex justify-between">
+      <div className="font-bold text-[0.75rem] border-2 border-t-0 border-black bg-gray-200 px-2 py-1 flex justify-between">
         <span>Net Salary</span>
         <span>{fmt(netSalary)}</span>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mt-4 text-[10px]">
+      <div className="grid grid-cols-3 gap-4 mt-4 text-[0.625rem]">
         <div><div className="border-t border-black pt-0.5">{companyProfile.preparedBy || ' '}</div><p className="text-right font-bold">Prepared by</p></div>
         <div><div className="border-t border-black pt-0.5">{companyProfile.checkedBy || ' '}</div><p className="text-right font-bold">Checked by</p></div>
         <div><div className="border-t border-black pt-0.5">{companyProfile.authorisedBy || ' '}</div><p className="text-right font-bold">Authorised by</p></div>
       </div>
 
       {(companyProfile.footerNote1 || companyProfile.footerNote2) && (
-        <div className="mt-2 pt-1 border-t border-black text-[8px] italic">
+        <div className="mt-2 pt-1 border-t border-black text-[0.5rem] italic">
           {companyProfile.footerNote1 && <p>{companyProfile.footerNote1}</p>}
           {companyProfile.footerNote2 && <p>{companyProfile.footerNote2}</p>}
         </div>
