@@ -289,6 +289,7 @@ export default function MachineLogsPage() {
             const reader = new FileReader();
             reader.onload = async (event) => {
                 const totals = { created: 0, updated: 0, newEmployees: 0, payroll: 0 };
+                const newEmployeeNames: string[] = [];
                 const skippedSheets: string[] = [];
                 const failedSheets: string[] = [];
                 // Every period a legacy payroll block actually lands in gets
@@ -323,6 +324,7 @@ export default function MachineLogsPage() {
                             totals.created += result.createdCount;
                             totals.updated += result.updatedCount;
                             totals.newEmployees += result.newEmployeesCount;
+                            newEmployeeNames.push(...result.newEmployeeNames);
 
                             const period = result.dominantPeriod || resolvePeriodFromSheetName(sheetName);
                             if (period && result.headerIndex >= 0) {
@@ -337,6 +339,7 @@ export default function MachineLogsPage() {
                                 );
                                 totals.payroll += payrollResult.payrollRecords;
                                 totals.newEmployees += payrollResult.newEmployees;
+                                newEmployeeNames.push(...payrollResult.newEmployeeNames);
                                 if (payrollResult.payrollRecords > 0) {
                                     importedPeriods.set(`${period.year}-${period.month}`, { bsYear: period.year, bsMonth: period.month });
                                 }
@@ -369,6 +372,15 @@ export default function MachineLogsPage() {
                         toast({
                             title: 'Import Successful',
                             description: `${dataSheets.length - skippedSheets.length} sheet(s) processed - ${totals.created} created, ${totals.updated} updated attendance logs, ${totals.payroll} payroll records imported${totals.newEmployees ? `, ${totals.newEmployees} new employees onboarded` : ''}.${skippedSheets.length ? ` Skipped: ${skippedSheets.join(', ')}.` : ''}`,
+                        });
+                    }
+
+                    if (newEmployeeNames.length > 0) {
+                        // Imports create an employee for any name that matches no one,
+                        // so a typo becomes a duplicate. Name them so it can be merged.
+                        toast({
+                            title: `${new Set(newEmployeeNames).size} new employee(s) created`,
+                            description: `${Array.from(new Set(newEmployeeNames)).join(', ')}. If any is a misspelling of an existing employee, combine them with Employees > Merge.`,
                         });
                     }
                 } catch (error: any) {

@@ -17,7 +17,7 @@ export const addRawMachineLogs = async (
     sourceSheetName: string,
     onProgress: (progress: number, total: number) => void,
     options: { overwrite: boolean } = { overwrite: false }
-): Promise<{ createdCount: number, updatedCount: number, skippedCount: number, newEmployeesCount: number, headerRow: any[], headerIndex: number, dominantPeriod: { year: number, month: number } | null }> => {
+): Promise<{ createdCount: number, updatedCount: number, skippedCount: number, newEmployeesCount: number, newEmployeeNames: string[], headerRow: any[], headerIndex: number, dominantPeriod: { year: number, month: number } | null }> => {
     const { db } = getFirebase();
     const importId = `imp-${Date.now()}`;
     const now = createTimestamp();
@@ -26,19 +26,21 @@ export const addRawMachineLogs = async (
     try {
         const { processedData, headerRow, headerIndex } = processAttendanceImport(jsonData);
         const dominantPeriod = resolveDominantPeriod(processedData);
-        if (processedData.length === 0) return { createdCount: 0, updatedCount: 0, skippedCount: 0, newEmployeesCount: 0, headerRow, headerIndex, dominantPeriod };
+        if (processedData.length === 0) return { createdCount: 0, updatedCount: 0, skippedCount: 0, newEmployeesCount: 0, newEmployeeNames: [], headerRow, headerIndex, dominantPeriod };
 
         const employees = await getEmployees();
         const existingEmpNames = new Set(employees.map(e => e.name.toLowerCase().trim()));
         const uniqueNamesInSheet = Array.from(new Set(processedData.map(p => p.employeeName.trim()))).filter(n => n.length > 0);
         
         let newEmployeesCount = 0;
+        const newEmployeeNames: string[] = [];
         const employeeBatch = writeBatch(db);
         for (const name of uniqueNamesInSheet) {
             if (!existingEmpNames.has(name.toLowerCase())) {
                 const empRef = doc(collection(db, COLLECTIONS.EMPLOYEES));
                 employeeBatch.set(empRef, { name: name.trim(), status: 'Working', wageBasis: 'Monthly', wageAmount: 0, mobileNumber: 'Not Provided', createdBy: importedBy, createdAt: now });
                 newEmployeesCount++;
+                newEmployeeNames.push(name.trim());
             }
         }
         if (newEmployeesCount > 0) await employeeBatch.commit();
@@ -91,7 +93,7 @@ export const addRawMachineLogs = async (
             await batch.commit();
             onProgress(i + chunk.length, operations.length);
         }
-        return { createdCount, updatedCount, skippedCount, newEmployeesCount, headerRow, headerIndex, dominantPeriod };
+        return { createdCount, updatedCount, skippedCount, newEmployeesCount, newEmployeeNames, headerRow, headerIndex, dominantPeriod };
     } catch (error: any) {
         if (error.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({

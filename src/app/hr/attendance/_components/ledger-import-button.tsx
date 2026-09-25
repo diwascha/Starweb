@@ -182,6 +182,15 @@ export default function LedgerImportButton({
                 title: 'Ledger Import Complete',
                 description: `${result.attendanceRecords} attendance records, ${result.payrollRecords} payroll records${result.bonusSummaries || result.behaviorLedger || result.behaviorAnalytics ? `, ${result.bonusSummaries} bonus summaries, ${result.behaviorLedger} behavior ledger, ${result.behaviorAnalytics} analytics entries` : ''}${result.newEmployees ? `, ${result.newEmployees} new employees onboarded` : ''}.${result.skippedSheets.length ? ` Skipped: ${result.skippedSheets.join(', ')}.` : ''}`,
             });
+
+            if (result.newEmployeeNames.length > 0) {
+                // Imports create an employee for any name that matches no one,
+                // so a typo becomes a duplicate. Name them so it can be merged.
+                toast({
+                    title: `${new Set(result.newEmployeeNames).size} new employee(s) created`,
+                    description: `${Array.from(new Set(result.newEmployeeNames)).join(', ')}. If any is a misspelling of an existing employee, combine them with Employees > Merge.`,
+                });
+            }
             onImportComplete?.();
         } catch (error: any) {
             toast({ title: 'Ledger Import Failed', description: error.message || 'Failed to import the confirmed sheets.', variant: 'destructive' });

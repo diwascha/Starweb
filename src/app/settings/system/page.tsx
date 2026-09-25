@@ -480,7 +480,13 @@ export default function SystemSettingsPage() {
   const handleRevoke = async (id: string) => {
     try {
         await revokeSession(id);
-        toast({ title: 'Session Revoked' });
+        // Revoking signs the app out on that device; the person's sign-in
+        // itself stays valid. Unapproving the account is what the security
+        // rules act on, so say so rather than imply access is gone.
+        toast({
+            title: 'Session Revoked',
+            description: 'That device is signed out of the app. To stop this person using the app at all, set their account to Pending in Access Control.',
+        });
     } catch {
         toast({ title: 'Error', variant: 'destructive' });
     }
