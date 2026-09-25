@@ -44,7 +44,8 @@ import {
   Home,
   Settings2,
   ShieldAlert,
-  Scale
+  Scale,
+  Palette,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -85,7 +86,7 @@ function ConnectionStatusIndicator() {
   const isConnected = useConnectionStatus();
 
   return (
-    <div className="flex items-center gap-1.5 text-[9px] font-bold shrink-0">
+    <div className="flex items-center gap-1.5 text-[0.5625rem] font-bold shrink-0">
       {isConnected ? (
         <>
           <span className="relative flex h-1.5 w-1.5">
@@ -368,7 +369,7 @@ export function AppSidebar() {
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees" className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Employees</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
 
                                 {(hrFeatureLocks.dataImportEnabled || hrFeatureLocks.attendanceLogsEnabled) && (
-                                    <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Attendance</SidebarGroupLabel>
+                                    <SidebarGroupLabel className="px-3 py-1 text-[0.5625rem] uppercase font-black opacity-50">Attendance</SidebarGroupLabel>
                                 )}
                                 {hrFeatureLocks.dataImportEnabled && (
                                     <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance/raw')}><Link href="/hr/attendance/raw" className="flex items-center gap-2"><Upload className="h-3.5 w-3.5" /><span>Data Import</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
@@ -378,7 +379,7 @@ export function AppSidebar() {
                                     <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance', true)}><Link href="/hr/attendance" className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /><span>Attendance Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 )}
 
-                                <SidebarGroupLabel className="px-3 py-1 text-[9px] uppercase font-black opacity-50">Financials</SidebarGroupLabel>
+                                <SidebarGroupLabel className="px-3 py-1 text-[0.5625rem] uppercase font-black opacity-50">Financials</SidebarGroupLabel>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll', true)}><Link href="/hr/payroll" className="flex items-center gap-2"><FileText className="h-4 w-4" /><span>Payroll</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 {hrFeatureLocks.benchmarkEnabled && (
                                     <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/benchmark')}><Link href="/hr/benchmark" className="flex items-center gap-2"><TrendingUp className="h-3.5 w-3.5" /><span>Performance Benchmark</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
@@ -412,7 +413,7 @@ export function AppSidebar() {
 
                             {hasPermission('fleet', 'create') && (
                                 <>
-                                    <SidebarGroupLabel className="px-5 py-2 text-[10px] uppercase text-muted-foreground font-bold">Data Entry</SidebarGroupLabel>
+                                    <SidebarGroupLabel className="px-5 py-2 text-[0.625rem] uppercase text-muted-foreground font-bold">Data Entry</SidebarGroupLabel>
                                     <SidebarMenuSub>
                                         <SidebarMenuSubItem>
                                             <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}><Link href="/fleet/trip-sheets/new" className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-600" /><span>Sales Entry</span></Link></SidebarMenuSubButton>
@@ -430,7 +431,7 @@ export function AppSidebar() {
                                 </>
                             )}
 
-                            <SidebarGroupLabel className="px-5 py-2 text-[10px] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
+                            <SidebarGroupLabel className="px-5 py-2 text-[0.625rem] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
                             <SidebarMenuSub>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/ledger')}><Link href="/fleet/transactions/ledger" className="flex items-center gap-2"><CreditCard className="h-4 w-4" /><span>Fleet Ledger</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/import')}><Link href="/fleet/import" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>Import from Excel</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
@@ -482,7 +483,9 @@ export function AppSidebar() {
             with no settings access still saw General, Finance and System in the
             nav. System is an administrator screen - it creates accounts and
             grants admin rights - so it is gated separately below. */}
-        {hasPermission('settings', 'view') && (
+        {/* Always shown: Appearance is a personal preference every user can
+            change. General and Finance below still need the settings permission. */}
+        {(
         <Collapsible asChild open={openSection === 'settings'} onOpenChange={(v: boolean) => setOpenSection(v ? 'settings' : null)} className="group/collapsible">
             <SidebarMenu>
                 <SidebarSeparator />
@@ -496,8 +499,13 @@ export function AppSidebar() {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                         <SidebarMenuSub>
+                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/appearance')}><Link href="/settings/appearance" className="flex items-center gap-2"><Palette className="h-4 w-4"/><span>Appearance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            {hasPermission('settings', 'view') && (
+                            <>
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/general')}><Link href="/settings/general" className="flex items-center gap-2"><Settings2 className="h-4 w-4"/><span>General</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/finance')}><Link href="/settings/finance" className="flex items-center gap-2"><Calculator className="h-4 w-4"/><span>Finance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            </>
+                            )}
                             {user?.isAdmin && (
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/system')}><Link href="/settings/system" className="flex items-center gap-2"><ShieldAlert className="h-4 w-4"/><span>System</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             )}

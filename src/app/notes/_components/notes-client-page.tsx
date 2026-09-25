@@ -393,7 +393,7 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                                 </TooltipTrigger>
                                 <TooltipContent className="max-w-[250px] space-y-1">
                                     <p className="font-bold flex items-center gap-1.5"><Info className="h-3 w-3" /> Maintenance Utility</p>
-                                    <p className="text-[10px] leading-tight">Deletes completed tasks, notes, and past reminders older than 14 days to keep your workspace optimized.</p>
+                                    <p className="text-[0.625rem] leading-tight">Deletes completed tasks, notes, and past reminders older than 14 days to keep your workspace optimized.</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>

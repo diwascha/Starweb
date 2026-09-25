@@ -145,7 +145,7 @@ const FilterSelect = ({ label, options, selected, onChange }: {
         <Button
           variant={selected.length > 0 ? 'default' : 'outline'}
           size="sm"
-          className="h-9 text-[10px] font-black uppercase tracking-widest gap-1.5"
+          className="h-9 text-[0.625rem] font-black uppercase tracking-widest gap-1.5"
           disabled={options.length === 0}
           title={options.length === 0 ? `No ${label.toLowerCase()} values in the catalog yet` : undefined}
         >
@@ -171,7 +171,7 @@ const FilterSelect = ({ label, options, selected, onChange }: {
         </ScrollArea>
         {selected.length > 0 && (
           <div className="border-t p-1">
-            <Button variant="ghost" size="sm" className="w-full h-7 text-[10px] font-bold uppercase" onClick={() => onChange([])}>
+            <Button variant="ghost" size="sm" className="w-full h-7 text-[0.625rem] font-bold uppercase" onClick={() => onChange([])}>
               Clear {label}
             </Button>
           </div>
@@ -650,7 +650,7 @@ export default function PackSpecPage() {
         <div className="flex flex-wrap items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-9 font-bold text-[11px] uppercase tracking-widest gap-2">
+              <Button variant="outline" className="h-9 font-bold text-[0.6875rem] uppercase tracking-widest gap-2">
                 <FileSpreadsheet className="h-4 w-4" /> Catalog <ChevronDown className="h-3 w-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
@@ -665,7 +665,7 @@ export default function PackSpecPage() {
           </DropdownMenu>
           <input type="file" ref={importFileInputRef} onChange={handleImportExcel} accept=".xlsx,.xls" className="hidden" />
           {hasPermission('crm', 'add') && (
-            <Button onClick={() => { setProductToEdit(null); setIsProductEditorOpen(true); }} className="h-9 font-black text-[11px] uppercase tracking-widest shadow-lg shadow-primary/20 px-5">
+            <Button onClick={() => { setProductToEdit(null); setIsProductEditorOpen(true); }} className="h-9 font-black text-[0.6875rem] uppercase tracking-widest shadow-lg shadow-primary/20 px-5">
               <Plus className="mr-1.5 h-4 w-4" /> Add Product
             </Button>
           )}
@@ -687,7 +687,7 @@ export default function PackSpecPage() {
               <s.icon className={cn('h-4 w-4 shrink-0 opacity-40', s.tone)} />
               <div className="min-w-0">
                 <div className={cn('text-xl font-black tabular-nums leading-none', s.tone)}>{s.value}</div>
-                <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1 truncate">{s.label}</div>
+                <div className="text-[0.5625rem] font-black uppercase tracking-widest text-muted-foreground mt-1 truncate">{s.label}</div>
               </div>
             </CardContent>
           </Card>
@@ -719,7 +719,7 @@ export default function PackSpecPage() {
                 variant={onlyIncomplete ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => { setOnlyIncomplete(v => !v); setCurrentPage(1); }}
-                className="h-9 text-[10px] font-black uppercase tracking-widest"
+                className="h-9 text-[0.625rem] font-black uppercase tracking-widest"
                 title="Show only products missing dimensions or ply"
               >
                 Incomplete
@@ -731,12 +731,12 @@ export default function PackSpecPage() {
               list is short - the old UI gave no feedback that a filter was on. */}
           {activeChips.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t">
-              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mr-1">Filtering</span>
+              <span className="text-[0.5625rem] font-black uppercase tracking-widest text-muted-foreground mr-1">Filtering</span>
               {activeChips.map(chip => (
                 <button
                   key={`${chip.group}-${chip.value}`}
                   onClick={chip.remove}
-                  className="inline-flex items-center gap-1 h-6 px-2 rounded-full border bg-primary/5 border-primary/20 text-[10px] font-bold hover:bg-primary/10 transition-colors"
+                  className="inline-flex items-center gap-1 h-6 px-2 rounded-full border bg-primary/5 border-primary/20 text-[0.625rem] font-bold hover:bg-primary/10 transition-colors"
                   title="Remove this filter"
                 >
                   <span className="text-muted-foreground">{chip.group}:</span>
@@ -744,7 +744,7 @@ export default function PackSpecPage() {
                   <X className="h-3 w-3 opacity-50" />
                 </button>
               ))}
-              <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-6 px-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+              <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-6 px-2 text-[0.5625rem] font-black uppercase tracking-widest text-muted-foreground">
                 Clear all
               </Button>
             </div>
@@ -774,7 +774,7 @@ export default function PackSpecPage() {
                     <SortableHead label="Ply" sortKey="ply" sortConfig={sortConfig} onSort={handleSort} align="center" />
                     <SortableHead label="Board" sortKey="paperType" sortConfig={sortConfig} onSort={handleSort} align="center" />
                     <SortableHead label="GSM" sortKey="gsm" sortConfig={sortConfig} onSort={handleSort} align="center" />
-                    <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest">Actions</TableHead>
+                    <TableHead className="text-right pr-6 font-black uppercase text-[0.625rem] tracking-widest">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -790,7 +790,7 @@ export default function PackSpecPage() {
                     return (
                     <TableRow key={product.id} className={cn('hover:bg-muted/30 group h-14 border-b transition-colors', incomplete && 'bg-amber-50/30')}>
                         <TableCell className="pl-6">
-                            <Badge variant="outline" className="font-mono text-[10px] bg-card border-border text-muted-foreground px-1.5">{product.materialCode || 'N/A'}</Badge>
+                            <Badge variant="outline" className="font-mono text-[0.625rem] bg-card border-border text-muted-foreground px-1.5">{product.materialCode || 'N/A'}</Badge>
                         </TableCell>
                         <TableCell className="font-black text-foreground uppercase tracking-tighter">
                             <span className="inline-flex items-center gap-1.5">
@@ -803,12 +803,12 @@ export default function PackSpecPage() {
                         <TableCell className="text-center font-mono text-xs text-muted-foreground">{spec.dimension || 'N/A'}</TableCell>
                         <TableCell className="text-center">
                             {spec.ply ? (
-                                <Badge variant="secondary" className="text-[9px] font-black uppercase h-5 px-2 bg-blue-50 text-blue-700 border-blue-100">{spec.ply} Ply</Badge>
+                                <Badge variant="secondary" className="text-[0.5625rem] font-black uppercase h-5 px-2 bg-blue-50 text-blue-700 border-blue-100">{spec.ply} Ply</Badge>
                             ) : (
                                 <span className="text-muted-foreground text-xs opacity-30">—</span>
                             )}
                         </TableCell>
-                        <TableCell className="text-center text-[11px] text-muted-foreground">
+                        <TableCell className="text-center text-[0.6875rem] text-muted-foreground">
                             {spec.paperType ? (
                                 <span className="font-bold">{spec.paperType}{spec.paperBf ? ` ${spec.paperBf}` : ''}</span>
                             ) : <span className="opacity-30">—</span>}
@@ -819,7 +819,7 @@ export default function PackSpecPage() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-[9px] font-black uppercase tracking-widest opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity border-border"
+                                    className="h-8 text-[0.5625rem] font-black uppercase tracking-widest opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity border-border"
                                     onClick={() => handleViewSpec(product)}
                                 >
                                     <FileText className="mr-1.5 h-3.5 w-3.5 text-primary" /> Technical Sheet
@@ -872,7 +872,7 @@ export default function PackSpecPage() {
                                         {incomplete && <span className="text-amber-500 mr-1">&#9888;</span>}
                                         {product.name}
                                     </div>
-                                    <div className="text-[11px] text-muted-foreground uppercase font-bold truncate">{product.partyName || 'Unassigned Client'}</div>
+                                    <div className="text-[0.6875rem] text-muted-foreground uppercase font-bold truncate">{product.partyName || 'Unassigned Client'}</div>
                                 </div>
                                 <ProductRowMenu
                                     product={product}
@@ -885,16 +885,16 @@ export default function PackSpecPage() {
                                 />
                             </div>
                             <div className="flex flex-wrap gap-1.5">
-                                <Badge variant="outline" className="font-mono text-[9px] px-1.5">{product.materialCode || 'No code'}</Badge>
-                                {spec.boxType && <Badge variant="outline" className="text-[9px] px-1.5">{spec.boxType}</Badge>}
-                                {spec.ply && <Badge variant="secondary" className="text-[9px] px-1.5 bg-blue-50 text-blue-700 border-blue-100">{spec.ply} Ply</Badge>}
-                                {spec.paperType && <Badge variant="outline" className="text-[9px] px-1.5">{spec.paperType}{spec.paperBf ? ` ${spec.paperBf}` : ''}</Badge>}
+                                <Badge variant="outline" className="font-mono text-[0.5625rem] px-1.5">{product.materialCode || 'No code'}</Badge>
+                                {spec.boxType && <Badge variant="outline" className="text-[0.5625rem] px-1.5">{spec.boxType}</Badge>}
+                                {spec.ply && <Badge variant="secondary" className="text-[0.5625rem] px-1.5 bg-blue-50 text-blue-700 border-blue-100">{spec.ply} Ply</Badge>}
+                                {spec.paperType && <Badge variant="outline" className="text-[0.5625rem] px-1.5">{spec.paperType}{spec.paperBf ? ` ${spec.paperBf}` : ''}</Badge>}
                             </div>
-                            <div className="flex items-center justify-between gap-2 text-[11px] pt-1 border-t">
+                            <div className="flex items-center justify-between gap-2 text-[0.6875rem] pt-1 border-t">
                                 <span className="font-mono text-muted-foreground">{spec.dimension || 'No dimensions'}</span>
                                 <span className="font-mono text-muted-foreground tabular-nums">{spec.gsm ? `${spec.gsm} gsm` : ''}</span>
                             </div>
-                            <Button variant="outline" size="sm" className="w-full h-8 text-[9px] font-black uppercase tracking-widest" onClick={() => handleViewSpec(product)}>
+                            <Button variant="outline" size="sm" className="w-full h-8 text-[0.5625rem] font-black uppercase tracking-widest" onClick={() => handleViewSpec(product)}>
                                 <FileText className="mr-1.5 h-3.5 w-3.5 text-primary" /> Technical Sheet
                             </Button>
                         </CardContent>
@@ -913,7 +913,7 @@ export default function PackSpecPage() {
 
         {(totalPages > 1 || itemsPerPage !== -1) && (
             <CardFooter className="flex flex-col sm:flex-row items-center justify-between py-3 border-t bg-muted/5 px-4 sm:px-6 gap-3">
-                <div className="text-[11px] text-muted-foreground font-bold uppercase tracking-tight">
+                <div className="text-[0.6875rem] text-muted-foreground font-bold uppercase tracking-tight">
                     {itemsPerPage === -1 ? (
                         <>Showing all <span className="font-black text-foreground">{filteredProducts.length}</span> products</>
                     ) : (
@@ -929,7 +929,7 @@ export default function PackSpecPage() {
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">Rows:</span>
+                        <span className="text-[0.625rem] font-black uppercase text-muted-foreground whitespace-nowrap">Rows:</span>
                         <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(parseInt(v)); setCurrentPage(1); }}>
                             <SelectTrigger className="h-8 w-[75px] bg-card border-border text-xs font-bold"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -945,7 +945,7 @@ export default function PackSpecPage() {
                             <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
                                 <ChevronLeft className="h-4 w-4"/>
                             </Button>
-                            <span className="text-[11px] font-bold px-2 tabular-nums">{currentPage} / {totalPages}</span>
+                            <span className="text-[0.6875rem] font-bold px-2 tabular-nums">{currentPage} / {totalPages}</span>
                             <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
                                 <ChevronRight className="h-4 w-4"/>
                             </Button>
@@ -1013,15 +1013,15 @@ export default function PackSpecPage() {
                 <div ref={printableRef} className="printable-area mx-auto px-10 py-8 bg-card text-foreground font-sans shadow-2xl ring-1 ring-black/5" style={{ width: '210mm', minHeight: '297mm' }}>
                 <header className="text-center mb-5 border-b-2 border-neutral-900 pb-3">
                     <h1 className="text-lg font-black uppercase tracking-tight">{companyProfile.nameEn}</h1>
-                    {companyProfile.nameNp && <h2 className="text-[13px] font-semibold text-neutral-700">{companyProfile.nameNp}</h2>}
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{companyProfile.address}</p>
+                    {companyProfile.nameNp && <h2 className="text-[0.8125rem] font-semibold text-neutral-700">{companyProfile.nameNp}</h2>}
+                    <p className="text-[0.625rem] font-bold uppercase tracking-widest text-muted-foreground">{companyProfile.address}</p>
                     <h2 className="text-xs font-black mt-3 uppercase tracking-[0.2em]">Technical Data Sheet</h2>
                 </header>
 
                 {/* One flat field/value list rather than a grid of cards - it
                     fits a fraction of the space, reads top to bottom, and is
                     the same shape as the Excel export. */}
-                <table className="w-full text-[11px] border-collapse">
+                <table className="w-full text-[0.6875rem] border-collapse">
                     <tbody>
                         {specRows.map((row, i) => {
                             const isNewSection = i === 0 || specRows[i - 1].section !== row.section;
@@ -1029,13 +1029,13 @@ export default function PackSpecPage() {
                                 <React.Fragment key={`${row.section}-${row.label}`}>
                                     {isNewSection && (
                                         <tr>
-                                            <td colSpan={2} className="pt-3 pb-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b border-border">
+                                            <td colSpan={2} className="pt-3 pb-1 text-[0.5625rem] font-black uppercase tracking-widest text-muted-foreground border-b border-border">
                                                 {row.section}
                                             </td>
                                         </tr>
                                     )}
                                     <tr className="border-b border-neutral-100">
-                                        <td className="py-1 pr-4 w-[45%] font-bold uppercase text-[10px] text-muted-foreground align-top">{row.label}</td>
+                                        <td className="py-1 pr-4 w-[45%] font-bold uppercase text-[0.625rem] text-muted-foreground align-top">{row.label}</td>
                                         <td className="py-1 font-bold text-foreground break-words">{row.value}</td>
                                     </tr>
                                 </React.Fragment>
@@ -1044,7 +1044,7 @@ export default function PackSpecPage() {
                     </tbody>
                 </table>
 
-                <div className="mt-8 pt-4 border-t border-dashed border-border flex justify-between text-[9px] text-muted-foreground uppercase tracking-widest font-black">
+                <div className="mt-8 pt-4 border-t border-dashed border-border flex justify-between text-[0.5625rem] text-muted-foreground uppercase tracking-widest font-black">
                     <span>End of Technical Data Sheet</span>
                     <span>{format(new Date(), 'dd MMM yyyy')}</span>
                 </div>

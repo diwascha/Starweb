@@ -76,7 +76,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
 
     return (
         <div className="space-y-1.5 flex-1 min-w-[150px]">
-            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
@@ -333,7 +333,7 @@ export function ExpensesView() {
                 <MultiSelect label="Mode" values={filterPaymentModes} onSelect={setFilterPaymentModes} items={[{ id: 'Cash', name: 'Cash' }, { id: 'Bank', name: 'Bank' }, { id: 'Mixed', name: 'Mixed' }]} placeholder="Mode" icon={Wallet} />
 
                 <div className="space-y-1.5 w-full md:w-[180px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
+                    <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">AD Range</Label>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
@@ -359,9 +359,9 @@ export function ExpensesView() {
                                 <SortableHead label="Vehicle" active={sortConfig.key === 'vehicle'} onClick={() => requestSort('vehicle')} />
                                 <SortableHead label="Type" active={sortConfig.key === 'expenseType'} onClick={() => requestSort('expenseType')} />
                                 <SortableHead label="Settlement" active={sortConfig.key === 'paymentMode'} onClick={() => requestSort('paymentMode')} />
-                                <TableHead className="text-[11px] font-black uppercase tracking-wider">Payee / Detail</TableHead>
+                                <TableHead className="text-[0.6875rem] font-black uppercase tracking-wider">Payee / Detail</TableHead>
                                 <SortableHead label="Total NPR" align="right" active={sortConfig.key === 'amount'} onClick={() => requestSort('amount')} />
-                                <TableHead className="text-right pr-6 text-[11px] font-black uppercase tracking-wider">Actions</TableHead>
+                                <TableHead className="text-right pr-6 text-[0.6875rem] font-black uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -369,13 +369,13 @@ export function ExpensesView() {
                                 <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                             ) : paginatedExpenses.map((e: Expense) => (
                                 <TableRow key={e.id} className="hover:bg-muted/30 h-14">
-                                    <TableCell className="pl-6 font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
-                                    <TableCell className="font-mono text-[11px] font-bold text-blue-600">{e.voucherNo}</TableCell>
-                                    <TableCell><span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">{vehiclesById.get(e.vehicleId) || 'N/A'}</span></TableCell>
-                                    <TableCell><Badge variant="outline" className={cn("text-[9px] uppercase font-bold", e.expenseType === 'Maintenance' && "bg-amber-50 text-amber-700", e.expenseType === 'Advance' && "bg-emerald-50 text-emerald-700", e.expenseType === 'Loan Repayment' && "bg-orange-50 text-orange-700", e.expenseType === 'Fuel' && "bg-yellow-50 text-yellow-700", e.expenseType === 'Insurance' && "bg-purple-50 text-purple-700", e.expenseType === 'Tax/Renewal' && "bg-cyan-50 text-cyan-700", e.expenseType === 'Transport' && "bg-teal-50 text-teal-700", e.expenseType === 'Other' && "bg-slate-50 text-slate-700")}>{e.expenseType}</Badge></TableCell>
-                                    <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold bg-muted/50 border-none">{e.paymentMode}</Badge></TableCell>
-                                    <TableCell className="py-3"><div className="flex flex-col"><span className="text-[11px] font-semibold text-gray-900">{e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}</span>{e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}</div></TableCell>
-                                    <TableCell className="text-right font-black text-red-600 text-[11px] tabular-nums">Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="pl-6 font-medium text-[0.6875rem] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
+                                    <TableCell className="font-mono text-[0.6875rem] font-bold text-blue-600">{e.voucherNo}</TableCell>
+                                    <TableCell><span className="text-[0.6875rem] font-bold text-blue-900 uppercase tracking-tight">{vehiclesById.get(e.vehicleId) || 'N/A'}</span></TableCell>
+                                    <TableCell><Badge variant="outline" className={cn("text-[0.5625rem] uppercase font-bold", e.expenseType === 'Maintenance' && "bg-amber-50 text-amber-700", e.expenseType === 'Advance' && "bg-emerald-50 text-emerald-700", e.expenseType === 'Loan Repayment' && "bg-orange-50 text-orange-700", e.expenseType === 'Fuel' && "bg-yellow-50 text-yellow-700", e.expenseType === 'Insurance' && "bg-purple-50 text-purple-700", e.expenseType === 'Tax/Renewal' && "bg-cyan-50 text-cyan-700", e.expenseType === 'Transport' && "bg-teal-50 text-teal-700", e.expenseType === 'Other' && "bg-slate-50 text-slate-700")}>{e.expenseType}</Badge></TableCell>
+                                    <TableCell><Badge variant="outline" className="text-[0.5625rem] uppercase font-bold bg-muted/50 border-none">{e.paymentMode}</Badge></TableCell>
+                                    <TableCell className="py-3"><div className="flex flex-col"><span className="text-[0.6875rem] font-semibold text-gray-900">{e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}</span>{e.remarks && <span className="text-[0.5625rem] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}</div></TableCell>
+                                    <TableCell className="text-right font-black text-red-600 text-[0.6875rem] tabular-nums">Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right pr-6">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

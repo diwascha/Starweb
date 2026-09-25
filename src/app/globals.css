@@ -120,6 +120,11 @@
    voucher printed white-on-black is not a usable business record.
    --------------------------------------------------------------------------- */
 @media print {
+  /* A personal text-size choice (Settings > Appearance) must not change the
+     layout of printed payslips, vouchers and reports. */
+  html {
+    font-size: 16px !important;
+  }
   :root, .dark, .paper {
     --background: 0 0% 100%;
     --foreground: 0 0% 0%;

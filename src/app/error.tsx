@@ -39,7 +39,7 @@ export default function GlobalError({
           <p className="text-muted-foreground text-sm">A client-side error caused this page to stop working.</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-3 bg-muted rounded text-[10px] font-mono overflow-auto max-h-32 border">
+          <div className="p-3 bg-muted rounded text-[0.625rem] font-mono overflow-auto max-h-32 border">
             {error?.name || 'Error'}: {error?.message || 'The application encountered an unexpected state.'}
             {error?.digest && <p className="mt-2 opacity-50">Log Reference: {error.digest}</p>}
           </div>

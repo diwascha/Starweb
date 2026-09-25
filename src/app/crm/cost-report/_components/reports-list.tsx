@@ -103,7 +103,7 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
             'Expired': 'bg-amber-50 text-amber-700 border-amber-200'
         };
         return (
-            <Badge variant="outline" className={cn("text-[8px] font-black uppercase tracking-widest px-1.5 h-4 shadow-none", variants[status || 'Draft'])}>
+            <Badge variant="outline" className={cn("text-[0.5rem] font-black uppercase tracking-widest px-1.5 h-4 shadow-none", variants[status || 'Draft'])}>
                 {status || 'Draft'}
             </Badge>
         );
@@ -174,7 +174,7 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
                                 variant="ghost" 
                                 size="sm" 
                                 onClick={() => { setFilterPartyId('All'); setFilterStatus('All'); setDateRange(undefined); setSearchQuery(''); setCurrentPage(1); }} 
-                                className="h-8 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
+                                className="h-8 px-2 text-[0.625rem] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
                             >
                                 <FilterX className="h-3.5 w-3.5" />
                             </Button>
@@ -186,11 +186,11 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
                 <Table>
                     <TableHeader className="bg-muted/50">
                         <TableRow className="hover:bg-transparent h-10">
-                            <TableHead className="pl-6 font-bold uppercase text-[9px] tracking-widest">Ref #</TableHead>
-                            <TableHead className="font-bold uppercase text-[9px] tracking-widest">Date (BS)</TableHead>
-                            <TableHead className="font-bold uppercase text-[9px] tracking-widest">Client Name</TableHead>
-                            <TableHead className="text-center font-bold uppercase text-[9px] tracking-widest">Status</TableHead>
-                            <TableHead className="text-right pr-6 font-bold uppercase text-[9px] tracking-widest">Actions</TableHead>
+                            <TableHead className="pl-6 font-bold uppercase text-[0.5625rem] tracking-widest">Ref #</TableHead>
+                            <TableHead className="font-bold uppercase text-[0.5625rem] tracking-widest">Date (BS)</TableHead>
+                            <TableHead className="font-bold uppercase text-[0.5625rem] tracking-widest">Client Name</TableHead>
+                            <TableHead className="text-center font-bold uppercase text-[0.5625rem] tracking-widest">Status</TableHead>
+                            <TableHead className="text-right pr-6 font-bold uppercase text-[0.5625rem] tracking-widest">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -210,7 +210,7 @@ export function SavedReportsList({ onEdit, onPreview, onDelete }: SavedReportsLi
                                             <DropdownMenuItem onSelect={() => onEdit(r)}><Edit className="mr-2 h-4 w-4"/> Edit Specs</DropdownMenuItem>
                                             
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuLabel className="text-[9px] uppercase font-black px-2 py-1 text-muted-foreground">Lifecycle State</DropdownMenuLabel>
+                                            <DropdownMenuLabel className="text-[0.5625rem] uppercase font-black px-2 py-1 text-muted-foreground">Lifecycle State</DropdownMenuLabel>
                                             {(['Draft', 'Sent', 'Accepted', 'Rejected', 'Expired'] as QuotationStatus[]).filter(s => s !== r.status).map(s => (
                                                 <DropdownMenuItem key={s} onSelect={() => updateQuotationStatus(r.id, s, user?.username || 'Admin')}>{s}</DropdownMenuItem>
                                             ))}

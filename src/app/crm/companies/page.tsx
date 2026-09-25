@@ -373,7 +373,7 @@ export default function CompaniesManagementPage() {
             'Past Client': 'bg-muted text-foreground border-border'
         };
         return (
-            <Badge variant="outline" className={cn("text-[8px] font-black uppercase tracking-widest px-1.5 h-4 shadow-none", variants[classification])}>
+            <Badge variant="outline" className={cn("text-[0.5rem] font-black uppercase tracking-widest px-1.5 h-4 shadow-none", variants[classification])}>
                 {classification}
             </Badge>
         );
@@ -440,12 +440,12 @@ export default function CompaniesManagementPage() {
                         <TableHeader className="bg-muted/50">
                             <TableRow className="hover:bg-transparent">
                                 <TableHead className="w-10 pl-4"></TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Company</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Primary Contact</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11 text-center">People</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Classification</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest h-11">Ownership</TableHead>
-                                <TableHead className="text-right pr-6 font-black uppercase text-[10px] tracking-widest h-11">Actions</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-widest h-11">Company</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-widest h-11">Primary Contact</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-widest h-11 text-center">People</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-widest h-11">Classification</TableHead>
+                                <TableHead className="font-black uppercase text-[0.625rem] tracking-widest h-11">Ownership</TableHead>
+                                <TableHead className="text-right pr-6 font-black uppercase text-[0.625rem] tracking-widest h-11">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -474,7 +474,7 @@ export default function CompaniesManagementPage() {
                                         <TableCell>
                                             <div className="flex flex-col">
                                                 <span className="font-black text-foreground leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{c.name}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                                                <span className="text-[0.625rem] text-muted-foreground uppercase flex items-center gap-1">
                                                     <MapPin className="h-2.5 w-2.5 text-primary opacity-50"/> {c.address || 'Location unassigned'}
                                                 </span>
                                             </div>
@@ -487,25 +487,25 @@ export default function CompaniesManagementPage() {
                                                     </div>
                                                     <div className="flex flex-col min-w-0">
                                                         <span className="text-xs font-black text-foreground uppercase tracking-tighter truncate">{primary.name}</span>
-                                                        <span className="text-[9px] uppercase font-bold text-muted-foreground truncate">{primary.phone || primary.designation || 'Staff'}</span>
+                                                        <span className="text-[0.5625rem] uppercase font-bold text-muted-foreground truncate">{primary.phone || primary.designation || 'Staff'}</span>
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <span className="text-[10px] text-muted-foreground italic font-medium uppercase opacity-50">No contacts defined</span>
+                                                <span className="text-[0.625rem] text-muted-foreground italic font-medium uppercase opacity-50">No contacts defined</span>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            <Badge variant="outline" className="text-[9px] font-black tabular-nums h-5 px-2">
+                                            <Badge variant="outline" className="text-[0.5625rem] font-black tabular-nums h-5 px-2">
                                                 {companyContacts.length}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
                                             {getClassificationBadge(c.classification) || (
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-30">Unset</span>
+                                                <span className="text-[0.5625rem] font-black uppercase tracking-widest text-muted-foreground opacity-30">Unset</span>
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.15em] bg-blue-50 border-blue-100 text-blue-700 px-2 h-5">
+                                            <Badge variant="outline" className="text-[0.5rem] font-black uppercase tracking-[0.15em] bg-blue-50 border-blue-100 text-blue-700 px-2 h-5">
                                                 {c.ownership}
                                             </Badge>
                                         </TableCell>
@@ -514,7 +514,7 @@ export default function CompaniesManagementPage() {
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-8 text-[9px] font-black uppercase tracking-widest"
+                                                    className="h-8 text-[0.5625rem] font-black uppercase tracking-widest"
                                                     onClick={() => { setSelectedCompany(c); openAddContact(); }}
                                                 >
                                                     <Plus className="mr-1 h-3.5 w-3.5" /> Contact
@@ -560,7 +560,7 @@ export default function CompaniesManagementPage() {
                                                             { label: 'Client Score', value: c.customFields?.clientScore },
                                                         ].map(f => (
                                                             <div key={f.label}>
-                                                                <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{f.label}</div>
+                                                                <div className="text-[0.5625rem] font-black uppercase tracking-widest text-muted-foreground">{f.label}</div>
                                                                 <div className="text-xs font-bold text-foreground break-words">{f.value || <span className="opacity-30">—</span>}</div>
                                                             </div>
                                                         ))}
@@ -568,13 +568,13 @@ export default function CompaniesManagementPage() {
 
                                                     <div>
                                                         <div className="flex items-center justify-between mb-2">
-                                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                                                            <h4 className="text-[0.625rem] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                                                                 <Users className="h-3.5 w-3.5 text-primary" /> Contacts ({companyContacts.length})
                                                             </h4>
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
-                                                                className="h-7 text-[9px] font-black uppercase tracking-widest"
+                                                                className="h-7 text-[0.5625rem] font-black uppercase tracking-widest"
                                                                 onClick={() => { setSelectedCompany(c); openAddContact(); }}
                                                             >
                                                                 <Plus className="mr-1 h-3 w-3" /> Add Person
@@ -583,30 +583,30 @@ export default function CompaniesManagementPage() {
 
                                                         {companyContacts.length === 0 ? (
                                                             <div className="border border-dashed rounded-lg py-6 text-center">
-                                                                <p className="text-[10px] text-muted-foreground italic font-medium uppercase tracking-widest">No people recorded for this company.</p>
+                                                                <p className="text-[0.625rem] text-muted-foreground italic font-medium uppercase tracking-widest">No people recorded for this company.</p>
                                                             </div>
                                                         ) : (
                                                             <div className="border rounded-lg divide-y bg-card overflow-hidden">
                                                                 {companyContacts.map((ct: CRMContact) => (
                                                                     <div key={ct.id} className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 py-2 hover:bg-muted/20 transition-colors">
                                                                         <div className="flex items-center gap-2 min-w-0 sm:w-56 shrink-0">
-                                                                            <div className="h-7 w-7 rounded-lg bg-primary/5 border border-primary/10 flex items-center justify-center font-black text-[10px] text-primary shrink-0">
+                                                                            <div className="h-7 w-7 rounded-lg bg-primary/5 border border-primary/10 flex items-center justify-center font-black text-[0.625rem] text-primary shrink-0">
                                                                                 {ct.name.charAt(0)}
                                                                             </div>
                                                                             <div className="min-w-0">
                                                                                 <div className="text-xs font-black text-foreground uppercase tracking-tight truncate flex items-center gap-1.5">
                                                                                     {ct.name}
-                                                                                    {ct.isPrimary && <Badge variant="outline" className="text-[7px] h-3.5 px-1 font-black uppercase bg-primary/5 border-primary/20 text-primary">Primary</Badge>}
+                                                                                    {ct.isPrimary && <Badge variant="outline" className="text-[0.4375rem] h-3.5 px-1 font-black uppercase bg-primary/5 border-primary/20 text-primary">Primary</Badge>}
                                                                                 </div>
-                                                                                <div className="text-[9px] uppercase font-bold text-muted-foreground truncate">{ct.designation || 'Staff'}</div>
+                                                                                <div className="text-[0.5625rem] uppercase font-bold text-muted-foreground truncate">{ct.designation || 'Staff'}</div>
                                                                             </div>
                                                                         </div>
                                                                         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 min-w-0">
-                                                                            <div className="text-[11px] text-foreground truncate flex items-center gap-1.5">
+                                                                            <div className="text-[0.6875rem] text-foreground truncate flex items-center gap-1.5">
                                                                                 <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
                                                                                 {ct.phone ? <a href={`tel:${ct.phone}`} className="hover:underline">{ct.phone}</a> : <span className="opacity-30">—</span>}
                                                                             </div>
-                                                                            <div className="text-[11px] text-foreground truncate flex items-center gap-1.5">
+                                                                            <div className="text-[0.6875rem] text-foreground truncate flex items-center gap-1.5">
                                                                                 <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
                                                                                 {ct.email ? <a href={`mailto:${ct.email}`} className="hover:underline truncate">{ct.email}</a> : <span className="opacity-30">—</span>}
                                                                             </div>
@@ -683,7 +683,7 @@ export default function CompaniesManagementPage() {
                     </DialogHeader>
                     <div className="space-y-6 py-4">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Source Account (TO BE DELETED)</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Source Account (TO BE DELETED)</Label>
                             <Select value={mergeSourceId} onValueChange={setMergeSourceId}>
                                 <SelectTrigger className="h-10 bg-card">
                                     <SelectValue placeholder="Select account to remove..." />
@@ -701,7 +701,7 @@ export default function CompaniesManagementPage() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Destination Account (TO KEEP)</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Destination Account (TO KEEP)</Label>
                             <Select value={mergeDestId} onValueChange={setMergeDestId}>
                                 <SelectTrigger className="h-10 bg-card">
                                     <SelectValue placeholder="Select account to keep..." />
@@ -736,7 +736,7 @@ export default function CompaniesManagementPage() {
                     </DialogHeader>
                     <div className="space-y-5 py-4">
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Client Score</Label>
+                            <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Client Score</Label>
                             <Select value={attributesForm.clientScore} onValueChange={v => setAttributesForm({...attributesForm, clientScore: v})}>
                                 <SelectTrigger className="h-10 bg-card">
                                     <SelectValue placeholder="Select score category..." />
@@ -750,11 +750,11 @@ export default function CompaniesManagementPage() {
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Key Success Factor</Label>
+                            <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Key Success Factor</Label>
                             <Input value={attributesForm.successFactor} onChange={e => setAttributesForm({...attributesForm, successFactor: e.target.value})} placeholder="e.g. On-time delivery" className="h-10" />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Assigned Account Mgr</Label>
+                            <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Assigned Account Mgr</Label>
                             <Input value={attributesForm.accountMgr} onChange={e => setAttributesForm({...attributesForm, accountMgr: e.target.value})} placeholder="Manager Name" className="h-10" />
                         </div>
                     </div>
@@ -774,12 +774,12 @@ export default function CompaniesManagementPage() {
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Full Name</Label>
+                            <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Full Name</Label>
                             <Input value={contactForm.name} onChange={e => setContactForm({...contactForm, name: e.target.value})} className="h-10 font-bold" placeholder="e.g. John Doe" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Designation</Label>
+                                <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Designation</Label>
                                 <Input value={contactForm.designation} onChange={e => setContactForm({...contactForm, designation: e.target.value})} placeholder="e.g. Purchase Head" className="h-9" />
                             </div>
                             <div className="space-y-1.5 flex flex-col justify-end">
@@ -791,11 +791,11 @@ export default function CompaniesManagementPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-2">
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Email Address</Label>
+                                <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Email Address</Label>
                                 <Input value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} placeholder="office@client.com" className="h-9" />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Direct Line</Label>
+                                <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Direct Line</Label>
                                 <Input value={contactForm.phone} onChange={e => setContactForm({...contactForm, phone: e.target.value})} placeholder="+977-..." className="h-9" />
                             </div>
                         </div>

@@ -157,7 +157,7 @@ const ChequeSplitRow = React.memo(
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">
+              <DropdownMenuLabel className="text-[0.625rem] uppercase font-black tracking-widest text-muted-foreground">
                 Voucher #{split.parentCheque.voucherNo}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -672,7 +672,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
   };
 
   const sortButton = (key: SortKey, label: string) => (
-    <Button variant="ghost" onClick={() => requestSort(key)} className="-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider">
+    <Button variant="ghost" onClick={() => requestSort(key)} className="-ml-4 h-8 px-2 text-[0.6875rem] font-black uppercase tracking-wider">
       {label}
       <ArrowUpDown className={cn('ml-1.5 h-3 w-3', sortConfig.key === key ? 'text-primary opacity-100' : 'opacity-30')} />
     </Button>
@@ -755,7 +755,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 variant="ghost"
                 size="sm"
                 onClick={handleClearFilters}
-                className="h-9 px-2 text-[10px] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
+                className="h-9 px-2 text-[0.625rem] font-bold uppercase tracking-tight text-muted-foreground hover:text-foreground"
               >
                 <FilterX className="mr-1.5 h-3.5 w-3.5" /> Clear
               </Button>
@@ -765,19 +765,19 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table className="text-[13px]">
+            <Table className="text-[0.8125rem]">
               <TableHeader className="bg-muted/50 border-b">
                 <TableRow className="hover:bg-transparent h-11">
                   <TableHead className="w-[140px] font-bold text-foreground">{sortButton('chequeDate', 'Date')}</TableHead>
                   <TableHead className="font-bold text-foreground">{sortButton('payeeName', 'Payee')}</TableHead>
                   <TableHead className="font-bold text-foreground">{sortButton('chequeNumber', 'Cheque #')}</TableHead>
                   <TableHead className="font-bold text-foreground">{sortButton('amount', 'Amount')}</TableHead>
-                  <TableHead className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">Balance</TableHead>
+                  <TableHead className="text-[0.6875rem] font-black uppercase tracking-wider text-muted-foreground">Balance</TableHead>
                   <TableHead className="text-center font-bold text-foreground">
                     <Button
                       variant="ghost"
                       onClick={() => requestSort('dueStatus')}
-                      className="h-8 px-2 text-[11px] font-black uppercase tracking-wider"
+                      className="h-8 px-2 text-[0.6875rem] font-black uppercase tracking-wider"
                     >
                       Status
                       <ArrowUpDown
@@ -785,7 +785,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                       />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-right pr-6 text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                  <TableHead className="text-right pr-6 text-[0.6875rem] font-black uppercase tracking-wider text-muted-foreground">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -938,11 +938,11 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
           <div className="flex-1 overflow-hidden flex flex-col">
             <div className="p-6 border-b bg-muted/5 space-y-4">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">New settlement entry</h4>
+              <h4 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-primary">New settlement entry</h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold uppercase text-muted-foreground">Payment date</Label>
+                  <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Payment date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left font-normal h-9 bg-card text-xs px-3">
@@ -959,7 +959,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold uppercase text-muted-foreground">Amount (रु)</Label>
+                  <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Amount (रु)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -972,7 +972,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold uppercase text-muted-foreground">Note / remark</Label>
+                  <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Note / remark</Label>
                   <Input
                     value={newPaymentRemark}
                     onChange={(e) => setNewPaymentRemark(e.target.value)}
@@ -990,20 +990,20 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     !payingSplit ||
                     payingSplit.remainingAmount <= EPS
                   }
-                  className="h-9 font-bold uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20"
+                  className="h-9 font-bold uppercase text-[0.625rem] tracking-widest shadow-lg shadow-primary/20"
                 >
                   <Plus className="mr-1.5 h-3.5 w-3.5" /> Record payment
                 </Button>
               </div>
 
               {payingSplit && payingSplit.remainingAmount <= EPS && (
-                <p className="text-[11px] text-emerald-700 font-medium">This cheque is fully settled.</p>
+                <p className="text-[0.6875rem] text-emerald-700 font-medium">This cheque is fully settled.</p>
               )}
             </div>
 
             <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="p-4 border-b flex items-center justify-between bg-muted/10 shrink-0">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Payment history</h4>
+                    <h4 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-muted-foreground">Payment history</h4>
                 </div>
                 <ScrollArea className="flex-1">
                     <div className="p-6">
@@ -1024,7 +1024,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                 <TableCell className="pl-4">
                                     <div className="flex flex-col">
                                     <span className="font-bold text-blue-900">{toNepaliDate(p.date)}</span>
-                                    <span className="text-[9px] text-muted-foreground">{format(new Date(p.date), 'yyyy-MM-dd')}</span>
+                                    <span className="text-[0.5625rem] text-muted-foreground">{format(new Date(p.date), 'yyyy-MM-dd')}</span>
                                     </div>
                                 </TableCell>
                                 <TableCell className="font-black">Rs. {money(Number(p.amount))}</TableCell>
@@ -1077,7 +1077,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             <Button
               variant="outline"
               onClick={() => setIsPaymentDialogOpen(false)}
-              className="w-full font-bold uppercase text-[10px] tracking-widest h-10"
+              className="w-full font-bold uppercase text-[0.625rem] tracking-widest h-10"
             >
               Close ledger
             </Button>
@@ -1097,7 +1097,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
           <div className="py-4 space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Payment date</Label>
+              <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Payment date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-start text-left font-normal h-10 bg-card">
@@ -1112,7 +1112,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Remarks</Label>
+              <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Remarks</Label>
               <Input value={paidRemark} onChange={(e) => setPaidRemark(e.target.value)} placeholder="e.g. Cleared via mobile banking" />
             </div>
           </div>
@@ -1285,7 +1285,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <Label className="text-xs font-black uppercase tracking-widest">Crossing</Label>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <p className="text-[0.6875rem] text-muted-foreground mt-0.5">
                       Turn this off to print a bearer cheque.
                     </p>
                   </div>
@@ -1293,7 +1293,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <Button
                       size="sm"
                       variant={isAcPayee ? 'default' : 'ghost'}
-                      className="h-7 text-[10px] font-bold uppercase tracking-wider"
+                      className="h-7 text-[0.625rem] font-bold uppercase tracking-wider"
                       onClick={() => setIsAcPayee(true)}
                     >
                       A/C payee
@@ -1301,7 +1301,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <Button
                       size="sm"
                       variant={!isAcPayee ? 'default' : 'ghost'}
-                      className="h-7 text-[10px] font-bold uppercase tracking-wider"
+                      className="h-7 text-[0.625rem] font-bold uppercase tracking-wider"
                       onClick={() => setIsAcPayee(false)}
                     >
                       Bearer
@@ -1311,12 +1311,12 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
                 <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 px-4 py-3">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-black uppercase tracking-widest">Leaf layout</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
+                    <p className="text-[0.6875rem] font-black uppercase tracking-widest">Leaf layout</p>
+                    <p className="text-[0.6875rem] text-muted-foreground truncate">
                       {chequeLayout.label} &middot; {chequeLayout.widthMm} × {chequeLayout.heightMm} mm
                     </p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setIsCalibrationOpen(true)} className="shrink-0 h-9 font-bold text-[10px] uppercase tracking-widest">
+                  <Button variant="outline" size="sm" onClick={() => setIsCalibrationOpen(true)} className="shrink-0 h-9 font-bold text-[0.625rem] uppercase tracking-widest">
                     <Ruler className="mr-2 h-3.5 w-3.5" /> Calibrate
                   </Button>
                 </div>
@@ -1327,7 +1327,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     ['Vertical nudge', offsetY, setOffsetY] as const,
                   ]).map(([label, value, setter]) => (
                     <div key={label} className="space-y-2">
-                      <Label className="text-[10px] font-bold uppercase text-muted-foreground">
+                      <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">
                         {label}: {value > 0 ? `+${value}` : value}mm
                       </Label>
                       <div className="flex items-center gap-2">
@@ -1353,7 +1353,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+                    className="h-8 text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground"
                     onClick={() => {
                       setOffsetX(0);
                       setOffsetY(0);
@@ -1382,21 +1382,21 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
           <DialogFooter className="p-6 bg-card border-t shrink-0">
             <div className="flex w-full justify-between items-center">
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">
+              <p className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-tighter">
                 Cheque ref: {nepalChequeToPrint?.chequeNumber || 'N/A'}
               </p>
               <div className="flex gap-3">
                 <Button
                   variant="outline"
                   onClick={() => setIsNepalPrintOpen(false)}
-                  className="h-11 px-8 font-bold text-[10px] uppercase tracking-widest"
+                  className="h-11 px-8 font-bold text-[0.625rem] uppercase tracking-widest"
                 >
                   Close
                 </Button>
                 <Button
                   onClick={printNepalCheque}
                   disabled={!nepalChequeToPrint}
-                  className="h-11 px-12 font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20"
+                  className="h-11 px-12 font-black text-[0.625rem] uppercase tracking-widest shadow-xl shadow-primary/20"
                 >
                   <Printer className="mr-2 h-4 w-4" /> Print cheque
                 </Button>

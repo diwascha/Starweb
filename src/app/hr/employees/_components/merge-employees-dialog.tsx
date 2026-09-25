@@ -133,7 +133,7 @@ export function MergeEmployeesDialog({
                 <ScrollArea className="max-h-[55vh] pr-4">
                     <div className="space-y-4">
                         <div>
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            <Label className="text-[0.625rem] font-black uppercase tracking-widest text-muted-foreground">
                                 Record to keep
                             </Label>
                             <RadioGroup value={survivorId} onValueChange={setSurvivorId} className="mt-2 space-y-2">
@@ -156,7 +156,7 @@ export function MergeEmployeesDialog({
                                                     ? <Badge className="bg-primary">Keeping</Badge>
                                                     : <Badge variant="outline" className="text-destructive border-destructive/30">Will be deleted</Badge>}
                                             </div>
-                                            <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground sm:grid-cols-3">
+                                            <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[0.6875rem] text-muted-foreground sm:grid-cols-3">
                                                 <span>{candidate.department || '—'} / {candidate.position || '—'}</span>
                                                 <span>{candidate.mobileNumber || 'No mobile'}</span>
                                                 <span>{candidate.status || 'Working'}</span>
@@ -173,7 +173,7 @@ export function MergeEmployeesDialog({
                         <Separator />
 
                         <div>
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            <Label className="text-[0.625rem] font-black uppercase tracking-widest text-muted-foreground">
                                 What will move
                             </Label>
                             {isPreviewing && (

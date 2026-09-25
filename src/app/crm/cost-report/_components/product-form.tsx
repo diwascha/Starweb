@@ -137,19 +137,19 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
                 <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">Dimensions (mm)</h3>
                     <div className="grid grid-cols-3 gap-2">
-                        <div><Label className="text-[10px]">L</Label><Input type="number" value={dim.l ?? ''} onChange={e => setDim({...dim, l: e.target.value})} /></div>
-                        <div><Label className="text-[10px]">B</Label><Input type="number" value={dim.b ?? ''} onChange={e => setDim({...dim, b: e.target.value})} /></div>
-                        <div><Label className="text-[10px]">H</Label><Input type="number" value={dim.h ?? ''} onChange={e => setDim({...dim, h: e.target.value})} /></div>
+                        <div><Label className="text-[0.625rem]">L</Label><Input type="number" value={dim.l ?? ''} onChange={e => setDim({...dim, l: e.target.value})} /></div>
+                        <div><Label className="text-[0.625rem]">B</Label><Input type="number" value={dim.b ?? ''} onChange={e => setDim({...dim, b: e.target.value})} /></div>
+                        <div><Label className="text-[0.625rem]">H</Label><Input type="number" value={dim.h ?? ''} onChange={e => setDim({...dim, h: e.target.value})} /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                         <div>
-                            <Label className="text-[10px]">Weight (g)</Label>
+                            <Label className="text-[0.625rem]">Weight (g)</Label>
                             <div className="flex gap-1">
                                 <Input value={form.specification.weightOfBox ?? ''} onChange={e => updateSpec('weightOfBox', e.target.value)} />
                                 <Button type="button" variant="outline" size="icon" className="shrink-0" title="Calculate from dimensions & GSM" onClick={handleCalculateWeight}><Calculator className="h-4 w-4" /></Button>
                             </div>
                         </div>
-                        <div><Label className="text-[10px]">Load (KGF)</Label><Input value={form.specification.load ?? ''} onChange={e => updateSpec('load', e.target.value)} /></div>
+                        <div><Label className="text-[0.625rem]">Load (KGF)</Label><Input value={form.specification.load ?? ''} onChange={e => updateSpec('load', e.target.value)} /></div>
                     </div>
                 </div>
             </div>
@@ -166,27 +166,27 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
                 <div className="p-6 bg-muted/10 rounded-lg space-y-4 border border-dashed">
                     <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">GSM Composition Layers (Up to {pValue} Ply)</Label>
                     <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
-                        <div><Label className="text-[10px] font-bold">L1 (Top)</Label><Input type="number" value={form.specification.topGsm ?? ''} onChange={e => updateSpec('topGsm', e.target.value)} /></div>
-                        <div><Label className="text-[10px] font-bold">F1</Label><Input type="number" value={form.specification.flute1Gsm ?? ''} onChange={e => updateSpec('flute1Gsm', e.target.value)} /></div>
+                        <div><Label className="text-[0.625rem] font-bold">L1 (Top)</Label><Input type="number" value={form.specification.topGsm ?? ''} onChange={e => updateSpec('topGsm', e.target.value)} /></div>
+                        <div><Label className="text-[0.625rem] font-bold">F1</Label><Input type="number" value={form.specification.flute1Gsm ?? ''} onChange={e => updateSpec('flute1Gsm', e.target.value)} /></div>
                         {pValue >= 5 && (
                             <>
-                                <div><Label className="text-[10px] font-bold">L2 (Mid 1)</Label><Input type="number" value={form.specification.middleGsm ?? ''} onChange={e => updateSpec('middleGsm', e.target.value)} /></div>
-                                <div><Label className="text-[10px] font-bold">F2</Label><Input type="number" value={form.specification.flute2Gsm ?? ''} onChange={e => updateSpec('flute2Gsm', e.target.value)} /></div>
+                                <div><Label className="text-[0.625rem] font-bold">L2 (Mid 1)</Label><Input type="number" value={form.specification.middleGsm ?? ''} onChange={e => updateSpec('middleGsm', e.target.value)} /></div>
+                                <div><Label className="text-[0.625rem] font-bold">F2</Label><Input type="number" value={form.specification.flute2Gsm ?? ''} onChange={e => updateSpec('flute2Gsm', e.target.value)} /></div>
                             </>
                         )}
                         {pValue >= 7 && (
                             <>
-                                <div><Label className="text-[10px] font-bold">L3 (Mid 2)</Label><Input type="number" value={form.specification.liner2Gsm ?? ''} onChange={e => updateSpec('liner2Gsm', e.target.value)} /></div>
-                                <div><Label className="text-[10px] font-bold">F3</Label><Input type="number" value={form.specification.flute3Gsm ?? ''} onChange={e => updateSpec('flute3Gsm', e.target.value)} /></div>
+                                <div><Label className="text-[0.625rem] font-bold">L3 (Mid 2)</Label><Input type="number" value={form.specification.liner2Gsm ?? ''} onChange={e => updateSpec('liner2Gsm', e.target.value)} /></div>
+                                <div><Label className="text-[0.625rem] font-bold">F3</Label><Input type="number" value={form.specification.flute3Gsm ?? ''} onChange={e => updateSpec('flute3Gsm', e.target.value)} /></div>
                             </>
                         )}
                         {pValue >= 9 && (
                             <>
-                                <div><Label className="text-[10px] font-bold">L4 (Mid 3)</Label><Input type="number" value={form.specification.liner3Gsm ?? ''} onChange={e => updateSpec('liner3Gsm', e.target.value)} /></div>
-                                <div><Label className="text-[10px] font-bold">F4</Label><Input type="number" value={form.specification.flute4Gsm ?? ''} onChange={e => updateSpec('flute4Gsm', e.target.value)} /></div>
+                                <div><Label className="text-[0.625rem] font-bold">L4 (Mid 3)</Label><Input type="number" value={form.specification.liner3Gsm ?? ''} onChange={e => updateSpec('liner3Gsm', e.target.value)} /></div>
+                                <div><Label className="text-[0.625rem] font-bold">F4</Label><Input type="number" value={form.specification.flute4Gsm ?? ''} onChange={e => updateSpec('flute4Gsm', e.target.value)} /></div>
                             </>
                         )}
-                        <div><Label className="text-[10px] font-bold">L5 (Bottom)</Label><Input type="number" value={form.specification.bottomGsm ?? ''} onChange={e => updateSpec('bottomGsm', e.target.value)} /></div>
+                        <div><Label className="text-[0.625rem] font-bold">L5 (Bottom)</Label><Input type="number" value={form.specification.bottomGsm ?? ''} onChange={e => updateSpec('bottomGsm', e.target.value)} /></div>
                     </div>
                 </div>
                 )}

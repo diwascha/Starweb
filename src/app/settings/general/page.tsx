@@ -527,11 +527,11 @@ export default function GeneralSettingsPage() {
         )}
         <Tabs defaultValue="branding" className="w-full">
             <TabsList className="bg-muted/50 p-1 mb-6">
-                <TabsTrigger value="branding" className="px-6 text-[10px] uppercase font-bold tracking-widest">App Branding</TabsTrigger>
-                <TabsTrigger value="profile" className="px-6 text-[10px] uppercase font-bold tracking-widest">Company Profile</TabsTrigger>
-                <TabsTrigger value="ownership" className="px-6 text-[10px] uppercase font-bold tracking-widest">Ownerships</TabsTrigger>
-                <TabsTrigger value="uom" className="px-6 text-[10px] uppercase font-bold tracking-widest">Units (UOM)</TabsTrigger>
-                <TabsTrigger value="numbering" className="px-6 text-[10px] uppercase font-bold tracking-widest">Numbering</TabsTrigger>
+                <TabsTrigger value="branding" className="px-6 text-[0.625rem] uppercase font-bold tracking-widest">App Branding</TabsTrigger>
+                <TabsTrigger value="profile" className="px-6 text-[0.625rem] uppercase font-bold tracking-widest">Company Profile</TabsTrigger>
+                <TabsTrigger value="ownership" className="px-6 text-[0.625rem] uppercase font-bold tracking-widest">Ownerships</TabsTrigger>
+                <TabsTrigger value="uom" className="px-6 text-[0.625rem] uppercase font-bold tracking-widest">Units (UOM)</TabsTrigger>
+                <TabsTrigger value="numbering" className="px-6 text-[0.625rem] uppercase font-bold tracking-widest">Numbering</TabsTrigger>
             </TabsList>
 
             <TabsContent value="branding" className="animate-in fade-in slide-in-from-left-2">
@@ -541,7 +541,7 @@ export default function GeneralSettingsPage() {
                             <CardTitle className="text-xl font-black text-foreground tracking-tight">System Identity</CardTitle>
                             <CardDescription className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Application naming and persona.</CardDescription>
                         </div>
-                        <Button onClick={handleSaveAppBranding} disabled={isSavingBranding || !canEdit} className="h-10 px-8 font-black text-[10px] uppercase tracking-widest shadow-lg">
+                        <Button onClick={handleSaveAppBranding} disabled={isSavingBranding || !canEdit} className="h-10 px-8 font-black text-[0.625rem] uppercase tracking-widest shadow-lg">
                             {isSavingBranding ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
                             Apply Branding
                         </Button>
@@ -584,17 +584,17 @@ export default function GeneralSettingsPage() {
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b bg-muted/5">
                         <div>
                             <CardTitle className="text-base font-black uppercase">Ownership Categories</CardTitle>
-                            <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Manage organizational units and their module scope.</CardDescription>
+                            <CardDescription className="text-[0.625rem] uppercase font-bold text-muted-foreground">Manage organizational units and their module scope.</CardDescription>
                         </div>
-                        <Button size="sm" onClick={() => openOwnershipDialog()} disabled={!canEdit} className="h-9 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Category</Button>
+                        <Button size="sm" onClick={() => openOwnershipDialog()} disabled={!canEdit} className="h-9 uppercase font-black text-[0.625rem] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Category</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs">
                             <TableHeader className="bg-muted/50">
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead className="pl-6 font-bold uppercase text-[10px]">Category Name</TableHead>
-                                    <TableHead className="font-bold uppercase text-[10px]">Associated Modules</TableHead>
-                                    <TableHead className="text-right pr-6 font-bold uppercase text-[10px]">Actions</TableHead>
+                                    <TableHead className="pl-6 font-bold uppercase text-[0.625rem]">Category Name</TableHead>
+                                    <TableHead className="font-bold uppercase text-[0.625rem]">Associated Modules</TableHead>
+                                    <TableHead className="text-right pr-6 font-bold uppercase text-[0.625rem]">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -604,14 +604,14 @@ export default function GeneralSettingsPage() {
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1 max-w-md">
                                                 {cat.modules?.length === modules.length ? (
-                                                    <Badge variant="outline" className="text-[8px] uppercase bg-primary/5 text-primary border-primary/20">All System Modules</Badge>
+                                                    <Badge variant="outline" className="text-[0.5rem] uppercase bg-primary/5 text-primary border-primary/20">All System Modules</Badge>
                                                 ) : (
                                                     cat.modules?.map(m => (
-                                                        <Badge key={m} variant="secondary" className="text-[8px] uppercase">{getModuleDisplayName(m as Module)}</Badge>
+                                                        <Badge key={m} variant="secondary" className="text-[0.5rem] uppercase">{getModuleDisplayName(m as Module)}</Badge>
                                                     ))
                                                 )}
                                                 {(!cat.modules || cat.modules.length === 0) && (
-                                                    <span className="text-muted-foreground italic text-[10px]">No modules assigned</span>
+                                                    <span className="text-muted-foreground italic text-[0.625rem]">No modules assigned</span>
                                                 )}
                                             </div>
                                         </TableCell>
@@ -649,7 +649,7 @@ export default function GeneralSettingsPage() {
                 <Card className="shadow-sm border-border bg-card overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <CardTitle className="text-base font-black uppercase">Units of Measurement</CardTitle>
-                        <Button size="sm" disabled={!canAdd} onClick={() => { setEditingUom(null); setUomForm({name:'', abbreviation:''}); setIsUomDialogOpen(true); }} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> New Unit</Button>
+                        <Button size="sm" disabled={!canAdd} onClick={() => { setEditingUom(null); setUomForm({name:'', abbreviation:''}); setIsUomDialogOpen(true); }} className="h-8 uppercase font-black text-[0.625rem] tracking-widest"><Plus className="mr-2 h-4 w-4" /> New Unit</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Unit Name</TableHead><TableHead>Code</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader>
@@ -683,7 +683,7 @@ export default function GeneralSettingsPage() {
             <TabsContent value="numbering" className="animate-in fade-in slide-in-from-left-2 space-y-6">
                 <div className="bg-muted/10 p-4 rounded-xl border border-dashed mb-4 flex items-center gap-3">
                     <Info className="h-4 w-4 text-primary" />
-                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Document prefixes are automatically selected based on the entry date. Updating a rule will re-sequence existing records in that range.</p>
+                    <p className="text-[0.625rem] font-bold uppercase text-muted-foreground">Document prefixes are automatically selected based on the entry date. Updating a rule will re-sequence existing records in that range.</p>
                 </div>
                 {groupedDocumentTypes.map((group) => (
                     <Card key={group.label} className="shadow-sm border-border bg-card overflow-hidden">
@@ -697,11 +697,11 @@ export default function GeneralSettingsPage() {
                             <Table className="text-xs">
                                 <TableHeader className="bg-muted/30">
                                     <TableRow className="hover:bg-transparent h-10">
-                                        <TableHead className="pl-6 font-bold uppercase text-[9px]">Document Class</TableHead>
-                                        <TableHead className="font-bold uppercase text-[9px]">Active Prefix</TableHead>
-                                        <TableHead className="font-bold uppercase text-[9px] text-center">Start #</TableHead>
-                                        <TableHead className="font-bold uppercase text-[9px]">Period (BS)</TableHead>
-                                        <TableHead className="text-right pr-6 font-bold uppercase text-[9px]">Actions</TableHead>
+                                        <TableHead className="pl-6 font-bold uppercase text-[0.5625rem]">Document Class</TableHead>
+                                        <TableHead className="font-bold uppercase text-[0.5625rem]">Active Prefix</TableHead>
+                                        <TableHead className="font-bold uppercase text-[0.5625rem] text-center">Start #</TableHead>
+                                        <TableHead className="font-bold uppercase text-[0.5625rem]">Period (BS)</TableHead>
+                                        <TableHead className="text-right pr-6 font-bold uppercase text-[0.5625rem]">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -715,21 +715,21 @@ export default function GeneralSettingsPage() {
                                                 <TableCell className="font-black pl-6 text-foreground uppercase tracking-tighter">{getDocumentName(t)}</TableCell>
                                                 <TableCell className="font-mono text-blue-600 font-black">{active?.prefix || (typeof rawRules === 'string' ? rawRules : '(System Default)')}</TableCell>
                                                 <TableCell className="text-center font-bold">{active?.startingNumber.toString().padStart(3, '0') || '001'}</TableCell>
-                                                <TableCell className="text-muted-foreground italic text-[10px]">
+                                                <TableCell className="text-muted-foreground italic text-[0.625rem]">
                                                     {active ? (
                                                         <>
                                                             {toNepaliDate(active.effectiveFrom)} 
                                                             {active.effectiveTo ? ` — ${toNepaliDate(active.effectiveTo)}` : ' — Open'}
                                                         </>
                                                     ) : typeof rawRules === 'string' ? (
-                                                        <span className="text-[9px] font-black uppercase text-amber-600">Legacy String</span>
+                                                        <span className="text-[0.5625rem] font-black uppercase text-amber-600">Legacy String</span>
                                                     ) : 'N/A'}
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6 space-x-1">
                                                     <Button 
                                                         variant="ghost" 
                                                         size="sm" 
-                                                        className="h-7 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-emerald-600" 
+                                                        className="h-7 text-[0.5625rem] font-black uppercase tracking-widest text-muted-foreground hover:text-emerald-600" 
                                                         onClick={() => handleManualSync(t)}
                                                         disabled={isSyncing[t] || !canEdit}
                                                     >
@@ -739,7 +739,7 @@ export default function GeneralSettingsPage() {
                                                     <Button 
                                                         variant="ghost" 
                                                         size="sm" 
-                                                        className="h-7 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary" 
+                                                        className="h-7 text-[0.5625rem] font-black uppercase tracking-widest text-muted-foreground hover:text-primary" 
                                                         onClick={() => { setHistoryKey(t); setIsHistoryDialogOpen(true); }}
                                                     >
                                                         <History className="mr-1 h-3 w-3" />
@@ -748,7 +748,7 @@ export default function GeneralSettingsPage() {
                                                     <Button 
                                                         variant="outline" 
                                                         size="sm" 
-                                                        className="h-7 text-[9px] font-black uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5" 
+                                                        className="h-7 text-[0.5625rem] font-black uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5" 
                                                         onClick={() => openNumberingDialog(t)}
                                                         disabled={!canEdit}
                                                     >
@@ -815,7 +815,7 @@ export default function GeneralSettingsPage() {
                 </DialogHeader>
                 <div className="space-y-6 py-4">
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">New Prefix</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">New Prefix</Label>
                         <Input 
                             value={numberingForm.prefix} 
                             onChange={e => { setNumberingForm(p => ({...p, prefix: e.target.value})); setPrefixError(null); }} 
@@ -823,14 +823,14 @@ export default function GeneralSettingsPage() {
                             placeholder="e.g. SPI-2024-"
                         />
                          {prefixError && (
-                            <p className="flex items-center gap-1.5 text-[10px] font-bold text-destructive uppercase animate-in shake-horizontal duration-200">
+                            <p className="flex items-center gap-1.5 text-[0.625rem] font-bold text-destructive uppercase animate-in shake-horizontal duration-200">
                                 <AlertTriangle className="h-3 w-3" /> {prefixError}
                             </p>
                         )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Effective From (AD)</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Effective From (AD)</Label>
                             <div className="relative">
                                 <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                 <Input 
@@ -842,7 +842,7 @@ export default function GeneralSettingsPage() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Effective To (AD/Optional)</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Effective To (AD/Optional)</Label>
                             <div className="relative">
                                 <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                 <Input 
@@ -855,7 +855,7 @@ export default function GeneralSettingsPage() {
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Starting Sequence #</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Starting Sequence #</Label>
                         <div className="relative">
                             <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <Input 
@@ -890,30 +890,30 @@ export default function GeneralSettingsPage() {
                         <Table className="text-xs border">
                             <TableHeader className="bg-muted/50">
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead className="font-bold uppercase text-[9px]">Status</TableHead>
-                                    <TableHead className="font-bold uppercase text-[9px]">Prefix</TableHead>
-                                    <TableHead className="text-center font-bold uppercase text-[9px]">Start #</TableHead>
-                                    <TableHead className="font-bold uppercase text-[9px]">Effective From (BS)</TableHead>
-                                    <TableHead className="font-bold uppercase text-[9px]">Effective To (BS)</TableHead>
-                                    <TableHead className="text-right pr-4 font-bold uppercase text-[9px]">Actions</TableHead>
+                                    <TableHead className="font-bold uppercase text-[0.5625rem]">Status</TableHead>
+                                    <TableHead className="font-bold uppercase text-[0.5625rem]">Prefix</TableHead>
+                                    <TableHead className="text-center font-bold uppercase text-[0.5625rem]">Start #</TableHead>
+                                    <TableHead className="font-bold uppercase text-[0.5625rem]">Effective From (BS)</TableHead>
+                                    <TableHead className="font-bold uppercase text-[0.5625rem]">Effective To (BS)</TableHead>
+                                    <TableHead className="text-right pr-4 font-bold uppercase text-[0.5625rem]">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {numberingHistory.map((rule) => (
                                     <TableRow key={rule.originalIndex} className={cn("h-12 border-b", rule.status === 'Active' ? "bg-primary/5 font-bold" : "text-muted-foreground opacity-70")}>
                                         <TableCell>
-                                            <Badge variant={rule.status === 'Active' ? 'default' : 'outline'} className="text-[8px] uppercase px-1.5 h-4">
+                                            <Badge variant={rule.status === 'Active' ? 'default' : 'outline'} className="text-[0.5rem] uppercase px-1.5 h-4">
                                                 {rule.status}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="font-mono text-blue-600 font-black">{rule.prefix}</TableCell>
                                         <TableCell className="text-center font-bold">{rule.startingNumber.toString().padStart(3, '0')}</TableCell>
                                         <TableCell>{toNepaliDate(rule.effectiveFrom)}</TableCell>
-                                        <TableCell>{rule.effectiveTo ? toNepaliDate(rule.effectiveTo) : <span className="italic text-[9px]">Currently Active</span>}</TableCell>
+                                        <TableCell>{rule.effectiveTo ? toNepaliDate(rule.effectiveTo) : <span className="italic text-[0.5625rem]">Currently Active</span>}</TableCell>
                                         <TableCell className="text-right pr-4">
                                             <div className="flex justify-end gap-1 items-center">
                                                 {rule.originalIndex === -99 && (
-                                                    <Badge variant="outline" className="text-[8px] uppercase bg-amber-50 text-amber-700 border-amber-200 mr-2">Upgrade Required</Badge>
+                                                    <Badge variant="outline" className="text-[0.5rem] uppercase bg-amber-50 text-amber-700 border-amber-200 mr-2">Upgrade Required</Badge>
                                                 )}
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRuleDialog(rule.originalIndex)} disabled={!canEdit}>
                                                     <Edit className="h-3.5 w-3.5" />
@@ -952,8 +952,8 @@ export default function GeneralSettingsPage() {
                         <div className="mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex gap-4">
                             <Info className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
                             <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase text-blue-900">Historical Logic active</p>
-                                <p className="text-[10px] text-blue-800 leading-relaxed font-medium">
+                                <p className="text-[0.625rem] font-black uppercase text-blue-900">Historical Logic active</p>
+                                <p className="text-[0.625rem] text-blue-800 leading-relaxed font-medium">
                                     The system automatically selects the correct prefix based on the document date. Back-dated entries will respect the "Archived" rules if they fall within the historical date range.
                                 </p>
                             </div>
@@ -961,7 +961,7 @@ export default function GeneralSettingsPage() {
                     </div>
                 </ScrollArea>
                 <DialogFooter className="p-4 border-t bg-muted/5 shrink-0">
-                    <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)} className="w-full font-bold uppercase text-[10px] tracking-widest h-10">Close Audit Log</Button>
+                    <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)} className="w-full font-bold uppercase text-[0.625rem] tracking-widest h-10">Close Audit Log</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -974,21 +974,21 @@ export default function GeneralSettingsPage() {
                 </DialogHeader>
                 <div className="space-y-6 py-4">
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Rule Prefix</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Rule Prefix</Label>
                         <Input 
                             value={editRuleForm.prefix} 
                             onChange={e => { setEditRuleForm(p => ({...p, prefix: e.target.value})); setPrefixError(null); }} 
                             className={cn("h-10 font-mono text-blue-600 font-black border-2", prefixError && "border-destructive")} 
                         />
                          {prefixError && (
-                            <p className="flex items-center gap-1.5 text-[10px] font-bold text-destructive uppercase animate-in shake-horizontal duration-200">
+                            <p className="flex items-center gap-1.5 text-[0.625rem] font-bold text-destructive uppercase animate-in shake-horizontal duration-200">
                                 <AlertTriangle className="h-3 w-3" /> {prefixError}
                             </p>
                         )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Effective From (AD)</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Effective From (AD)</Label>
                             <Input 
                                 type="date" 
                                 value={editRuleForm.effectiveFrom} 
@@ -997,7 +997,7 @@ export default function GeneralSettingsPage() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Effective To (AD/Optional)</Label>
+                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Effective To (AD/Optional)</Label>
                             <Input 
                                 type="date" 
                                 value={editRuleForm.effectiveTo || ''} 
@@ -1007,7 +1007,7 @@ export default function GeneralSettingsPage() {
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Starting Sequence #</Label>
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Starting Sequence #</Label>
                         <Input 
                             type="number" 
                             value={editRuleForm.startingNumber} 
@@ -1031,7 +1031,7 @@ export default function GeneralSettingsPage() {
                 </DialogHeader>
                 <div className="space-y-5 py-4">
                     <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Category Name</Label>
+                        <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Category Name</Label>
                         <Input 
                             value={ownershipForm.name} 
                             onChange={e => setOwnershipForm({...ownershipForm, name: e.target.value})} 
@@ -1041,10 +1041,10 @@ export default function GeneralSettingsPage() {
                     </div>
                     <div className="space-y-1.5">
                         <div className="flex items-center justify-between px-1">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Module Association</Label>
+                            <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">Module Association</Label>
                             <div className="flex gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: Array.from(modules)})} className="h-5 px-1.5 text-[8px] uppercase font-black">All</Button>
-                                <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: [...CORE_MODULES]})} className="h-5 px-1.5 text-[8px] uppercase font-black">Clear Functional</Button>
+                                <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: Array.from(modules)})} className="h-5 px-1.5 text-[0.5rem] uppercase font-black">All</Button>
+                                <Button variant="ghost" size="sm" onClick={() => setOwnershipForm({...ownershipForm, modules: [...CORE_MODULES]})} className="h-5 px-1.5 text-[0.5rem] uppercase font-black">Clear Functional</Button>
                             </div>
                         </div>
                         <ScrollArea className="h-[250px] border rounded-lg bg-muted/30 p-2">
@@ -1070,7 +1070,7 @@ export default function GeneralSettingsPage() {
                                                 }}
                                             />
                                             <Label htmlFor={`check-${m}`} className="text-xs font-medium cursor-pointer flex-1">
-                                                {getModuleDisplayName(m as Module)} {isCore && <span className="text-[8px] font-black text-primary ml-2">(SYSTEM CORE)</span>}
+                                                {getModuleDisplayName(m as Module)} {isCore && <span className="text-[0.5rem] font-black text-primary ml-2">(SYSTEM CORE)</span>}
                                             </Label>
                                         </div>
                                     )
@@ -1109,7 +1109,7 @@ function EntityProfileCard({ entity, profile, onChange, onSave, isSaving, readOn
 }) {
   const field = (label: string, key: keyof CompanyProfile, wide = false) => (
     <div className={cn('space-y-1.5', wide && 'md:col-span-2')} key={key as string}>
-      <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+      <Label className="text-[0.625rem] uppercase font-bold text-muted-foreground">{label}</Label>
       <Input value={(profile[key] as string) || ''} onChange={e => onChange({ [key]: e.target.value } as Partial<CompanyProfile>)} disabled={readOnly} />
     </div>
   );
@@ -1119,7 +1119,7 @@ function EntityProfileCard({ entity, profile, onChange, onSave, isSaving, readOn
       <CardHeader className="flex flex-row items-center justify-between bg-primary/5 py-4 px-6 border-b">
         <div>
           <CardTitle className="text-lg font-black tracking-tight">{entity.label}</CardTitle>
-          <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
+          <CardDescription className="text-[0.625rem] uppercase font-bold text-muted-foreground">
             Used by: {entity.modules.join(', ')}
           </CardDescription>
         </div>

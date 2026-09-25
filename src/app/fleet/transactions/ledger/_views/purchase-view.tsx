@@ -197,7 +197,7 @@ export function PurchaseView() {
                                 <TableCell className="text-sm font-semibold">{partiesById.get(t.partyId || '') || 'N/A'}</TableCell>
                                 <TableCell className="text-xs uppercase font-bold text-muted-foreground">{vehiclesById.get(t.vehicleId || '') || 'N/A'}</TableCell>
                                 <TableCell>
-                                    <Badge variant={t.billingType === 'Credit' ? 'destructive' : 'outline'} className="text-[9px] uppercase font-black">
+                                    <Badge variant={t.billingType === 'Credit' ? 'destructive' : 'outline'} className="text-[0.5625rem] uppercase font-black">
                                         {t.billingType}
                                     </Badge>
                                 </TableCell>

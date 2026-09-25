@@ -112,7 +112,11 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
         // here would bounce a legitimate user out as "no authorized modules".
         if (user && !user.verified) return;
 
-        if (user && !isAuthSegment(normalizedPath) && !user.isAdmin) {
+        // Personal, per-device preference pages touch no business data, so
+        // every signed-in user may open them regardless of module rights.
+        const isPersonalPage = normalizedPath === '/settings/appearance';
+
+        if (user && !isAuthSegment(normalizedPath) && !isPersonalPage && !user.isAdmin) {
             const pathSegments = pathname.split('/').filter(Boolean);
             const firstSegment = pathSegments[0] || 'dashboard';
             const currentModule = routeToCoreModule(firstSegment);
@@ -150,7 +154,7 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
             <div className="flex h-screen items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-3">
                     <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Authorizing Session...</p>
+                    <p className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-muted-foreground">Authorizing Session...</p>
                 </div>
             </div>
         );

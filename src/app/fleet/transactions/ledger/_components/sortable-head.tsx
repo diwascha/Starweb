@@ -20,7 +20,7 @@ export function SortableHead({ label, active, align = 'left', className, onClick
                 variant="ghost"
                 onClick={onClick}
                 className={cn(
-                    '-ml-4 h-8 px-2 text-[11px] font-black uppercase tracking-wider',
+                    '-ml-4 h-8 px-2 text-[0.6875rem] font-black uppercase tracking-wider',
                     align === 'right' && 'ml-0 -mr-4 w-full justify-end'
                 )}
             >
