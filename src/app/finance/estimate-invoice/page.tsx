@@ -240,44 +240,60 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
             const adDate = format(new Date(invoice.date), 'yyyy-MM-dd');
             doc.text(`Date: ${nepaliDate} BS (${adDate})`, doc.internal.pageSize.getWidth() - 14, 42, { align: 'right' });
 
+            const money = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // Totals are footer rows of the same table, so they sit exactly
+            // under the Rate/Amount columns instead of at fixed x positions
+            // that ran past the table's right edge. `showFoot: 'lastPage'`
+            // keeps them off intermediate pages of a long estimate.
             autoTable(doc, {
                 startY: 65,
+                margin: { left: 14, right: 14 },
                 head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
                 body: invoice.items.map((item, index) => [
                     index + 1,
                     item.productName,
-                    item.quantity,
-                    item.rate.toLocaleString('en-IN', {minimumFractionDigits: 2}),
-                    item.gross.toLocaleString('en-IN', {minimumFractionDigits: 2})
+                    item.quantity.toLocaleString('en-IN'),
+                    money(item.rate),
+                    money(item.gross)
                 ]),
+                foot: [
+                    [{ content: 'Gross Total', colSpan: 4 }, money(invoice.grossTotal)],
+                    [{ content: 'VAT (13%)', colSpan: 4 }, money(invoice.vatTotal)],
+                    [{ content: 'Net Total', colSpan: 4, styles: { fontStyle: 'bold' } }, { content: money(invoice.netTotal), styles: { fontStyle: 'bold' } }],
+                ],
+                showFoot: 'lastPage',
                 theme: 'grid',
+                styles: { fontSize: 10, cellPadding: 2.5 },
                 headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
-                didDrawPage: (data: any) => {
-                    let finalY = data.cursor.y;
-                     // Reset font for this section to avoid issues
-                    doc.setFont('Helvetica', 'normal');
-                    doc.setFontSize(10);
-                    
-                    doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
-                    doc.text(invoice.grossTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
-                    doc.text('VAT (13%)', 140, finalY + 15, { align: 'right' });
-                    doc.text(invoice.vatTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), 200, finalY + 15, { align: 'right' });
-                    
-                    doc.setFont('Helvetica', 'bold');
-                    doc.text('Net Total', 140, finalY + 22, { align: 'right' });
-                    doc.text(invoice.netTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
-                    
-                    doc.setFont('Helvetica', 'normal');
-                    doc.text(`In Words: ${invoice.amountInWords}`, 14, finalY + 30);
-                    
-                    doc.setFontSize(8);
-                    doc.setFont('Helvetica', 'bold');
-                    doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, finalY + 40, { align: 'center' });
-                    doc.setFont('Helvetica', 'normal');
-                    doc.text('This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.', doc.internal.pageSize.getWidth() / 2, finalY + 44, { align: 'center' });
-                }
+                footStyles: { fillColor: [255, 255, 255], textColor: 20, fontStyle: 'normal', halign: 'right' },
+                columnStyles: {
+                    0: { cellWidth: 14, halign: 'center' },
+                    2: { cellWidth: 28, halign: 'right' },
+                    3: { cellWidth: 30, halign: 'right' },
+                    4: { cellWidth: 36, halign: 'right' },
+                },
+                didParseCell: (data: any) => {
+                    // Header labels follow their column's alignment.
+                    if (data.section === 'head' && data.column.index >= 2) data.cell.styles.halign = 'right';
+                    if (data.section === 'head' && data.column.index === 0) data.cell.styles.halign = 'center';
+                },
             });
-            
+
+            let finalY = (doc as any).lastAutoTable.finalY;
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(10);
+            const words = doc.splitTextToSize(`In Words: ${invoice.amountInWords}`, pageWidth - 28);
+            doc.text(words, 14, finalY + 8);
+            finalY += 8 + words.length * 5;
+
+            doc.setFontSize(8);
+            doc.setFont('Helvetica', 'bold');
+            doc.text('Disclaimer:', pageWidth / 2, finalY + 6, { align: 'center' });
+            doc.setFont('Helvetica', 'normal');
+            doc.text('This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.', pageWidth / 2, finalY + 10, { align: 'center' });
+
             doc.save(`Estimate-${invoice.invoiceNumber}.pdf`);
 
         } catch (error) {
