@@ -41,6 +41,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
+import { AppearanceSettings } from '@/components/settings/appearance-settings';
 import { onSettingUpdate, setSetting, updateExistingRecordsNumbering, previewRenumbering, type RenumberPreview } from '@/services/settings-service';
 import { getDocumentName, modules } from '@/lib/types';
 import { BUSINESS_ENTITIES, type BusinessEntity } from '@/lib/business-entities';
@@ -532,6 +533,7 @@ export default function GeneralSettingsPage() {
                 <TabsTrigger value="ownership" className="px-6 text-[0.625rem] uppercase font-bold tracking-widest">Ownerships</TabsTrigger>
                 <TabsTrigger value="uom" className="px-6 text-[0.625rem] uppercase font-bold tracking-widest">Units (UOM)</TabsTrigger>
                 <TabsTrigger value="numbering" className="px-6 text-[0.625rem] uppercase font-bold tracking-widest">Numbering</TabsTrigger>
+                <TabsTrigger value="appearance" className="px-6 text-[0.625rem] uppercase font-bold tracking-widest">Appearance</TabsTrigger>
             </TabsList>
 
             <TabsContent value="branding" className="animate-in fade-in slide-in-from-left-2">
@@ -764,6 +766,10 @@ export default function GeneralSettingsPage() {
                         </CardContent>
                     </Card>
                 ))}
+            </TabsContent>
+            {/* Personal, per-device setting: never gated by canEdit. */}
+            <TabsContent value="appearance" className="animate-in fade-in slide-in-from-left-2">
+                <AppearanceSettings embedded />
             </TabsContent>
         </Tabs>
 

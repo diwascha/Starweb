@@ -16,7 +16,7 @@
     --secondary-foreground: 224 71% 4%;
     --muted: 210 29% 92%;
     --muted-foreground: 224 71% 24%;
-    --accent: 261 44% 80%;
+    --accent: var(--tint-light, 261 44% 80%);
     --accent-foreground: 224 71% 4%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
@@ -33,9 +33,9 @@
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 217 91% 76%;
     --sidebar-primary-foreground: 224 71% 4%;
-    --sidebar-accent: 210 29% 92%;
+    --sidebar-accent: var(--tint-light, 210 29% 92%);
     --sidebar-accent-foreground: 224 71% 4%;
-    --sidebar-border: 210 29% 88%;
+    --sidebar-border: var(--tint-border-light, 210 29% 88%);
     --sidebar-ring: 217 91% 76%;
   }
   .dark {
@@ -55,7 +55,7 @@
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 261 44% 80%;
+    --accent: var(--tint-light, 261 44% 80%);
     --accent-foreground: 222.2 47.4% 11.2%;
     /* The old destructive was so dark it read as maroon on a dark ground and
        lost all urgency; overdue cheques and expired policies depend on it. */
@@ -73,7 +73,7 @@
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 217 91% 76%;
     --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent: var(--tint-dark, 217.2 32.6% 17.5%);
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217.2 32.6% 17.5%;
     --sidebar-ring: 217 91% 76%;
@@ -86,6 +86,11 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Settings > Appearance heading font. When "Same as body" is chosen the
+     variable is unset, this declaration is dropped and headings inherit. */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--app-heading-font);
   }
 }
 
