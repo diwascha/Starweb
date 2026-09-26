@@ -499,7 +499,10 @@ export function AppSidebar() {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                         <SidebarMenuSub>
+                            {/* Users with Settings access find Appearance as a tab in General. */}
+                            {!hasPermission('settings', 'view') && (
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/appearance')}><Link href="/settings/appearance" className="flex items-center gap-2"><Palette className="h-4 w-4"/><span>Appearance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            )}
                             {hasPermission('settings', 'view') && (
                             <>
                             <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/settings/general')}><Link href="/settings/general" className="flex items-center gap-2"><Settings2 className="h-4 w-4"/><span>General</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
