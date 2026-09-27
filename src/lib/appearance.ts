@@ -47,30 +47,25 @@ export interface FontOption {
     stack: string;
 }
 
-// Arial, Verdana, Tahoma, Georgia and Calibri are installed with Windows (and
-// most with macOS); the stacks fall back to look-alikes elsewhere. None of
-// them has Nepali letters, so Devanagari text falls back to the system font.
+// Arial ships with Windows and macOS; elsewhere it falls back to a
+// look-alike. It has no Nepali letters, so Devanagari text falls back to the
+// system font - Noto Sans is the choice when Nepali text matters most.
+// Screen only: PDFs draw with their own font, and printing is pinned to the
+// standard font in globals.css, so reports always look the same.
 const ARIAL = 'Arial, "Liberation Sans", Helvetica, sans-serif';
 
 export const FONT_OPTIONS: FontOption[] = [
-    { id: 'inter', label: 'Inter', description: 'Default. Clean and compact.', stack: 'var(--font-inter), sans-serif' },
+    { id: 'inter', label: 'Inter (default)', description: 'Clean and compact.', stack: 'var(--font-inter), sans-serif' },
     { id: 'arial', label: 'Arial', description: 'Familiar office font.', stack: ARIAL },
-    { id: 'noto', label: 'Noto Sans', description: 'Wider, and renders Nepali (Devanagari) text well.', stack: 'var(--font-noto), sans-serif' },
-    { id: 'calibri', label: 'Calibri', description: 'Microsoft Office default.', stack: 'Calibri, Carlito, "Segoe UI", sans-serif' },
-    { id: 'verdana', label: 'Verdana', description: 'Wide letters, very readable on screen.', stack: 'Verdana, Geneva, sans-serif' },
-    { id: 'tahoma', label: 'Tahoma', description: 'Compact, fits more in tables.', stack: 'Tahoma, "Segoe UI", sans-serif' },
+    { id: 'noto', label: 'Noto Sans', description: 'Best for Nepali (Devanagari) text.', stack: 'var(--font-noto), sans-serif' },
     { id: 'system', label: 'System', description: "Your computer's own interface font.", stack: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' },
 ];
 
 /** Heading choices. "Same as body" leaves headings in the body font. */
 export const HEADING_FONT_OPTIONS: FontOption[] = [
-    { id: 'same', label: 'Same as body', description: 'Headings use the body font.', stack: '' },
-    { id: 'arial-black', label: 'Arial Black', description: 'Heavy and bold, for strong titles.', stack: '"Arial Black", "Arial Bold", Gadget, ' + ARIAL },
+    { id: 'same', label: 'Same as body (default)', description: 'Headings use the body font.', stack: '' },
+    { id: 'arial-black', label: 'Arial Black', description: 'Heavy, bold titles.', stack: '"Arial Black", "Arial Bold", Gadget, ' + ARIAL },
     { id: 'arial', label: 'Arial', description: 'Plain and familiar.', stack: ARIAL },
-    { id: 'inter', label: 'Inter', description: 'Clean and compact.', stack: 'var(--font-inter), sans-serif' },
-    { id: 'noto', label: 'Noto Sans', description: 'Renders Nepali titles well.', stack: 'var(--font-noto), sans-serif' },
-    { id: 'georgia', label: 'Georgia', description: 'Classic serif, formal look.', stack: 'Georgia, "Times New Roman", serif' },
-    { id: 'verdana', label: 'Verdana', description: 'Wide and very readable.', stack: 'Verdana, Geneva, sans-serif' },
 ];
 
 export interface TextSizeOption {

@@ -242,6 +242,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 
             const money = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const pageWidth = doc.internal.pageSize.getWidth();
+            const totalsGap = { content: '', colSpan: 3, styles: { lineWidth: 0, fillColor: false as const } };
 
             // Totals are footer rows of the same table, so they sit exactly
             // under the Rate/Amount columns instead of at fixed x positions
@@ -258,16 +259,19 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                     money(item.rate),
                     money(item.gross)
                 ]),
+                // Totals box: bordered cells under Rate/Amount only; the
+                // blank cell to their left has no border, so the item grid
+                // closes cleanly above it.
                 foot: [
-                    [{ content: 'Gross Total', colSpan: 4 }, money(invoice.grossTotal)],
-                    [{ content: 'VAT (13%)', colSpan: 4 }, money(invoice.vatTotal)],
-                    [{ content: 'Net Total', colSpan: 4, styles: { fontStyle: 'bold' } }, { content: money(invoice.netTotal), styles: { fontStyle: 'bold' } }],
+                    [totalsGap, 'Gross Total', money(invoice.grossTotal)],
+                    [totalsGap, 'VAT (13%)', money(invoice.vatTotal)],
+                    [totalsGap, { content: 'Net Total', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }, { content: money(invoice.netTotal), styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }],
                 ],
                 showFoot: 'lastPage',
                 theme: 'grid',
-                styles: { fontSize: 10, cellPadding: 2.5 },
+                styles: { fontSize: 10, cellPadding: 2.5, textColor: 20, lineColor: [200, 200, 200], lineWidth: 0.2 },
                 headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
-                footStyles: { fillColor: [255, 255, 255], textColor: 20, fontStyle: 'normal', halign: 'right' },
+                footStyles: { fillColor: [255, 255, 255], textColor: 20, fontStyle: 'normal', halign: 'right', lineColor: [200, 200, 200], lineWidth: 0.2 },
                 columnStyles: {
                     0: { cellWidth: 14, halign: 'center' },
                     2: { cellWidth: 28, halign: 'right' },

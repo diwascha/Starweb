@@ -129,6 +129,9 @@
      layout of printed payslips, vouchers and reports. */
   html {
     font-size: 16px !important;
+    /* Same for the Appearance fonts: printed reports keep the standard font. */
+    --app-font: var(--font-inter), sans-serif !important;
+    --app-heading-font: var(--font-inter), sans-serif !important;
   }
   :root, .dark, .paper {
     --background: 0 0% 100%;

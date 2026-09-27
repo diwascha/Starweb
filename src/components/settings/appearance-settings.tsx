@@ -4,6 +4,8 @@ import { Check, Monitor, Moon, Palette, RotateCcw, Sun, Type, ALargeSmall } from
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTheme } from '@/components/theme-provider';
 import { useAppearance } from '@/hooks/use-appearance';
 import { ACCENT_PRESETS, FONT_OPTIONS, HEADING_FONT_OPTIONS, TEXT_SIZE_OPTIONS } from '@/lib/appearance';
@@ -98,36 +100,45 @@ export function AppearanceSettings({ embedded = false }: { embedded?: boolean })
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" /> Body font</CardTitle>
-                    <CardDescription>Used for all normal text: menus, the sidebar, tables and forms.</CardDescription>
+                    <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" /> Fonts</CardTitle>
+                    <CardDescription>
+                        Changes the font on screen: sidebar, menus, tables, forms and titles.
+                        PDFs and printed documents always keep their standard font, so reports look the same for everyone.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <div role="radiogroup" aria-label="Body font" className="grid gap-3 sm:grid-cols-3">
-                        {FONT_OPTIONS.map(font => (
-                            <OptionButton key={font.id} active={mounted && prefs.font === font.id} onClick={() => update({ font: font.id })}>
-                                <span className="text-lg font-semibold" style={{ fontFamily: font.stack }}>{font.label}</span>
-                                <span className="text-sm" style={{ fontFamily: font.stack }}>Aa 123 &middot; रु. १२३</span>
-                                <span className="text-xs text-muted-foreground">{font.description}</span>
-                            </OptionButton>
-                        ))}
+                <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold">Body text</Label>
+                            <Select value={mounted ? prefs.font : undefined} onValueChange={v => update({ font: v })}>
+                                <SelectTrigger><SelectValue placeholder="Choose font" /></SelectTrigger>
+                                <SelectContent>
+                                    {FONT_OPTIONS.map(f => (
+                                        <SelectItem key={f.id} value={f.id}>
+                                            <span style={{ fontFamily: f.stack }}>{f.label}</span>
+                                            <span className="ml-2 text-xs text-muted-foreground">{f.description}</span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold">Headings and titles</Label>
+                            <Select value={mounted ? prefs.headingFont : undefined} onValueChange={v => update({ headingFont: v })}>
+                                <SelectTrigger><SelectValue placeholder="Choose font" /></SelectTrigger>
+                                <SelectContent>
+                                    {HEADING_FONT_OPTIONS.map(f => (
+                                        <SelectItem key={f.id} value={f.id}>
+                                            <span style={f.stack ? { fontFamily: f.stack } : undefined}>{f.label}</span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" /> Heading font</CardTitle>
-                    <CardDescription>Used for page titles, card titles and dialog titles.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div role="radiogroup" aria-label="Heading font" className="grid gap-3 sm:grid-cols-3">
-                        {HEADING_FONT_OPTIONS.map(font => (
-                            <OptionButton key={font.id} active={mounted && prefs.headingFont === font.id} onClick={() => update({ headingFont: font.id })}>
-                                <span className="text-lg font-semibold" style={font.stack ? { fontFamily: font.stack } : undefined}>{font.label}</span>
-                                <span className="text-sm" style={font.stack ? { fontFamily: font.stack } : undefined}>Purchase Order</span>
-                                <span className="text-xs text-muted-foreground">{font.description}</span>
-                            </OptionButton>
-                        ))}
+                    <div className="rounded-md border p-3">
+                        <h3 className="text-lg font-bold">Estimate Invoice</h3>
+                        <p className="text-sm">Party: Shree Maruti Paper &middot; Net Total Rs. 98,445.60 &middot; रु. ९८,४४५</p>
                     </div>
                 </CardContent>
             </Card>
