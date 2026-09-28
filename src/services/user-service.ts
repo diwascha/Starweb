@@ -253,6 +253,13 @@ export const adminCreateUserWithUsername = async (auth: Auth, username: string, 
     }
 };
 
+/** Creates the person's login, or resets its password if they already have one. */
+export const setUserLogin = async (email: string, password: string) => {
+    const { error } = await getSupabase().rpc('admin_set_login', { p_email: email.toLowerCase().trim(), p_password: password });
+    if (error) throw new Error(error.message);
+    logAudit(`Login set for ${email.toLowerCase().trim()}`, 'Security');
+};
+
 export const loginWithUsername = async (auth: Auth, loginString: string, password: string) => {
     const { db } = getFirebase();
     const login = (loginString || '').toLowerCase().trim();

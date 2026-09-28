@@ -91,9 +91,12 @@ column, so documents can be copied across without loss and re-exported.
       `record_page_visit`. Live updates via Supabase Realtime; photos in the
       public `files` storage bucket. Batches/transactions are sequential, not
       atomic (acceptable at this scale; revisit number reservation later).
-  - Each staff member needs a Supabase login with the same email as their
-    user record: Supabase -> Authentication -> Users -> Add user (tick
-    Auto Confirm User).
+  - Logins are managed in the app (Settings -> System): creating a user
+    creates their login; typing a password while editing a user creates the
+    login if they have none (accounts copied from Firebase) or resets it.
+    Both go through `admin_set_login` (migration 0006, administrators only;
+    accounts are created confirmed, no email). Public sign-up is switched
+    off in Supabase -> Authentication -> Sign In / Providers.
 - [ ] Phase 2 - Re-runnable data copy tool for switch-over day
 - [ ] Phase 3 - Modules
 - [ ] Phase 4 - Switch-over

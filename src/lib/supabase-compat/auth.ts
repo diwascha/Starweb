@@ -76,17 +76,16 @@ export async function signInWithEmailAndPassword(auth: Auth, email: string, pass
     return { user: user! };
 }
 
-export async function createUserWithEmailAndPassword(auth: Auth, email: string, password: string): Promise<UserCredential> {
-    // The confirmation link returns to whichever address the app is running
-    // on, so no Site URL change is needed per deployment (the address must
-    // match an entry in Supabase's Redirect URLs list).
-    const emailRedirectTo = typeof window !== 'undefined' ? `${window.location.origin}/login/` : undefined;
-    const { data, error } = await auth._client.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo } });
-    if (error) throw toAuthError(error);
-    if (!data.user || (data.user.identities?.length ?? 1) === 0) {
-        throw new AuthError('auth/email-already-in-use', 'An account with this email already exists.');
-    }
-    return { user: { uid: data.user.id, email: data.user.email ?? email } };
+/**
+ * Creates (or, if the email already has one, resets) a login. Runs as the
+ * signed-in administrator through `admin_set_login`, which creates the
+ * account already confirmed, so no email is involved and the admin stays
+ * signed in.
+ */
+export async function createUserWithEmailAndPassword(_auth: Auth, email: string, password: string): Promise<UserCredential> {
+    const { data, error } = await getSupabase().rpc('admin_set_login', { p_email: email.trim(), p_password: password });
+    if (error) throw new AuthError(error.code === '42501' ? 'auth/admin-restricted-operation' : 'auth/unknown', error.message);
+    return { user: { uid: String(data), email: email.trim().toLowerCase() } };
 }
 
 export function onAuthStateChanged(auth: Auth, callback: (user: User | null) => void, onError?: (e: any) => void): () => void {

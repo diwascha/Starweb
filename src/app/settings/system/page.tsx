@@ -58,6 +58,7 @@ import {
     MIN_PASSWORD_LENGTH, 
     setAdminPassword,
     adminCreateUserWithUsername,
+    setUserLogin,
     onUsernamesUpdate,
     deleteUsernameRecord
 } from '@/services/user-service';
@@ -284,6 +285,11 @@ export default function SystemSettingsPage() {
         if (!isEditing) {
             const authUser = await adminCreateUserWithUsername(auth, userForm.username, userForm.email, userForm.password);
             finalUserId = authUser.uid;
+        } else if (userForm.password) {
+            // A password typed while editing creates the login if this
+            // person has none yet (e.g. accounts copied from Firebase),
+            // otherwise it resets it.
+            await setUserLogin(userForm.email, userForm.password);
         }
 
         try {
