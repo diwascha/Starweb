@@ -17,7 +17,7 @@ import { useAuthService } from '@/firebase';
 import { getUserById, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { logAudit } from '@/services/log-service';
-import { runAutoBackup } from '@/lib/auto-backup';
+import { backupReminder } from '@/lib/auto-backup';
 import { queueFailedLogin, flushFailedLogins } from '@/lib/login-audit';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
@@ -237,11 +237,10 @@ export default function LoginPage() {
         );
       }
 
-      // Automatic backup: administrators only, at most weekly (see
-      // lib/auto-backup). Not awaited: the user is already signed in.
-      void runAutoBackup(cloudUser.username, cloudUser.id, !!cloudUser.isAdmin).catch(err => {
-        console.error('Auto-backup download failed:', err);
-      });
+      // No automatic backup: a full export reads the whole database (20K+
+      // reads). Admins get a reminder instead - see lib/auto-backup.
+      const reminder = backupReminder(cloudUser.id, !!cloudUser.isAdmin);
+      if (reminder) toast({ title: 'Backup reminder', description: reminder });
 
       logAudit(`Successful Login: ${cloudUser.username}`, 'Security');
       toast({ title: 'Welcome', description: `Signed in as ${cloudUser.username}` });

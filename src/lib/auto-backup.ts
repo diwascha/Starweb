@@ -1,95 +1,63 @@
 /**
- * @fileOverview The automatic backup download.
+ * @fileOverview Backup reminder for administrators.
  *
- * This used to run for EVERY user on their first login of the day, in every
- * browser. Each run read every document in the database - on the free plan
- * that alone could use up most of the 50,000 daily reads - and saved a copy
- * of all payroll and staff data into that PC's Downloads folder.
+ * The app used to download a backup automatically: first on every login, then
+ * (after the audit) weekly for admins only. Either way it read the WHOLE
+ * database, one read per record (about 3,300 in September 2026, growing
+ * with every month of payroll and attendance). "Weekly" was tracked per
+ * browser, so a fresh browser or a reinstalled desktop app ran a full backup
+ * on every login - two logins on one day cost 6,600 reads.
  *
- * Now it runs only for administrators, at most once a week per browser, and
- * leaves out the raw machine logs (the largest collection, and only the
- * source of attendance that is already stored). Anyone who needs a full
- * snapshot, or one right now, uses Settings > System > Backup.
+ * Nothing is read automatically any more. An admin who has not downloaded a
+ * backup in this browser for a week gets a reminder (at most once a day), and
+ * the backup runs only when they click the backup icon in the sidebar footer
+ * (or Download in Settings > System > Backup).
  */
 
-import { exportData, gzipString, RAW_LOGS_COLLECTION } from '@/services/backup-service';
-
-const STORAGE_PREFIX = 'starsutra:lastAutoBackup:';
+const LAST_BACKUP_PREFIX = 'starsutra:lastBackup:';
+const LAST_REMINDER_PREFIX = 'starsutra:lastBackupReminder:';
 const INTERVAL_DAYS = 7;
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-const storageKey = (userId: string) => `${STORAGE_PREFIX}${userId}`;
-
-/** The date of this user's last automatic backup in this browser. */
-export const lastAutoBackupDate = (userId: string): string | null => {
+const read = (key: string): string | null => {
     try {
-        return localStorage.getItem(storageKey(userId));
+        return localStorage.getItem(key);
     } catch {
         // Private windows and blocked site data throw here.
         return null;
     }
 };
 
-/**
- * True when an administrator has had no automatic backup in this browser for
- * a week. When storage is unavailable this returns FALSE: without somewhere
- * to record the run it could not be throttled, and a full export on every
- * login is the behaviour being fixed.
- */
-export const isAutoBackupDue = (userId: string, isAdmin: boolean): boolean => {
-    if (!isAdmin) return false;
+const write = (key: string, value: string) => {
     try {
-        localStorage.setItem(`${STORAGE_PREFIX}probe`, '1');
-        localStorage.removeItem(`${STORAGE_PREFIX}probe`);
+        localStorage.setItem(key, value);
     } catch {
-        return false;
-    }
-    const last = lastAutoBackupDate(userId);
-    if (!last) return true;
-    const ageDays = (Date.parse(today()) - Date.parse(last)) / 86_400_000;
-    return !(ageDays >= 0 && ageDays < INTERVAL_DAYS);
-};
-
-const markDone = (userId: string) => {
-    try {
-        localStorage.setItem(storageKey(userId), today());
-    } catch {
-        /* nothing we can do; the next login simply tries again */
+        /* nothing to do: the reminder may simply show again */
     }
 };
 
+const daysSince = (isoDate: string | null): number | null => {
+    if (!isoDate) return null;
+    const ms = Date.parse(today()) - Date.parse(isoDate);
+    return Number.isNaN(ms) ? null : Math.floor(ms / 86_400_000);
+};
+
+/** Call after a backup file has been downloaded. */
+export const recordBackupTaken = (userId: string) => write(`${LAST_BACKUP_PREFIX}${userId}`, today());
+
 /**
- * Download a backup if one is due. Deliberately NOT awaited by the caller -
- * the user is already signed in and should not wait on it. Returns true if a
- * backup was taken.
+ * For an administrator, a reminder message if no backup has been downloaded
+ * in this browser for a week and no reminder has been shown today; otherwise
+ * null. Reads nothing from the database.
  */
-export const runAutoBackup = async (username: string, userId: string, isAdmin: boolean): Promise<boolean> => {
-    if (!isAutoBackupDue(userId, isAdmin)) return false;
-
-    const data = await exportData({ exclude: [RAW_LOGS_COLLECTION] });
-
-    // Compact JSON, gzipped where the platform has CompressionStream; plain
-    // .json otherwise so a webview without it still gets its backup.
-    const json = JSON.stringify(data);
-    const gz = await gzipString(json);
-    const blob = gz ?? new Blob([json], { type: 'application/json' });
-    const extension = gz ? 'json.gz' : 'json';
-
-    const url = URL.createObjectURL(blob);
-    try {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `starsutra-autobackup-${username}-${today()}.${extension}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    } finally {
-        URL.revokeObjectURL(url);
-    }
-
-    // Recorded only after the download started, so a failure is retried at
-    // the next login rather than skipped for the week.
-    markDone(userId);
-    return true;
+export const backupReminder = (userId: string, isAdmin: boolean): string | null => {
+    if (!isAdmin) return null;
+    if (read(`${LAST_REMINDER_PREFIX}${userId}`) === today()) return null;
+    const age = daysSince(read(`${LAST_BACKUP_PREFIX}${userId}`));
+    if (age !== null && age >= 0 && age < INTERVAL_DAYS) return null;
+    write(`${LAST_REMINDER_PREFIX}${userId}`, today());
+    return age === null
+        ? 'No backup has been downloaded on this computer yet. Use the backup icon at the bottom of the sidebar.'
+        : `Last backup on this computer was ${age} days ago. Use the backup icon at the bottom of the sidebar.`;
 };

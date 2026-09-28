@@ -26,8 +26,8 @@ import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/use-auth';
 import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { onPoliciesUpdate } from '@/services/policy-service';
-import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
-import { onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
+import { onOpenPurchaseOrdersUpdate } from '@/services/purchase-order-service';
+import { onEstimatedInvoicesSinceUpdate } from '@/services/estimate-invoice-service';
 import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { onChequesUpdate } from '@/services/cheque-service';
@@ -429,8 +429,8 @@ export default function DashboardPage() {
 
     const unsubs = [
       when(canFleetView,   () => onPoliciesUpdate(wrap('policies', (v: PolicyOrMembership[]) => setPolicies(isIncluded('fleet') ? v.filter((p) => inScopeFleet(p.ownership)) : []))), 'policies'),
-      when(canPOView,      () => onPurchaseOrdersUpdate(wrap('pos', (v: PurchaseOrder[]) => setPurchaseOrders(isIncluded('purchaseOrders') ? v.filter((p) => inScopePO(p.ownership)) : []))), 'pos'),
-      when(canFinanceView, () => onEstimatedInvoicesUpdate(wrap('invoices', (v: EstimatedInvoice[]) => setInvoices(isIncluded('finance') ? v.filter((i) => inScopeFinance(i.ownership)) : []))), 'invoices'),
+      when(canPOView,      () => onOpenPurchaseOrdersUpdate(wrap('pos', (v: PurchaseOrder[]) => setPurchaseOrders(isIncluded('purchaseOrders') ? v.filter((p) => inScopePO(p.ownership)) : []))), 'pos'),
+      when(canFinanceView, () => onEstimatedInvoicesSinceUpdate(tripsSinceIso, wrap('invoices', (v: EstimatedInvoice[]) => setInvoices(isIncluded('finance') ? v.filter((i) => inScopeFinance(i.ownership)) : []))), 'invoices'),
       when(canSettingsView,() => onPageVisitsUpdate(wrap('visits', setPageVisits)), 'visits'),
       when(canFinanceView, () => onChequesUpdate(wrap('cheques', (v: Cheque[]) => setCheques(isIncluded('finance') ? v.filter((c) => inScopeFinance(c.ownership)) : []))), 'cheques'),
       when(canFleetView,   () => onTripsSinceUpdate(tripsSinceIso, wrap('trips', (v: Trip[]) => setTrips(isIncluded('fleet') ? v.filter((t) => inScopeFleet(t.ownership)) : []))), 'trips'),
