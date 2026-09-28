@@ -18,7 +18,6 @@ import { getUserById, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { logAudit } from '@/services/log-service';
 import { backupReminder } from '@/lib/auto-backup';
-import { signInToSupabase } from '@/lib/supabase-auth';
 import { queueFailedLogin, flushFailedLogins } from '@/lib/login-audit';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
@@ -226,25 +225,6 @@ export default function LoginPage() {
       setStage('workspace');
       await login(cloudUser, false);
 
-      // Migration bridge: also sign in to Supabase with the same credentials.
-      // Never blocks the Firebase sign-in (see lib/supabase-auth).
-      if (firebaseUser.email) {
-        void signInToSupabase(firebaseUser.email, data.password).then(result => {
-          // Shown on every sign-in while the migration is being tested, so
-          // it is obvious what the Supabase step did.
-          if (result.status === 'confirm-email') {
-            toast({
-              title: 'Confirm your email',
-              description: `We sent a confirmation link to ${firebaseUser.email} for the new StarSutra database. Open it once; nothing else changes.`,
-            });
-          } else if (result.status === 'signed-in') {
-            toast({ title: 'New database connected', description: `Signed in to Supabase as ${firebaseUser.email}.` });
-          } else {
-            toast({ title: 'New database not connected', description: result.detail || 'Unknown error.', variant: 'destructive' });
-          }
-        });
-      }
-
       // Now that there is a session to write under, record the failed attempts
       // this browser collected while signed out. The rules require an
       // authenticated writer, so this is the only moment they can be saved.
@@ -448,7 +428,7 @@ export default function LoginPage() {
         </Card>
         <p className="mt-8 text-center text-[0.625rem] text-muted-foreground font-medium uppercase tracking-widest">StarSutra Integrated Enterprise Suite</p>
         {/* Marks the migration build so it is easy to tell apart from the live app. */}
-        <p className="mt-1 text-center text-[0.625rem] font-bold uppercase tracking-widest text-amber-600">Supabase test build</p>
+        <p className="mt-1 text-center text-[0.625rem] font-bold uppercase tracking-widest text-amber-600">Supabase build</p>
       </div>
     </div>
   );

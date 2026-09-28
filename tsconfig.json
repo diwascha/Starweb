@@ -25,7 +25,12 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ]
+      ],
+      "firebase/firestore": ["./src/lib/supabase-compat/firestore.ts"],
+      "firebase/auth": ["./src/lib/supabase-compat/auth.ts"],
+      "firebase/app": ["./src/lib/supabase-compat/app.ts"],
+      "firebase/storage": ["./src/lib/supabase-compat/storage.ts"],
+      "firebase/database": ["./src/lib/supabase-compat/database.ts"]
     }
   },
   "include": [

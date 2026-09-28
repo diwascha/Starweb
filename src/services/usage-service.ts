@@ -1,4 +1,5 @@
 'use client';
+import { getSupabase } from '@/lib/supabase';
 import { getFirebase } from '@/lib/firebase';
 import { reportWriteFailure } from '@/lib/write-reporting';
 import { collection, doc, setDoc, onSnapshot, increment, serverTimestamp, query, orderBy, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
@@ -19,7 +20,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PageVisit
         id: snapshot.id,
         path: String(data.path || ''),
         count: Number(data.count) || 0,
-        lastVisited: data.lastVisited?.toDate?.().toISOString() || new Date().toISOString(),
+        lastVisited: (typeof data.lastVisited === 'string' ? data.lastVisited : data.lastVisited?.toDate?.().toISOString()) || new Date().toISOString(),
     };
 };
 
@@ -30,18 +31,10 @@ export const trackPageVisit = async (path: string) => {
     // Create a safe document ID from the normalized path.
     // We remove slashes and ensure a consistent key for root.
     const pathId = normalizedPath === '/' ? 'root' : normalizedPath.replace(/^\//, '').replace(/\//g, '--');
-    const docRef = doc(getUsageCollection(), pathId);
-    
-    const payload = {
-        path: normalizedPath,
-        count: increment(1),
-        lastVisited: serverTimestamp()
-    };
-
-    reportWriteFailure(
-        setDoc(docRef, payload, { merge: true }),
-        { path: COLLECTIONS.PAGE_VISITS, operation: 'write' }
-    );
+    // One atomic +1 in the database (public.record_page_visit); the table
+    // itself is not writable directly.
+    const { error } = await getSupabase().rpc('record_page_visit', { p_id: pathId, p_path: normalizedPath });
+    if (error) console.warn('Page visit not recorded:', error.message);
 };
 
 export const onPageVisitsUpdate = (callback: (visits: PageVisit[]) => void): () => void => {

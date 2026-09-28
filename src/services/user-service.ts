@@ -1,3 +1,4 @@
+import { getSupabase } from '@/lib/supabase';
 
 import { getFirebase } from '@/lib/firebase';
 import { reportWriteFailure } from '@/lib/write-reporting';
@@ -259,29 +260,10 @@ export const loginWithUsername = async (auth: Auth, loginString: string, passwor
     let email = login;
 
     if (!login.includes('@')) {
-        const usernameRef = doc(db, COLLECTIONS.USERNAMES, login);
-        const snap = await getDoc(usernameRef);
-        
-        if (snap.exists()) {
-            email = snap.data()?.email || login;
-        } else {
-            // Legacy fallback for accounts created before the `usernames`
-            // collection existed. It cannot succeed for an anonymous caller -
-            // this runs BEFORE sign-in, and listing system_users is admin-only -
-            // so a denial here is expected, not exceptional. Swallow it and let
-            // the sign-in below fail with the normal generic credential error;
-            // throwing instead would both break login and, by failing
-            // differently for a known username, leak which accounts exist.
-            try {
-                const q = query(collection(db, COLLECTIONS.SYSTEM_USERS), where("username", "==", login), limit(1));
-                const userSnap = await getDocs(q);
-                if (!userSnap.empty) {
-                    email = userSnap.docs[0].data().email;
-                }
-            } catch {
-                /* resolve as the raw login and let Firebase Auth reject it */
-            }
-        }
+        // Resolved by a database function that returns one email for an exact
+        // username; the usernames table itself is not readable before sign-in.
+        const { data } = await getSupabase().rpc('email_for_username', { p_username: login });
+        if (typeof data === 'string' && data) email = data;
     }
 
     return signInWithEmailAndPassword(auth, email, password);

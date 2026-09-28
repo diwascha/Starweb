@@ -81,6 +81,19 @@ column, so documents can be copied across without loss and re-exported.
   - Owner settings needed in Supabase: Authentication -> URL Configuration ->
     Site URL = the app's URL (confirmation links point there); keep
     "Confirm email" ON; turn on leaked-password protection.
+- [x] Supabase-only build (2026-09-28, owner decision: this branch uses no
+      Firebase at all). `src/lib/supabase-compat/` implements the
+      `firebase/firestore`, `firebase/auth`, `firebase/app`, `firebase/storage`
+      and `firebase/database` functions the app uses, on Supabase; the build
+      points those imports there (next.config.ts webpack alias + tsconfig
+      paths). The production bundle contains no Firebase SDK. Login: username
+      -> email via `email_for_username`, then Supabase sign-in; page visits via
+      `record_page_visit`. Live updates via Supabase Realtime; photos in the
+      public `files` storage bucket. Batches/transactions are sequential, not
+      atomic (acceptable at this scale; revisit number reservation later).
+  - Each staff member needs a Supabase login with the same email as their
+    user record: Supabase -> Authentication -> Users -> Add user (tick
+    Auto Confirm User).
 - [ ] Phase 2 - Re-runnable data copy tool for switch-over day
 - [ ] Phase 3 - Modules
 - [ ] Phase 4 - Switch-over

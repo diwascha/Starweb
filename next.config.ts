@@ -17,6 +17,21 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Supabase-only build: every `firebase/*` import resolves to the Supabase
+  // implementations in src/lib/supabase-compat (same functions, Supabase
+  // underneath). tsconfig.json has the matching `paths` for type checking.
+  webpack: (config) => {
+    const compat = path.resolve(__dirname, 'src/lib/supabase-compat');
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'firebase/firestore$': path.join(compat, 'firestore.ts'),
+      'firebase/auth$': path.join(compat, 'auth.ts'),
+      'firebase/app$': path.join(compat, 'app.ts'),
+      'firebase/storage$': path.join(compat, 'storage.ts'),
+      'firebase/database$': path.join(compat, 'database.ts'),
+    };
+    return config;
+  },
   images: {
     unoptimized: true,
     remotePatterns: [

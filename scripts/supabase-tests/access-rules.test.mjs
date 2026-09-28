@@ -20,6 +20,7 @@ await db.exec(`
 await db.exec(read('supabase/migrations/0001_tables.sql'));
 await db.exec(read('supabase/migrations/0002_access_rules.sql'));
 await db.exec(read('supabase/migrations/0003_hardening.sql'));
+await db.exec(read('supabase/migrations/0004_page_visits.sql'));
 await db.exec(`
   grant usage on schema public to anon, authenticated;
   grant select, insert, update, delete on all tables in schema public to anon, authenticated;
@@ -155,10 +156,11 @@ await denies('hredit: create unmapped setting', 'hredit@x.com', `insert into set
 await allows('admin: create any setting', 'boss@x.com', `insert into settings (id, data) values ('unknown', '{}')`);
 
 // --- pageVisits ----------------------------------------------------------------------
-await as('hrview@x.com', "select public.record_page_visit('/hr/payroll')");
-await as('hrview@x.com', "select public.record_page_visit('/hr/payroll')");
-await as('pending@x.com', "select public.record_page_visit('/hr/payroll')");
-ok('page visits counted (approved only)', (await get('pageVisits', '_hr_payroll')).count === 2);
+await as('hrview@x.com', "select public.record_page_visit('hr--payroll', '/hr/payroll')");
+await as('hrview@x.com', "select public.record_page_visit('hr--payroll', '/hr/payroll')");
+await as('pending@x.com', "select public.record_page_visit('hr--payroll', '/hr/payroll')");
+ok('page visits counted (approved only)', (await get('pageVisits', 'hr--payroll')).count === 2);
+await denies('anon: record visit', 'anon', "select public.record_page_visit('x', '/x')");
 ok('hrview: cannot read visits', await count('hrview@x.com', 'select * from "pageVisits"') === 0);
 ok('settings viewer: reads visits', await count('set@x.com', 'select * from "pageVisits"') === 1);
 await denies('hrview: write visits directly', 'hrview@x.com', `insert into "pageVisits" (id, data) values ('x', '{"count":999}')`);
