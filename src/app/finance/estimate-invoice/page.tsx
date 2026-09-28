@@ -242,7 +242,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 
             const money = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const pageWidth = doc.internal.pageSize.getWidth();
-            const totalsGap = { content: '', colSpan: 3, styles: { lineWidth: 0, fillColor: false as const } };
+            const totalQuantity = invoice.items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
 
             // Totals are footer rows of the same table, so they sit exactly
             // under the Rate/Amount columns instead of at fixed x positions
@@ -259,13 +259,26 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                     money(item.rate),
                     money(item.gross)
                 ]),
-                // Totals box: bordered cells under Rate/Amount only; the
-                // blank cell to their left has no border, so the item grid
-                // closes cleanly above it.
+                // Summary rows at the foot of the same table, fully bordered:
+                //   Total Quantity (under Quantity)  | Gross Total
+                //   Amount in words (spans 3 cols)   | VAT (13%)
+                //                                    | Net Total
                 foot: [
-                    [totalsGap, 'Gross Total', money(invoice.grossTotal)],
-                    [totalsGap, 'VAT (13%)', money(invoice.vatTotal)],
-                    [totalsGap, { content: 'Net Total', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }, { content: money(invoice.netTotal), styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }],
+                    [
+                        { content: 'Total Quantity', colSpan: 2, styles: { fontStyle: 'bold' } },
+                        { content: totalQuantity.toLocaleString('en-IN'), styles: { fontStyle: 'bold' } },
+                        'Gross Total',
+                        money(invoice.grossTotal),
+                    ],
+                    [
+                        { content: `In Words: ${invoice.amountInWords}`, colSpan: 3, rowSpan: 2, styles: { halign: 'left', valign: 'middle', fontStyle: 'italic' } },
+                        'VAT (13%)',
+                        money(invoice.vatTotal),
+                    ],
+                    [
+                        { content: 'Net Total', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
+                        { content: money(invoice.netTotal), styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
+                    ],
                 ],
                 showFoot: 'lastPage',
                 theme: 'grid',
@@ -285,18 +298,13 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                 },
             });
 
-            let finalY = (doc as any).lastAutoTable.finalY;
-            doc.setFont('Helvetica', 'normal');
-            doc.setFontSize(10);
-            const words = doc.splitTextToSize(`In Words: ${invoice.amountInWords}`, pageWidth - 28);
-            doc.text(words, 14, finalY + 8);
-            finalY += 8 + words.length * 5;
+            const finalY = (doc as any).lastAutoTable.finalY;
 
             doc.setFontSize(8);
             doc.setFont('Helvetica', 'bold');
-            doc.text('Disclaimer:', pageWidth / 2, finalY + 6, { align: 'center' });
+            doc.text('Disclaimer:', pageWidth / 2, finalY + 8, { align: 'center' });
             doc.setFont('Helvetica', 'normal');
-            doc.text('This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.', pageWidth / 2, finalY + 10, { align: 'center' });
+            doc.text('This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.', pageWidth / 2, finalY + 12, { align: 'center' });
 
             doc.save(`Estimate-${invoice.invoiceNumber}.pdf`);
 
