@@ -19,6 +19,7 @@ await db.exec(`
 `);
 await db.exec(read('supabase/migrations/0001_tables.sql'));
 await db.exec(read('supabase/migrations/0002_access_rules.sql'));
+await db.exec(read('supabase/migrations/0003_hardening.sql'));
 await db.exec(`
   grant usage on schema public to anon, authenticated;
   grant select, insert, update, delete on all tables in schema public to anon, authenticated;
