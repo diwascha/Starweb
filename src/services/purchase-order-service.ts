@@ -14,7 +14,9 @@ import {
     DocumentData, 
     QueryDocumentSnapshot, 
     getDoc, 
-    setDoc
+    setDoc,
+    query,
+    where
 } from 'firebase/firestore';
 import type { PurchaseOrder, PurchaseOrderStatus, PurchaseOrderVersion } from '@/lib/types';
 import { COLLECTIONS } from '@/lib/constants';
@@ -74,6 +76,25 @@ export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<s
     );
 
     return id;
+};
+
+/**
+ * Only purchase orders still open (Ordered or Amended) - what the dashboard
+ * counts. Streaming every PO ever raised cost one read per PO per app open.
+ */
+export const onOpenPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[]) => void): () => void => {
+    const q = query(getPurchaseOrdersCollection(), where('status', 'in', ['Ordered', 'Amended']));
+    return onSnapshot(q,
+        (snapshot) => callback(snapshot.docs.map(fromFirestore)),
+        async (error) => {
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: COLLECTIONS.PURCHASE_ORDERS,
+                    operation: 'list'
+                } satisfies SecurityRuleContext));
+            }
+        }
+    );
 };
 
 export const onPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[]) => void): () => void => {

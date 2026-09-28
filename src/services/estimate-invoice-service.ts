@@ -1,7 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
 import { reportWriteFailure } from '@/lib/write-reporting';
-import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, query, orderBy, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, query, orderBy, setDoc, where } from 'firebase/firestore';
 import type { EstimatedInvoice } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -60,6 +60,23 @@ export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
+        async (error) => {
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'list' }));
+            }
+        }
+    );
+};
+
+/**
+ * Only estimates dated on or after `sinceIso` - the dashboard needs this and
+ * last month's revenue, not every estimate ever issued (each document a
+ * listener returns is a billed read, on every app open).
+ */
+export const onEstimatedInvoicesSinceUpdate = (sinceIso: string, callback: (invoices: EstimatedInvoice[]) => void): () => void => {
+    const q = query(getInvoicesCollection(), where('date', '>=', sinceIso));
+    return onSnapshot(q,
+        (snapshot) => callback(snapshot.docs.map(fromFirestore)),
         async (error) => {
             if (error.code === 'permission-denied') {
                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: COLLECTIONS.ESTIMATED_INVOICES, operation: 'list' }));

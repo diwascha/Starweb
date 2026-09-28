@@ -70,6 +70,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService, useConnectionStatus } from '@/firebase';
+import { recordBackupTaken } from '@/lib/auto-backup';
 import { exportData, RAW_LOGS_COLLECTION, compressBackup, readBackupFile, planRestore, applyRestore, type RestorePlan } from '@/services/backup-service';
 import { Separator } from '@/components/ui/separator';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
@@ -355,6 +356,7 @@ export default function SystemSettingsPage() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+        if (user) recordBackupTaken(user.id);
         const skipped: { collection: string; reason: string }[] = data?._meta?.skipped || [];
         if (skipped.length > 0) {
             toast({
@@ -1145,7 +1147,7 @@ export default function SystemSettingsPage() {
                             <Download className="h-4 w-4 text-primary" />
                             Data Preservation
                         </CardTitle>
-                        <CardDescription>Download a snapshot of the database for local archiving. Only administrators get the automatic weekly copy; this button is for any time.</CardDescription>
+                        <CardDescription>Download a snapshot of the database for local archiving. This reads every record, roughly 20,000-30,000 of the free 50,000 daily reads, so do it once a week, ideally at the end of the day. Nothing is backed up automatically; admins get a weekly reminder.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <label className="flex items-start gap-2 text-xs">
