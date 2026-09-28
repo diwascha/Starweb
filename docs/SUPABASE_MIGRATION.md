@@ -58,7 +58,12 @@ column, so documents can be copied across without loss and re-exported.
 
 ## Status
 
-- [ ] Phase 1 - Foundation (blocked: network access to supabase.co)
-- [ ] Phase 2 - Data copy tool
+- [x] Database reset (2026-09-28): the earlier partial schema was dropped;
+      50 tables created (one per Firebase collection, `id text` + `data jsonb`),
+      RLS on for all, no policies yet (nothing reachable with the public key).
+- [x] Data copy (2026-09-28): 3,276 rows loaded from the 05:26 UTC backup via a
+      token-protected temporary function, which was dropped straight after.
+- [ ] Phase 1 - Foundation (auth, permissions, RLS policies + tests)
+- [ ] Phase 2 - Re-runnable data copy tool for switch-over day
 - [ ] Phase 3 - Modules
 - [ ] Phase 4 - Switch-over
