@@ -11,24 +11,29 @@
  */
 import { getSupabase } from '@/lib/supabase';
 
-export type SupabaseSignInResult = 'signed-in' | 'confirm-email' | 'failed';
+export type SupabaseSignInResult = { status: 'signed-in' | 'confirm-email' | 'failed'; detail?: string };
 
 export const signInToSupabase = async (email: string, password: string): Promise<SupabaseSignInResult> => {
     const auth = getSupabase().auth;
     try {
         const { error } = await auth.signInWithPassword({ email, password });
-        if (!error) return 'signed-in';
-        if (/not confirmed/i.test(error.message)) return 'confirm-email';
+        if (!error) return { status: 'signed-in' };
+        if (/not confirmed/i.test(error.message)) return { status: 'confirm-email' };
         if (/invalid login credentials/i.test(error.message)) {
-            // No Supabase account yet (or a different password): create it.
-            // If it already exists with another password this fails quietly.
+            // No Supabase account yet (or one with a different password):
+            // create it. For an existing, confirmed account Supabase returns
+            // no session and sends no email - reported as a failure below.
             const { data, error: signUpError } = await auth.signUp({ email, password });
-            if (signUpError) return 'failed';
-            return data.session ? 'signed-in' : 'confirm-email';
+            if (signUpError) return { status: 'failed', detail: signUpError.message };
+            if (data.session) return { status: 'signed-in' };
+            if (data.user && (data.user.identities?.length ?? 0) === 0) {
+                return { status: 'failed', detail: 'A Supabase account for this email already exists with a different password.' };
+            }
+            return { status: 'confirm-email' };
         }
-        return 'failed';
-    } catch {
-        return 'failed';
+        return { status: 'failed', detail: error.message };
+    } catch (e: any) {
+        return { status: 'failed', detail: e?.message || 'network error' };
     }
 };
 

@@ -230,11 +230,17 @@ export default function LoginPage() {
       // Never blocks the Firebase sign-in (see lib/supabase-auth).
       if (firebaseUser.email) {
         void signInToSupabase(firebaseUser.email, data.password).then(result => {
-          if (result === 'confirm-email') {
+          // Shown on every sign-in while the migration is being tested, so
+          // it is obvious what the Supabase step did.
+          if (result.status === 'confirm-email') {
             toast({
               title: 'Confirm your email',
-              description: 'We sent a confirmation link for the new StarSutra database. Open it once; nothing else changes.',
+              description: `We sent a confirmation link to ${firebaseUser.email} for the new StarSutra database. Open it once; nothing else changes.`,
             });
+          } else if (result.status === 'signed-in') {
+            toast({ title: 'New database connected', description: `Signed in to Supabase as ${firebaseUser.email}.` });
+          } else {
+            toast({ title: 'New database not connected', description: result.detail || 'Unknown error.', variant: 'destructive' });
           }
         });
       }
@@ -441,6 +447,8 @@ export default function LoginPage() {
           </CardContent>
         </Card>
         <p className="mt-8 text-center text-[0.625rem] text-muted-foreground font-medium uppercase tracking-widest">StarSutra Integrated Enterprise Suite</p>
+        {/* Marks the migration build so it is easy to tell apart from the live app. */}
+        <p className="mt-1 text-center text-[0.625rem] font-bold uppercase tracking-widest text-amber-600">Supabase test build</p>
       </div>
     </div>
   );
