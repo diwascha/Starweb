@@ -44,9 +44,29 @@ const hexToRgb = (hex: string) => {
 const triplet = (rgb: number[]) => rgb.map(Math.round).join(' ');
 const shadeOf = (family: Family, shade: Shade) => (colors[family] as Record<Shade, string>)[shade];
 
+// `blue` is the app's accent family: its shades come from `--brand-*`
+// variables that Settings > Appearance rewrites (lib/appearance.ts). The
+// defaults below are Tailwind's blue, and printing always goes back to them.
+const BRAND_SHADES = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'] as const;
+const brandDefaults: Record<string, string> = {};
+for (const shade of BRAND_SHADES) brandDefaults[`--brand-${shade}`] = triplet(hexToRgb(shadeOf('blue', shade)));
+const brandPrint: Record<string, string> = Object.fromEntries(
+    Object.entries(brandDefaults).map(([k, v]) => [k, `${v} !important`]),
+);
+
 const lightVars: Record<string, string> = {};
 const darkVars: Record<string, string> = {};
 for (const family of FAMILIES) {
+    if (family === 'blue') {
+        for (const shade of LIGHT_SHADES) {
+            lightVars[`--tw-blue-${shade}`] = `var(--brand-${shade})`;
+            const { shade: dark, mix } = DARK_OF[shade];
+            const d = hexToRgb(shadeOf('blue', dark));
+            const fallback = triplet(d.map((v, i) => v * (1 - mix) + PAGE_BG_DARK[i] * mix));
+            darkVars[`--tw-blue-${shade}`] = `var(--brand-dark-${shade}, ${fallback})`;
+        }
+        continue;
+    }
     for (const shade of LIGHT_SHADES) {
         lightVars[`--tw-${family}-${shade}`] = triplet(hexToRgb(shadeOf(family, shade)));
         const { shade: dark, mix } = DARK_OF[shade];
@@ -58,7 +78,12 @@ for (const family of FAMILIES) {
 export const themedPaletteColors = Object.fromEntries(
     FAMILIES.map(family => [
         family,
-        Object.fromEntries(LIGHT_SHADES.map(s => [s, `rgb(var(--tw-${family}-${s}) / <alpha-value>)`])),
+        {
+            ...(family === 'blue'
+                ? Object.fromEntries(BRAND_SHADES.map(s => [s, `rgb(var(--brand-${s}) / <alpha-value>)`]))
+                : {}),
+            ...Object.fromEntries(LIGHT_SHADES.map(s => [s, `rgb(var(--tw-${family}-${s}) / <alpha-value>)`])),
+        },
     ]),
 );
 
@@ -66,14 +91,15 @@ const textRules: Record<string, Record<string, string>> = {};
 for (const family of FAMILIES) {
     for (const [from, to] of Object.entries(TEXT_LIGHTEN) as [Shade, Shade][]) {
         textRules[`.dark .text-${family}-${from}:not(.bg-white):not(:is(.paper, .bg-white) *)`] = {
-            color: shadeOf(family, to),
+            color: family === 'blue' ? `rgb(var(--brand-${to}))` : shadeOf(family, to),
         };
     }
 }
 
 export const darkPalettePlugin = plugin(({ addBase }) => {
     addBase({
-        ':root': lightVars,
+        ':root': { ...brandDefaults, ...lightVars },
+        '@media print': { ':root': brandPrint },
         '@media screen': {
             '.dark': darkVars,
             '.dark .paper, .dark .bg-white': lightVars,
