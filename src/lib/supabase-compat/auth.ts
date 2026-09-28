@@ -6,7 +6,7 @@
  * Accounts created before the move keep their old ids that way.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { getSupabase } from '@/lib/supabase';
+import { getSupabase, SUPABASE_URL, SUPABASE_KEY } from '@/lib/supabase';
 
 export type User = { uid: string; email: string | null };
 export type Auth = { name: string; currentUser: User | null; _client: SupabaseClient; signOut: () => Promise<void> };
@@ -42,9 +42,7 @@ const toAuthError = (error: any): AuthError => {
 // A client that never stores a session: used to create accounts and to check
 // a password without signing the current admin out.
 const isolatedClient = () => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bklhxebyzlhmfthoirlf.supabase.co';
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_FGF7E264UbmGeJwboiBRkA_44dBXiF-';
-    return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, storageKey: `starsutra-isolated-${Date.now()}` } });
+    return createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, storageKey: `starsutra-isolated-${Date.now()}` } });
 };
 
 const resolveUser = async (client: SupabaseClient, sbUser: { id: string; email?: string | null } | null): Promise<User | null> => {

@@ -11,8 +11,12 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bklhxebyzlhmfthoirlf.supabase.co';
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_FGF7E264UbmGeJwboiBRkA_44dBXiF-';
+// Fixed on purpose, not read from environment variables: hosting
+// integrations (e.g. Vercel's Supabase integration) inject their own
+// NEXT_PUBLIC_SUPABASE_* values, which pointed the app at an address the
+// Content-Security-Policy blocks. Both values are public by design.
+export const SUPABASE_URL = 'https://bklhxebyzlhmfthoirlf.supabase.co';
+export const SUPABASE_KEY = 'sb_publishable_FGF7E264UbmGeJwboiBRkA_44dBXiF-';
 
 let client: SupabaseClient | null = null;
 

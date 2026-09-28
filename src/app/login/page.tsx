@@ -264,7 +264,7 @@ export default function LoginPage() {
       if (error.code === AuthErrorCodes.TOO_MANY_ATTEMPTS_TRY_LATER) {
         errorMessage = 'Too many attempts. Sign-in is locked for a few minutes - this is a security limit and will clear on its own.';
       } else if (error.code === 'auth/network-request-failed') {
-        errorMessage = 'Could not reach the server. Check your connection and try again.';
+        errorMessage = `Could not reach the server. Check your connection and try again. (${error.message})`;
       } else if (error.code === 'auth/user-disabled') {
         errorMessage = 'This account has been disabled. Contact an administrator.';
       }
