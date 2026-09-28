@@ -70,7 +70,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAuthService, useConnectionStatus } from '@/firebase';
-import { recordBackupTaken } from '@/lib/auto-backup';
+import { downloadBackup } from '@/lib/backup-download';
 import { exportData, RAW_LOGS_COLLECTION, compressBackup, readBackupFile, planRestore, applyRestore, type RestorePlan } from '@/services/backup-service';
 import { Separator } from '@/components/ui/separator';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
@@ -346,18 +346,8 @@ export default function SystemSettingsPage() {
   const handleManualBackup = async () => {
     setIsExporting(true);
     try {
-        const data = await exportData({ exclude: backupIncludeRawLogs ? [] : [RAW_LOGS_COLLECTION] });
-        const { blob, gzipped } = await compressBackup(data);
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `starsutra-manual-backup-${new Date().toISOString()}.json${gzipped ? '.gz' : ''}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        if (user) recordBackupTaken(user.id);
-        const skipped: { collection: string; reason: string }[] = data?._meta?.skipped || [];
+        if (!user) return;
+        const { skipped, gzipped } = await downloadBackup(user.id, { includeRawLogs: backupIncludeRawLogs });
         if (skipped.length > 0) {
             toast({
                 title: 'Backup incomplete',
@@ -1147,7 +1137,7 @@ export default function SystemSettingsPage() {
                             <Download className="h-4 w-4 text-primary" />
                             Data Preservation
                         </CardTitle>
-                        <CardDescription>Download a snapshot of the database for local archiving. This reads every record, roughly 20,000-30,000 of the free 50,000 daily reads, so do it once a week, ideally at the end of the day. Nothing is backed up automatically; admins get a weekly reminder.</CardDescription>
+                        <CardDescription>Download a snapshot of the database for local archiving. It reads every record once (about 3,300 reads today, of the free 50,000 per day), so once a week is enough. Nothing is backed up automatically; admins get a weekly reminder and can also use the backup icon at the bottom of the sidebar.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <label className="flex items-start gap-2 text-xs">

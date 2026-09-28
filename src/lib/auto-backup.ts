@@ -3,14 +3,15 @@
  *
  * The app used to download a backup automatically: first on every login, then
  * (after the audit) weekly for admins only. Either way it read the WHOLE
- * database - every attendance row since 2076, payroll, transactions, trips -
- * which is 20,000-30,000+ reads, over half the free plan's 50,000 per day.
- * Worse, "weekly" was tracked per browser, so opening a fresh browser or a
- * reinstalled desktop app ran a full backup just from logging in.
+ * database, one read per record (about 3,300 in September 2026, growing
+ * with every month of payroll and attendance). "Weekly" was tracked per
+ * browser, so a fresh browser or a reinstalled desktop app ran a full backup
+ * on every login - two logins on one day cost 6,600 reads.
  *
  * Nothing is read automatically any more. An admin who has not downloaded a
  * backup in this browser for a week gets a reminder (at most once a day), and
- * the backup runs only when they click Download in Settings > System > Backup.
+ * the backup runs only when they click the backup icon in the sidebar footer
+ * (or Download in Settings > System > Backup).
  */
 
 const LAST_BACKUP_PREFIX = 'starsutra:lastBackup:';
@@ -57,6 +58,6 @@ export const backupReminder = (userId: string, isAdmin: boolean): string | null 
     if (age !== null && age >= 0 && age < INTERVAL_DAYS) return null;
     write(`${LAST_REMINDER_PREFIX}${userId}`, today());
     return age === null
-        ? 'No backup has been downloaded on this computer yet. Download one from Settings > System > Backup.'
-        : `Last backup on this computer was ${age} days ago. Download a new one from Settings > System > Backup.`;
+        ? 'No backup has been downloaded on this computer yet. Use the backup icon at the bottom of the sidebar.'
+        : `Last backup on this computer was ${age} days ago. Use the backup icon at the bottom of the sidebar.`;
 };
