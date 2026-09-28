@@ -79,7 +79,11 @@ export async function signInWithEmailAndPassword(auth: Auth, email: string, pass
 }
 
 export async function createUserWithEmailAndPassword(auth: Auth, email: string, password: string): Promise<UserCredential> {
-    const { data, error } = await auth._client.auth.signUp({ email: email.trim(), password });
+    // The confirmation link returns to whichever address the app is running
+    // on, so no Site URL change is needed per deployment (the address must
+    // match an entry in Supabase's Redirect URLs list).
+    const emailRedirectTo = typeof window !== 'undefined' ? `${window.location.origin}/login/` : undefined;
+    const { data, error } = await auth._client.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo } });
     if (error) throw toAuthError(error);
     if (!data.user || (data.user.identities?.length ?? 1) === 0) {
         throw new AuthError('auth/email-already-in-use', 'An account with this email already exists.');
