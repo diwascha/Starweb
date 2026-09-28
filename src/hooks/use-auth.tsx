@@ -4,6 +4,7 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback 
 import { useRouter, usePathname } from 'next/navigation';
 import type { User, Permissions, Module, Action, AccountOwnership, OwnershipCategory } from '@/lib/types';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { signOutOfSupabase } from '@/lib/supabase-auth';
 import { useAuthService } from '@/firebase';
 import { toast } from '@/hooks/use-toast';
 import { getFirebase } from '@/lib/firebase';
@@ -176,6 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
         console.error("Firebase signOut failure", e);
     }
+    await signOutOfSupabase();
     localStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
   }, [auth]);

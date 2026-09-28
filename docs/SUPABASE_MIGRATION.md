@@ -63,7 +63,24 @@ column, so documents can be copied across without loss and re-exported.
       RLS on for all, no policies yet (nothing reachable with the public key).
 - [x] Data copy (2026-09-28): 3,276 rows loaded from the 05:26 UTC backup via a
       token-protected temporary function, which was dropped straight after.
-- [ ] Phase 1 - Foundation (auth, permissions, RLS policies + tests)
+- [x] Phase 1 - Foundation (2026-09-28)
+  - `supabase/migrations/0002_access_rules.sql`: RLS equivalent of
+    firestore.rules (module permissions, shared tables, admin-only fallback,
+    settings exceptions, own-record rules for users/sessions/logs). Locked
+    payroll/attendance months enforced by triggers. Username lookup and page
+    visits via two small functions, so neither table is publicly readable.
+  - `scripts/supabase-tests/access-rules.test.mjs`: 80 checks against an
+    in-memory Postgres; all pass. Also verified on the live project with
+    simulated logins (rolled back): no login / unknown login see only the 4
+    public settings; the admin sees all 945 payroll rows.
+  - App: `src/lib/supabase.ts` (client + record helpers returning the same
+    `{ id, ...fields }` shape as the Firestore services) and
+    `src/lib/supabase-auth.ts` (after a Firebase sign-in, the same email and
+    password sign in to Supabase; first time, Supabase emails a confirmation
+    link). CSP allows the project URL.
+  - Owner settings needed in Supabase: Authentication -> URL Configuration ->
+    Site URL = the app's URL (confirmation links point there); keep
+    "Confirm email" ON; turn on leaked-password protection.
 - [ ] Phase 2 - Re-runnable data copy tool for switch-over day
 - [ ] Phase 3 - Modules
 - [ ] Phase 4 - Switch-over

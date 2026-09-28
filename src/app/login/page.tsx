@@ -18,6 +18,7 @@ import { getUserById, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { logAudit } from '@/services/log-service';
 import { backupReminder } from '@/lib/auto-backup';
+import { signInToSupabase } from '@/lib/supabase-auth';
 import { queueFailedLogin, flushFailedLogins } from '@/lib/login-audit';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
@@ -224,6 +225,19 @@ export default function LoginPage() {
 
       setStage('workspace');
       await login(cloudUser, false);
+
+      // Migration bridge: also sign in to Supabase with the same credentials.
+      // Never blocks the Firebase sign-in (see lib/supabase-auth).
+      if (firebaseUser.email) {
+        void signInToSupabase(firebaseUser.email, data.password).then(result => {
+          if (result === 'confirm-email') {
+            toast({
+              title: 'Confirm your email',
+              description: 'We sent a confirmation link for the new StarSutra database. Open it once; nothing else changes.',
+            });
+          }
+        });
+      }
 
       // Now that there is a session to write under, record the failed attempts
       // this browser collected while signed out. The rules require an
