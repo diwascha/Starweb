@@ -97,6 +97,15 @@ column, so documents can be copied across without loss and re-exported.
     Both go through `admin_set_login` (migration 0006, administrators only;
     accounts are created confirmed, no email). Public sign-up is switched
     off in Supabase -> Authentication -> Sign In / Providers.
+- [x] Relational schema (2026-10-02, owner decision): every table has real
+      typed columns instead of `id + data jsonb` (631 columns over 50 tables).
+      Spec: `scripts/supabase/schema-spec.json`; `scripts/supabase/gen-schema.mjs`
+      generates migration 0008 and `src/lib/supabase-compat/schema.generated.ts`.
+      Fields that do not fit a column are kept in `extra`, so records round-trip
+      exactly; the migration verifies every row and aborts on any difference.
+      0009 re-applies the access rules on columns. Run once as
+      `supabase/relational_upgrade.sql` (both, one transaction) in the SQL Editor.
+      To add a field: edit the spec, re-run the generator, add a migration.
 - [ ] Phase 2 - Re-runnable data copy tool for switch-over day
 - [ ] Phase 3 - Modules
 - [ ] Phase 4 - Switch-over

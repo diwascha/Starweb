@@ -4,7 +4,11 @@
  * The app was written against the Firestore SDK in ~60 files. Rather than
  * rewrite each one, the build points `firebase/firestore` at this module
  * (next.config.ts + tsconfig.json paths), which offers the same functions on
- * top of the Supabase tables: one table per collection, `id` + `data jsonb`.
+ * top of the Supabase tables: one table per collection, relational - `id`
+ * plus one typed column per field (schema.generated.ts, generated with the
+ * migration). A document is split into those columns on write and rebuilt on
+ * read; anything that does not fit a column (unknown field, other type) goes
+ * to the `extra` jsonb column, so documents round-trip exactly.
  *
  * Queries: `==` and `in` filters run in the database; `<`, `<=`, `>`, `>=`,
  * `!=`, orderBy and limit are applied here on the fetched rows, with
@@ -18,6 +22,7 @@
  */
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
+import { SCHEMA, type ColumnType } from './schema.generated';
 
 // ------------------------------------------------------------------ types ---
 
@@ -235,20 +240,80 @@ const serverFilterable = (c: Constraint): c is Extract<Constraint, { kind: 'wher
 
 type Row = { id: string; data: DocumentData };
 
+// ------------------------------------------------- documents <-> columns ---
+
+const ISO_TS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+/** Same test as app.fits() in the migration. */
+const fits = (type: ColumnType, v: any): boolean => {
+    switch (type) {
+        case 'text': return typeof v === 'string';
+        case 'numeric': return typeof v === 'number' && Number.isFinite(v);
+        case 'boolean': return typeof v === 'boolean';
+        case 'timestamptz': return typeof v === 'string' && ISO_TS.test(v);
+        case 'jsonb': return v !== null && v !== undefined;
+    }
+};
+
+/** A stored document as a table row (every column present, so upserts replace). */
+const toRow = (table: string, id: string, doc: DocumentData): Record<string, any> => {
+    const cols = SCHEMA[table];
+    if (!cols) return { id, data: doc };
+    const row: Record<string, any> = { id };
+    for (const [col] of Object.values(cols)) row[col] = null;
+    const extra: DocumentData = {};
+    for (const [field, value] of Object.entries(doc)) {
+        if (value === null || value === undefined) continue;
+        const map = cols[field];
+        if (map && fits(map[1], value)) row[map[0]] = value;
+        else extra[field] = value;
+    }
+    row.extra = Object.keys(extra).length ? extra : null;
+    return row;
+};
+
+/** A table row back to the document the app wrote. */
+const fromRow = (table: string, row: Record<string, any>): DocumentData => {
+    const cols = SCHEMA[table];
+    if (!cols) return (row.data as DocumentData) || {};
+    const doc: DocumentData = {};
+    for (const [field, [col, type]] of Object.entries(cols)) {
+        const v = row[col];
+        if (v === null || v === undefined) continue;
+        doc[field] = type === 'timestamptz' ? new Date(v).toISOString() : type === 'numeric' ? Number(v) : v;
+    }
+    if (row.extra && typeof row.extra === 'object') Object.assign(doc, row.extra);
+    return doc;
+};
+
+const selectCols = (table: string) => (SCHEMA[table] ? '*' : 'id, data');
+
+/** Apply a server-side `==` / `in` filter on the field's column (or `extra`). */
+const applyFilter = (q: any, table: string, c: Extract<Constraint, { kind: 'where' }>) => {
+    const map = SCHEMA[table]?.[c.field];
+    const values = c.op === 'in' ? (c.value as any[]) : [c.value];
+    if (map) {
+        // A value of another type can't be in this column (it would sit in
+        // `extra`), so leave such filters to the in-memory pass.
+        if (!values.every(v => fits(map[1], v))) return q;
+        return c.op === '==' ? q.eq(map[0], c.value) : q.in(map[0], values);
+    }
+    const path = SCHEMA[table] ? `extra->>${c.field}` : `data->>${c.field}`;
+    if (c.op === '==') return q.filter(path, 'eq', String(c.value));
+    return q.filter(path, 'in', `(${values.map(x => `"${String(x).replace(/"/g, '\\"')}"`).join(',')})`);
+};
+
 const PAGE = 1000;
 const fetchRows = async (table: string, constraints: Constraint[]): Promise<Row[]> => {
     const sb = getSupabase();
     const rows: Row[] = [];
     for (let from = 0; ; from += PAGE) {
-        let q = sb.from(table).select('id, data').order('id').range(from, from + PAGE - 1);
+        let q = sb.from(table).select(selectCols(table)).order('id').range(from, from + PAGE - 1);
         for (const c of constraints) {
-            if (!serverFilterable(c)) continue;
-            if (c.op === '==') q = q.filter(`data->>${c.field}`, 'eq', String(c.value));
-            else q = q.filter(`data->>${c.field}`, 'in', `(${(c.value as any[]).map(x => `"${String(x).replace(/"/g, '\\"')}"`).join(',')})`);
+            if (serverFilterable(c)) q = applyFilter(q, table, c);
         }
         const { data, error } = await q;
         if (error) throw toFirestoreError(error, table);
-        rows.push(...((data || []) as Row[]));
+        for (const r of (data || []) as Record<string, any>[]) rows.push({ id: r.id, data: fromRow(table, r) });
         if (!data || data.length < PAGE) break;
     }
     return rows;
@@ -311,9 +376,9 @@ export const limit = (n: number): Constraint => ({ kind: 'limit', n });
 // ------------------------------------------------------------------ reads ---
 
 const readRow = async (table: string, id: string): Promise<DocumentData | undefined> => {
-    const { data, error } = await getSupabase().from(table).select('data').eq('id', id).maybeSingle();
+    const { data, error } = await getSupabase().from(table).select(selectCols(table)).eq('id', id).maybeSingle();
     if (error) throw toFirestoreError(error, `${table}/${id}`);
-    return data ? (data as { data: DocumentData }).data : undefined;
+    return data ? fromRow(table, data as Record<string, any>) : undefined;
 };
 
 export async function getDoc<T>(ref: DocumentReference<T>): Promise<DocumentSnapshot<T>> {
@@ -336,13 +401,16 @@ export async function getCountFromServer(ref: CollectionReference<any> | Query<a
     if (onlyServer) {
         let q = getSupabase().from(table).select('id', { count: 'exact', head: true });
         for (const c of constraints) {
-            if (!serverFilterable(c)) continue;
-            if (c.op === '==') q = q.filter(`data->>${c.field}`, 'eq', String(c.value));
-            else q = q.filter(`data->>${c.field}`, 'in', `(${(c.value as any[]).map(x => `"${String(x)}"`).join(',')})`);
+            if (serverFilterable(c)) q = applyFilter(q, table, c);
         }
         const { count: n, error } = await q;
         if (error) throw toFirestoreError(error, table);
         count = n ?? 0;
+        // A filter skipped above (value of another type) makes the count
+        // approximate; count those exactly in memory instead.
+        const skipped = constraints.some(c => serverFilterable(c) && SCHEMA[table]?.[c.field]
+            && !(c.op === 'in' ? (c.value as any[]) : [c.value]).every(v => fits(SCHEMA[table][c.field][1], v)));
+        if (skipped) count = (await runQuery(table, constraints)).length;
     } else {
         count = (await runQuery(table, constraints)).length;
     }
@@ -352,7 +420,7 @@ export async function getCountFromServer(ref: CollectionReference<any> | Query<a
 // ----------------------------------------------------------------- writes ---
 
 const writeRow = async (table: string, id: string, data: DocumentData) => {
-    const { error } = await getSupabase().from(table).upsert({ id, data, updated_at: new Date().toISOString() });
+    const { error } = await getSupabase().from(table).upsert(SCHEMA[table] ? toRow(table, id, data) : { id, data, updated_at: new Date().toISOString() });
     if (error) throw toFirestoreError(error, `${table}/${id}`);
 };
 
@@ -378,8 +446,9 @@ export async function updateDoc(ref: DocumentReference<any>, fields: DocumentDat
         if (v instanceof FieldValue && v.kind === 'delete') delete next[k];
         else if (v !== undefined) next[k] = toStored(v, existing[k]);
     }
+    const { id: _id, ...columns } = toRow(ref.table, ref.id, next);
     const { data, error } = await getSupabase().from(ref.table)
-        .update({ data: next, updated_at: new Date().toISOString() }).eq('id', ref.id).select('id');
+        .update(SCHEMA[ref.table] ? columns : { data: next, updated_at: new Date().toISOString() }).eq('id', ref.id).select('id');
     if (error) throw toFirestoreError(error, ref.path);
     if (!data || data.length === 0) throw permissionDenied(ref.path);
 }

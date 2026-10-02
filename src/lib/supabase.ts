@@ -1,10 +1,9 @@
 /**
  * @fileOverview Supabase client and helpers for the StarSutra tables.
  *
- * Every table mirrors one Firebase collection: `id` (the Firestore document
- * id) plus `data` (the document, as jsonb). The helpers below hand records
- * back in the same `{ id, ...fields }` shape the Firestore services return,
- * so modules can move over one at a time without changing their callers.
+ * Tables are relational: `id` plus one typed column per field (see
+ * supabase/migrations/0008_relational_schema.sql). The app reads and writes
+ * them through src/lib/supabase-compat, which maps fields to columns.
  *
  * The URL and publishable key are public by design; access is decided by the
  * row-level security rules in supabase/migrations/0002_access_rules.sql.
@@ -27,48 +26,4 @@ export const getSupabase = (): SupabaseClient => {
         });
     }
     return client;
-};
-
-type Row = { id: string; data: Record<string, any> };
-const toRecord = <T>(row: Row): T => ({ id: row.id, ...(row.data || {}) } as T);
-const fromRecord = (record: Record<string, any>): Record<string, any> => {
-    const { id: _id, ...data } = record;
-    return data;
-};
-
-/** Every record in a table. Pass `where` to filter on top-level fields: { bsYear: 2082 }. */
-export const listRecords = async <T = any>(table: string, where: Record<string, string | number | boolean> = {}): Promise<T[]> => {
-    let q = getSupabase().from(table).select('id, data');
-    for (const [field, value] of Object.entries(where)) {
-        q = q.filter(`data->>${field}`, 'eq', String(value));
-    }
-    const { data, error } = await q;
-    if (error) throw error;
-    return (data as Row[]).map(r => toRecord<T>(r));
-};
-
-export const getRecord = async <T = any>(table: string, id: string): Promise<T | null> => {
-    const { data, error } = await getSupabase().from(table).select('id, data').eq('id', id).maybeSingle();
-    if (error) throw error;
-    return data ? toRecord<T>(data as Row) : null;
-};
-
-/** Create or replace a record (the whole document). */
-export const saveRecord = async (table: string, id: string, record: Record<string, any>): Promise<void> => {
-    const { error } = await getSupabase()
-        .from(table)
-        .upsert({ id, data: fromRecord(record), updated_at: new Date().toISOString() });
-    if (error) throw error;
-};
-
-/** Merge fields into an existing record, like Firestore's updateDoc. */
-export const updateRecord = async (table: string, id: string, fields: Record<string, any>): Promise<void> => {
-    const current = await getRecord<Record<string, any>>(table, id);
-    if (!current) throw new Error(`${table}/${id} not found`);
-    await saveRecord(table, id, { ...current, ...fromRecord(fields) });
-};
-
-export const deleteRecord = async (table: string, id: string): Promise<void> => {
-    const { error } = await getSupabase().from(table).delete().eq('id', id);
-    if (error) throw error;
 };

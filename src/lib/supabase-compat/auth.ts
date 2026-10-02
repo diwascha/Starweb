@@ -50,7 +50,7 @@ const resolveUser = async (client: SupabaseClient, sbUser: { id: string; email?:
     const email = sbUser.email ?? null;
     let uid = sbUser.id;
     if (email) {
-        const { data } = await client.from('system_users').select('id').ilike('data->>email', email).limit(1);
+        const { data } = await client.from('system_users').select('id').ilike('email', email).limit(1);
         if (data && data.length) uid = (data[0] as { id: string }).id;
     }
     return { uid, email };
