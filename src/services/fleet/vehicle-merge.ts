@@ -133,3 +133,54 @@ export async function splitVehicle(keep: Vehicle, entry: VehicleMergeEntry, user
     logAudit(`Vehicle split: "${entry.vehicle.name}" restored from "${keep.name}" (${moveBack.length} records moved back)`, 'Fleet');
     return moveBack.length;
 }
+
+export interface VehicleRecordRow {
+    path: string;
+    field: string;
+    kind: string; // e.g. "transactions"
+    date: string; // ISO, may be ''
+    summary: string;
+    amount: number | null;
+}
+
+/** Every record pointing at a vehicle, for moving some of them elsewhere. */
+export async function listVehicleRecords(vehicleId: string): Promise<VehicleRecordRow[]> {
+    const { db } = getFirebase();
+    const rows: VehicleRecordRow[] = [];
+    for (const ref of REFERENCES) {
+        const snap = await getDocs(query(collection(db, ref.collection), where(ref.field, '==', vehicleId)));
+        snap.docs.forEach(d => {
+            const x = d.data();
+            const summary = [x.tripNumber, x.type, x.category, x.policyNumber, x.provider, x.invoiceNumber,
+                x.serviceKm != null ? `${Number(x.serviceKm).toLocaleString('en-IN')} km` : null, x.description, x.remarks]
+                .filter(v => v != null && String(v).trim() !== '').map(String).slice(0, 4).join(' · ');
+            const amount = typeof x.amount === 'number' ? x.amount : typeof x.cost === 'number' ? x.cost : null;
+            rows.push({
+                path: `${ref.collection}/${d.id}`,
+                field: ref.field,
+                kind: ref.label,
+                date: String(x.date || x.serviceDate || x.startDate || x.createdAt || ''),
+                summary: summary || '(no details)',
+                amount,
+            });
+        });
+    }
+    return rows.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** Moves the chosen records from `from` to `to` (removing `aliasToDrop` from `from` if given). */
+export async function moveVehicleRecords(rows: VehicleRecordRow[], from: Vehicle, to: Vehicle, username: string, aliasToDrop?: string): Promise<void> {
+    if (from.id === to.id) throw new Error('Choose a different vehicle to move the records to.');
+    await repoint(rows, to.id);
+    if (aliasToDrop) {
+        const { db } = getFirebase();
+        const batch = writeBatch(db);
+        batch.update(doc(db, COLLECTIONS.VEHICLES, from.id), {
+            aliases: (from.aliases || []).filter(a => normalizeName(a) !== normalizeName(aliasToDrop)),
+            lastModifiedBy: username,
+            lastModifiedAt: new Date().toISOString(),
+        });
+        await batch.commit();
+    }
+    logAudit(`Vehicle records moved: ${rows.length} from "${from.name}" to "${to.name}"`, 'Fleet');
+}
