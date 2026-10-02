@@ -20,6 +20,7 @@ const collectionsToBackup = [
     'vehicles',
     'drivers',
     'policies',
+    'vehicleServices',
     'transactions',
     'parties',
     'accounts',

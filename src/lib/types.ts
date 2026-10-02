@@ -544,6 +544,22 @@ export interface Vehicle {
   monthlyEmi?: number;
 }
 
+/** One servicing visit of a vehicle, with when the next one is due. */
+export interface VehicleService {
+  id: string;
+  vehicleId: string;
+  serviceDate: string; // ISO string
+  serviceKm: number; // odometer reading at this service
+  nextServiceKm: number; // odometer reading the next service is due at
+  nextServiceDate: string; // ISO string, tentative
+  remarks?: string; // major parts changed
+  ownership: string; // copied from the vehicle, for company scoping
+  createdBy: string;
+  createdAt: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
 export interface Driver {
     id: string;
     name: string;

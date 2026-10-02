@@ -40,6 +40,7 @@ const REFERENCES: Record<LinkedKind, Ref[]> = {
         { collection: COLLECTIONS.TRANSACTIONS, field: 'vehicleId', label: 'Transactions' },
         { collection: COLLECTIONS.EXPENSES, field: 'vehicleId', label: 'Expenses' },
         { collection: COLLECTIONS.POLICIES, field: 'memberId', label: 'Policies' },
+        { collection: COLLECTIONS.VEHICLE_SERVICES, field: 'vehicleId', label: 'Service records' },
     ],
     driver: [
         { collection: COLLECTIONS.VEHICLES, field: 'driverId', label: 'Vehicles' },

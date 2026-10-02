@@ -15,6 +15,7 @@ export const COLLECTIONS = {
   VEHICLES: 'vehicles',
   DRIVERS: 'drivers',
   POLICIES: 'policies',
+  VEHICLE_SERVICES: 'vehicleServices',
   TRANSACTIONS: 'transactions',
   PARTIES: 'parties',
   ACCOUNTS: 'accounts',

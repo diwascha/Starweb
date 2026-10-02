@@ -110,7 +110,7 @@ service cloud.firestore {
         'tdsCalculations': 'finance',
         'cheques': 'finance', 'expenses': 'finance', 'payment_tracker': 'finance',
         // Fleet
-        'vehicles': 'fleet', 'drivers': 'fleet', 'policies': 'fleet',
+        'vehicles': 'fleet', 'drivers': 'fleet', 'policies': 'fleet', 'vehicleServices': 'fleet',
         'trips': 'fleet', 'destinations': 'fleet',
         // Rental
         'rentalProperties': 'rental', 'rentalUnits': 'rental',

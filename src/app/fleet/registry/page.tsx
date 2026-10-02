@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VehiclesClientPage from '../vehicles/_components/vehicles-client-page';
 import DriversClientPage from '../drivers/_components/drivers-client-page';
 import PoliciesClientPage from '../policies/_components/policies-client-page';
+import ServicingClientPage from '../servicing/_components/servicing-client-page';
 
-const TABS = ['vehicles', 'drivers', 'policies'] as const;
+const TABS = ['vehicles', 'drivers', 'policies', 'servicing'] as const;
 type TabKey = typeof TABS[number];
 
 /**
@@ -34,10 +35,11 @@ function FleetRegistryPageInner() {
         <p className="text-muted-foreground">Centralized management of vehicles, personnel, and compliance records for Sijan Dhuwani Sewa.</p>
       </header>
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
           <TabsTrigger value="drivers">Drivers</TabsTrigger>
           <TabsTrigger value="policies">Policies & Memberships</TabsTrigger>
+          <TabsTrigger value="servicing">Servicing</TabsTrigger>
         </TabsList>
         <TabsContent value="vehicles" className="mt-6 border-none p-0">
           <VehiclesClientPage
@@ -55,6 +57,12 @@ function FleetRegistryPageInner() {
           <PoliciesClientPage
             title="Policies & Memberships"
             subtitle="Tracking vehicle insurance, road tax, and fleet memberships."
+          />
+        </TabsContent>
+        <TabsContent value="servicing" className="mt-6 border-none p-0">
+          <ServicingClientPage
+            title="Vehicle Servicing"
+            subtitle="Service history, upcoming servicing KM and tentative dates."
           />
         </TabsContent>
       </Tabs>

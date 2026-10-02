@@ -26,7 +26,7 @@ const HR_COLS = ['employees','attendance','payroll','raw_machine_logs','bonus_le
   'behavior_ledger','behavior_analytics','analytics_reports','hr_shifts','leave_requests',
   'public_holidays','attendance_periods','payroll_periods'];
 const FIN_COLS = ['tdsCalculations','estimatedInvoices','cheques','expenses','payment_tracker','accounts'];
-const FLEET_COLS = ['vehicles','drivers','policies','transactions','trips','destinations'];
+const FLEET_COLS = ['vehicles','drivers','policies','vehicleServices','transactions','trips','destinations'];
 const RENTAL_COLS = ['rentalProperties','rentalUnits','rentalAgreements','rentalBills'];
 const CRM_COLS = ['crm_contacts','crm_deals','crm_followups','crm_interactions','costReports'];
 const PO_COLS = ['purchaseOrders','rawMaterials'];
