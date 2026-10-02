@@ -545,6 +545,16 @@ export interface Vehicle {
   // Other spellings of this truck number seen in imports (or merged-in
   // duplicates); an import matches these as well as `name`.
   aliases?: string[];
+  // Vehicles merged into this one, kept so a mistaken merge can be split.
+  mergeHistory?: VehicleMergeEntry[];
+}
+
+export interface VehicleMergeEntry {
+  vehicle: Omit<Vehicle, 'id'> & { id: string }; // the merged-away vehicle as it was
+  records: { path: string; field: string }[]; // records moved from it
+  addedAliases: string[]; // spellings this merge added to the kept vehicle
+  mergedAt: string;
+  mergedBy: string;
 }
 
 /** One servicing visit of a vehicle, with when the next one is due. */
