@@ -27,6 +27,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
         ownership: data.ownership || 'Sijan',
+        aliases: Array.isArray(data.aliases) ? data.aliases : [],
     };
 }
 

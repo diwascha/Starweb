@@ -542,6 +542,9 @@ export interface Vehicle {
   ownershipType?: 'Own' | 'Third Party' | 'Leased' | 'Retired';
   ownerName?: string; // required reading when ownershipType is 'Third Party' or 'Leased'
   monthlyEmi?: number;
+  // Other spellings of this truck number seen in imports (or merged-in
+  // duplicates); an import matches these as well as `name`.
+  aliases?: string[];
 }
 
 /** One servicing visit of a vehicle, with when the next one is due. */
@@ -679,6 +682,8 @@ export interface Party {
     dealStage?: DealStage;
     classification?: CustomerClassification;
     customFields?: Record<string, string>;
+    // Other spellings of this name seen in imports; matched like `name`.
+    aliases?: string[];
 }
 
 export interface Account {

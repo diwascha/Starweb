@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Vehicle, VehicleStatus, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, ChevronLeft, ChevronRight, Merge, Loader2 } from 'lucide-react';
+import { mergeVehicles } from '@/services/fleet/vehicle-merge';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -158,6 +159,29 @@ export default function VehiclesClientPage({
         }
     };
 
+    // Merge: fold a duplicate (e.g. created by an import from a misspelt
+    // number) into the real vehicle. Its records move across and its name is
+    // kept as an alias so future imports match it.
+    const [mergingVehicle, setMergingVehicle] = useState<Vehicle | null>(null);
+    const [mergeTargetId, setMergeTargetId] = useState('');
+    const [isMerging, setIsMerging] = useState(false);
+
+    const handleMerge = async () => {
+        const into = vehicles.find(v => v.id === mergeTargetId);
+        if (!mergingVehicle || !into || !user) return;
+        setIsMerging(true);
+        try {
+            const moved = await mergeVehicles(mergingVehicle, into, user.username);
+            toast({ title: 'Vehicles merged', description: `"${mergingVehicle.name}" merged into "${into.name}". ${moved} record(s) moved; the name is remembered for future imports.` });
+            setMergingVehicle(null);
+            setMergeTargetId('');
+        } catch (error: any) {
+            toast({ title: 'Merge failed', description: error?.message || 'Could not merge the vehicles.', variant: 'destructive' });
+        } finally {
+            setIsMerging(false);
+        }
+    };
+
     const handleDelete = async (id: string) => {
         try {
             const name = vehicles.find(v => v.id === id)?.name || 'This vehicle';
@@ -275,7 +299,12 @@ export default function VehiclesClientPage({
                         <TableBody>
                             {paginatedVehicles.map(vehicle => (
                                 <TableRow key={vehicle.id} className="h-14">
-                                    <TableCell className="font-bold">{vehicle.name}</TableCell>
+                                    <TableCell className="font-bold">
+                                        {vehicle.name}
+                                        {(vehicle.aliases?.length ?? 0) > 0 && (
+                                            <div className="text-xs font-normal text-muted-foreground">also: {vehicle.aliases!.join(', ')}</div>
+                                        )}
+                                    </TableCell>
                                     <TableCell>{vehicle.make}</TableCell>
                                     <TableCell>{vehicle.model}</TableCell>
                                     <TableCell>{vehicle.driverName}</TableCell>
@@ -309,6 +338,7 @@ export default function VehiclesClientPage({
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenDialog(vehicle)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
+                                                {hasPermission('fleet', 'delete') && <DropdownMenuItem onSelect={() => { setMergingVehicle(vehicle); setMergeTargetId(''); }}><Merge className="mr-2 h-4 w-4" /> Merge into another vehicle</DropdownMenuItem>}
                                                 {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
                                                 {hasPermission('fleet', 'delete') && (
                                                     <AlertDialog>
@@ -418,6 +448,30 @@ export default function VehiclesClientPage({
                     </div>
                 </header>
                 {renderContent()}
+                <AlertDialog open={!!mergingVehicle} onOpenChange={(open) => { if (!open && !isMerging) setMergingVehicle(null); }}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Merge &quot;{mergingVehicle?.name}&quot; into another vehicle</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Use this for a duplicate, e.g. one created by an import from a misspelt number. All its trips,
+                                transactions, expenses, policies and service records move to the vehicle you choose, its name is
+                                remembered so future imports match it, and &quot;{mergingVehicle?.name}&quot; is deleted. This cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <Select value={mergeTargetId} onValueChange={setMergeTargetId}>
+                            <SelectTrigger><SelectValue placeholder="Keep this vehicle..." /></SelectTrigger>
+                            <SelectContent>
+                                {vehicles.filter(v => v.id !== mergingVehicle?.id).map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isMerging}>Cancel</AlertDialogCancel>
+                            <Button onClick={handleMerge} disabled={!mergeTargetId || isMerging}>
+                                {isMerging ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Merging...</> : 'Merge'}
+                            </Button>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
