@@ -542,6 +542,35 @@ export interface Vehicle {
   ownershipType?: 'Own' | 'Third Party' | 'Leased' | 'Retired';
   ownerName?: string; // required reading when ownershipType is 'Third Party' or 'Leased'
   monthlyEmi?: number;
+  // Other spellings of this truck number seen in imports (or merged-in
+  // duplicates); an import matches these as well as `name`.
+  aliases?: string[];
+  // Vehicles merged into this one, kept so a mistaken merge can be split.
+  mergeHistory?: VehicleMergeEntry[];
+}
+
+export interface VehicleMergeEntry {
+  vehicle: Omit<Vehicle, 'id'> & { id: string }; // the merged-away vehicle as it was
+  records: { path: string; field: string }[]; // records moved from it
+  addedAliases: string[]; // spellings this merge added to the kept vehicle
+  mergedAt: string;
+  mergedBy: string;
+}
+
+/** One servicing visit of a vehicle, with when the next one is due. */
+export interface VehicleService {
+  id: string;
+  vehicleId: string;
+  serviceDate: string; // ISO string
+  serviceKm: number; // odometer reading at this service
+  nextServiceKm: number; // odometer reading the next service is due at
+  nextServiceDate: string; // ISO string, tentative
+  remarks?: string; // major parts changed
+  ownership: string; // copied from the vehicle, for company scoping
+  createdBy: string;
+  createdAt: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
 }
 
 export interface Driver {
@@ -663,6 +692,8 @@ export interface Party {
     dealStage?: DealStage;
     classification?: CustomerClassification;
     customFields?: Record<string, string>;
+    // Other spellings of this name seen in imports; matched like `name`.
+    aliases?: string[];
 }
 
 export interface Account {

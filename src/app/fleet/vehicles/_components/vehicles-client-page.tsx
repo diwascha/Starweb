@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Vehicle, VehicleStatus, Driver } from '@/lib/types';
+import type { Vehicle, VehicleStatus, Driver, VehicleMergeEntry } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, ChevronLeft, ChevronRight, Merge, Split, Loader2 } from 'lucide-react';
+import { mergeVehicles, splitVehicle, countVehicleRecords, listVehicleRecords, moveVehicleRecords, type VehicleRecordRow } from '@/services/fleet/vehicle-merge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { normalizeName } from '@/lib/name-match';
+import { toNepaliDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -158,6 +162,127 @@ export default function VehiclesClientPage({
         }
     };
 
+    // Merge: fold a duplicate (e.g. created by an import from a misspelt
+    // number) into the vehicle the user chooses to keep. The other's name is
+    // kept as an alternate spelling, and the merge can be split again.
+    const [mergingVehicle, setMergingVehicle] = useState<Vehicle | null>(null);
+    const [mergeOtherId, setMergeOtherId] = useState('');
+    const [keepId, setKeepId] = useState('');
+    const [mergeCounts, setMergeCounts] = useState<Record<string, { total: number; parts: string[] } | 'loading'>>({});
+    const [isMerging, setIsMerging] = useState(false);
+    const [splittingVehicle, setSplittingVehicle] = useState<Vehicle | null>(null);
+    const [splittingKey, setSplittingKey] = useState<string | null>(null);
+
+    const loadCounts = (id: string) => {
+        if (!id || mergeCounts[id]) return;
+        setMergeCounts(c => ({ ...c, [id]: 'loading' }));
+        countVehicleRecords(id)
+            .then(r => setMergeCounts(c => ({ ...c, [id]: r })))
+            .catch(() => setMergeCounts(c => { const n = { ...c }; delete n[id]; return n; }));
+    };
+
+    const openMerge = (vehicle: Vehicle) => {
+        setMergingVehicle(vehicle);
+        setMergeOtherId('');
+        setKeepId('');
+        setMergeCounts({});
+        loadCounts(vehicle.id);
+    };
+
+    const chooseMergeOther = (id: string) => {
+        setMergeOtherId(id);
+        loadCounts(id);
+        // Suggest keeping the older vehicle; the user can change it.
+        const a = mergingVehicle, b = vehicles.find(v => v.id === id);
+        if (a && b) setKeepId((a.createdAt || '') <= (b.createdAt || '') ? a.id : b.id);
+    };
+
+    const handleMerge = async () => {
+        const a = mergingVehicle, b = vehicles.find(v => v.id === mergeOtherId);
+        if (!a || !b || !keepId || !user) return;
+        const keep = keepId === a.id ? a : b;
+        const from = keepId === a.id ? b : a;
+        setIsMerging(true);
+        try {
+            const moved = await mergeVehicles(from, keep, user.username);
+            toast({ title: 'Vehicles merged', description: `"${from.name}" merged into "${keep.name}" (${moved} record(s) moved). You can split it again from "${keep.name}" if this was a mistake.` });
+            setMergingVehicle(null);
+        } catch (error: any) {
+            toast({ title: 'Merge failed', description: error?.message || 'Could not merge the vehicles.', variant: 'destructive' });
+        } finally {
+            setIsMerging(false);
+        }
+    };
+
+    // Manual split: move chosen records to another (or a new) vehicle. Works
+    // for any vehicle, including merges made before merge history existed.
+    const NEW_VEHICLE = '__new__';
+    const [splitRecords, setSplitRecords] = useState<VehicleRecordRow[] | null>(null);
+    const [splitSelected, setSplitSelected] = useState<Set<string>>(new Set());
+    const [splitTargetId, setSplitTargetId] = useState('');
+    const [splitNewName, setSplitNewName] = useState('');
+    const [isMovingRecords, setIsMovingRecords] = useState(false);
+
+    const openSplit = (vehicle: Vehicle) => {
+        setSplittingVehicle(vehicle);
+        setSplitRecords(null);
+        setSplitSelected(new Set());
+        setSplitTargetId(vehicle.aliases?.length ? NEW_VEHICLE : '');
+        setSplitNewName(vehicle.aliases?.[0] || '');
+        listVehicleRecords(vehicle.id)
+            .then(setSplitRecords)
+            .catch((e: any) => { setSplitRecords([]); toast({ title: 'Could not load records', description: e?.message, variant: 'destructive' }); });
+    };
+
+    const handleMoveRecords = async () => {
+        const from = splittingVehicle;
+        if (!from || !user || !splitRecords) return;
+        const rows = splitRecords.filter(r => splitSelected.has(r.path));
+        if (rows.length === 0) return;
+        setIsMovingRecords(true);
+        try {
+            let to: Vehicle | undefined;
+            if (splitTargetId === NEW_VEHICLE) {
+                const name = splitNewName.trim();
+                if (!name) throw new Error('Enter the new vehicle number.');
+                if (vehicles.some(v => normalizeName(v.name) === normalizeName(name))) throw new Error(`A vehicle named "${name}" already exists - choose it from the list instead.`);
+                const newVehicle: Omit<Vehicle, 'id'> = {
+                    name, make: from.make || '', model: from.model || '', year: from.year || new Date().getFullYear(), vin: '',
+                    status: 'Active', ownership: from.ownership, createdBy: user.username, createdAt: new Date().toISOString(),
+                };
+                const id = await addVehicle(newVehicle);
+                to = { id, ...newVehicle };
+            } else {
+                to = vehicles.find(v => v.id === splitTargetId);
+            }
+            if (!to) throw new Error('Choose where to move the records.');
+            // If the destination is one of this vehicle's other spellings, that
+            // spelling now belongs to the destination, so stop matching it here.
+            const alias = (from.aliases || []).find(a => normalizeName(a) === normalizeName(to!.name));
+            await moveVehicleRecords(rows, from, to, user.username, alias);
+            toast({ title: 'Records moved', description: `${rows.length} record(s) moved from "${from.name}" to "${to.name}".` });
+            setSplittingVehicle(null);
+        } catch (error: any) {
+            toast({ title: 'Move failed', description: error?.message || 'Could not move the records.', variant: 'destructive' });
+        } finally {
+            setIsMovingRecords(false);
+        }
+    };
+
+    const handleSplit = async (entry: VehicleMergeEntry) => {
+        if (!splittingVehicle || !user) return;
+        setSplittingKey(entry.mergedAt);
+        try {
+            const moved = await splitVehicle(splittingVehicle, entry, user.username);
+            toast({ title: 'Vehicle split', description: `"${entry.vehicle.name}" is back as its own vehicle with ${moved} record(s).` });
+            setSplittingVehicle(null);
+        } catch (error: any) {
+            toast({ title: 'Split failed', description: error?.message || 'Could not split the vehicle.', variant: 'destructive' });
+        } finally {
+            setSplittingKey(null);
+        }
+    };
+
     const handleDelete = async (id: string) => {
         try {
             const name = vehicles.find(v => v.id === id)?.name || 'This vehicle';
@@ -275,7 +400,12 @@ export default function VehiclesClientPage({
                         <TableBody>
                             {paginatedVehicles.map(vehicle => (
                                 <TableRow key={vehicle.id} className="h-14">
-                                    <TableCell className="font-bold">{vehicle.name}</TableCell>
+                                    <TableCell className="font-bold">
+                                        {vehicle.name}
+                                        {(vehicle.aliases?.length ?? 0) > 0 && (
+                                            <div className="text-xs font-normal text-muted-foreground">other spellings: {vehicle.aliases!.join(', ')}</div>
+                                        )}
+                                    </TableCell>
                                     <TableCell>{vehicle.make}</TableCell>
                                     <TableCell>{vehicle.model}</TableCell>
                                     <TableCell>{vehicle.driverName}</TableCell>
@@ -309,6 +439,8 @@ export default function VehiclesClientPage({
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenDialog(vehicle)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
+                                                {hasPermission('fleet', 'delete') && <DropdownMenuItem onSelect={() => openMerge(vehicle)}><Merge className="mr-2 h-4 w-4" /> Merge duplicate...</DropdownMenuItem>}
+                                                {hasPermission('fleet', 'delete') && <DropdownMenuItem onSelect={() => openSplit(vehicle)}><Split className="mr-2 h-4 w-4" /> Split / move records...</DropdownMenuItem>}
                                                 {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
                                                 {hasPermission('fleet', 'delete') && (
                                                     <AlertDialog>
@@ -418,6 +550,160 @@ export default function VehiclesClientPage({
                     </div>
                 </header>
                 {renderContent()}
+                <AlertDialog open={!!mergingVehicle} onOpenChange={(open) => { if (!open && !isMerging) setMergingVehicle(null); }}>
+                    <AlertDialogContent className="sm:max-w-2xl">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Merge duplicate vehicles</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Choose the duplicate, then tick the vehicle to <strong>keep</strong> (normally the correct registration number).
+                                The other one&apos;s records move to it, its number is kept as an <em>other spelling</em> so future imports match it, and it is removed.
+                                A mistaken merge can be undone with &quot;Split merged vehicle&quot;.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <Select value={mergeOtherId} onValueChange={chooseMergeOther}>
+                            <SelectTrigger><SelectValue placeholder={`Which vehicle is the same truck as "${mergingVehicle?.name}"?`} /></SelectTrigger>
+                            <SelectContent>
+                                {vehicles.filter(v => v.id !== mergingVehicle?.id).map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        {mergingVehicle && mergeOtherId && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                {[mergingVehicle, vehicles.find(v => v.id === mergeOtherId)].filter((v): v is Vehicle => !!v).map(v => {
+                                    const counts = mergeCounts[v.id];
+                                    const isKeep = keepId === v.id;
+                                    return (
+                                        <button
+                                            key={v.id}
+                                            type="button"
+                                            onClick={() => setKeepId(v.id)}
+                                            className={`rounded-lg border-2 p-3 text-left text-sm space-y-1 transition ${isKeep ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted opacity-80'}`}
+                                        >
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="font-bold">{v.name}</span>
+                                                {isKeep ? <Badge className="bg-emerald-600">Keep</Badge> : keepId ? <Badge variant="outline">Merge away</Badge> : null}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">{[v.make, v.model, v.year].filter(Boolean).join(' · ') || 'No details'}</div>
+                                            <div className="text-xs text-muted-foreground">Status: {v.status} · Driver: {driversById.get(v.driverId || '') || 'None'}</div>
+                                            <div className="text-xs text-muted-foreground">Created by {v.createdBy || 'unknown'}{v.createdAt ? ` on ${format(new Date(v.createdAt), 'PP')}` : ''}</div>
+                                            <div className="text-xs">
+                                                {counts === 'loading' || !counts ? 'Counting records...' : counts.total === 0 ? 'No records' : `${counts.total} record(s): ${counts.parts.join(', ')}`}
+                                            </div>
+                                            {(v.aliases?.length ?? 0) > 0 && <div className="text-xs text-muted-foreground">Other spellings: {v.aliases!.join(', ')}</div>}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isMerging}>Cancel</AlertDialogCancel>
+                            <Button onClick={handleMerge} disabled={!mergeOtherId || !keepId || isMerging}>
+                                {isMerging ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Merging...</> : `Merge, keep "${vehicles.find(v => v.id === keepId)?.name ?? '...'}"`}
+                            </Button>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+                <AlertDialog open={!!splittingVehicle} onOpenChange={(open) => { if (!open && !splittingKey && !isMovingRecords) setSplittingVehicle(null); }}>
+                    <AlertDialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Split &quot;{splittingVehicle?.name}&quot;</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Undo a merge, or move records that belong to a different truck.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+
+                        {(splittingVehicle?.mergeHistory?.length ?? 0) > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-sm font-semibold">Undo a merge</p>
+                                <p className="text-xs text-muted-foreground">Brings the vehicle back with its original details and the records it had before the merge. Records added after the merge stay here.</p>
+                                {(splittingVehicle?.mergeHistory || []).map(entry => (
+                                    <div key={entry.mergedAt} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
+                                        <div>
+                                            <div className="font-bold">{entry.vehicle.name}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                Merged {format(new Date(entry.mergedAt), 'PP')} by {entry.mergedBy} · {entry.records.length} record(s) moved
+                                            </div>
+                                        </div>
+                                        <Button size="sm" variant="outline" disabled={!!splittingKey || isMovingRecords} onClick={() => handleSplit(entry)}>
+                                            {splittingKey === entry.mergedAt ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Split className="mr-2 h-4 w-4" /> Undo merge</>}
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="space-y-3">
+                            <p className="text-sm font-semibold">Move selected records to another truck</p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                <Select value={splitTargetId} onValueChange={setSplitTargetId}>
+                                    <SelectTrigger><SelectValue placeholder="Move to..." /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={NEW_VEHICLE}>+ New vehicle</SelectItem>
+                                        {vehicles.filter(v => v.id !== splittingVehicle?.id).map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                {splitTargetId === NEW_VEHICLE && (
+                                    <Input value={splitNewName} onChange={e => setSplitNewName(e.target.value)} placeholder="New vehicle number" />
+                                )}
+                            </div>
+                            {splitTargetId === NEW_VEHICLE && (splittingVehicle?.aliases?.length ?? 0) > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    Other spellings on this truck: {splittingVehicle!.aliases!.map(a => (
+                                        <button key={a} type="button" className="underline mr-2" onClick={() => setSplitNewName(a)}>{a}</button>
+                                    ))}
+                                    (click one to use it; it stops matching &quot;{splittingVehicle?.name}&quot; in future imports)
+                                </p>
+                            )}
+                            <div className="max-h-72 overflow-auto rounded-md border">
+                                {splitRecords === null ? (
+                                    <div className="p-4 text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading records...</div>
+                                ) : splitRecords.length === 0 ? (
+                                    <div className="p-4 text-sm text-muted-foreground">No records on this vehicle.</div>
+                                ) : (
+                                    <Table>
+                                        <TableHeader className="sticky top-0 bg-background">
+                                            <TableRow>
+                                                <TableHead className="w-8">
+                                                    <Checkbox
+                                                        checked={splitSelected.size === splitRecords.length}
+                                                        onCheckedChange={(c) => setSplitSelected(c ? new Set(splitRecords.map(r => r.path)) : new Set())}
+                                                        aria-label="Select all"
+                                                    />
+                                                </TableHead>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Kind</TableHead>
+                                                <TableHead>Details</TableHead>
+                                                <TableHead className="text-right">Amount</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {splitRecords.map(r => (
+                                                <TableRow key={r.path}>
+                                                    <TableCell>
+                                                        <Checkbox
+                                                            checked={splitSelected.has(r.path)}
+                                                            onCheckedChange={(c) => setSplitSelected(prev => { const n = new Set(prev); c ? n.add(r.path) : n.delete(r.path); return n; })}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-xs whitespace-nowrap">{r.date ? `${toNepaliDate(r.date)} BS` : '-'}</TableCell>
+                                                    <TableCell className="text-xs capitalize">{r.kind}</TableCell>
+                                                    <TableCell className="text-xs">{r.summary}</TableCell>
+                                                    <TableCell className="text-xs text-right tabular-nums">{r.amount != null ? `Rs. ${r.amount.toLocaleString('en-IN')}` : ''}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </div>
+                        </div>
+
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={!!splittingKey || isMovingRecords}>Close</AlertDialogCancel>
+                            <Button onClick={handleMoveRecords} disabled={isMovingRecords || splitSelected.size === 0 || !splitTargetId || (splitTargetId === NEW_VEHICLE && !splitNewName.trim())}>
+                                {isMovingRecords ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Moving...</> : `Move ${splitSelected.size} record(s)`}
+                            </Button>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>

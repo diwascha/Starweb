@@ -10,8 +10,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Upload, FileSpreadsheet, Loader2, AlertTriangle, CheckCircle2, Truck, Users, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { onVehiclesUpdate, addVehicle } from '@/services/vehicle-service';
-import { onPartiesUpdate, addParty } from '@/services/party-service';
+import { onVehiclesUpdate, addVehicle, updateVehicle } from '@/services/vehicle-service';
+import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 import type { Vehicle, Party, Transaction } from '@/lib/types';
 import {
@@ -29,6 +29,7 @@ import {
     type ResolvedPaymentCandidate,
 } from '@/services/fleet/trip-sheet-import';
 import { toNepaliDate } from '@/lib/utils';
+import { normalizeName, closestMatch, allNames } from '@/lib/name-match';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import NepaliDate from 'nepali-date-converter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -45,6 +46,9 @@ import {
 } from '@/components/ui/alert-dialog';
 
 type PreviewStatus = 'new' | 'duplicate' | 'new-vehicle';
+
+/** Choice for a name in the file that matches no existing record. */
+const CREATE_NEW = '__new__';
 
 interface TripPreviewRow extends TripSheetCandidate {
     source: 'trip';
@@ -86,8 +90,75 @@ export default function FleetImportPage() {
         return () => { unsubV(); unsubP(); unsubT(); };
     }, []);
 
-    const vehicleMap = useMemo(() => new Map(vehicles.map(v => [v.name.trim().toLowerCase(), v.id])), [vehicles]);
-    const partyMap = useMemo(() => new Map(parties.map(p => [p.name.trim().toLowerCase(), p.id])), [parties]);
+    // Names are matched ignoring case, spaces and punctuation, so
+    // "Na 3 Kha-1234" finds "NA 3 KHA 1234". A name that still matches
+    // nothing is never created silently: the user maps it to an existing
+    // record (the closest one is pre-selected) or explicitly picks
+    // "Create new".
+    // Aliases are spellings remembered from earlier imports and merges.
+    const vehicleByNorm = useMemo(() => new Map(vehicles.flatMap(v => allNames(v).map(n => [normalizeName(n), v.id] as const))), [vehicles]);
+    const partyByNorm = useMemo(() => new Map(parties.flatMap(p => allNames(p).map(n => [normalizeName(n), p.id] as const))), [parties]);
+    const [vehicleChoices, setVehicleChoices] = useState<Record<string, string>>({});
+    const [partyChoices, setPartyChoices] = useState<Record<string, string>>({});
+
+    const unknownVehicles = useMemo(() => {
+        const names = new Map<string, string>(); // normalized -> name as written
+        for (const c of tripCandidates) {
+            const n = normalizeName(c.vehicleText);
+            if (n && !vehicleByNorm.has(n) && !names.has(n)) names.set(n, c.vehicleText);
+        }
+        return Array.from(names.values());
+    }, [tripCandidates, vehicleByNorm]);
+
+    const unknownParties = useMemo(() => {
+        const names = new Map<string, string>();
+        const add = (name?: string) => {
+            const n = normalizeName(name || '');
+            if (n && !partyByNorm.has(n) && !names.has(n)) names.set(n, name!);
+        };
+        tripCandidates.forEach(c => add(c.partyName));
+        paymentCandidates.forEach(c => add(c.partyName));
+        return Array.from(names.values());
+    }, [tripCandidates, paymentCandidates, partyByNorm]);
+
+    // The closest existing record for each unknown name. It is pre-selected
+    // only when confident (same registration digits); otherwise it is just
+    // suggested, since "7788" vs "7789" may be a different truck.
+    const vehicleSuggestions = useMemo(() => Object.fromEntries(unknownVehicles.map(n => [n, closestMatch(n, vehicles, allNames)])), [unknownVehicles, vehicles]);
+    const partySuggestions = useMemo(() => Object.fromEntries(unknownParties.map(n => [n, closestMatch(n, parties, allNames)])), [unknownParties, parties]);
+    useEffect(() => {
+        setVehicleChoices(prev => {
+            const next: Record<string, string> = {};
+            for (const name of unknownVehicles) {
+                const s = vehicleSuggestions[name];
+                next[name] = prev[name] ?? (s?.confident ? s.match.id : '');
+            }
+            return next;
+        });
+    }, [unknownVehicles, vehicleSuggestions]);
+    useEffect(() => {
+        setPartyChoices(prev => {
+            const next: Record<string, string> = {};
+            for (const name of unknownParties) {
+                const s = partySuggestions[name];
+                next[name] = prev[name] ?? (s?.confident ? s.match.id : '');
+            }
+            return next;
+        });
+    }, [unknownParties, partySuggestions]);
+
+    const resolveVehicle = (name: string): string | undefined => {
+        const id = vehicleByNorm.get(normalizeName(name));
+        if (id) return id;
+        const choice = vehicleChoices[unknownVehicles.find(u => normalizeName(u) === normalizeName(name)) ?? name];
+        return choice && choice !== CREATE_NEW ? choice : undefined;
+    };
+    const resolveParty = (name: string): string | undefined => {
+        const id = partyByNorm.get(normalizeName(name));
+        if (id) return id;
+        const choice = partyChoices[unknownParties.find(u => normalizeName(u) === normalizeName(name)) ?? name];
+        return choice && choice !== CREATE_NEW ? choice : undefined;
+    };
 
     const existingSignatures = useMemo(() => {
         const set = new Set<string>();
@@ -100,36 +171,33 @@ export default function FleetImportPage() {
 
     const tripPreviewRows = useMemo<TripPreviewRow[]>(() => {
         return tripCandidates.map(c => {
-            const vehicleId = vehicleMap.get(c.vehicleText.toLowerCase());
+            const vehicleId = resolveVehicle(c.vehicleText);
             if (!vehicleId) return { ...c, source: 'trip' as const, status: 'new-vehicle' as const };
             const signature = candidateSignature(vehicleId, c.dateIso, c.category, c.amount);
             return { ...c, source: 'trip' as const, status: existingSignatures.has(signature) ? 'duplicate' as const : 'new' as const };
         });
-    }, [tripCandidates, vehicleMap, existingSignatures]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tripCandidates, vehicleByNorm, vehicleChoices, unknownVehicles, existingSignatures]);
 
     const paymentPreviewRows = useMemo<PaymentPreviewRow[]>(() => {
         return paymentCandidates.map(c => {
-            const partyId = partyMap.get(c.partyName.toLowerCase());
+            const partyId = resolveParty(c.partyName);
             if (!partyId) return { ...c, source: 'payment' as const, status: 'new-vehicle' as const }; // reused status: "needs a new record created"
             const signature = partyPaymentSignature(partyId, c.dateIso, c.amount);
             return { ...c, source: 'payment' as const, status: existingSignatures.has(signature) ? 'duplicate' as const : 'new' as const };
         });
-    }, [paymentCandidates, partyMap, existingSignatures]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paymentCandidates, partyByNorm, partyChoices, unknownParties, existingSignatures]);
 
     const previewRows = useMemo<PreviewRow[]>(() => [...tripPreviewRows, ...paymentPreviewRows], [tripPreviewRows, paymentPreviewRows]);
 
-    const missingVehicles = useMemo(() => {
-        const names = new Set<string>();
-        for (const c of tripCandidates) if (!vehicleMap.has(c.vehicleText.toLowerCase())) names.add(c.vehicleText);
-        return Array.from(names);
-    }, [tripCandidates, vehicleMap]);
-
-    const missingParties = useMemo(() => {
-        const names = new Set<string>();
-        for (const c of tripCandidates) if (c.partyName && !partyMap.has(c.partyName.toLowerCase())) names.add(c.partyName);
-        for (const c of paymentCandidates) if (!partyMap.has(c.partyName.toLowerCase())) names.add(c.partyName);
-        return Array.from(names);
-    }, [tripCandidates, paymentCandidates, partyMap]);
+    // Only names the user explicitly chose "Create new" for are created.
+    const missingVehicles = useMemo(() => unknownVehicles.filter(n => vehicleChoices[n] === CREATE_NEW), [unknownVehicles, vehicleChoices]);
+    const missingParties = useMemo(() => unknownParties.filter(n => partyChoices[n] === CREATE_NEW), [unknownParties, partyChoices]);
+    const unresolvedCount = useMemo(
+        () => unknownVehicles.filter(n => !vehicleChoices[n]).length + unknownParties.filter(n => !partyChoices[n]).length,
+        [unknownVehicles, unknownParties, vehicleChoices, partyChoices]
+    );
 
     const summary = useMemo(() => {
         const toImport = previewRows.filter(r => r.status !== 'duplicate');
@@ -174,6 +242,8 @@ export default function FleetImportPage() {
         setPaymentCandidates([]);
         setWarnings([]);
         setImportResult(null);
+        setVehicleChoices({});
+        setPartyChoices({});
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -225,34 +295,61 @@ export default function FleetImportPage() {
         if (!user) return;
         setIsImporting(true);
         try {
-            // 1. Create any vehicles/parties this file references but the app doesn't have yet.
-            const localVehicleMap = new Map(vehicleMap);
+            // 1. Remember each spelling the user matched to an existing truck or
+            // party, so the next import recognises it without asking.
+            const remember = async <T extends { id: string; name: string; aliases?: string[] }>(
+                choices: Record<string, string>, records: T[], save: (id: string, aliases: string[]) => Promise<void>,
+            ) => {
+                const byId = new Map<string, string[]>();
+                for (const [name, id] of Object.entries(choices)) {
+                    if (!id || id === CREATE_NEW) continue;
+                    const rec = records.find(r => r.id === id);
+                    if (!rec) continue;
+                    const list = byId.get(id) ?? [...(rec.aliases || [])];
+                    if (!allNames({ name: rec.name, aliases: list }).some(n => normalizeName(n) === normalizeName(name))) list.push(name);
+                    byId.set(id, list);
+                }
+                for (const [id, aliases] of byId) {
+                    const rec = records.find(r => r.id === id)!;
+                    if (aliases.length !== (rec.aliases || []).length) await save(id, aliases);
+                }
+            };
+            await remember(vehicleChoices, vehicles, (id, aliases) => updateVehicle(id, { aliases, lastModifiedBy: user.username }));
+            await remember(partyChoices, parties, (id, aliases) => updateParty(id, { aliases, lastModifiedBy: user.username }));
+
+            // 2. Create any vehicles/parties the user chose to create.
+            const localVehicleMap = new Map<string, string>();
             for (const name of missingVehicles) {
                 const id = await addVehicle({
                     name,
                     make: 'Imported', model: 'Imported', year: new Date().getFullYear(), vin: '',
                     status: 'Active', ownership: 'Sijan', createdBy: user.username, createdAt: new Date().toISOString(),
                 });
-                localVehicleMap.set(name.toLowerCase(), id);
+                localVehicleMap.set(normalizeName(name), id);
             }
-            const localPartyMap = new Map(partyMap);
+            const localPartyMap = new Map<string, string>();
             for (const name of missingParties) {
                 const id = await addParty({ name, type: 'Vendor', ownership: 'Sijan', createdBy: user.username });
-                localPartyMap.set(name.toLowerCase(), id);
+                localPartyMap.set(normalizeName(name), id);
             }
+            const vehicleIdFor = (name: string) => resolveVehicle(name) ?? localVehicleMap.get(normalizeName(name));
+            const partyIdFor = (name: string) => resolveParty(name) ?? localPartyMap.get(normalizeName(name));
 
-            // 2. Resolve every candidate to its final vehicleId/partyId now that
+            // 3. Resolve every candidate to its final vehicleId/partyId now that
             // anything missing has been created.
             const resolvedTrips: ResolvedCandidate[] = tripCandidates.map(c => ({
                 ...c,
-                vehicleId: localVehicleMap.get(c.vehicleText.toLowerCase())!,
-                partyId: c.partyName ? localPartyMap.get(c.partyName.toLowerCase()) : undefined,
+                vehicleId: vehicleIdFor(c.vehicleText)!,
+                partyId: c.partyName ? partyIdFor(c.partyName) : undefined,
             }));
             const resolvedPayments: ResolvedPaymentCandidate[] = paymentCandidates.map(c => ({
                 ...c,
-                partyId: localPartyMap.get(c.partyName.toLowerCase())!,
+                partyId: partyIdFor(c.partyName)!,
             }));
 
+            if (resolvedTrips.some(c => !c.vehicleId) || resolvedPayments.some(c => !c.partyId)) {
+                throw new Error('Some trucks or parties are not matched yet. Choose a match for each one first.');
+            }
             const result = await commitTripSheetImport(resolvedTrips, resolvedPayments, existingSignatures, user.username);
             setImportResult(result);
             toast({ title: 'Import complete', description: `${result.created} record(s) created, ${result.skipped} already on record and skipped.` });
@@ -356,16 +453,44 @@ export default function FleetImportPage() {
                         <Card><CardHeader className="pb-2"><CardDescription className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> New Parties</CardDescription><CardTitle className="text-2xl">{missingParties.length}</CardTitle></CardHeader></Card>
                     </div>
 
-                    {(missingVehicles.length > 0 || missingParties.length > 0) && (
-                        <Alert>
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertTitle>New records will be created</AlertTitle>
-                            <AlertDescription className="space-y-1">
-                                {missingVehicles.length > 0 && <p><strong>Trucks:</strong> {missingVehicles.join(', ')}</p>}
-                                {missingParties.length > 0 && <p><strong>Parties:</strong> {missingParties.join(', ')}</p>}
-                                <p className="text-xs">These are created with minimal defaults - edit their details afterward in Vehicles &amp; Drivers / Companies.</p>
-                            </AlertDescription>
-                        </Alert>
+                    {(unknownVehicles.length > 0 || unknownParties.length > 0) && (
+                        <Card className={unresolvedCount > 0 ? 'border-amber-300' : undefined}>
+                            <CardHeader>
+                                <CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-600" /> Match names not found in the app</CardTitle>
+                                <CardDescription>
+                                    These names in the file don't exactly match an existing truck or party (often a typo).
+                                    Pick the right one - your choice is remembered, so the next import matches this spelling automatically.
+                                    Choose &quot;Create new&quot; only for a genuinely new truck or party.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                {[
+                                    ...unknownVehicles.map(name => ({ name, kind: 'Truck' as const, suggestion: vehicleSuggestions[name], options: vehicles.map(v => ({ id: v.id, name: v.name })), value: vehicleChoices[name] || '', set: (v: string) => setVehicleChoices(c => ({ ...c, [name]: v })) })),
+                                    ...unknownParties.map(name => ({ name, kind: 'Party' as const, suggestion: partySuggestions[name], options: parties.map(p => ({ id: p.id, name: p.name })), value: partyChoices[name] || '', set: (v: string) => setPartyChoices(c => ({ ...c, [name]: v })) })),
+                                ].map(row => (
+                                    <div key={`${row.kind}-${row.name}`} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                        <span className="sm:w-72 text-sm">
+                                            {row.kind === 'Truck' ? <Truck className="inline h-3.5 w-3.5 mr-1" /> : <Users className="inline h-3.5 w-3.5 mr-1" />}
+                                            In file: <strong>{row.name}</strong>
+                                        </span>
+                                        <Select value={row.value} onValueChange={row.set}>
+                                            <SelectTrigger className={`h-9 sm:w-80 ${row.value ? '' : 'border-amber-400'}`}><SelectValue placeholder={`Choose the ${row.kind.toLowerCase()}...`} /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={CREATE_NEW}>+ Create new {row.kind.toLowerCase()} &quot;{row.name}&quot;</SelectItem>
+                                                {row.suggestion && <SelectItem value={row.suggestion.match.id}>{row.suggestion.match.name} (closest match)</SelectItem>}
+                                                {row.options.filter(o => o.id !== row.suggestion?.match.id).map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        {!row.value && row.suggestion && (
+                                            <button type="button" className="text-xs underline text-amber-700 text-left" onClick={() => row.set(row.suggestion!.match.id)}>
+                                                Did you mean {row.suggestion.match.name}?
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                                {unresolvedCount > 0 && <p className="text-xs text-amber-700 pt-1">{unresolvedCount} name(s) still need a choice before importing.</p>}
+                            </CardContent>
+                        </Card>
                     )}
 
                     <Card>
@@ -414,7 +539,7 @@ export default function FleetImportPage() {
                             <span className="text-sm text-muted-foreground">Total value to import: <strong>Rs. {summary.totalAmount.toLocaleString('en-IN')}</strong></span>
                             <div className="flex gap-2">
                                 <Button variant="outline" onClick={resetImport} disabled={isImporting}>Cancel</Button>
-                                <Button onClick={handleConfirmImport} disabled={isImporting || summary.toImportCount === 0}>
+                                <Button onClick={handleConfirmImport} disabled={isImporting || summary.toImportCount === 0 || unresolvedCount > 0}>
                                     {isImporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Importing...</> : `Import ${summary.toImportCount} Record(s)`}
                                 </Button>
                             </div>

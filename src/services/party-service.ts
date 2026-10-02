@@ -47,6 +47,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         dealStage: data.dealStage,
         classification: data.classification as CustomerClassification,
         customFields: data.customFields || {},
+        aliases: Array.isArray(data.aliases) ? data.aliases.map(String) : [],
     };
 }
 
