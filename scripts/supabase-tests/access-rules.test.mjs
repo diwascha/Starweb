@@ -96,6 +96,8 @@ const get = async (t, id) => (await db.query(`select app.row_doc('${t}', to_json
 ok('migrated: permissions intact', (await get('system_users', 'u-hredit')).permissions.hr.actions.length === 4);
 ok('migrated: setting value intact', (await get('settings', 'appBranding')).value.name === 'StarSutra');
 
+ok('column map readable by signed-in users', Number((await rows('hrview@x.com', 'select count(*) as n from app.fields'))[0].n) > 600);
+
 // --- Anonymous ---------------------------------------------------------------
 ok('anon: no payroll', await count('anon', 'select * from payroll') === 0);
 ok('anon: no system_users', await count('anon', 'select * from system_users') === 0);

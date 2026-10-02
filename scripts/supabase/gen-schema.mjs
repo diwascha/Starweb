@@ -89,6 +89,10 @@ insert into app.fields (tbl, field, col, typ)
 select t.key, f.key, f.value ->> 0, f.value ->> 1
 from jsonb_each(${lit(JSON.stringify(specJson))}::jsonb) t, jsonb_each(t.value) f;
 grant select on app.fields to anon, authenticated;
+-- Supabase switches row-level security on for new tables; the access rules
+-- (run as the signed-in user) must still be able to read this map.
+alter table app.fields enable row level security;
+create policy fields_read on app.fields for select to anon, authenticated using (true);
 
 -- Timestamps are written by the app as 2025-01-02T03:04:05.678Z; read them back the same way.
 create or replace function app.ts_text(t timestamptz) returns text
