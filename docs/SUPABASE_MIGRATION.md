@@ -106,6 +106,13 @@ column, so documents can be copied across without loss and re-exported.
       0009 re-applies the access rules on columns. Run once as
       `supabase/relational_upgrade.sql` (both, one transaction) in the SQL Editor.
       To add a field: edit the spec, re-run the generator, add a migration.
+- [x] Foreign keys (2026-10-02): 35 links (0010) - employees, parties,
+      vehicles, accounts, drivers, rental, CRM, sessions -> users (cascade).
+      payroll.employee_id is NOT VALID: 55 historical rows of deleted
+      employees are kept; new rows are checked. Not linked: policies.member_id
+      (vehicle or driver), transactions.expense_id/trip_id (deleted in steps).
+      Line items (PO/invoice items, trip stops, cheque splits) stay as jsonb in
+      their parent row (owner decision).
 - [ ] Phase 2 - Re-runnable data copy tool for switch-over day
 - [ ] Phase 3 - Modules
 - [ ] Phase 4 - Switch-over

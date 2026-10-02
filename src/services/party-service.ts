@@ -137,26 +137,33 @@ export const mergeParties = async (sourceId: string, destinationId: string): Pro
     const targetData = targetSnap.data();
 
     // Move related records
-    const collectionsToUpdate = [
-        'crm_contacts',
-        'crm_interactions',
-        'crm_deals',
-        'crm_followups',
-        'transactions',
-        'costReports',
-        'rentalAgreements',
-        'rentalBills'
+    // Every record that points at a party, and the field it uses. The source
+    // party is deleted afterwards, so anything missed here would be left
+    // pointing at nothing (the database refuses that delete).
+    const references: [string, string][] = [
+        ['crm_contacts', 'partyId'],
+        ['crm_interactions', 'partyId'],
+        ['crm_deals', 'partyId'],
+        ['crm_followups', 'partyId'],
+        ['transactions', 'partyId'],
+        ['costReports', 'partyId'],
+        ['products', 'partyId'],
+        ['purchaseOrders', 'partyId'],
+        ['trips', 'partyId'],
+        ['expenses', 'partyId'],
+        ['gsm_reports', 'vendorId'],
+        ['rentalAgreements', 'tenantId'],
+        ['rentalBills', 'tenantId'],
     ];
 
     const batch = writeBatch(db);
-    
-    // For each collection, find records with sourceId and update to destinationId
-    for (const colName of collectionsToUpdate) {
+
+    for (const [colName, field] of references) {
         try {
-            const q = query(collection(db, colName), where("partyId", "==", sourceId));
+            const q = query(collection(db, colName), where(field, "==", sourceId));
             const snap = await getDocs(q);
             snap.forEach(d => {
-                batch.update(d.ref, { partyId: destinationId });
+                batch.update(d.ref, { [field]: destinationId });
             });
         } catch (e) {
             console.warn(`Could not update ${colName} during merge:`, e);

@@ -56,6 +56,7 @@ await seed('sessions', 's-fin', { userId: 'u-fin' });
 // --- Move to the relational schema (migrates the seeded rows above) ----------
 await db.exec(read('supabase/migrations/0008_relational_schema.sql'));
 await db.exec(read('supabase/migrations/0009_relational_rules.sql'));
+await db.exec(read('supabase/migrations/0010_foreign_keys.sql'));
 await db.exec(`grant select, insert, update, delete on all tables in schema public to anon, authenticated;`);
 
 // SQL for a record in column form, built from the same spec as the migration.
@@ -196,6 +197,17 @@ await denies('anon: record visit', 'anon', "select public.record_page_visit('x',
 ok('hrview: cannot read visits', await count('hrview@x.com', 'select * from "pageVisits"') === 0);
 ok('settings viewer: reads visits', await count('set@x.com', 'select * from "pageVisits"') === 1);
 await denies('hrview: write visits directly', 'hrview@x.com', ins('pageVisits', 'x', {"count":999}));
+
+// --- Foreign keys ------------------------------------------------------------------
+await seedRow('employees', 'emp1', { name: 'Hari' });
+await allows('fk: attendance for a real employee', 'hredit@x.com', ins('attendance', 'a-ok', { employeeId: 'emp1', bsYear: 2081, bsMonth: 3 }));
+await denies('fk: attendance for a missing employee', 'hredit@x.com', ins('attendance', 'a-bad', { employeeId: 'ghost', bsYear: 2081, bsMonth: 3 }));
+await denies('fk: payroll for a missing employee', 'boss@x.com', ins('payroll', 'p-ghost', { employeeId: 'ghost', bsYear: 2081, bsMonth: 4 }));
+await allows('fk: transaction linked to a party', 'boss@x.com', upd('transactions', 't1', { partyId: 'pa1' }));
+await denies('fk: delete a party still in use', 'boss@x.com', `delete from parties where id = 'pa1'`);
+ok('fk: party still there', !!(await get('parties', 'pa1')));
+await allows('fk: deleting a user removes their sessions', 'boss@x.com', `delete from system_users where id = 'u-fin'`);
+ok('fk: sessions cascaded', (await db.query(`select count(*)::int as n from sessions where user_id = 'u-fin'`)).rows[0].n === 0);
 
 console.log(`${pass} passed, ${fails.length} failed`);
 for (const f of fails) console.log('FAIL', f);

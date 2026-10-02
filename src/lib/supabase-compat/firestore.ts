@@ -264,6 +264,9 @@ const toRow = (table: string, id: string, doc: DocumentData): Record<string, any
     for (const [field, value] of Object.entries(doc)) {
         if (value === null || value === undefined) continue;
         const map = cols[field];
+        // An empty reference ("no party") is SQL null, so it satisfies the
+        // foreign keys (0010); it reads back as an absent field.
+        if (value === '' && map && map[0].endsWith('_id')) continue;
         if (map && fits(map[1], value)) row[map[0]] = value;
         else extra[field] = value;
     }
