@@ -86,6 +86,7 @@ function ReportFormContent() {
                 next[k] = { value: saved[k]?.value || '', remark: saved[k]?.remark || '', result: (saved[k]?.result as QcMark) || 'Pass', include: k in saved };
             }
             setRows(next);
+            setTargetMoisture(String(moistureTarget(r.product?.specification?.moisture || '') ?? ''));
         });
     }, [editId, toast]);
 
@@ -137,25 +138,32 @@ function ReportFormContent() {
     // GSM and box weight converted from the measured moisture to the target, noted in Remarks.
     const applyMoistureCorrection = () => {
         const measured = firstNumber(rows.moisture?.value || '');
-        const target = Number(targetMoisture);
-        if (measured == null || !targetMoisture.trim() || !Number.isFinite(target)) {
+        const target = firstNumber(targetMoisture);
+        if (measured == null || target == null) {
             toast({ title: 'Enter the measured moisture and a target first', variant: 'destructive' });
             return;
         }
-        setRows(prev => {
-            const next = { ...prev };
-            for (const k of ['gsm', 'weightOfBox']) {
-                const v = firstNumber(next[k]?.value || '');
-                if (!next[k]?.include || v == null) continue;
-                const corrected = moistureCorrect(v, measured, target);
-                if (corrected == null) continue;
-                const note = `${Math.round(corrected)} @ ${target}% moisture`;
-                const others = (next[k].remark || '').split(';').map(x => x.trim()).filter(x => x && !/@ [\d.]+% moisture$/.test(x));
-                next[k] = { ...next[k], remark: [note, ...others].join('; ') };
-            }
-            return next;
-        });
-        toast({ title: 'Moisture correction added to Remarks' });
+        const updated: string[] = [];
+        const next = { ...rows };
+        for (const k of ['gsm', 'weightOfBox']) {
+            const raw = next[k]?.value || '';
+            const v = firstNumber(raw);
+            if (!next[k]?.include || v == null) continue;
+            const corrected = moistureCorrect(v, measured, target);
+            if (corrected == null) continue;
+            // Keep the reading's precision: 502 -> 480, but 0.45 kg -> 0.43, not 0.
+            const decimals = Math.max((raw.match(/\d+\.(\d+)/)?.[1] || '').length, v < 10 ? 2 : 0);
+            const note = `${corrected.toFixed(decimals)} @ ${target}% moisture`;
+            const others = (next[k].remark || '').split(';').map(x => x.trim()).filter(x => x && !/@ [\d.]+% moisture$/.test(x));
+            next[k] = { ...next[k], remark: [note, ...others].join('; ') };
+            updated.push(`${formatParameterLabel(k)} ${note}`);
+        }
+        if (!updated.length) {
+            toast({ title: 'Nothing to correct', description: 'Enter the measured GSM and/or Weight of Box (and keep them ticked) first.', variant: 'destructive' });
+            return;
+        }
+        setRows(next);
+        toast({ title: 'Added to Remarks', description: updated.join(' · ') });
     };
 
     const includedCount = Object.values(rows).filter(r => r.include).length;

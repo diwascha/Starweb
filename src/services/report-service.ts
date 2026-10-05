@@ -1,3 +1,4 @@
+import { deepStripUndefined } from '@/lib/service-utils';
 import { getFirebase } from '@/lib/firebase';
 import { reportWriteFailure } from '@/lib/write-reporting';
 import { collection, doc, deleteDoc, onSnapshot, QueryDocumentSnapshot, getDoc, WithFieldValue, DocumentData, FirestoreDataConverter, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
@@ -38,7 +39,7 @@ const getReportsCollection = () => {
 
 export const addReport = async (report: Omit<Report, 'id'>): Promise<string> => {
   const docRef = doc(getReportsCollection());
-  const payload = { ...report, id: docRef.id };
+  const payload = deepStripUndefined({ ...report, id: docRef.id });
   reportWriteFailure(
       setDoc(docRef, payload),
       { path: 'reports', operation: 'create', requestResourceData: payload }
@@ -86,7 +87,7 @@ export const deleteReport = async (id: string): Promise<void> => {
 export const updateReport = async (id: string, changes: Partial<Omit<Report, 'id' | 'serialNumber' | 'createdAt' | 'createdBy'>>): Promise<void> => {
   if (!id) return;
   const { db } = getFirebase();
-  const payload = { ...changes, lastModifiedAt: new Date().toISOString() };
+  const payload = deepStripUndefined({ ...changes, lastModifiedAt: new Date().toISOString() });
   await updateDoc(doc(db, 'reports', id), payload);
 };
 

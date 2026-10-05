@@ -59,6 +59,22 @@ export const stripUndefined = <T extends Record<string, any>>(obj: T): T => {
   return result;
 };
 
+/**
+ * `stripUndefined` at every depth (nested objects and arrays). Needed where a
+ * whole record is written, e.g. a product, or a report that embeds a copy of
+ * its product: one missing optional field anywhere made Firestore throw
+ * before the write was sent.
+ */
+export const deepStripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) return value.map(deepStripUndefined) as unknown as T;
+  if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value as Record<string, any>)) if (v !== undefined) out[k] = deepStripUndefined(v);
+    return out as T;
+  }
+  return value;
+};
+
 // Throttled logging to prevent performance degradation during errors
 const errorLog = new Map<string, number>();
 

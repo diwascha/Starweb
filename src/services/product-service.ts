@@ -1,5 +1,6 @@
 import { getFirebase } from '@/lib/firebase';
 import { reportWriteFailure } from '@/lib/write-reporting';
+import { deepStripUndefined } from '@/lib/service-utils';
 import { collection, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, setDoc } from 'firebase/firestore';
 import type { Product, RateHistoryEntry } from '@/lib/types';
 import { logAudit } from './log-service';
@@ -9,23 +10,6 @@ import { FirestorePermissionError } from '@/firebase/errors';
 const getProductsCollection = () => {
     const { db } = getFirebase();
     return collection(db, 'products');
-};
-
-/**
- * Firestore throws on any `undefined` field, anywhere in the document. Edit
- * forms send the whole product back (optional fields included), so one
- * missing value - a customer with no address, a product with no rate - made
- * the save throw before it was sent, while the screen still said "Product
- * Updated". Drop those keys at every depth before writing.
- */
-const deepStripUndefined = (value: any): any => {
-    if (Array.isArray(value)) return value.map(deepStripUndefined);
-    if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
-        const out: Record<string, any> = {};
-        for (const [k, v] of Object.entries(value)) if (v !== undefined) out[k] = deepStripUndefined(v);
-        return out;
-    }
-    return value;
 };
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product => {
