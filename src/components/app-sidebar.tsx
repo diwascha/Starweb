@@ -58,6 +58,7 @@ import { useState, useEffect } from 'react';
 import { getNormalizedPath } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { BackupButton } from '@/components/backup-button';
+import { DesktopUpdateButton } from '@/components/desktop-update-button';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
@@ -530,6 +531,7 @@ export function AppSidebar() {
                     <ConnectionStatusIndicator />
                   </div>
                   <div className="flex items-center">
+                    <DesktopUpdateButton />
                     <BackupButton />
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors" onClick={handleSignOut} title="Sign Out">
                         <LogOut className="h-3.5 w-3.5" />

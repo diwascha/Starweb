@@ -1,0 +1,4 @@
+# Link the Microsoft C runtime into StarSutra.exe, so a fresh Windows PC does
+# not need the "Visual C++ Redistributable" installed to run the app.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
