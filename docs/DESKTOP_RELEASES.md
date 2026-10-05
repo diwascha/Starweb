@@ -33,6 +33,14 @@ the app only installs updates signed with the private key.
 installed apps cannot verify new updates and everyone must reinstall once by
 hand with an app built from a new key.
 
+## What a PC needs
+
+Nothing to pre-install. Windows 11 (and updated Windows 10) already has the
+WebView2 runtime; if it is missing, the installer downloads it. The C runtime
+is linked into the app (src-tauri/.cargo/config.toml). Installs and updates
+are per-user, so no administrator rights are needed. Internet is required to
+check for and download updates.
+
 ## First install
 
 Apps built before this setup have no updater. Install once from the latest
