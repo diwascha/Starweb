@@ -222,9 +222,6 @@ export function AppSidebar() {
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={getIsActive('/finance/payment-tracker')}><Link href="/finance/payment-tracker" className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Payment Tracker</span></Link></SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
-                                <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={getIsActive('/finance/gsm-calculator')}><Link href="/finance/gsm-calculator" className="flex items-center gap-2"><Scale className="h-4 w-4" /><span>GSM Calculator</span></Link></SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>
                     </SidebarMenuItem>
@@ -257,6 +254,11 @@ export function AppSidebar() {
                                 {hasPermission('reports', 'view') && (
                                     <SidebarMenuSubItem>
                                         <SidebarMenuSubButton asChild isActive={getIsActive('/reports/list')}><Link href="/reports/list" className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /><span>QT Reports Database</span></Link></SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                )}
+                                {hasPermission('reports', 'view') && (
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild isActive={getIsActive('/reports/gsm-calculator')}><Link href="/reports/gsm-calculator" className="flex items-center gap-2"><Scale className="h-4 w-4" /><span>GSM Calculator</span></Link></SidebarMenuSubButton>
                                     </SidebarMenuSubItem>
                                 )}
                                 {hasPermission('products', 'view') && (

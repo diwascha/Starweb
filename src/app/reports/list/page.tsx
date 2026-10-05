@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { FileText, Search, MoreHorizontal, Printer, Trash2, ArrowUpDown, Eye, Loader2, ChevronLeft, ChevronRight, ArrowLeft, PlusCircle } from 'lucide-react';
+import { FileText, Search, MoreHorizontal, Printer, Trash2, Pencil, ArrowUpDown, Eye, Loader2, ChevronLeft, ChevronRight, ArrowLeft, PlusCircle } from 'lucide-react';
 import type { Report } from '@/lib/types';
 import { onReportsUpdate, deleteReport } from '@/services/report-service';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -34,7 +34,7 @@ import { useOwnershipScope } from '@/hooks/use-ownership-scope';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
-type SortKey = 'serialNumber' | 'date' | 'productName' | 'quantity' | 'taxInvoiceNumber';
+type SortKey = 'serialNumber' | 'date' | 'productName' | 'quantity' | 'taxInvoiceNumber' | 'challanNumber';
 type SortDirection = 'asc' | 'desc';
 
 export default function ReportsListPage() {
@@ -77,7 +77,9 @@ export default function ReportsListPage() {
             filtered = filtered.filter(r => 
                 r.serialNumber.toLowerCase().includes(q) ||
                 (r.product?.name || '').toLowerCase().includes(q) ||
-                (r.taxInvoiceNumber || '').toLowerCase().includes(q)
+                (r.product?.partyName || '').toLowerCase().includes(q) ||
+                (r.taxInvoiceNumber || '').toLowerCase().includes(q) ||
+                (r.challanNumber || '').toLowerCase().includes(q)
             );
         }
 
@@ -164,26 +166,33 @@ export default function ReportsListPage() {
                             <TableRow className="hover:bg-transparent h-11">
                                 <TableHead className="pl-6">{sortButton('serialNumber', 'S.N.')}</TableHead>
                                 <TableHead>{sortButton('date', 'Date (BS)')}</TableHead>
-                                <TableHead>{sortButton('productName', 'Product / Material')}</TableHead>
+                                <TableHead>{sortButton('productName', 'Product / Customer')}</TableHead>
                                 <TableHead>{sortButton('taxInvoiceNumber', 'Invoice #')}</TableHead>
+                                <TableHead>{sortButton('challanNumber', 'Challan #')}</TableHead>
                                 <TableHead className="text-right">{sortButton('quantity', 'Qty')}</TableHead>
                                 <TableHead className="text-right pr-6 font-black uppercase text-[0.625rem] tracking-widest text-muted-foreground">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={6} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20" /></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={7} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20" /></TableCell></TableRow>
                             ) : paginatedReports.map(report => (
                                 <TableRow key={report.id} className="h-14 hover:bg-muted/10 transition-colors group">
-                                    <TableCell className="pl-6 font-black text-blue-700 uppercase tabular-nums tracking-tighter">{report.serialNumber}</TableCell>
+                                    <TableCell className="pl-6 font-black text-blue-700 uppercase tabular-nums tracking-tighter">
+                                        {report.serialNumber}
+                                        <span className={cn('ml-2 rounded px-1.5 py-0.5 text-[0.5625rem] font-black tracking-normal', report.kind === 'coc' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-muted text-muted-foreground')}>
+                                            {report.kind === 'coc' ? 'CoC' : 'Test'}
+                                        </span>
+                                    </TableCell>
                                     <TableCell className="text-muted-foreground font-medium">{toNepaliDate(report.date)}</TableCell>
                                     <TableCell>
                                         <div className="flex flex-col">
                                             <span className="font-bold text-foreground uppercase">{report.product?.name || 'Custom Product'}</span>
-                                            <span className="text-[0.5625rem] text-muted-foreground uppercase font-black">{report.product?.materialCode || 'No Code'}</span>
+                                            <span className="text-[0.5625rem] text-muted-foreground uppercase font-black">{report.product?.partyName || report.product?.materialCode || ''}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-mono">{report.taxInvoiceNumber || '—'}</TableCell>
+                                    <TableCell className="font-mono">{report.challanNumber || '—'}</TableCell>
                                     <TableCell className="text-right font-black tabular-nums">{report.quantity}</TableCell>
                                     <TableCell className="text-right pr-6">
                                         <div className="flex justify-end gap-1">
@@ -196,7 +205,11 @@ export default function ReportsListPage() {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-48">
                                                     <DropdownMenuItem onSelect={() => router.push(`/report/view/?id=${report.id}`)}><FileText className="mr-2 h-4 w-4"/> View Report</DropdownMenuItem>
-                                                    <DropdownMenuItem onSelect={() => window.open(`/report/view/?id=${report.id}&print=true`, '_blank')}><Printer className="mr-2 h-4 w-4"/> Print Document</DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => router.push(`/report/view/?id=${report.id}&print=true`)}><Printer className="mr-2 h-4 w-4"/> Print Document</DropdownMenuItem>
+                                                    {hasPermission('reports', 'edit') && (
+                                                        <DropdownMenuItem onSelect={() => router.push(`/report/new/?id=${report.id}`)}><Pencil className="mr-2 h-4 w-4"/> Edit Report</DropdownMenuItem>
+                                                    )}
+                                                    {hasPermission('reports', 'delete') && (<>
                                                     <DropdownMenuSeparator />
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
@@ -213,6 +226,7 @@ export default function ReportsListPage() {
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
+                                                    </>)}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </div>
@@ -220,7 +234,7 @@ export default function ReportsListPage() {
                                 </TableRow>
                             ))}
                             {!isLoading && filteredAndSortedReports.length === 0 && (
-                                <TableRow><TableCell colSpan={6} className="h-60 text-center text-muted-foreground italic uppercase font-black text-[0.625rem] tracking-widest opacity-20">No matching reports found.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={7} className="h-60 text-center text-muted-foreground italic uppercase font-black text-[0.625rem] tracking-widest opacity-20">No matching reports found.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>

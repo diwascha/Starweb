@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Save, Loader2, ArrowLeft, Search, Check, CalendarIcon, Package, ShieldCheck, Edit } from 'lucide-react';
-import type { Product, Report, ProductSpecification } from '@/lib/types';
+import type { Product, Report, ProductSpecification, TestResult } from '@/lib/types';
 import { onProductsUpdate } from '@/services/product-service';
-import { addReport, onReportsUpdate } from '@/services/report-service';
-import { generateNextSerialNumber, toNepaliDate } from '@/lib/utils';
+import { addReport, getReport, onReportsUpdate, updateReport, testParameterKeys, formatParameterLabel, TEST_PARAMETERS } from '@/services/report-service';
+import { generateNextSerialNumber, reportFallbackPrefix, toNepaliDate } from '@/lib/utils';
 import { reserveNumberFor } from '@/services/number-reservation-service';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,31 +21,38 @@ import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import { autoMark, moistureCorrect, moistureTarget, firstNumber, VISUAL_PARAMETERS, type QcMark } from '@/lib/qc-check';
 
-export default function NewReportPage() {
-    const { user } = useAuth();
+type Row = TestResult & { include: boolean };
+type Kind = 'test' | 'coc';
+const MARK_LABEL: Record<QcMark, string> = { Pass: 'OK', Low: 'Low', High: 'High' };
+
+function ReportFormContent() {
+    const { user, hasPermission } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
+    const editId = useSearchParams().get('id');
 
     const [products, setProducts] = useState<Product[]>([]);
     const [allReports, setAllReports] = useState<Report[]>([]);
+    const [editing, setEditing] = useState<Report | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Form State
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isProductPopoverOpen, setIsProductPopoverOpen] = useState(false);
     const [productSearch, setProductSearch] = useState('');
-    
+
     const [formData, setFormData] = useState({
         serialNumber: '',
         taxInvoiceNumber: '',
         challanNumber: '',
         quantity: '',
         date: new Date(),
-        testData: {} as Record<string, { value: string; remark?: string }>
     });
+    const [rows, setRows] = useState<Record<string, Row>>({});
+    const [kind, setKind] = useState<Kind>('test');
+    const [targetMoisture, setTargetMoisture] = useState('');
 
     useEffect(() => {
         const unsubs = [
@@ -57,78 +65,158 @@ export default function NewReportPage() {
         return () => unsubs.forEach(u => u());
     }, []);
 
+    // Edit mode: load the report once and fill the form from it.
     useEffect(() => {
-        if (!isLoading && allReports.length >= 0) {
-            generateNextSerialNumber(allReports, formData.date.toISOString()).then(num => {
-                setFormData(prev => ({ ...prev, serialNumber: num }));
+        if (!editId) return;
+        getReport(editId).then(r => {
+            if (!r) { toast({ title: 'Report not found', variant: 'destructive' }); return; }
+            setEditing(r);
+            setKind(r.kind === 'coc' ? 'coc' : 'test');
+            setSelectedProduct(r.product);
+            setFormData({
+                serialNumber: r.serialNumber,
+                taxInvoiceNumber: r.taxInvoiceNumber === 'N/A' ? '' : r.taxInvoiceNumber || '',
+                challanNumber: r.challanNumber === 'N/A' ? '' : r.challanNumber || '',
+                quantity: r.quantity === 'N/A' ? '' : r.quantity || '',
+                date: new Date(r.date),
             });
-        }
-    }, [allReports, isLoading, formData.date]);
+            const saved = (r.testData || {}) as Record<string, TestResult>;
+            const next: Record<string, Row> = {};
+            for (const k of new Set([...TEST_PARAMETERS, ...Object.keys(saved)])) {
+                next[k] = { value: saved[k]?.value || '', remark: saved[k]?.remark || '', result: (saved[k]?.result as QcMark) || 'Pass', include: k in saved };
+            }
+            setRows(next);
+        });
+    }, [editId, toast]);
+
+    // Preview of the next number (new reports only); the real one is reserved on save.
+    useEffect(() => {
+        if (editId || isLoading) return;
+        generateNextSerialNumber(allReports, formData.date.toISOString()).then(num => {
+            setFormData(prev => ({ ...prev, serialNumber: num }));
+        });
+    }, [allReports, isLoading, formData.date, editId]);
 
     const handleProductSelect = (product: Product) => {
         setSelectedProduct(product);
         setIsProductPopoverOpen(false);
-        
-        // Initialize testData with spec keys
-        const initialTestData: any = {};
-        Object.keys(product.specification || {}).forEach(key => {
-            if (key !== 'dimension' && key !== 'ply') {
-                initialTestData[key] = { value: '', remark: '' };
-            }
-        });
-        setFormData(prev => ({ ...prev, testData: initialTestData }));
+        // Each customer wants different parameters: start from what this
+        // product's last report included, else every parameter it has a spec for.
+        const last = allReports
+            .filter(r => r.product?.id === product.id && r.id !== editId)
+            .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
+        const included = new Set(last ? Object.keys(last.testData || {}) : testParameterKeys(product.specification));
+        const next: Record<string, Row> = {};
+        for (const k of TEST_PARAMETERS) {
+            next[k] = { value: '', remark: '', result: 'Pass', include: included.has(k) };
+        }
+        setRows(next);
+        setTargetMoisture(String(moistureTarget(product.specification?.moisture || '') ?? ''));
     };
 
-    const handleTestValueChange = (key: string, val: string) => {
-        setFormData(prev => ({
-            ...prev,
-            testData: {
-                ...prev.testData,
-                [key]: { ...prev.testData[key], value: val }
-            }
-        }));
+    const setRow = (key: string, patch: Partial<Row>) =>
+        setRows(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+
+    const specOf = (key: string) => String(selectedProduct?.specification?.[key as keyof ProductSpecification] ?? '');
+
+    // Typing a reading sets OK / Low / High from the spec; the buttons still override.
+    const setReading = (key: string, value: string) => {
+        const mark = autoMark(key, specOf(key), value);
+        setRow(key, mark ? { value, result: mark } : { value });
     };
+
+    // Ply, stapling and printing are checked by eye: one click records "as spec".
+    const fillVisualFromSpec = () => setRows(prev => {
+        const next = { ...prev };
+        for (const k of VISUAL_PARAMETERS) {
+            if (next[k]?.include && specOf(k)) next[k] = { ...next[k], value: specOf(k), result: 'Pass' };
+        }
+        return next;
+    });
+
+    // GSM and box weight converted from the measured moisture to the target, noted in Remarks.
+    const applyMoistureCorrection = () => {
+        const measured = firstNumber(rows.moisture?.value || '');
+        const target = Number(targetMoisture);
+        if (measured == null || !targetMoisture.trim() || !Number.isFinite(target)) {
+            toast({ title: 'Enter the measured moisture and a target first', variant: 'destructive' });
+            return;
+        }
+        setRows(prev => {
+            const next = { ...prev };
+            for (const k of ['gsm', 'weightOfBox']) {
+                const v = firstNumber(next[k]?.value || '');
+                if (!next[k]?.include || v == null) continue;
+                const corrected = moistureCorrect(v, measured, target);
+                if (corrected == null) continue;
+                const note = `${Math.round(corrected)} @ ${target}% moisture`;
+                const others = (next[k].remark || '').split(';').map(x => x.trim()).filter(x => x && !/@ [\d.]+% moisture$/.test(x));
+                next[k] = { ...next[k], remark: [note, ...others].join('; ') };
+            }
+            return next;
+        });
+        toast({ title: 'Moisture correction added to Remarks' });
+    };
+
+    const includedCount = Object.values(rows).filter(r => r.include).length;
+    const canSave = editId ? hasPermission('reports', 'edit') : hasPermission('reports', 'create');
 
     const handleSubmit = async () => {
-        if (!user || !selectedProduct) return;
+        if (!user || !selectedProduct || !canSave) return;
+        if (!includedCount) { toast({ title: 'Choose at least one parameter', variant: 'destructive' }); return; }
+        if (kind === 'test') {
+            const missing = Object.entries(rows).filter(([, r]) => r.include && !r.value.trim()).map(([k]) => formatParameterLabel(k));
+            if (missing.length) {
+                toast({ title: 'Enter the test results', description: `No reading for: ${missing.join(', ')}. Untick a parameter to leave it off, or issue a Certificate of Conformance instead.`, variant: 'destructive' });
+                return;
+            }
+        }
         setIsSaving(true);
         try {
-            const serialNumber = await reserveNumberFor(
-                'report', '2082-083-', allReports.map(r => r.serialNumber), formData.date.toISOString(),
-            );
-            const reportId = await addReport({
-                serialNumber,
-                taxInvoiceNumber: formData.taxInvoiceNumber || 'N/A',
-                challanNumber: formData.challanNumber || 'N/A',
-                quantity: formData.quantity || 'N/A',
+            const testData: Record<string, TestResult> = {};
+            for (const [k, r] of Object.entries(rows)) {
+                if (!r.include) continue;
+                testData[k] = kind === 'coc'
+                    ? { value: '' }
+                    : { value: r.value.trim(), remark: (r.remark || '').trim(), result: (r.result as QcMark) || 'Pass' };
+            }
+            const common = {
+                taxInvoiceNumber: formData.taxInvoiceNumber.trim() || 'N/A',
+                challanNumber: formData.challanNumber.trim() || 'N/A',
+                quantity: formData.quantity.trim() || 'N/A',
                 product: selectedProduct,
+                kind,
                 date: formData.date.toISOString(),
-                createdAt: new Date().toISOString(),
-                testData: formData.testData as any,
-                createdBy: user.username,
-                ownership: selectedProduct.ownership || 'Both'
-            });
-            toast({ title: 'Report Created', description: `Voucher #${formData.serialNumber} saved.` });
-            router.push(`/report/view/?id=${reportId}`);
+                testData: testData as any,
+            };
+            if (editing) {
+                await updateReport(editing.id, { ...common, lastModifiedBy: user.username });
+                toast({ title: 'Report Updated', description: `Report #${editing.serialNumber} saved.` });
+                router.push(`/report/view/?id=${editing.id}`);
+            } else {
+                const serialNumber = await reserveNumberFor(
+                    'report', reportFallbackPrefix(common.date), allReports.map(r => r.serialNumber), common.date,
+                );
+                const reportId = await addReport({
+                    ...common,
+                    serialNumber,
+                    createdAt: new Date().toISOString(),
+                    createdBy: user.username,
+                    ownership: selectedProduct.ownership || 'Both',
+                });
+                toast({ title: kind === 'coc' ? 'Certificate Created' : 'Report Created', description: `#${serialNumber} saved.` });
+                router.push(`/report/view/?id=${reportId}`);
+            }
         } catch {
-            toast({ title: 'Error', variant: 'destructive' });
+            toast({ title: 'Error', description: 'The report could not be saved.', variant: 'destructive' });
         } finally {
             setIsSaving(false);
         }
     };
 
-    const specKeys = useMemo(() => {
-        if (!selectedProduct) return [];
-        return Object.keys(selectedProduct.specification || {}).filter(k => 
-            !['dimension', 'ply', 'view', 'edit', 'delete', 'add', 'all'].includes(k)
-        );
-    }, [selectedProduct]);
+    const paramKeys = useMemo(() => Object.keys(rows), [rows]);
 
-    const formatLabel = (key: string) => {
-        return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-    };
-
-    if (isLoading) return <div className="p-12 text-center flex flex-col items-center justify-center h-[70vh] gap-4"><Loader2 className="animate-spin h-8 w-8 text-primary"/><p>Fetching registry standards...</p></div>;
+    if (isLoading || (editId && !editing)) return <div className="p-12 text-center flex flex-col items-center justify-center h-[70vh] gap-4"><Loader2 className="animate-spin h-8 w-8 text-primary"/><p>Loading...</p></div>;
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 pb-20">
@@ -136,11 +224,24 @@ export default function NewReportPage() {
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-10 w-10 border shadow-sm"><ArrowLeft className="h-5 w-5" /></Button>
                     <div>
-                        <h1 className="text-3xl font-black tracking-tight text-foreground uppercase">Initialize QT Report</h1>
-                        <p className="text-muted-foreground text-sm font-medium italic">Create a new technical verification document.</p>
+                        <h1 className="text-3xl font-black tracking-tight text-foreground uppercase">{editing ? `Edit #${editing.serialNumber}` : 'New QT Document'}</h1>
+                        <p className="text-muted-foreground text-sm font-medium italic">Tick the parameters this customer needs on the document.</p>
                     </div>
                 </div>
+                <div className="flex rounded-lg border overflow-hidden" role="radiogroup" aria-label="Document type">
+                    {([['test', 'Quality Test Report'], ['coc', 'Certificate of Conformance']] as const).map(([k, label]) => (
+                        <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)}
+                            className={cn('px-4 h-10 text-xs font-bold', kind === k ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted')}>
+                            {label}
+                        </button>
+                    ))}
+                </div>
             </header>
+            <p className="text-xs text-muted-foreground -mt-4">
+                {kind === 'test'
+                    ? 'Quality Test Report: type in the readings you measured. OK / Low / High is set from the specification as you type.'
+                    : 'Certificate of Conformance: states the goods are made to the specification. No test results are printed.'}
+            </p>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
@@ -148,76 +249,108 @@ export default function NewReportPage() {
                         <CardHeader className="bg-muted/10 border-b py-4 px-6">
                             <CardTitle className="text-sm font-black uppercase text-foreground flex items-center gap-2">
                                 <Package className="h-4 w-4 text-primary"/>
-                                Product Selection
+                                Name of Item
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-6">
-                            <div className="space-y-1.5">
-                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest px-1">Search Manufacturing Catalog</Label>
-                                <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" role="combobox" className="w-full justify-between h-11 text-base font-bold bg-card">
-                                            {selectedProduct ? selectedProduct.name : "Select or type product name..."}
-                                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                        <Command>
-                                            <CommandInput placeholder="Search variants..." value={productSearch} onValueChange={setProductSearch} />
-                                            <CommandList>
-                                                <CommandEmpty>No products found.</CommandEmpty>
-                                                <CommandGroup>
-                                                    {products.map(p => (
-                                                        <CommandItem key={p.id} value={p.name} onSelect={() => handleProductSelect(p)} className="h-11">
-                                                            <Check className={cn("mr-2 h-4 w-4", selectedProduct?.id === p.id ? "opacity-100" : "opacity-0")} />
-                                                            <div className="flex flex-col">
-                                                                <span className="font-bold uppercase text-xs">{p.name}</span>
-                                                                <span className="text-[0.625rem] text-muted-foreground uppercase">{p.materialCode} &bull; {p.partyName}</span>
-                                                            </div>
-                                                        </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
+                            <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" role="combobox" className="w-full justify-between h-11 text-base font-bold bg-card">
+                                        {selectedProduct ? selectedProduct.name : "Select or type product name..."}
+                                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                    <Command>
+                                        <CommandInput placeholder="Search products..." value={productSearch} onValueChange={setProductSearch} />
+                                        <CommandList>
+                                            <CommandEmpty>No products found.</CommandEmpty>
+                                            <CommandGroup>
+                                                {products.map(p => (
+                                                    <CommandItem key={p.id} value={`${p.name} ${p.partyName || ''} ${p.materialCode || ''}`} onSelect={() => handleProductSelect(p)} className="h-11">
+                                                        <Check className={cn("mr-2 h-4 w-4", selectedProduct?.id === p.id ? "opacity-100" : "opacity-0")} />
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold uppercase text-xs">{p.name}</span>
+                                                            <span className="text-[0.625rem] text-muted-foreground uppercase">{p.materialCode} &bull; {p.partyName}</span>
+                                                        </div>
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                            {selectedProduct && <p className="text-xs text-muted-foreground mt-2">Deliver To: <span className="font-bold text-foreground">{selectedProduct.partyName || '-'}</span></p>}
                         </CardContent>
                     </Card>
 
                     {selectedProduct && (
-                        <Card className="shadow-lg border-primary/20 overflow-hidden ring-4 ring-primary/5 animate-in fade-in slide-in-from-bottom-2">
-                            <CardHeader className="bg-primary/5 border-b py-5 px-6">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle className="text-sm font-black uppercase text-foreground flex items-center gap-2">
-                                        <Edit className="h-4 w-4 text-primary"/>
-                                        Test Parameters Result
-                                    </CardTitle>
-                                    <Badge variant="outline" className="bg-card px-3 font-black text-[0.5625rem] uppercase tracking-tighter text-blue-600 border-blue-200">
-                                        {selectedProduct.specification.ply} Ply Construction
-                                    </Badge>
-                                </div>
+                        <Card className="shadow-sm border-border overflow-hidden">
+                            <CardHeader className="bg-muted/10 border-b py-4 px-6">
+                                <CardTitle className="text-sm font-black uppercase text-foreground flex items-center gap-2">
+                                    <Edit className="h-4 w-4 text-primary"/>
+                                    {kind === 'test' ? 'Test Results' : 'Specification'} <span className="text-muted-foreground font-medium normal-case">({includedCount} on document)</span>
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="p-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                                    {specKeys.map(key => (
-                                        <div key={key} className="space-y-1.5 group">
-                                            <div className="flex justify-between items-center px-1">
-                                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground tracking-widest">{formatLabel(key)}</Label>
-                                                <span className="text-[0.5625rem] font-bold text-blue-600 uppercase tracking-tighter opacity-0 group-focus-within:opacity-100 transition-opacity">Expected: {selectedProduct.specification[key as keyof ProductSpecification]}</span>
-                                            </div>
-                                            <Input 
-                                                value={formData.testData[key]?.value || ''} 
-                                                onChange={e => handleTestValueChange(key, e.target.value)}
-                                                placeholder={selectedProduct.specification[key as keyof ProductSpecification] || 'Value'}
-                                                className="h-10 font-bold border-2 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                            />
+                            {kind === 'test' && (
+                                <div className="flex flex-wrap items-end gap-3 px-6 py-3 border-b bg-muted/5">
+                                    <Button type="button" variant="outline" size="sm" onClick={fillVisualFromSpec} className="h-9 text-xs">
+                                        Ply / Stapling / Printing as spec
+                                    </Button>
+                                    <div className="flex items-end gap-2 ml-auto">
+                                        <div className="space-y-1">
+                                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Target moisture %</Label>
+                                            <Input value={targetMoisture} onChange={e => setTargetMoisture(e.target.value)} inputMode="decimal" className="h-9 w-24" />
                                         </div>
-                                    ))}
+                                        <Button type="button" variant="outline" size="sm" onClick={applyMoistureCorrection} className="h-9 text-xs">
+                                            Calculate GSM / weight at target
+                                        </Button>
+                                    </div>
                                 </div>
-                                {specKeys.length === 0 && (
-                                    <div className="py-12 text-center text-muted-foreground italic text-sm">This product has no technical parameters defined.</div>
-                                )}
+                            )}
+                            <CardContent className="p-0 overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-muted/30 text-[0.625rem] uppercase tracking-wider text-muted-foreground">
+                                        <tr>
+                                            <th className="p-2 w-10 text-center">Show</th>
+                                            <th className="p-2 text-left">Particular</th>
+                                            <th className="p-2 text-left">Specification</th>
+                                            {kind === 'test' && <>
+                                                <th className="p-2 text-left">Result (measured)</th>
+                                                <th className="p-2 text-left">OK / Low / High</th>
+                                                <th className="p-2 text-left">Remarks</th>
+                                            </>}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paramKeys.map(key => {
+                                            const r = rows[key];
+                                            const spec = specOf(key);
+                                            const bad = kind === 'test' && r.include && (r.result === 'Low' || r.result === 'High');
+                                            return (
+                                                <tr key={key} className={cn('border-t', !r.include && 'opacity-40', bad && 'bg-red-50 dark:bg-red-950/30')}>
+                                                    <td className="p-2 text-center"><Checkbox checked={r.include} onCheckedChange={v => setRow(key, { include: !!v })} aria-label={`Show ${formatParameterLabel(key)} on document`} /></td>
+                                                    <td className="p-2 font-bold whitespace-nowrap">{formatParameterLabel(key)}</td>
+                                                    <td className="p-2 text-muted-foreground whitespace-nowrap">{spec || '-'}</td>
+                                                    {kind === 'test' && <>
+                                                        <td className="p-2 min-w-[7rem]"><Input value={r.value} disabled={!r.include} onChange={e => setReading(key, e.target.value)} className="h-9 font-bold" /></td>
+                                                        <td className="p-2">
+                                                            <div className="flex rounded-md border overflow-hidden w-fit">
+                                                                {(['Pass', 'Low', 'High'] as const).map(v => (
+                                                                    <button key={v} type="button" disabled={!r.include} onClick={() => setRow(key, { result: v })}
+                                                                        className={cn('px-2.5 h-9 text-xs font-bold', r.result === v ? (v === 'Pass' ? 'bg-primary text-primary-foreground' : 'bg-red-600 text-white') : 'bg-card')}>
+                                                                        {MARK_LABEL[v]}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-2 min-w-[8rem]"><Input value={r.remark || ''} disabled={!r.include} onChange={e => setRow(key, { remark: e.target.value })} className="h-9" /></td>
+                                                    </>}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </CardContent>
                         </Card>
                     )}
@@ -226,15 +359,15 @@ export default function NewReportPage() {
                 <div className="lg:col-span-1 space-y-8">
                     <Card className="shadow-sm border-border bg-card">
                         <CardHeader className="py-4 border-b bg-muted/5">
-                            <CardTitle className="text-xs uppercase font-black tracking-widest text-muted-foreground">Document Identity</CardTitle>
+                            <CardTitle className="text-xs uppercase font-black tracking-widest text-muted-foreground">Document</CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="space-y-1.5">
-                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Report Serial #</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Report No</Label>
                                 <Input value={formData.serialNumber} readOnly className="bg-muted/50 font-mono text-sm h-10 border-2" />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Document Date</Label>
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Date</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-start h-10 font-bold text-xs border-2 bg-card">
@@ -249,39 +382,43 @@ export default function NewReportPage() {
                             </div>
                             <Separator />
                             <div className="space-y-1.5">
-                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Tax Invoice Reference</Label>
-                                <Input value={formData.taxInvoiceNumber} onChange={e => setFormData(p => ({...p, taxInvoiceNumber: e.target.value}))} placeholder="e.g. TI-1234" className="h-10" />
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Invoice No</Label>
+                                <Input value={formData.taxInvoiceNumber} onChange={e => setFormData(p => ({...p, taxInvoiceNumber: e.target.value}))} className="h-10" />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Dispatch Qty</Label>
-                                <Input value={formData.quantity} onChange={e => setFormData(p => ({...p, quantity: e.target.value}))} placeholder="e.g. 500 Pcs" className="h-10 font-bold" />
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Challan No</Label>
+                                <Input value={formData.challanNumber} onChange={e => setFormData(p => ({...p, challanNumber: e.target.value}))} className="h-10" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Supplied Quantity</Label>
+                                <Input value={formData.quantity} onChange={e => setFormData(p => ({...p, quantity: e.target.value}))} placeholder="e.g. 15000 Pcs" className="h-10 font-bold" />
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="shadow-lg border-blue-200 bg-blue-50/10 overflow-hidden">
-                        <CardHeader className="py-4 px-6 border-b border-blue-100">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-50 rounded-xl"><ShieldCheck className="h-4 w-4 text-blue-600"/></div>
-                                <CardTitle className="text-xs font-black uppercase text-blue-900 tracking-wider">Finalize Report</CardTitle>
-                            </div>
-                        </CardHeader>
+                    <Card className="shadow-sm border-border">
                         <CardContent className="p-6">
-                            <p className="text-[0.625rem] text-blue-800 leading-relaxed font-medium mb-6">
-                                By committing this report, you verify that the test results accurately reflect the technical performance of the manufactured batch.
-                            </p>
-                            <Button 
-                                onClick={handleSubmit} 
-                                disabled={isSaving || !selectedProduct} 
-                                className="w-full h-12 font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-primary/20"
+                            <Button
+                                onClick={handleSubmit}
+                                disabled={isSaving || !selectedProduct || !canSave}
+                                className="w-full h-12 font-black text-xs uppercase tracking-[0.2em]"
                             >
-                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                                Authorize & Save
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : editing ? <Save className="mr-2 h-4 w-4"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
+                                {editing ? 'Save Changes' : kind === 'coc' ? 'Save Certificate' : 'Save Report'}
                             </Button>
+                            {!canSave && <p className="text-xs text-muted-foreground mt-2 text-center">You don&apos;t have permission to {editing ? 'edit' : 'create'} QT documents.</p>}
                         </CardContent>
                     </Card>
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function NewReportPage() {
+    return (
+        <Suspense fallback={<div className="p-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary"/></div>}>
+            <ReportFormContent />
+        </Suspense>
     );
 }

@@ -88,12 +88,17 @@ export interface Product {
 export interface TestResult {
   value: string;
   remark?: string;
+  // QC mark for this parameter; Low / High print in Remarks. Reports saved
+  // before this existed have none and are treated as Pass.
+  result?: 'Pass' | 'Low' | 'High';
 }
 
 export type TestResultData = Record<keyof ProductSpecification, TestResult>;
 
 export interface PrintLogEntry {
   date: string;
+  by?: string;
+  kind?: 'print' | 'pdf';
 }
 
 export interface Report {
@@ -105,6 +110,9 @@ export interface Report {
   product: Product;
   date: string; // This is the report date, not creation date
   createdAt: string; // ISO string for creation date
+  // 'coc' = Certificate of Conformance (specification only, no results).
+  // Missing on older reports, which are all test reports.
+  kind?: 'test' | 'coc';
   testData: TestResultData;
   printLog?: PrintLogEntry[];
   createdBy: string;

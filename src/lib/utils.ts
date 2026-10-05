@@ -185,8 +185,20 @@ export const generateNextNumber = async (
   return calculateNextSequence(extractNumbers(items, fieldName, settingKey), prefix, startNum);
 };
 
+/**
+ * Report numbers default to the Nepali fiscal year of the report date, e.g.
+ * "2083-084-" for Shrawan 2083 - Ashadh 2084. Only used when Settings has no
+ * numbering rule for reports (a rule there always wins).
+ */
+export const reportFallbackPrefix = (date?: string): string => {
+  const d = date ? new Date(date) : new Date();
+  const bs = new NepaliDate(d);
+  const fy = bs.getMonth() >= 3 ? bs.getYear() : bs.getYear() - 1;
+  return `${fy}-${String((fy + 1) % 1000).padStart(3, '0')}-`;
+};
+
 export const generateNextSerialNumber = (reports: Pick<Report, 'serialNumber'>[], date?: string) =>
-  generateNextNumber(reports, 'serialNumber', 'report', '2082-083-', date);
+  generateNextNumber(reports, 'serialNumber', 'report', reportFallbackPrefix(date), date);
 
 export const generateNextPONumber = (items: Pick<PurchaseOrder, 'poNumber'>[], date?: string) =>
   generateNextNumber(items, 'poNumber', 'purchaseOrder', 'SPI-', date);

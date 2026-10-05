@@ -122,9 +122,9 @@ service cloud.firestore {
         'purchaseOrders': 'purchaseOrders', 'rawMaterials': 'purchaseOrders',
         // Reports
         'reports': 'reports',
-        // The GSM calculator lives at /finance/gsm-calculator, so this is a
-        // finance screen despite the name.
-        'gsm_reports': 'finance',
+        // The GSM calculator lives at /reports/gsm-calculator, under Test
+        // Report Management.
+        'gsm_reports': 'reports',
         // Notes
         'notes': 'notes',
         // Settings-owned data

@@ -457,7 +457,7 @@ export default function DashboardPage() {
     };
     run(hasPermission('reports', 'view'), 'products', setProductCount, 'products');
     run(hasPermission('crm', 'view'), 'costReports', setCostReportCount, 'costReports');
-    run(hasPermission('finance', 'view'), 'gsm_reports', setGsmReportCount, 'gsmReports');
+    run(hasPermission('reports', 'view'), 'gsm_reports', setGsmReportCount, 'gsmReports');
     return () => { cancelled = true; };
   }, [markReady, hasPermission, isIncluded, reportsOwnerships]);
 
