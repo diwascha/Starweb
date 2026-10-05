@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "StarSutra",
-    "version": "0.1.0"
+    "version": "../package.json"
   },
   "tauri": {
     "allowlist": {
@@ -16,16 +16,27 @@
       "shell": {
         "all": false,
         "open": true
+      },
+      "process": {
+        "all": false,
+        "relaunch": true
       }
     },
     "bundle": {
       "active": true,
-      "targets": "all",
+      "targets": [
+        "nsis"
+      ],
       "identifier": "com.starsutra.dev",
       "icon": [
         "icons/icon.ico",
         "icons/icon.png"
-      ]
+      ],
+      "windows": {
+        "nsis": {
+          "installMode": "currentUser"
+        }
+      }
     },
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://testreportgen-default-rtdb.asia-southeast1.firebasedatabase.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com https://*.firebasedatabase.app wss://*.firebaseio.com wss://*.firebasedatabase.app; frame-src 'self' https://*.firebaseapp.com https://www.hamropatro.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'",
@@ -43,6 +54,17 @@
         "width": 1280,
         "url": "index.html"
       }
-    ]
+    ],
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "endpoints": [
+        "https://github.com/diwascha/Starweb/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIzN0M4MzFENUE4MDlENkUKUldSdW5ZQmFIWU44SStIam51RXpqYnVNak0vRktmdGhVeU9VSVUxNFg4UThBNlRwVjFvaHR3ZVQK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
