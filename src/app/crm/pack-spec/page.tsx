@@ -971,11 +971,15 @@ export default function PackSpecPage() {
                             updateProduct(productToEdit.id, { ...data, lastModifiedBy: user?.username }).then(() => {
                                 setIsProductEditorOpen(false);
                                 toast({ title: 'Product Updated' });
+                            }).catch(() => {
+                                toast({ title: 'Product not saved', description: 'The change could not be saved. Please try again.', variant: 'destructive' });
                             });
                         } else {
                             addProductService({ ...data, createdBy: user?.username, createdAt: new Date().toISOString() }).then(() => {
                                 setIsProductEditorOpen(false);
                                 toast({ title: 'Product Added to Catalog' });
+                            }).catch(() => {
+                                toast({ title: 'Product not saved', description: 'The product could not be saved. Please try again.', variant: 'destructive' });
                             });
                         }
                     }} 

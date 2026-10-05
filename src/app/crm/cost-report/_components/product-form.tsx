@@ -43,7 +43,8 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
     
     useEffect(() => {
         if (productToEdit) {
-            const [l, b, h] = productToEdit.specification?.dimension?.split('x') || ['', '', ''];
+            // Stored as "278x178x85", but older entries use "*" or "×".
+            const [l = '', b = '', h = ''] = (productToEdit.specification?.dimension || '').split(/\s*[x×*X]\s*/);
             setDim({ l, b, h });
             setForm({
                 ...productToEdit,
@@ -71,7 +72,8 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
             ...form, 
             partyName: p?.name, 
             partyAddress: p?.address, 
-            specification: { ...form.specification, dimension: `${dim.l}x${dim.b}x${dim.h}` } 
+            // Keep the stored dimension if the L/B/H boxes were left empty.
+            specification: { ...form.specification, dimension: (dim.l || dim.b || dim.h) ? `${dim.l}x${dim.b}x${dim.h}` : (form.specification.dimension || '') } 
         });
     };
 

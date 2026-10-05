@@ -11,6 +11,23 @@ const getProductsCollection = () => {
     return collection(db, 'products');
 };
 
+/**
+ * Firestore throws on any `undefined` field, anywhere in the document. Edit
+ * forms send the whole product back (optional fields included), so one
+ * missing value - a customer with no address, a product with no rate - made
+ * the save throw before it was sent, while the screen still said "Product
+ * Updated". Drop those keys at every depth before writing.
+ */
+const deepStripUndefined = (value: any): any => {
+    if (Array.isArray(value)) return value.map(deepStripUndefined);
+    if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+        const out: Record<string, any> = {};
+        for (const [k, v] of Object.entries(value)) if (v !== undefined) out[k] = deepStripUndefined(v);
+        return out;
+    }
+    return value;
+};
+
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product => {
     const data = snapshot.data();
     return {
@@ -24,6 +41,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
         rateHistory: data.rateHistory || [],
         specification: data.specification,
         accessories: data.accessories,
+        // Layer stack saved by the Box Designer; dropping it here meant an
+        // edited product reopened with its layers gone.
+        layers: data.layers,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
@@ -34,7 +54,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
 
 export const addProduct = async (product: Omit<Product, 'id'>): Promise<string> => {
     const docRef = doc(getProductsCollection());
-    const payload = { ...product };
+    const { id: _ignored, ...rest } = product as any;
+    const payload = deepStripUndefined(rest);
     reportWriteFailure(
         setDoc(docRef, payload),
         { path: 'products', operation: 'create', requestResourceData: product }
@@ -61,36 +82,36 @@ export const onProductsUpdate = (callback: (products: Product[]) => void): () =>
 
 export const updateProduct = async (id: string, productUpdate: Partial<Omit<Product, 'id'>>): Promise<void> => {
     const productDocRef = doc(getProductsCollection(), id);
-    getDoc(productDocRef).then(async (productDoc) => {
-        if (!productDoc.exists()) return;
-        const existingProduct = fromFirestore(productDoc as QueryDocumentSnapshot<DocumentData>);
-        
-        const updates: Partial<Product> = { ...productUpdate };
+    // Read from the local cache when offline, so editing still works there.
+    const productDoc = await getDoc(productDocRef);
+    if (!productDoc.exists()) throw new Error('Product not found');
+    const existingProduct = fromFirestore(productDoc as QueryDocumentSnapshot<DocumentData>);
 
-        if (productUpdate.rate !== undefined && existingProduct.rate !== undefined && productUpdate.rate !== existingProduct.rate) {
-            const newHistoryEntry: RateHistoryEntry = {
-                rate: existingProduct.rate,
-                date: existingProduct.lastModifiedAt || existingProduct.createdAt,
-                setBy: existingProduct.lastModifiedBy || existingProduct.createdBy,
-            };
-            updates.rateHistory = [...(existingProduct.rateHistory || []), newHistoryEntry];
-        }
-        
-        const payload = {
-            ...updates,
-            lastModifiedAt: new Date().toISOString(),
+    const { id: _ignored, ...updates } = productUpdate as Partial<Product>;
+
+    if (productUpdate.rate !== undefined && existingProduct.rate !== undefined && productUpdate.rate !== existingProduct.rate) {
+        const newHistoryEntry: RateHistoryEntry = {
+            rate: existingProduct.rate,
+            date: existingProduct.lastModifiedAt || existingProduct.createdAt,
+            setBy: existingProduct.lastModifiedBy || existingProduct.createdBy,
         };
+        updates.rateHistory = [...(existingProduct.rateHistory || []), newHistoryEntry];
+    }
 
-        reportWriteFailure(
-            updateDoc(productDocRef, payload).then(() => {
+    const payload = deepStripUndefined({
+        ...updates,
+        lastModifiedAt: new Date().toISOString(),
+    });
+
+    reportWriteFailure(
+        updateDoc(productDocRef, payload).then(() => {
             logAudit(`Product Record Updated: ${existingProduct.name}`, 'Reports', {
                 id,
-                changes: productUpdate
+                changes: payload
             });
         }),
-            { path: productDocRef.path, operation: 'update', requestResourceData: payload }
-        );
-    });
+        { path: productDocRef.path, operation: 'update', requestResourceData: payload }
+    );
 };
 
 
