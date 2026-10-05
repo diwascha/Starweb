@@ -1,8 +1,9 @@
 # Builds the Windows desktop app and publishes it as a GitHub Release with
 # the signed update file (latest.json) that "Check for updates" reads.
 #
-# Runs when a version tag is pushed, e.g. `git tag v0.2.0 && git push origin v0.2.0`
-# (the tag must match "version" in package.json). See docs/DESKTOP_RELEASES.md.
+# Start it from GitHub -> Actions -> "Desktop release" -> Run workflow (on main),
+# or by pushing a tag like v0.2.0. The release is tagged v<version from
+# package.json>, so bump "version" there first. See docs/DESKTOP_RELEASES.md.
 name: Desktop release
 
 on:
@@ -38,8 +39,8 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'StarSutra ${{ github.ref_name }}'
+          tagName: v__VERSION__
+          releaseName: 'StarSutra v__VERSION__'
           releaseBody: 'Open StarSutra and click the "Check for updates" icon in the sidebar to install.'
           releaseDraft: false
           prerelease: false

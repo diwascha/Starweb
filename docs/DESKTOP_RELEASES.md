@@ -8,10 +8,10 @@ desktop app only), and if a newer version exists they click **Install update**.
 
 1. Bump `"version"` in `package.json` (e.g. `0.1.0` -> `0.2.0`). The desktop
    app takes its version from there.
-2. Commit, then tag and push:
-   `git tag v0.2.0 && git push origin v0.2.0`
-3. GitHub Actions ("Desktop release") builds the Windows installer, signs the
-   update and publishes Release `v0.2.0` with `latest.json` (~10-15 min).
+2. Merge to `main`, then GitHub -> **Actions -> Desktop release -> Run
+   workflow** (branch `main`). (Pushing a `v0.2.0` tag also works.)
+3. It builds the Windows installer, signs the update and publishes Release
+   `v<version>` with `latest.json` (~10-15 min).
 4. Users click **Check for updates** -> **Install update**.
 
 The web app (Vercel) is unaffected; it updates on every push to `main`.
