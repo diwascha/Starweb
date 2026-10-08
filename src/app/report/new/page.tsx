@@ -51,6 +51,8 @@ function ReportFormContent() {
         date: new Date(),
     });
     const [rows, setRows] = useState<Record<string, Row>>({});
+    // Challan No usually equals Invoice No: it follows the invoice until typed in.
+    const [challanEdited, setChallanEdited] = useState(false);
     const [kind, setKind] = useState<Kind>('test');
     const [targetMoisture, setTargetMoisture] = useState('');
 
@@ -71,6 +73,7 @@ function ReportFormContent() {
         getReport(editId).then(r => {
             if (!r) { toast({ title: 'Report not found', variant: 'destructive' }); return; }
             setEditing(r);
+            setChallanEdited(true);
             setKind(r.kind === 'coc' ? 'coc' : 'test');
             setSelectedProduct(r.product);
             setFormData({
@@ -109,9 +112,15 @@ function ReportFormContent() {
         const included = new Set(last ? Object.keys(last.testData || {}) : testParameterKeys(product.specification));
         const next: Record<string, Row> = {};
         for (const k of TEST_PARAMETERS) {
-            next[k] = { value: '', remark: '', result: 'Pass', include: included.has(k) };
+            // Ply / stapling / printing are visual checks against the spec,
+            // so they start filled in; measured values start empty.
+            const spec = String(product.specification?.[k] ?? '');
+            const visual = VISUAL_PARAMETERS.has(k) && spec;
+            next[k] = { value: visual ? spec : '', remark: '', result: 'Pass', include: included.has(k) };
         }
         setRows(next);
+        // The usual dispatch quantity for this product, as a starting point.
+        if (last?.quantity && last.quantity !== 'N/A') setFormData(prev => (prev.quantity ? prev : { ...prev, quantity: last.quantity }));
         setTargetMoisture(String(moistureTarget(product.specification?.moisture || '') ?? ''));
     };
 
@@ -341,7 +350,16 @@ function ReportFormContent() {
                                                     <td className="p-2 font-bold whitespace-nowrap">{formatParameterLabel(key)}</td>
                                                     <td className="p-2 text-muted-foreground whitespace-nowrap">{spec || '-'}</td>
                                                     {kind === 'test' && <>
-                                                        <td className="p-2 min-w-[7rem]"><Input value={r.value} disabled={!r.include} onChange={e => setReading(key, e.target.value)} className="h-9 font-bold" /></td>
+                                                        <td className="p-2 min-w-[7rem]"><Input value={r.value} disabled={!r.include} onChange={e => setReading(key, e.target.value)}
+                                                            data-result-input inputMode={VISUAL_PARAMETERS.has(key) || key === 'dimension' ? 'text' : 'decimal'}
+                                                            onKeyDown={e => {
+                                                                if (e.key !== 'Enter') return;
+                                                                e.preventDefault();
+                                                                // Enter moves to the next reading, so a column of numbers is typed without the mouse.
+                                                                const all = Array.from(document.querySelectorAll<HTMLInputElement>('input[data-result-input]:not(:disabled)'));
+                                                                all[all.indexOf(e.currentTarget) + 1]?.focus();
+                                                            }}
+                                                            className="h-9 font-bold" /></td>
                                                         <td className="p-2">
                                                             <div className="flex rounded-md border overflow-hidden w-fit">
                                                                 {(['Pass', 'Low', 'High'] as const).map(v => (
@@ -391,15 +409,15 @@ function ReportFormContent() {
                             <Separator />
                             <div className="space-y-1.5">
                                 <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Invoice No</Label>
-                                <Input value={formData.taxInvoiceNumber} onChange={e => setFormData(p => ({...p, taxInvoiceNumber: e.target.value}))} className="h-10" />
+                                <Input value={formData.taxInvoiceNumber} onChange={e => { const v = e.target.value; setFormData(p => ({ ...p, taxInvoiceNumber: v, challanNumber: challanEdited ? p.challanNumber : v })); }} className="h-10" />
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Challan No</Label>
-                                <Input value={formData.challanNumber} onChange={e => setFormData(p => ({...p, challanNumber: e.target.value}))} className="h-10" />
+                                <Input value={formData.challanNumber} onChange={e => { setChallanEdited(true); setFormData(p => ({...p, challanNumber: e.target.value})); }} className="h-10" />
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Supplied Quantity</Label>
-                                <Input value={formData.quantity} onChange={e => setFormData(p => ({...p, quantity: e.target.value}))} placeholder="e.g. 15000 Pcs" className="h-10 font-bold" />
+                                <Input value={formData.quantity} onChange={e => setFormData(p => ({...p, quantity: e.target.value}))} onBlur={() => setFormData(p => (/^\d[\d,]*$/.test(p.quantity.trim()) ? { ...p, quantity: `${p.quantity.trim()} Pcs` } : p))} placeholder="e.g. 15000 Pcs" className="h-10 font-bold" />
                             </div>
                         </CardContent>
                     </Card>

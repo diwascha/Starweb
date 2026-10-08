@@ -479,9 +479,9 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
 
             <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
                 <DialogContent className="max-w-4xl h-[95vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
-                    <DialogHeader className="p-6 pb-2 border-b bg-muted/5 shrink-0"><DialogTitle className="text-xl font-black uppercase">Document Preview</DialogTitle></DialogHeader>
-                    <ScrollArea className="flex-1 bg-muted/20 p-8"><div ref={printRef} className="mx-auto w-[210mm] shadow-2xl bg-card"><InvoiceView {...invoiceData} /></div></ScrollArea>
-                    <DialogFooter className="p-6 border-t bg-card shrink-0"><Button variant="outline" onClick={handleExportPdf} className="h-10 px-6">Save as PDF</Button><Button onClick={() => window.print()} className="h-10 px-10 font-bold">Print Invoice</Button></DialogFooter>
+                    <DialogHeader className="p-4 sm:p-6 pb-2 border-b bg-muted/5 shrink-0"><DialogTitle className="text-lg sm:text-xl font-black uppercase">Document Preview</DialogTitle></DialogHeader>
+                    <ScrollArea className="flex-1 bg-muted/20 p-2 sm:p-8"><div ref={printRef} className="mx-auto w-full max-w-[210mm] shadow-2xl bg-card"><InvoiceView {...invoiceData} responsive /></div></ScrollArea>
+                    <DialogFooter className="p-4 sm:p-6 border-t bg-card shrink-0 gap-2"><Button variant="outline" onClick={handleExportPdf} className="h-10 px-6">Save as PDF</Button><Button onClick={() => window.print()} className="h-10 px-10 font-bold">Print Invoice</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 

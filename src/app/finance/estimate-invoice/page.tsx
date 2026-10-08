@@ -528,12 +528,12 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
 
          <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
             <DialogContent className="max-w-4xl h-[90vh] overflow-hidden flex flex-col p-0">
-                 <DialogHeader className="p-6 border-b">
+                 <DialogHeader className="p-4 sm:p-6 border-b">
                     <DialogTitle>Invoice Preview</DialogTitle>
                     <DialogDescription>Review and print your estimate invoice.</DialogDescription>
                  </DialogHeader>
-                <ScrollArea className="flex-1 bg-muted/20 p-8">
-                    <div className="mx-auto w-[210mm] shadow-2xl bg-card p-4">
+                <ScrollArea className="flex-1 bg-muted/20 p-2 sm:p-8">
+                    <div className="mx-auto w-full max-w-[210mm] shadow-2xl bg-card sm:p-4">
                         {selectedInvoice && (
                             <InvoiceView 
                                 invoiceNumber={selectedInvoice.invoiceNumber}
@@ -544,11 +544,12 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                                 vatTotal={selectedInvoice.vatTotal}
                                 netTotal={selectedInvoice.netTotal}
                                 amountInWords={selectedInvoice.amountInWords}
+                                responsive
                             />
                         )}
                     </div>
                 </ScrollArea>
-                <DialogFooter className="p-6 border-t bg-card">
+                <DialogFooter className="p-4 sm:p-6 border-t bg-card">
                     <Button variant="outline" onClick={() => setIsViewOpen(false)}>Close</Button>
                 </DialogFooter>
             </DialogContent>
