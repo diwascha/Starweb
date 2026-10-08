@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { PlusCircle, Calculator } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onProductsUpdate } from '@/services/product-service';
+import { TOLERANCE_PARAMETERS, BUILT_IN_TOLERANCES } from '@/lib/qc-check';
 import { MOISTURE_CLASSES, moistureClassOf, specAtMoisture, suggestFromSimilar, COPYABLE_FROM_SIMILAR, type MoistureClass } from '@/lib/qc-spec';
 
 interface ProductFormProps {
@@ -81,9 +82,22 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName, require
             toast({ title: 'Fill in the test parameters', description: `Required for test reports: ${missing.join(', ')}.`, variant: 'destructive' });
             return;
         }
+        const qcTolerances: Record<string, number | null> = {};
+        for (const t of TOLERANCE_PARAMETERS) {
+            const raw = (tolText[t.key] || '').trim();
+            if (!raw) continue;
+            if (/^(n\/?a|-)$/i.test(raw)) { qcTolerances[t.key] = null; continue; }
+            const n = Number(raw.replace(/[±+\s]|mm|%/gi, ''));
+            if (!Number.isFinite(n) || n < 0) {
+                toast({ title: 'Check the tolerances', description: `${t.label}: "${raw}" - use a number, NA, or leave blank.`, variant: 'destructive' });
+                return;
+            }
+            qcTolerances[t.key] = n;
+        }
         const p = parties.find(x => x.id === form.partyId);
         onSaveSuccess({ 
             ...form, 
+            qcTolerances,
             partyName: p?.name, 
             partyAddress: p?.address, 
             // Keep the stored dimension if the L/B/H boxes were left empty.
@@ -119,6 +133,24 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName, require
     // catalog (same ply, closest size) and fill only fields left blank.
     const [catalog, setCatalog] = useState<Product[]>([]);
     useEffect(() => onProductsUpdate(setCatalog), []);
+
+    // Allowed ± per parameter for this product's test reports. Text per
+    // field: a number, "NA" (not checked), or blank (built-in default).
+    const toToleranceText = (v?: Product['qcTolerances']) =>
+        Object.fromEntries(TOLERANCE_PARAMETERS.map(p => [p.key, v?.[p.key] === undefined ? '' : v[p.key] === null ? 'NA' : String(v[p.key])]));
+    const [tolText, setTolText] = useState<Record<string, string>>(() => toToleranceText(productToEdit?.qcTolerances));
+    useEffect(() => { if (productToEdit) setTolText(toToleranceText(productToEdit.qcTolerances)); }, [productToEdit]);
+    // New product: start from the tolerances of this customer's other products
+    // (customers usually apply the same limits to every box they buy).
+    const [tolFrom, setTolFrom] = useState('');
+    useEffect(() => {
+        if (productToEdit || !form.partyId || Object.values(tolText).some(v => v.trim())) return;
+        const donor = catalog
+            .filter(p => p.partyId === form.partyId && p.qcTolerances && Object.keys(p.qcTolerances).length)
+            .sort((a, b) => (b.lastModifiedAt || b.createdAt || '').localeCompare(a.lastModifiedAt || a.createdAt || ''))[0];
+        if (donor) { setTolText(toToleranceText(donor.qcTolerances)); setTolFrom(donor.name); }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form.partyId, catalog, productToEdit]);
     const dimensionText = `${dim.l}x${dim.b}x${dim.h}`;
     const suggestions = useMemo(
         () => suggestFromSimilar({ ...form.specification, dimension: dimensionText }, catalog, productToEdit?.id),
@@ -256,6 +288,22 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName, require
                             {suggestedFrom[k] && <p className="text-[0.5625rem] text-muted-foreground truncate" title={suggestedFrom[k]}>from {suggestedFrom[k]}</p>}
                         </div>
                     ))}
+                </div>
+                <div className="pt-2">
+                    <Label className="text-[0.625rem] font-bold uppercase text-muted-foreground">Allowed tolerance (±) for test reports</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-1">
+                        {TOLERANCE_PARAMETERS.map(t => (
+                            <div key={t.key}>
+                                <Label className="text-[0.625rem]">{t.label} (± {t.unit})</Label>
+                                <Input value={tolText[t.key] ?? ''} onChange={e => { setTolFrom(''); setTolText(prev => ({ ...prev, [t.key]: e.target.value })); }}
+                                    placeholder={`${BUILT_IN_TOLERANCES[t.key]} (default)`} />
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-[0.5625rem] text-muted-foreground mt-1">
+                        Blank = default shown in grey. NA = not checked for this product. Moisture uses its range and Load is a minimum.
+                        {tolFrom && <> Copied from <b>{tolFrom}</b> (same customer).</>}
+                    </p>
                 </div>
             </div>
             <Separator />

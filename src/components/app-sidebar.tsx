@@ -46,7 +46,6 @@ import {
   ShieldAlert,
   Scale,
   Palette,
-  Ruler,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -260,11 +259,6 @@ export function AppSidebar() {
                                 {hasPermission('reports', 'view') && (
                                     <SidebarMenuSubItem>
                                         <SidebarMenuSubButton asChild isActive={getIsActive('/reports/gsm-calculator')}><Link href="/reports/gsm-calculator" className="flex items-center gap-2"><Scale className="h-4 w-4" /><span>GSM Calculator</span></Link></SidebarMenuSubButton>
-                                    </SidebarMenuSubItem>
-                                )}
-                                {hasPermission('reports', 'view') && (
-                                    <SidebarMenuSubItem>
-                                        <SidebarMenuSubButton asChild isActive={getIsActive('/reports/tolerances')}><Link href="/reports/tolerances" className="flex items-center gap-2"><Ruler className="h-4 w-4" /><span>QC Tolerances</span></Link></SidebarMenuSubButton>
                                     </SidebarMenuSubItem>
                                 )}
                                 {hasPermission('products', 'view') && (

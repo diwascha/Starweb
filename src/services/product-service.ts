@@ -28,6 +28,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
         // Layer stack saved by the Box Designer; dropping it here meant an
         // edited product reopened with its layers gone.
         layers: data.layers,
+        qcTolerances: data.qcTolerances,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,

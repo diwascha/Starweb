@@ -125,8 +125,6 @@ service cloud.firestore {
         // The GSM calculator lives at /reports/gsm-calculator, under Test
         // Report Management.
         'gsm_reports': 'reports',
-        // Per-customer QC tolerances used to judge test report readings.
-        'qcTolerances': 'reports',
         // Notes
         'notes': 'notes',
         // Settings-owned data

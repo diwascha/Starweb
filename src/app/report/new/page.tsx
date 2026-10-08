@@ -22,7 +22,6 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { autoMark, moistureCorrect, moistureTarget, firstNumber, VISUAL_PARAMETERS, resolveTolerance, TOLERANCE_PARAMETERS, type QcMark } from '@/lib/qc-check';
-import { onQcTolerancesUpdate, DEFAULT_TOLERANCE_ID, type QcToleranceDoc } from '@/services/qc-tolerance-service';
 
 type Row = TestResult & { include: boolean };
 type Kind = 'test' | 'coc';
@@ -52,7 +51,6 @@ function ReportFormContent() {
         date: new Date(),
     });
     const [rows, setRows] = useState<Record<string, Row>>({});
-    const [tolerances, setTolerances] = useState<QcToleranceDoc[]>([]);
     // Challan No usually equals Invoice No: it follows the invoice until typed in.
     const [challanEdited, setChallanEdited] = useState(false);
     const [kind, setKind] = useState<Kind>('test');
@@ -61,7 +59,6 @@ function ReportFormContent() {
     useEffect(() => {
         const unsubs = [
             onProductsUpdate(setProducts),
-            onQcTolerancesUpdate(setTolerances),
             onReportsUpdate((data) => {
                 setAllReports(data);
                 setIsLoading(false);
@@ -133,17 +130,13 @@ function ReportFormContent() {
     const specOf = (key: string) => String(selectedProduct?.specification?.[key as keyof ProductSpecification] ?? '');
 
     // Typing a reading sets OK / Low / High from the spec; the buttons still override.
-    // This customer's tolerance for a parameter (falls back to the Default row).
-    const toleranceFor = (key: string) => {
-        const customer = tolerances.find(t => t.id === selectedProduct?.partyId)?.values;
-        const fallback = tolerances.find(t => t.id === DEFAULT_TOLERANCE_ID)?.values;
-        return resolveTolerance(key, customer, fallback);
-    };
+    // The tolerance set on this product's spec, else the built-in default.
+    const toleranceFor = (key: string) => resolveTolerance(key, selectedProduct?.qcTolerances);
     const toleranceLabel = (key: string) => {
         const p = TOLERANCE_PARAMETERS.find(x => x.key === key);
         if (!p) return '';
         const t = toleranceFor(key);
-        return t.value == null ? 'not checked' : `±${t.value}${p.unit === '%' ? '%' : ' mm'}${t.source === 'customer' ? '' : ' (default)'}`;
+        return t.value == null ? 'not checked' : `±${t.value}${p.unit === '%' ? '%' : ' mm'}${t.source === 'built-in' ? ' (default)' : ''}`;
     };
 
     const setReading = (key: string, value: string) => {

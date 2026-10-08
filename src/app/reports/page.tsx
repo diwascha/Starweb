@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { FileText, FileSpreadsheet, PlusCircle, Package, TrendingUp, CheckCircle2, AlertCircle, ChevronRight, Loader2, Scale, Ruler } from 'lucide-react';
+import { FileText, FileSpreadsheet, PlusCircle, Package, TrendingUp, CheckCircle2, AlertCircle, ChevronRight, Loader2, Scale } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -129,7 +129,6 @@ export default function ReportsDashboardPage() {
                         <ModuleCard href="/products" title="Manage Catalog" desc="Update technical specifications." icon={Package} />
                         <ModuleCard href="/reports/list" title="Archive Logs" desc="Search historical verifications." icon={FileSpreadsheet} />
                         <ModuleCard href="/reports/gsm-calculator" title="GSM Calculator" desc="Board GSM, weight and strength." icon={Scale} />
-                        <ModuleCard href="/reports/tolerances" title="QC Tolerances" desc="Allowed ± per customer." icon={Ruler} />
                     </div>
 
                     <Card className="bg-amber-50 border-amber-200 shadow-none">

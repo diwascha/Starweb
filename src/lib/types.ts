@@ -78,6 +78,11 @@ export interface Product {
    *  in sync with these layers, so those screens keep reading correctly. */
   layers?: BoxLayer[];
   accessories?: ProductAccessory[]; // Added to store default accessories
+  /** Allowed ± per test parameter for this product's QT reports (mm for
+   *  sizes, % for GSM/weight). Missing key = built-in default, null = not
+   *  checked automatically. A sibling of `specification` so it never prints
+   *  as a spec row. */
+  qcTolerances?: Partial<Record<string, number | null>>;
   createdBy: string;
   createdAt: string; // ISO string
   lastModifiedBy?: string | null;

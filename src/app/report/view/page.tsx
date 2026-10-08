@@ -24,6 +24,12 @@ function ReportViewContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const frameRef = useRef<HTMLIFrameElement>(null);
+    // Phone browsers generally can't show a PDF inside a page; open it instead.
+    const [inlinePdf, setInlinePdf] = useState(true);
+    useEffect(() => {
+        const nav = navigator as Navigator & { pdfViewerEnabled?: boolean };
+        setInlinePdf(nav.pdfViewerEnabled !== false && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+    }, []);
     const autoPrinted = useRef(false);
 
     useEffect(() => {
@@ -53,7 +59,11 @@ function ReportViewContent() {
 
     const handlePrint = () => {
         const win = frameRef.current?.contentWindow;
-        if (!win) return;
+        if (!win) {
+            if (pdfUrl) window.open(pdfUrl, '_blank');
+            logPrint('print');
+            return;
+        }
         try {
             win.focus();
             win.print();
@@ -115,7 +125,12 @@ function ReportViewContent() {
                 </div>
             </header>
 
-            {pdfUrl
+            {pdfUrl && !inlinePdf ? (
+                <div className="h-[50vh] flex flex-col items-center justify-center gap-3 border rounded-xl text-center p-6">
+                    <p className="text-sm text-muted-foreground">This browser can&apos;t show the PDF inside the page.</p>
+                    <Button onClick={() => window.open(pdfUrl, '_blank')}><Printer className="mr-2 h-4 w-4"/> Open PDF</Button>
+                </div>
+            ) : pdfUrl
                 ? <iframe ref={frameRef} src={pdfUrl} onLoad={onFrameLoad} title={`Report ${report.serialNumber}`} className="w-full h-[80vh] rounded-xl border bg-white" />
                 : <div className="h-[80vh] flex items-center justify-center border rounded-xl"><Loader2 className="animate-spin h-6 w-6 text-primary"/></div>}
         </div>

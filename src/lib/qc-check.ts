@@ -20,7 +20,7 @@ export const TOLERANCE_PARAMETERS: { key: string; label: string; unit: 'mm' | '%
 
 /**
  * Per-parameter tolerance: a number = ± that much (in the parameter's unit),
- * null = not applicable (never judged automatically), missing = use default.
+ * null = not applicable (never judged automatically), missing = built-in default.
  */
 export type ToleranceValues = Partial<Record<string, number | null>>;
 
@@ -29,10 +29,9 @@ export const BUILT_IN_TOLERANCES: Record<string, number> = {
     dimension: 3, gsm: 5, weightOfBox: 5, stapleWidth: 2, overlapWidth: 2,
 };
 
-/** The tolerance in force for one parameter: customer, then default, then built-in. */
-export function resolveTolerance(key: string, customer?: ToleranceValues, fallback?: ToleranceValues): { value: number | null; source: 'customer' | 'default' | 'built-in' } {
-    if (customer && customer[key] !== undefined) return { value: customer[key] ?? null, source: 'customer' };
-    if (fallback && fallback[key] !== undefined) return { value: fallback[key] ?? null, source: 'default' };
+/** The tolerance in force for one parameter: the product's own, else built-in. */
+export function resolveTolerance(key: string, product?: ToleranceValues): { value: number | null; source: 'product' | 'built-in' } {
+    if (product && product[key] !== undefined) return { value: product[key] ?? null, source: 'product' };
     return { value: BUILT_IN_TOLERANCES[key] ?? null, source: 'built-in' };
 }
 
@@ -42,7 +41,7 @@ export const VISUAL_PARAMETERS = new Set(['ply', 'stapling', 'printing']);
 /**
  * The mark a measured value earns against its spec, or null when it can't be
  * judged automatically (text specs, blank or unreadable values, or a
- * tolerance marked not applicable for this customer).
+ * tolerance marked not applicable for this product).
  * `tolerance` is ± in the parameter's unit (mm for sizes, % for GSM/weight).
  */
 export function autoMark(key: string, spec: string, measured: string, tolerance: number | null = BUILT_IN_TOLERANCES[key] ?? null): QcMark | null {
@@ -59,7 +58,7 @@ export function autoMark(key: string, spec: string, measured: string, tolerance:
     }
     if (key === 'load') return v < s[0] ? 'Low' : 'Pass';
 
-    if (tolerance == null) return null; // not applicable for this customer
+    if (tolerance == null) return null; // not applicable for this product
     const unit = TOLERANCE_PARAMETERS.find(p => p.key === key)?.unit ?? '%';
 
     if (key === 'dimension') {
