@@ -16,20 +16,29 @@ import { PLY_OPTIONS, BF_OPTIONS } from '@/lib/constants';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PlusCircle, Calculator } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { onProductsUpdate } from '@/services/product-service';
+import { MOISTURE_CLASSES, moistureClassOf, specAtMoisture, suggestFromSimilar, COPYABLE_FROM_SIMILAR, type MoistureClass } from '@/lib/qc-spec';
 
 interface ProductFormProps {
     productToEdit?: Product | null;
     onSaveSuccess: (data: any) => void;
     initialName?: string;
+    /** Require the per-product QT parameters (moisture, GSM, weight, load).
+     *  On for the PackSpec catalog; off for quick-adding from a quotation. */
+    requireQtFields?: boolean;
 }
 
-export function ProductForm({ productToEdit, onSaveSuccess, initialName }: ProductFormProps) {
+// Differ per product: must be entered before the product can be saved.
+const REQUIRED_QT_FIELDS: [string, string][] = [['moisture', 'Moisture'], ['gsm', 'GSM'], ['weightOfBox', 'Weight of Box'], ['load', 'Load']];
+
+export function ProductForm({ productToEdit, onSaveSuccess, initialName, requireQtFields = false }: ProductFormProps) {
     const [form, setForm] = useState<any>({ 
         name: initialName || '', materialCode: '', partyId: '', 
         specification: { 
             ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', 
             topGsm: '120', flute1Gsm: '100', middleGsm: '', flute2Gsm: '', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', bottomGsm: '120', dimension: '',
-            weightOfBox: '', moisture: '', load: '', printing: ''
+            weightOfBox: '', moisture: '', load: '', printing: '', gsm: '',
+            stapleWidth: '', stapling: '', overlapWidth: ''
         } 
     });
     const [dim, setDim] = useState({ l: '', b: '', h: '' });
@@ -50,7 +59,7 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
                 ...productToEdit,
                 specification: {
                     ...form.specification,
-                    ...productToEdit.specification
+                    ...productToEdit.specification,
                 }
             });
         }
@@ -66,6 +75,11 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
         if (!form.name || !form.partyId) { 
             toast({ title: 'Validation Error', description: 'Name and Party are required.', variant: 'destructive' }); 
             return; 
+        }
+        const missing = !requireQtFields ? [] : REQUIRED_QT_FIELDS.filter(([k]) => !String(form.specification[k] ?? '').trim()).map(([, label]) => label);
+        if (missing.length) {
+            toast({ title: 'Fill in the test parameters', description: `Required for test reports: ${missing.join(', ')}.`, variant: 'destructive' });
+            return;
         }
         const p = parties.find(x => x.id === form.partyId);
         onSaveSuccess({ 
@@ -100,6 +114,59 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
     };
 
     const updateSpec = (f: string, v: string) => setForm((p: any) => ({ ...p, specification: { ...p.specification, [f]: v } }));
+
+    // Staple width / stapling / overlap come from the most similar box in the
+    // catalog (same ply, closest size) and fill only fields left blank.
+    const [catalog, setCatalog] = useState<Product[]>([]);
+    useEffect(() => onProductsUpdate(setCatalog), []);
+    const dimensionText = `${dim.l}x${dim.b}x${dim.h}`;
+    const suggestions = useMemo(
+        () => suggestFromSimilar({ ...form.specification, dimension: dimensionText }, catalog, productToEdit?.id),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [catalog, form.specification.ply, dimensionText, productToEdit?.id]
+    );
+    const [suggestedFrom, setSuggestedFrom] = useState<Record<string, string>>({});
+    useEffect(() => {
+        const fill: Record<string, string> = {};
+        const from: Record<string, string> = {};
+        for (const k of COPYABLE_FROM_SIMILAR) {
+            const sug = suggestions[k];
+            const current = String(form.specification[k] ?? '').trim();
+            // Fill blanks, and keep following the best match while the value is still our suggestion.
+            if (sug && (!current || (suggestedFrom[k] && current !== sug.value))) { fill[k] = sug.value; from[k] = sug.from; }
+        }
+        if (Object.keys(fill).length) {
+            setForm((p: any) => ({ ...p, specification: { ...p.specification, ...fill } }));
+            setSuggestedFrom(prev => ({ ...prev, ...from }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [suggestions]);
+    const editSpecManually = (k: string, v: string) => {
+        setSuggestedFrom(prev => { const n = { ...prev }; delete n[k]; return n; });
+        updateSpec(k, v);
+    };
+
+    // Moisture class -> moisture range, and the GSM / weight / load expected at it.
+    const moistureClass = moistureClassOf(form.specification.moisture);
+    const handleCalculateAtMoisture = (cls: MoistureClass | null = moistureClass) => {
+        if (!cls) { toast({ title: 'Choose a moisture level first', variant: 'destructive' }); return; }
+        const res = specAtMoisture({ ...form.specification, l: dim.l, b: dim.b, h: dim.h }, cls);
+        if (!res) {
+            toast({ title: 'Missing inputs', description: 'Fill in dimensions and GSM composition first.', variant: 'destructive' });
+            return;
+        }
+        setForm((p: any) => ({
+            ...p,
+            specification: {
+                ...p.specification,
+                moisture: MOISTURE_CLASSES[cls].range,
+                gsm: String(res.gsm),
+                weightOfBox: String(res.weightOfBox),
+                ...(res.load != null ? { load: `${res.load} Kg-F` } : {}),
+            },
+        }));
+        toast({ title: `Calculated at ${MOISTURE_CLASSES[cls].label} moisture (${MOISTURE_CLASSES[cls].range}%)`, description: `GSM ${res.gsm} · Weight ${res.weightOfBox} g${res.load != null ? ` · Load ${res.load} Kg-F` : ''}` });
+    };
 
     const pValue = parseInt(form.specification.ply, 10);
 
@@ -145,14 +212,50 @@ export function ProductForm({ productToEdit, onSaveSuccess, initialName }: Produ
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                         <div>
-                            <Label className="text-[0.625rem]">Weight (g)</Label>
+                            <Label className="text-[0.625rem]">Weight (g){requireQtFields ? ' *' : ''}</Label>
                             <div className="flex gap-1">
                                 <Input value={form.specification.weightOfBox ?? ''} onChange={e => updateSpec('weightOfBox', e.target.value)} />
                                 <Button type="button" variant="outline" size="icon" className="shrink-0" title="Calculate from dimensions & GSM" onClick={handleCalculateWeight}><Calculator className="h-4 w-4" /></Button>
                             </div>
                         </div>
-                        <div><Label className="text-[0.625rem]">Load (KGF)</Label><Input value={form.specification.load ?? ''} onChange={e => updateSpec('load', e.target.value)} /></div>
+                        <div><Label className="text-[0.625rem]">Load (KGF){requireQtFields ? ' *' : ''}</Label><Input value={form.specification.load ?? ''} onChange={e => updateSpec('load', e.target.value)} /></div>
                     </div>
+                </div>
+            </div>
+            <Separator />
+            {/* Printed in the Specification column of QT reports / certificates.
+                Ply, dimension, weight, load and printing are set elsewhere on this form. */}
+            <div className="space-y-2">
+                <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">Quality Test Report Parameters</h3>
+                <div className="flex flex-wrap items-end gap-2">
+                    <div className="w-40">
+                        <Label className="text-[0.625rem]">Moisture level{requireQtFields ? ' *' : ''}</Label>
+                        <Select value={moistureClass ?? ''} onValueChange={(v) => updateSpec('moisture', MOISTURE_CLASSES[v as MoistureClass].range)}>
+                            <SelectTrigger><SelectValue placeholder="Choose" /></SelectTrigger>
+                            <SelectContent>
+                                {(Object.keys(MOISTURE_CLASSES) as MoistureClass[]).map(k => (
+                                    <SelectItem key={k} value={k}>{MOISTURE_CLASSES[k].label} ({MOISTURE_CLASSES[k].range}%)</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Button type="button" variant="outline" onClick={() => handleCalculateAtMoisture()} disabled={!moistureClass} className="h-10">
+                        <Calculator className="mr-2 h-4 w-4" /> Calculate GSM / Weight / Load
+                    </Button>
+                    <p className="text-[0.625rem] text-muted-foreground basis-full">
+                        Higher moisture = more GSM and box weight, less load. Uses the dimensions and GSM composition below; results stay editable.
+                    </p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div><Label className="text-[0.625rem]">Moisture (%){requireQtFields ? ' *' : ''}</Label><Input value={form.specification.moisture ?? ''} onChange={e => updateSpec('moisture', e.target.value)} placeholder="e.g. 7-7.9" /></div>
+                    <div><Label className="text-[0.625rem]">GSM (board){requireQtFields ? ' *' : ''}</Label><Input value={form.specification.gsm ?? ''} onChange={e => updateSpec('gsm', e.target.value)} placeholder="e.g. 502" /></div>
+                    {COPYABLE_FROM_SIMILAR.map(k => (
+                        <div key={k}>
+                            <Label className="text-[0.625rem]">{k === 'stapleWidth' ? 'Staple Width' : k === 'stapling' ? 'Stapling' : 'Overlap Width'}</Label>
+                            <Input value={form.specification[k] ?? ''} onChange={e => editSpecManually(k, e.target.value)} placeholder={k === 'stapling' ? 'e.g. 6pin' : 'e.g. 20mm'} />
+                            {suggestedFrom[k] && <p className="text-[0.5625rem] text-muted-foreground truncate" title={suggestedFrom[k]}>from {suggestedFrom[k]}</p>}
+                        </div>
+                    ))}
                 </div>
             </div>
             <Separator />

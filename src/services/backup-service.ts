@@ -60,6 +60,7 @@ const collectionsToBackup = [
     'crm_interactions',
     'costReports',
     'gsm_reports',
+    'qcTolerances',
     'payment_tracker'
 ];
 

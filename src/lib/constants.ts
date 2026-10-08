@@ -45,6 +45,7 @@ export const COLLECTIONS = {
   HR_SHIFTS: 'hr_shifts',
   LEAVE_REQUESTS: 'leave_requests',
   GSM_REPORTS: 'gsm_reports',
+  QC_TOLERANCES: 'qcTolerances',
   PAYMENT_TRACKER: 'payment_tracker',
 } as const;
 

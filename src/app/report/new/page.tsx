@@ -21,7 +21,8 @@ import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
-import { autoMark, moistureCorrect, moistureTarget, firstNumber, VISUAL_PARAMETERS, type QcMark } from '@/lib/qc-check';
+import { autoMark, moistureCorrect, moistureTarget, firstNumber, VISUAL_PARAMETERS, resolveTolerance, TOLERANCE_PARAMETERS, type QcMark } from '@/lib/qc-check';
+import { onQcTolerancesUpdate, DEFAULT_TOLERANCE_ID, type QcToleranceDoc } from '@/services/qc-tolerance-service';
 
 type Row = TestResult & { include: boolean };
 type Kind = 'test' | 'coc';
@@ -51,6 +52,7 @@ function ReportFormContent() {
         date: new Date(),
     });
     const [rows, setRows] = useState<Record<string, Row>>({});
+    const [tolerances, setTolerances] = useState<QcToleranceDoc[]>([]);
     // Challan No usually equals Invoice No: it follows the invoice until typed in.
     const [challanEdited, setChallanEdited] = useState(false);
     const [kind, setKind] = useState<Kind>('test');
@@ -59,6 +61,7 @@ function ReportFormContent() {
     useEffect(() => {
         const unsubs = [
             onProductsUpdate(setProducts),
+            onQcTolerancesUpdate(setTolerances),
             onReportsUpdate((data) => {
                 setAllReports(data);
                 setIsLoading(false);
@@ -130,8 +133,21 @@ function ReportFormContent() {
     const specOf = (key: string) => String(selectedProduct?.specification?.[key as keyof ProductSpecification] ?? '');
 
     // Typing a reading sets OK / Low / High from the spec; the buttons still override.
+    // This customer's tolerance for a parameter (falls back to the Default row).
+    const toleranceFor = (key: string) => {
+        const customer = tolerances.find(t => t.id === selectedProduct?.partyId)?.values;
+        const fallback = tolerances.find(t => t.id === DEFAULT_TOLERANCE_ID)?.values;
+        return resolveTolerance(key, customer, fallback);
+    };
+    const toleranceLabel = (key: string) => {
+        const p = TOLERANCE_PARAMETERS.find(x => x.key === key);
+        if (!p) return '';
+        const t = toleranceFor(key);
+        return t.value == null ? 'not checked' : `±${t.value}${p.unit === '%' ? '%' : ' mm'}${t.source === 'customer' ? '' : ' (default)'}`;
+    };
+
     const setReading = (key: string, value: string) => {
-        const mark = autoMark(key, specOf(key), value);
+        const mark = autoMark(key, specOf(key), value, toleranceFor(key).value);
         setRow(key, mark ? { value, result: mark } : { value });
     };
 
@@ -348,7 +364,10 @@ function ReportFormContent() {
                                                 <tr key={key} className={cn('border-t', !r.include && 'opacity-40', bad && 'bg-red-50 dark:bg-red-950/30')}>
                                                     <td className="p-2 text-center"><Checkbox checked={r.include} onCheckedChange={v => setRow(key, { include: !!v })} aria-label={`Show ${formatParameterLabel(key)} on document`} /></td>
                                                     <td className="p-2 font-bold whitespace-nowrap">{formatParameterLabel(key)}</td>
-                                                    <td className="p-2 text-muted-foreground whitespace-nowrap">{spec || '-'}</td>
+                                                    <td className="p-2 text-muted-foreground whitespace-nowrap">
+                                                        {spec || '-'}
+                                                        {kind === 'test' && toleranceLabel(key) && <span className="block text-[0.5625rem]">{toleranceLabel(key)}</span>}
+                                                    </td>
                                                     {kind === 'test' && <>
                                                         <td className="p-2 min-w-[7rem]"><Input value={r.value} disabled={!r.include} onChange={e => setReading(key, e.target.value)}
                                                             data-result-input inputMode={VISUAL_PARAMETERS.has(key) || key === 'dimension' ? 'text' : 'decimal'}

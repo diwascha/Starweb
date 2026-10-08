@@ -8,40 +8,68 @@ export type QcMark = 'Pass' | 'Low' | 'High';
 const nums = (s: string): number[] =>
     (String(s || '').match(/\d+(?:\.\d+)?/g) || []).map(Number);
 
-/** Relative tolerance for a single-number spec (GSM, weight, widths). */
-const TOLERANCE = 0.05;
-/** Allowed deviation per side for box dimensions, in the spec's unit (mm). */
-const DIMENSION_TOLERANCE = 3;
+/** Parameters with a ± tolerance, and the unit it is entered in. Load is a
+ *  minimum and moisture a range, so neither takes one. */
+export const TOLERANCE_PARAMETERS: { key: string; label: string; unit: 'mm' | '%' }[] = [
+    { key: 'dimension', label: 'Box size', unit: 'mm' },
+    { key: 'gsm', label: 'GSM', unit: '%' },
+    { key: 'weightOfBox', label: 'Weight of Box', unit: '%' },
+    { key: 'stapleWidth', label: 'Staple Width', unit: 'mm' },
+    { key: 'overlapWidth', label: 'Overlap Width', unit: 'mm' },
+];
+
+/**
+ * Per-parameter tolerance: a number = ± that much (in the parameter's unit),
+ * null = not applicable (never judged automatically), missing = use default.
+ */
+export type ToleranceValues = Partial<Record<string, number | null>>;
+
+/** Used where neither the customer nor the default sets a value. */
+export const BUILT_IN_TOLERANCES: Record<string, number> = {
+    dimension: 3, gsm: 5, weightOfBox: 5, stapleWidth: 2, overlapWidth: 2,
+};
+
+/** The tolerance in force for one parameter: customer, then default, then built-in. */
+export function resolveTolerance(key: string, customer?: ToleranceValues, fallback?: ToleranceValues): { value: number | null; source: 'customer' | 'default' | 'built-in' } {
+    if (customer && customer[key] !== undefined) return { value: customer[key] ?? null, source: 'customer' };
+    if (fallback && fallback[key] !== undefined) return { value: fallback[key] ?? null, source: 'default' };
+    return { value: BUILT_IN_TOLERANCES[key] ?? null, source: 'built-in' };
+}
 
 /** Parameters that are checked by eye against the spec, not measured. */
 export const VISUAL_PARAMETERS = new Set(['ply', 'stapling', 'printing']);
 
 /**
  * The mark a measured value earns against its spec, or null when it can't be
- * judged automatically (text specs, blank or unreadable values).
+ * judged automatically (text specs, blank or unreadable values, or a
+ * tolerance marked not applicable for this customer).
+ * `tolerance` is ± in the parameter's unit (mm for sizes, % for GSM/weight).
  */
-export function autoMark(key: string, spec: string, measured: string): QcMark | null {
+export function autoMark(key: string, spec: string, measured: string, tolerance: number | null = BUILT_IN_TOLERANCES[key] ?? null): QcMark | null {
     if (VISUAL_PARAMETERS.has(key)) return null;
     const s = nums(spec);
     const m = nums(measured);
     if (!s.length || !m.length) return null;
-
-    if (key === 'dimension') {
-        if (s.length !== m.length) return null;
-        if (m.some((v, i) => v < s[i] - DIMENSION_TOLERANCE)) return 'Low';
-        if (m.some((v, i) => v > s[i] + DIMENSION_TOLERANCE)) return 'High';
-        return 'Pass';
-    }
     const v = m[0];
-    // A range such as moisture "6-10".
-    if (s.length >= 2 && /\d\s*(-|–|to)\s*\d/.test(spec)) {
+
+    // A range such as moisture "6-10", and load as a minimum, need no tolerance.
+    if (s.length >= 2 && key !== 'dimension' && /\d\s*(-|–|to)\s*\d/.test(spec)) {
         const [lo, hi] = [Math.min(s[0], s[1]), Math.max(s[0], s[1])];
         return v < lo ? 'Low' : v > hi ? 'High' : 'Pass';
     }
-    // Load is a minimum: stronger is never a fault.
     if (key === 'load') return v < s[0] ? 'Low' : 'Pass';
-    const lo = s[0] * (1 - TOLERANCE), hi = s[0] * (1 + TOLERANCE);
-    return v < lo ? 'Low' : v > hi ? 'High' : 'Pass';
+
+    if (tolerance == null) return null; // not applicable for this customer
+    const unit = TOLERANCE_PARAMETERS.find(p => p.key === key)?.unit ?? '%';
+
+    if (key === 'dimension') {
+        if (s.length !== m.length) return null;
+        if (m.some((x, i) => x < s[i] - tolerance)) return 'Low';
+        if (m.some((x, i) => x > s[i] + tolerance)) return 'High';
+        return 'Pass';
+    }
+    const band = unit === '%' ? (s[0] * tolerance) / 100 : tolerance;
+    return v < s[0] - band ? 'Low' : v > s[0] + band ? 'High' : 'Pass';
 }
 
 /**
