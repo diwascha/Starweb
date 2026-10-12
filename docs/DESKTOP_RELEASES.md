@@ -6,12 +6,14 @@ desktop app only), and if a newer version exists they click **Install update**.
 
 ## Publishing a new version
 
-1. Bump `"version"` in `package.json` (e.g. `0.1.0` -> `0.2.0`). The desktop
-   app takes its version from there.
-2. Merge to `main`, then GitHub -> **Actions -> Desktop release -> Run
-   workflow** (branch `main`). (Pushing a `v0.2.0` tag also works.)
+1. Merge the changes to `main`. That is all: the website updates on its own,
+   and the **Desktop release** workflow starts automatically (pushes that only
+   touch docs are skipped). It can also be started by hand from GitHub ->
+   **Actions -> Desktop release -> Run workflow**.
+2. No version to edit: each release is numbered automatically as the latest
+   `v1.0.N` release plus one (1.0.1, 1.0.2, ...).
 3. It builds the Windows installer, signs the update and publishes Release
-   `v<version>` with `latest.json` (~10-15 min).
+   `v1.0.N` with `latest.json` (~15-20 min).
 4. Users click **Check for updates** -> **Install update**.
 
 The web app (Vercel) is unaffected; it updates on every push to `main`.

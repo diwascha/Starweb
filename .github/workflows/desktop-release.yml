@@ -1,18 +1,29 @@
 # Builds the Windows desktop app and publishes it as a GitHub Release with
 # the signed update file (latest.json) that "Check for updates" reads.
 #
-# Start it from GitHub -> Actions -> "Desktop release" -> Run workflow (on main),
-# or by pushing a tag like v0.2.0. The release is tagged v<version from
-# package.json>, so bump "version" there first. See docs/DESKTOP_RELEASES.md.
+# Runs on every push to main (docs-only changes excepted), and can also be
+# started by hand from GitHub -> Actions -> "Desktop release" -> Run workflow.
+# The version is numbered automatically: the latest v1.0.N release plus one
+# (1.0.1, 1.0.2, ...), so nothing needs editing first. See docs/DESKTOP_RELEASES.md.
 name: Desktop release
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
 
 permissions:
   contents: write
+
+# Two releases started together would pick the same number; run one at a time.
+# Pushes that arrive while one is building wait, and only the newest of them
+# is built after it (GitHub keeps one pending run per group).
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -32,6 +43,18 @@ jobs:
           workspaces: src-tauri -> target
 
       - run: npm ci
+
+      - name: Pick the next version (1.0.1, 1.0.2, ...)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          last=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 200 --json tagName \
+            --jq '[.[].tagName | select(test("^v1\\.0\\.[0-9]+$")) | ltrimstr("v1.0.") | tonumber] | max // 0')
+          next="1.0.$((last + 1))"
+          echo "Releasing $next"
+          # Only for this build; the app and latest.json take their version from package.json.
+          npm pkg set version="$next"
 
       - uses: tauri-apps/tauri-action@v0
         env:
