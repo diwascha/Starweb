@@ -118,6 +118,9 @@ export interface Report {
   // 'coc' = Certificate of Conformance (specification only, no results).
   // Missing on older reports, which are all test reports.
   kind?: 'test' | 'coc';
+  // Row order chosen on the form. Firestore does not keep map key order, so
+  // testData alone cannot carry it. Missing on older reports.
+  parameterOrder?: string[];
   testData: TestResultData;
   printLog?: PrintLogEntry[];
   createdBy: string;

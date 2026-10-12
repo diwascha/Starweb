@@ -23,6 +23,7 @@ const reportConverter: FirestoreDataConverter<Report> = {
       createdAt: data.createdAt || new Date().toISOString(),
       kind: data.kind === 'coc' ? 'coc' : 'test',
       testData: data.testData || {},
+      parameterOrder: Array.isArray(data.parameterOrder) ? data.parameterOrder : undefined,
       printLog: data.printLog || [],
       createdBy: data.createdBy || '',
       lastModifiedBy: data.lastModifiedBy || null,

@@ -38,6 +38,11 @@ export function resolveTolerance(key: string, product?: ToleranceValues): { valu
 /** Parameters that are checked by eye against the spec, not measured. */
 export const VISUAL_PARAMETERS = new Set(['ply', 'stapling', 'printing']);
 
+/** Filled in from the spec when a report starts (still editable): the visual
+ *  checks plus staple and overlap width, which are set by the machine.
+ *  Measured values (moisture, GSM, weight, load, size) always start empty. */
+export const PREFILLED_FROM_SPEC = new Set([...VISUAL_PARAMETERS, 'stapleWidth', 'overlapWidth']);
+
 /**
  * The mark a measured value earns against its spec, or null when it can't be
  * judged automatically (text specs, blank or unreadable values, or a

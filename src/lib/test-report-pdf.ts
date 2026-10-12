@@ -79,7 +79,8 @@ export const buildTestReportPdf = async (report: Report, companyProfile: Company
 
     // Ordered like the paper format; any extra saved keys follow.
     const testData = (report.testData || {}) as Record<string, any>;
-    const ordered = testParameterKeys(p.specification).filter(k => k in testData);
+    // The order chosen on the form, else the paper format's order.
+    const ordered = (report.parameterOrder?.length ? report.parameterOrder : testParameterKeys(p.specification)).filter(k => k in testData);
     const keys = [...ordered, ...Object.keys(testData).filter(k => !ordered.includes(k))];
     const specOf = (key: string) => String(p.specification?.[key as keyof ProductSpecification] ?? '') || '-';
     const tableStyle = {

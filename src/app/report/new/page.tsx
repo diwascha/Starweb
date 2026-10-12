@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Save, Loader2, ArrowLeft, Search, Check, CalendarIcon, Package, ShieldCheck, Edit } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Search, Check, CalendarIcon, Package, ShieldCheck, Edit, GripVertical } from 'lucide-react';
 import type { Product, Report, ProductSpecification, TestResult } from '@/lib/types';
 import { onProductsUpdate } from '@/services/product-service';
 import { addReport, getReport, onReportsUpdate, updateReport, testParameterKeys, formatParameterLabel, TEST_PARAMETERS } from '@/services/report-service';
@@ -20,8 +20,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList, Command
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
-import { autoMark, moistureCorrect, moistureTarget, firstNumber, VISUAL_PARAMETERS, resolveTolerance, TOLERANCE_PARAMETERS, type QcMark } from '@/lib/qc-check';
+import { autoMark, moistureCorrect, moistureTarget, firstNumber, VISUAL_PARAMETERS, PREFILLED_FROM_SPEC, resolveTolerance, TOLERANCE_PARAMETERS, type QcMark } from '@/lib/qc-check';
 
 type Row = TestResult & { include: boolean };
 type Kind = 'test' | 'coc';
@@ -51,6 +50,12 @@ function ReportFormContent() {
         date: new Date(),
     });
     const [rows, setRows] = useState<Record<string, Row>>({});
+    // Display / print order of the rows, rearranged with the arrows.
+    const [order, setOrder] = useState<string[]>([...TEST_PARAMETERS]);
+    const withAll = (preferred: string[] | undefined, keys: string[]) => {
+        const first = (preferred || []).filter(k => keys.includes(k));
+        return [...first, ...keys.filter(k => !first.includes(k))];
+    };
     // Challan No usually equals Invoice No: it follows the invoice until typed in.
     const [challanEdited, setChallanEdited] = useState(false);
     const [kind, setKind] = useState<Kind>('test');
@@ -89,6 +94,7 @@ function ReportFormContent() {
                 next[k] = { value: saved[k]?.value || '', remark: saved[k]?.remark || '', result: (saved[k]?.result as QcMark) || 'Pass', include: k in saved };
             }
             setRows(next);
+            setOrder(withAll(r.parameterOrder ?? Object.keys(saved), Object.keys(next)));
             setTargetMoisture(String(moistureTarget(r.product?.specification?.moisture || '') ?? ''));
         });
     }, [editId, toast]);
@@ -112,13 +118,15 @@ function ReportFormContent() {
         const included = new Set(last ? Object.keys(last.testData || {}) : testParameterKeys(product.specification));
         const next: Record<string, Row> = {};
         for (const k of TEST_PARAMETERS) {
-            // Ply / stapling / printing are visual checks against the spec,
-            // so they start filled in; measured values start empty.
+            // Visual checks and machine-set widths start filled in from the
+            // spec; measured values start empty.
             const spec = String(product.specification?.[k] ?? '');
-            const visual = VISUAL_PARAMETERS.has(k) && spec;
+            const visual = PREFILLED_FROM_SPEC.has(k) && spec;
             next[k] = { value: visual ? spec : '', remark: '', result: 'Pass', include: included.has(k) };
         }
         setRows(next);
+        // Same row order as this product's last report.
+        setOrder(withAll(last?.parameterOrder, [...TEST_PARAMETERS]));
         // The usual dispatch quantity for this product, as a starting point.
         if (last?.quantity && last.quantity !== 'N/A') setFormData(prev => (prev.quantity ? prev : { ...prev, quantity: last.quantity }));
         setTargetMoisture(String(moistureTarget(product.specification?.moisture || '') ?? ''));
@@ -144,10 +152,10 @@ function ReportFormContent() {
         setRow(key, mark ? { value, result: mark } : { value });
     };
 
-    // Ply, stapling and printing are checked by eye: one click records "as spec".
+    // One click re-fills the spec-based rows if they were cleared.
     const fillVisualFromSpec = () => setRows(prev => {
         const next = { ...prev };
-        for (const k of VISUAL_PARAMETERS) {
+        for (const k of PREFILLED_FROM_SPEC) {
             if (next[k]?.include && specOf(k)) next[k] = { ...next[k], value: specOf(k), result: 'Pass' };
         }
         return next;
@@ -200,8 +208,9 @@ function ReportFormContent() {
         setIsSaving(true);
         try {
             const testData: Record<string, TestResult> = {};
-            for (const [k, r] of Object.entries(rows)) {
-                if (!r.include) continue;
+            for (const k of order) {
+                const r = rows[k];
+                if (!r?.include) continue;
                 testData[k] = kind === 'coc'
                     ? { value: '' }
                     : { value: r.value.trim(), remark: (r.remark || '').trim(), result: (r.result as QcMark) || 'Pass' };
@@ -214,6 +223,7 @@ function ReportFormContent() {
                 kind,
                 date: formData.date.toISOString(),
                 testData: testData as any,
+                parameterOrder: order.filter(k => rows[k]?.include),
             };
             if (editing) {
                 await updateReport(editing.id, { ...common, lastModifiedBy: user.username });
@@ -240,7 +250,35 @@ function ReportFormContent() {
         }
     };
 
-    const paramKeys = useMemo(() => Object.keys(rows), [rows]);
+    const paramKeys = useMemo(() => withAll(order, Object.keys(rows)), [order, rows]);
+    // Drag a row by its handle and drop it anywhere (mouse or touch). The row
+    // under the pointer swaps places with the dragged one as you move.
+    const [dragKey, setDragKey] = useState<string | null>(null);
+    const startDrag = (key: string, e: React.PointerEvent) => {
+        e.preventDefault();
+        setDragKey(key);
+        const move = (ev: PointerEvent) => {
+            const over = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest('tr[data-param]');
+            const target = over?.getAttribute('data-param');
+            if (!target || target === key) return;
+            setOrder(prev => {
+                const list = withAll(prev, Object.keys(rows));
+                const from = list.indexOf(key), to = list.indexOf(target);
+                if (from < 0 || to < 0) return prev;
+                list.splice(to, 0, list.splice(from, 1)[0]);
+                return list;
+            });
+        };
+        const end = () => {
+            setDragKey(null);
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', end);
+            window.removeEventListener('pointercancel', end);
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', end);
+        window.addEventListener('pointercancel', end);
+    };
 
     if (isLoading || (editId && !editing)) return <div className="p-12 text-center flex flex-col items-center justify-center h-[70vh] gap-4"><Loader2 className="animate-spin h-8 w-8 text-primary"/><p>Loading...</p></div>;
 
@@ -269,185 +307,185 @@ function ReportFormContent() {
                     : 'Certificate of Conformance: states the goods are made to the specification. No test results are printed.'}
             </p>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
+            {/* Document details first, full width, then the item and its results. */}
+            <Card className="shadow-sm border-border bg-card">
+                <CardHeader className="py-3 px-6 border-b bg-muted/5">
+                    <CardTitle className="text-xs uppercase font-black tracking-widest text-muted-foreground">Document</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="space-y-1.5">
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Report No</Label>
+                        <Input value={formData.serialNumber} readOnly className="bg-muted/50 font-mono text-sm h-10 border-2" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Date</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="w-full justify-start h-10 font-bold text-xs border-2 bg-card">
+                                    <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                                    {toNepaliDate(formData.date.toISOString())} BS ({format(formData.date, "PP")})
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <DualCalendar selected={formData.date} onSelect={d => d && setFormData(prev => ({ ...prev, date: d }))} />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Invoice No</Label>
+                        <Input value={formData.taxInvoiceNumber} onChange={e => { const v = e.target.value; setFormData(p => ({ ...p, taxInvoiceNumber: v, challanNumber: challanEdited ? p.challanNumber : v })); }} className="h-10" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Challan No</Label>
+                        <Input value={formData.challanNumber} onChange={e => { setChallanEdited(true); setFormData(p => ({...p, challanNumber: e.target.value})); }} className="h-10" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Supplied Quantity</Label>
+                        <Input value={formData.quantity} onChange={e => setFormData(p => ({...p, quantity: e.target.value}))} onBlur={() => setFormData(p => (/^\d[\d,]*$/.test(p.quantity.trim()) ? { ...p, quantity: `${p.quantity.trim()} Pcs` } : p))} placeholder="e.g. 15000 Pcs" className="h-10 font-bold" />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="space-y-8">
+                <Card className="shadow-sm border-border overflow-hidden">
+                    <CardHeader className="bg-muted/10 border-b py-4 px-6">
+                        <CardTitle className="text-sm font-black uppercase text-foreground flex items-center gap-2">
+                            <Package className="h-4 w-4 text-primary"/>
+                            Name of Item
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" role="combobox" className="w-full justify-between h-11 text-base font-bold bg-card">
+                                    {selectedProduct ? selectedProduct.name : "Select or type product name..."}
+                                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                <Command>
+                                    <CommandInput placeholder="Search products..." value={productSearch} onValueChange={setProductSearch} />
+                                    <CommandList>
+                                        <CommandEmpty>No products found.</CommandEmpty>
+                                        <CommandGroup>
+                                            {products.map(p => (
+                                                <CommandItem key={p.id} value={`${p.name} ${p.partyName || ''} ${p.materialCode || ''}`} onSelect={() => handleProductSelect(p)} className="h-11">
+                                                    <Check className={cn("mr-2 h-4 w-4", selectedProduct?.id === p.id ? "opacity-100" : "opacity-0")} />
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold uppercase text-xs">{p.name}</span>
+                                                        <span className="text-[0.625rem] text-muted-foreground uppercase">{p.materialCode} &bull; {p.partyName}</span>
+                                                    </div>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                        {selectedProduct && <p className="text-xs text-muted-foreground mt-2">Deliver To: <span className="font-bold text-foreground">{selectedProduct.partyName || '-'}</span></p>}
+                    </CardContent>
+                </Card>
+
+                {selectedProduct && (
                     <Card className="shadow-sm border-border overflow-hidden">
                         <CardHeader className="bg-muted/10 border-b py-4 px-6">
                             <CardTitle className="text-sm font-black uppercase text-foreground flex items-center gap-2">
-                                <Package className="h-4 w-4 text-primary"/>
-                                Name of Item
+                                <Edit className="h-4 w-4 text-primary"/>
+                                {kind === 'test' ? 'Test Results' : 'Specification'} <span className="text-muted-foreground font-medium normal-case">({includedCount} on document)</span>
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-6">
-                            <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" role="combobox" className="w-full justify-between h-11 text-base font-bold bg-card">
-                                        {selectedProduct ? selectedProduct.name : "Select or type product name..."}
-                                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                    <Command>
-                                        <CommandInput placeholder="Search products..." value={productSearch} onValueChange={setProductSearch} />
-                                        <CommandList>
-                                            <CommandEmpty>No products found.</CommandEmpty>
-                                            <CommandGroup>
-                                                {products.map(p => (
-                                                    <CommandItem key={p.id} value={`${p.name} ${p.partyName || ''} ${p.materialCode || ''}`} onSelect={() => handleProductSelect(p)} className="h-11">
-                                                        <Check className={cn("mr-2 h-4 w-4", selectedProduct?.id === p.id ? "opacity-100" : "opacity-0")} />
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold uppercase text-xs">{p.name}</span>
-                                                            <span className="text-[0.625rem] text-muted-foreground uppercase">{p.materialCode} &bull; {p.partyName}</span>
-                                                        </div>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                            {selectedProduct && <p className="text-xs text-muted-foreground mt-2">Deliver To: <span className="font-bold text-foreground">{selectedProduct.partyName || '-'}</span></p>}
-                        </CardContent>
-                    </Card>
-
-                    {selectedProduct && (
-                        <Card className="shadow-sm border-border overflow-hidden">
-                            <CardHeader className="bg-muted/10 border-b py-4 px-6">
-                                <CardTitle className="text-sm font-black uppercase text-foreground flex items-center gap-2">
-                                    <Edit className="h-4 w-4 text-primary"/>
-                                    {kind === 'test' ? 'Test Results' : 'Specification'} <span className="text-muted-foreground font-medium normal-case">({includedCount} on document)</span>
-                                </CardTitle>
-                            </CardHeader>
-                            {kind === 'test' && (
-                                <div className="flex flex-wrap items-end gap-3 px-6 py-3 border-b bg-muted/5">
-                                    <Button type="button" variant="outline" size="sm" onClick={fillVisualFromSpec} className="h-9 text-xs">
-                                        Ply / Stapling / Printing as spec
-                                    </Button>
-                                    <div className="flex items-end gap-2 ml-auto">
-                                        <div className="space-y-1">
-                                            <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Target moisture %</Label>
-                                            <Input value={targetMoisture} onChange={e => setTargetMoisture(e.target.value)} inputMode="decimal" className="h-9 w-24" />
-                                        </div>
-                                        <Button type="button" variant="outline" size="sm" onClick={applyMoistureCorrection} className="h-9 text-xs">
-                                            Calculate GSM / weight at target
-                                        </Button>
+                        {kind === 'test' && (
+                            <div className="flex flex-wrap items-end gap-3 px-6 py-3 border-b bg-muted/5">
+                                <Button type="button" variant="outline" size="sm" onClick={fillVisualFromSpec} className="h-9 text-xs">
+                                    Ply / Stapling / Printing / Widths as spec
+                                </Button>
+                                <div className="flex items-end gap-2 ml-auto">
+                                    <div className="space-y-1">
+                                        <Label className="text-[0.625rem] font-black uppercase text-muted-foreground">Target moisture %</Label>
+                                        <Input value={targetMoisture} onChange={e => setTargetMoisture(e.target.value)} inputMode="decimal" className="h-9 w-24" />
                                     </div>
+                                    <Button type="button" variant="outline" size="sm" onClick={applyMoistureCorrection} className="h-9 text-xs">
+                                        Calculate GSM / weight at target
+                                    </Button>
                                 </div>
-                            )}
-                            <CardContent className="p-0 overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-muted/30 text-[0.625rem] uppercase tracking-wider text-muted-foreground">
-                                        <tr>
-                                            <th className="p-2 w-10 text-center">Show</th>
-                                            <th className="p-2 text-left">Particular</th>
-                                            <th className="p-2 text-left">Specification</th>
-                                            {kind === 'test' && <>
-                                                <th className="p-2 text-left">Result (measured)</th>
-                                                <th className="p-2 text-left">OK / Low / High</th>
-                                                <th className="p-2 text-left">Remarks</th>
-                                            </>}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {paramKeys.map(key => {
-                                            const r = rows[key];
-                                            const spec = specOf(key);
-                                            const bad = kind === 'test' && r.include && (r.result === 'Low' || r.result === 'High');
-                                            return (
-                                                <tr key={key} className={cn('border-t', !r.include && 'opacity-40', bad && 'bg-red-50 dark:bg-red-950/30')}>
-                                                    <td className="p-2 text-center"><Checkbox checked={r.include} onCheckedChange={v => setRow(key, { include: !!v })} aria-label={`Show ${formatParameterLabel(key)} on document`} /></td>
-                                                    <td className="p-2 font-bold whitespace-nowrap">{formatParameterLabel(key)}</td>
-                                                    <td className="p-2 text-muted-foreground whitespace-nowrap">
-                                                        {spec || '-'}
-                                                        {kind === 'test' && toleranceLabel(key) && <span className="block text-[0.5625rem]">{toleranceLabel(key)}</span>}
+                            </div>
+                        )}
+                        <CardContent className="p-0 overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-muted/30 text-[0.625rem] uppercase tracking-wider text-muted-foreground">
+                                    <tr>
+                                        <th className="p-2 w-10 text-center">Show</th>
+                                        <th className="p-2 text-left">Particular</th>
+                                        <th className="p-2 text-left">Specification</th>
+                                        {kind === 'test' && <>
+                                            <th className="p-2 text-left">Result (measured)</th>
+                                            <th className="p-2 text-left">OK / Low / High</th>
+                                            <th className="p-2 text-left">Remarks</th>
+                                        </>}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {paramKeys.map(key => {
+                                        const r = rows[key];
+                                        const spec = specOf(key);
+                                        const bad = kind === 'test' && r.include && (r.result === 'Low' || r.result === 'High');
+                                        return (
+                                            <tr key={key} data-param={key} className={cn('border-t', dragKey === key && 'bg-primary/10 ring-1 ring-primary', !r.include && 'opacity-40', bad && 'bg-red-50 dark:bg-red-950/30')}>
+                                                <td className="p-2 text-center"><Checkbox checked={r.include} onCheckedChange={v => setRow(key, { include: !!v })} aria-label={`Show ${formatParameterLabel(key)} on document`} /></td>
+                                                <td className="p-2 font-bold whitespace-nowrap">
+                                                    <span onPointerDown={e => startDrag(key, e)} title="Drag to move" aria-label={`Drag ${formatParameterLabel(key)} to reorder`}
+                                                        className="inline-flex mr-1.5 align-middle cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none select-none">
+                                                        <GripVertical className="h-4 w-4" />
+                                                    </span>
+                                                    {formatParameterLabel(key)}
+                                                </td>
+                                                <td className="p-2 text-muted-foreground whitespace-nowrap">
+                                                    {spec || '-'}
+                                                    {kind === 'test' && toleranceLabel(key) && <span className="block text-[0.5625rem]">{toleranceLabel(key)}</span>}
+                                                </td>
+                                                {kind === 'test' && <>
+                                                    <td className="p-2 min-w-[7rem]"><Input value={r.value} disabled={!r.include} onChange={e => setReading(key, e.target.value)}
+                                                        data-result-input inputMode={VISUAL_PARAMETERS.has(key) || key === 'dimension' ? 'text' : 'decimal'}
+                                                        onKeyDown={e => {
+                                                            if (e.key !== 'Enter') return;
+                                                            e.preventDefault();
+                                                            // Enter moves to the next reading, so a column of numbers is typed without the mouse.
+                                                            const all = Array.from(document.querySelectorAll<HTMLInputElement>('input[data-result-input]:not(:disabled)'));
+                                                            all[all.indexOf(e.currentTarget) + 1]?.focus();
+                                                        }}
+                                                        className="h-9 font-bold" /></td>
+                                                    <td className="p-2">
+                                                        <div className="flex rounded-md border overflow-hidden w-fit">
+                                                            {(['Pass', 'Low', 'High'] as const).map(v => (
+                                                                <button key={v} type="button" disabled={!r.include} onClick={() => setRow(key, { result: v })}
+                                                                    className={cn('px-2.5 h-9 text-xs font-bold', r.result === v ? (v === 'Pass' ? 'bg-primary text-primary-foreground' : 'bg-red-600 text-white') : 'bg-card')}>
+                                                                    {MARK_LABEL[v]}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     </td>
-                                                    {kind === 'test' && <>
-                                                        <td className="p-2 min-w-[7rem]"><Input value={r.value} disabled={!r.include} onChange={e => setReading(key, e.target.value)}
-                                                            data-result-input inputMode={VISUAL_PARAMETERS.has(key) || key === 'dimension' ? 'text' : 'decimal'}
-                                                            onKeyDown={e => {
-                                                                if (e.key !== 'Enter') return;
-                                                                e.preventDefault();
-                                                                // Enter moves to the next reading, so a column of numbers is typed without the mouse.
-                                                                const all = Array.from(document.querySelectorAll<HTMLInputElement>('input[data-result-input]:not(:disabled)'));
-                                                                all[all.indexOf(e.currentTarget) + 1]?.focus();
-                                                            }}
-                                                            className="h-9 font-bold" /></td>
-                                                        <td className="p-2">
-                                                            <div className="flex rounded-md border overflow-hidden w-fit">
-                                                                {(['Pass', 'Low', 'High'] as const).map(v => (
-                                                                    <button key={v} type="button" disabled={!r.include} onClick={() => setRow(key, { result: v })}
-                                                                        className={cn('px-2.5 h-9 text-xs font-bold', r.result === v ? (v === 'Pass' ? 'bg-primary text-primary-foreground' : 'bg-red-600 text-white') : 'bg-card')}>
-                                                                        {MARK_LABEL[v]}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-2 min-w-[8rem]"><Input value={r.remark || ''} disabled={!r.include} onChange={e => setRow(key, { remark: e.target.value })} className="h-9" /></td>
-                                                    </>}
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
-
-                <div className="lg:col-span-1 space-y-8">
-                    <Card className="shadow-sm border-border bg-card">
-                        <CardHeader className="py-4 border-b bg-muted/5">
-                            <CardTitle className="text-xs uppercase font-black tracking-widest text-muted-foreground">Document</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-6">
-                            <div className="space-y-1.5">
-                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Report No</Label>
-                                <Input value={formData.serialNumber} readOnly className="bg-muted/50 font-mono text-sm h-10 border-2" />
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Date</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start h-10 font-bold text-xs border-2 bg-card">
-                                            <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                                            {toNepaliDate(formData.date.toISOString())} BS ({format(formData.date, "PP")})
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <DualCalendar selected={formData.date} onSelect={d => d && setFormData(prev => ({ ...prev, date: d }))} />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <Separator />
-                            <div className="space-y-1.5">
-                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Invoice No</Label>
-                                <Input value={formData.taxInvoiceNumber} onChange={e => { const v = e.target.value; setFormData(p => ({ ...p, taxInvoiceNumber: v, challanNumber: challanEdited ? p.challanNumber : v })); }} className="h-10" />
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Challan No</Label>
-                                <Input value={formData.challanNumber} onChange={e => { setChallanEdited(true); setFormData(p => ({...p, challanNumber: e.target.value})); }} className="h-10" />
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Supplied Quantity</Label>
-                                <Input value={formData.quantity} onChange={e => setFormData(p => ({...p, quantity: e.target.value}))} onBlur={() => setFormData(p => (/^\d[\d,]*$/.test(p.quantity.trim()) ? { ...p, quantity: `${p.quantity.trim()} Pcs` } : p))} placeholder="e.g. 15000 Pcs" className="h-10 font-bold" />
-                            </div>
+                                                    <td className="p-2 min-w-[8rem]"><Input value={r.remark || ''} disabled={!r.include} onChange={e => setRow(key, { remark: e.target.value })} className="h-9" /></td>
+                                                </>}
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </CardContent>
                     </Card>
+                )}
+            </div>
 
-                    <Card className="shadow-sm border-border">
-                        <CardContent className="p-6">
-                            <Button
-                                onClick={handleSubmit}
-                                disabled={isSaving || !selectedProduct || !canSave}
-                                className="w-full h-12 font-black text-xs uppercase tracking-[0.2em]"
-                            >
-                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : editing ? <Save className="mr-2 h-4 w-4"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
-                                {editing ? 'Save Changes' : kind === 'coc' ? 'Save Certificate' : 'Save Report'}
-                            </Button>
-                            {!canSave && <p className="text-xs text-muted-foreground mt-2 text-center">You don&apos;t have permission to {editing ? 'edit' : 'create'} QT documents.</p>}
-                        </CardContent>
-                    </Card>
-                </div>
+            <div className="flex flex-col items-end gap-2">
+                <Button
+                    onClick={handleSubmit}
+                    disabled={isSaving || !selectedProduct || !canSave}
+                    className="w-full sm:w-64 h-12 font-black text-xs uppercase tracking-[0.2em]"
+                >
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : editing ? <Save className="mr-2 h-4 w-4"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
+                    {editing ? 'Save Changes' : kind === 'coc' ? 'Save Certificate' : 'Save Report'}
+                </Button>
+                {!canSave && <p className="text-xs text-muted-foreground mt-2 text-center">You don&apos;t have permission to {editing ? 'edit' : 'create'} QT documents.</p>}
             </div>
         </div>
     );
