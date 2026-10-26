@@ -35,6 +35,11 @@ export const getFirebase = () => {
   let db: Firestore;
   try {
     db = initializeFirestore(app, {
+      // Forms send whole records back, optional fields included. Without this
+      // one empty field (a vehicle with no VIN, a product with no rate) made
+      // Firestore reject the entire save. Empty fields are now just skipped;
+      // to clear a field on purpose, write deleteField().
+      ignoreUndefinedProperties: true,
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager()
       })

@@ -1,7 +1,7 @@
 'use client';
 import { getFirebase } from '@/lib/firebase';
 import { reportWriteFailure } from '@/lib/write-reporting';
-import { collection, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, setDoc, deleteField } from 'firebase/firestore';
 import { Vehicle } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -94,10 +94,11 @@ export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () =>
 export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, 'id'>>): Promise<void> => {
     if (!id) return;
     const vehicleDoc = doc(getVehiclesCollection(), id);
-    const payload = {
-        ...vehicle,
-        lastModifiedAt: new Date().toISOString(),
-    };
+    // A field set to undefined means "cleared" (e.g. driver -> Unassigned):
+    // remove it, rather than leaving the old value in place.
+    const { id: _ignored, ...changes } = vehicle as Partial<Vehicle>;
+    const payload: Record<string, unknown> = { lastModifiedAt: new Date().toISOString() };
+    for (const [k, v] of Object.entries(changes)) payload[k] = v === undefined ? deleteField() : v;
     reportWriteFailure(
         updateDoc(vehicleDoc, payload),
         { path: vehicleDoc.path, operation: 'update', requestResourceData: payload }
