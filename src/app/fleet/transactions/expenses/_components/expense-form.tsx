@@ -126,7 +126,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const [destForm, setDestForm] = useState({ name: '', standardAdvance: 0, remarks: '' });
     const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
 
-    const form = useForm<ExpenseFormValues>({
+    const form = useForm<z.input<typeof expenseSchema>, unknown, ExpenseFormValues>({
         resolver: zodResolver(expenseSchema),
         defaultValues: {
             voucherNo: expenseToEdit?.voucherNo || initialVoucherNo,

@@ -47,7 +47,7 @@ const poItemSchema = z.object({
 
 const purchaseOrderSchema = z.object({
   poNumber: z.string().min(1, 'PO Number is required.'),
-  poDate: z.date({ required_error: 'A PO date is required.' }),
+  poDate: z.date({ error: 'A PO date is required.' }),
   partyId: z.string().min(1, 'Company name is required.'),
   companyName: z.string().min(1, 'Company name is required.'),
   companyAddress: z.string().min(1, 'Company address is required.'),
