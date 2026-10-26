@@ -248,25 +248,19 @@ service cloud.firestore {
       allow get: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
 
-      // Accounts are PROVISIONED BY AN ADMIN (Settings > System); there is no
-      // self-signup page, so an admin must be able to write a profile for a uid
-      // that is not their own. The self-creation branch stays for a future
-      // signup page and for the fact that anyone can mint an Auth account
-      // against the public API key: such a profile is forced unapproved and
-      // non-admin, which grants nothing until an admin approves it.
-      allow create: if isAdmin() ||
-                       (isAuthenticated() &&
-                        request.auth.uid == userId &&
-                        request.resource.data.get('isApproved', false) == false &&
-                        request.resource.data.get('isAdmin', false) == false);
+      // Accounts are PROVISIONED BY AN ADMIN (Settings > System) and only an
+      // admin may create a profile. Anyone can mint an Auth account against
+      // the public API key; the old self-creation branch let such a stranger
+      // file a pending profile carrying permissions of their own choosing,
+      // waiting for an admin to approve it without looking.
+      allow create: if isAdmin();
 
-      // A user may edit their own profile but may never change their own
-      // approval, admin flag, or permissions - that is the escalation path.
+      // Users may only stamp their own password-change time (Settings >
+      // password change); everything else on the profile is the admin's.
       allow update: if (isAdmin() && request.auth.uid != userId) ||
-                       (isAuthenticated() && request.auth.uid == userId &&
-                        request.resource.data.get('isApproved', false) == resource.data.get('isApproved', false) &&
-                        request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false) &&
-                        request.resource.data.get('permissions', {}) == resource.data.get('permissions', {}));
+                       (isApproved() && request.auth.uid == userId &&
+                        request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['passwordLastUpdated', 'updatedAt']));
 
       allow delete: if isAdmin() && userId != request.auth.uid &&
                        resource.data.get('isAdmin', false) != true;
@@ -280,7 +274,10 @@ service cloud.firestore {
       allow get: if isAuthenticated() && resource != null &&
                     (request.auth.uid == resource.data.get('userId', '') || isAdmin());
       allow list: if isAdmin();
-      allow create: if isAuthenticated() &&
+      // Approved users only: a stranger with a freshly minted Auth account
+      // could otherwise write sessions in a loop and burn the free plan's
+      // daily write quota, blocking every real save until midnight.
+      allow create: if isApproved() &&
                        request.resource.data.get('userId', '') == request.auth.uid;
       allow update, delete: if isAuthenticated() && resource != null &&
                        (request.auth.uid == resource.data.get('userId', '') || isAdmin());
@@ -309,7 +306,8 @@ service cloud.firestore {
       // Was `if true`: any anonymous caller could create unlimited documents.
       // Entries must be attributed to the caller: the audit trail was
       // forgeable when the client could write any userId it liked.
-      allow create: if isAuthenticated() &&
+      // Approved users only, for the same quota reason as sessions.
+      allow create: if isApproved() &&
                        request.resource.data.get('userId', '') == request.auth.uid;
       allow read, delete: if isAdmin();
     }
