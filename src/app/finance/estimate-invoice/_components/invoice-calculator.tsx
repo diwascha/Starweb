@@ -27,6 +27,28 @@ import { Card } from '@/components/ui/card';
 import { InvoiceView } from './invoice-view';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
+/**
+ * A number box that shows what is typed (blank, "0.", "12.") instead of
+ * snapping back to 0, which made clearing a quantity and retyping it
+ * produce "05". Empty means 0 to the caller.
+ */
+function NumberBox({ value, onValue, className }: { value: number; onValue: (n: number) => void; className?: string }) {
+    const [text, setText] = useState(value ? String(value) : '');
+    useEffect(() => {
+        // Follow outside changes (e.g. a rate filled from the last price).
+        if ((parseFloat(text) || 0) !== (value || 0)) setText(value ? String(value) : '');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value]);
+    return (
+        <Input type="text" inputMode="decimal" placeholder="0" value={text} className={className}
+            onChange={e => {
+                const t = e.target.value.replace(/[^0-9.]/g, '');
+                setText(t);
+                onValue(parseFloat(t) || 0);
+            }} />
+    );
+}
+
 interface InvoiceCalculatorProps {
   invoiceToEdit?: EstimatedInvoice;
   onSaveSuccess: () => void;
@@ -71,7 +93,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
             onProductsUpdate(setProducts)
         ];
         if (!invoiceToEdit) {
-            setItems([{ id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+            setItems([{ id: generateId(), productName: '', quantity: 0, rate: 0, gross: 0 }]);
         }
         return () => unsubs.forEach(u => u());
     }, [invoiceToEdit]);
@@ -182,12 +204,32 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         }
     };
     
+    // The rate this customer was last charged for a product (their most recent
+    // estimate containing it), so a repeat order starts from the last price
+    // rather than the catalog rate.
+    const lastPriceFor = (productName: string): { rate: number; date: string; invoiceNumber: string } | null => {
+        if (!party || !productName) return null;
+        const name = productName.toLowerCase().trim();
+        const customer = party.name.toLowerCase().trim();
+        const past = allInvoices
+            .filter(inv => inv.id !== invoiceToEdit?.id && (inv.partyName || '').toLowerCase().trim() === customer)
+            .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        for (const inv of past) {
+            const line = (inv.items || []).find(i => (i.productName || '').toLowerCase().trim() === name && Number(i.rate) > 0);
+            if (line) return { rate: Number(line.rate), date: inv.date, invoiceNumber: inv.invoiceNumber };
+        }
+        return null;
+    };
+
     const handleItemChange = (index: number, field: keyof EstimateInvoiceItem, value: any) => {
         const newItems = [...items];
         const item = { ...newItems[index], [field]: value };
         if (field === 'productName') {
+            // Last price charged to this customer, else the catalog rate, else
+            // blank - never the previous product's rate left in the row.
+            const last = lastPriceFor(value);
             const product = products.find(p => p.name === value);
-            if (product?.rate) item.rate = product.rate;
+            item.rate = last?.rate ?? (Number(product?.rate) || 0);
         }
         item.gross = (item.quantity || 0) * (item.rate || 0);
         newItems[index] = item;
@@ -216,6 +258,11 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     
     const handleSaveInvoice = async () => {
         if (!user || !party || items.length === 0) return;
+        const incomplete = items.filter(i => i.productName && (!(Number(i.quantity) > 0) || !(Number(i.rate) > 0)));
+        if (incomplete.length) {
+            toast({ title: 'Check quantity and rate', description: `Enter a quantity and rate for: ${incomplete.map(i => i.productName).join(', ')}.`, variant: 'destructive' });
+            return;
+        }
         setIsSaving(true);
         try {
             const dataToSave = {
@@ -247,7 +294,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 toast({ title: `Estimate invoice ${reserved} saved.` });
                 setDate(new Date());
                 setParty(null);
-                setItems([{ id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+                setItems([{ id: generateId(), productName: '', quantity: 0, rate: 0, gross: 0 }]);
             }
         } catch {
             toast({ title: 'Error', variant: 'destructive' });
@@ -435,8 +482,17 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                                             </PopoverContent>
                                         </Popover>
                                     </TableCell>
-                                    <TableCell><Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} className="h-10 font-bold" /></TableCell>
-                                    <TableCell><Input type="number" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)} className="h-10" /></TableCell>
+                                                                        <TableCell><NumberBox value={item.quantity} onValue={n => handleItemChange(index, 'quantity', n)} className="h-10 font-bold" /></TableCell>
+                                    <TableCell>
+                                        <NumberBox value={item.rate} onValue={n => handleItemChange(index, 'rate', n)} className="h-10" />
+                                        {(() => {
+                                            if (!item.productName) return null;
+                                            const last = lastPriceFor(item.productName);
+                                            return last
+                                                ? <p className="text-[0.5625rem] text-muted-foreground mt-0.5 whitespace-nowrap" title={`Estimate ${last.invoiceNumber}`}>Last: Rs. {last.rate.toLocaleString('en-IN')} ({toNepaliDate(last.date)})</p>
+                                                : <p className="text-[0.5625rem] text-muted-foreground mt-0.5 whitespace-nowrap">No previous price for this customer</p>;
+                                        })()}
+                                    </TableCell>
                                     <TableCell className="text-right pr-6 font-bold tabular-nums whitespace-nowrap">Rs. {item.gross.toLocaleString('en-IN')}</TableCell>
                                 </TableRow>
                             ))}
@@ -445,7 +501,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                     <ScrollBar orientation="horizontal" />
                 </ScrollArea>
                 <div className="p-4 border-t bg-muted/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <Button variant="outline" size="sm" onClick={() => setItems([...items, { id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }])} className="h-9"><Plus className="mr-2 h-4 w-4" /> Add Row</Button>
+                    <Button variant="outline" size="sm" onClick={() => setItems([...items, { id: generateId(), productName: '', quantity: 0, rate: 0, gross: 0 }])} className="h-9"><Plus className="mr-2 h-4 w-4" /> Add Row</Button>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-right w-full md:w-auto">
                         <div className="space-y-0.5">
                             <p className="text-[0.5625rem] text-muted-foreground uppercase font-black tracking-widest">Total Qty</p>
