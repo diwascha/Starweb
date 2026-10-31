@@ -275,6 +275,14 @@ export default function SystemSettingsPage() {
         return;
     }
 
+    // The browser SDK can only set the signed-in user's own password, so a
+    // value typed here for an existing user could never be applied. Refuse it
+    // instead of reporting success while the old password keeps working.
+    if (isEditing && userForm.password) {
+        setPasswordError('Cannot change another user\'s password here. Turn Account Active off, then reset it in the Firebase console.');
+        return;
+    }
+
     const { isValid, error } = validatePassword(userForm.password, !isEditing, userForm.username);
     if (!isValid) { setPasswordError(error!); return; }
     
@@ -1287,7 +1295,8 @@ export default function SystemSettingsPage() {
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label className="text-[0.625rem] font-black uppercase text-muted-foreground px-1">Access Credential</Label>
-                                    <Input type="password" value={userForm.password} onChange={e => { setUserForm(p => ({...p, password: e.target.value})); setPasswordError(null); }} placeholder={editingUser ? "Leave blank to keep" : `${MIN_PASSWORD_LENGTH}+ chars, mixed case, a number`} className="h-10 font-mono" />
+                                    <Input type="password" value={userForm.password} onChange={e => { setUserForm(p => ({...p, password: e.target.value})); setPasswordError(null); }} disabled={!!editingUser} placeholder={editingUser ? "Reset in Firebase console" : `${MIN_PASSWORD_LENGTH}+ chars, mixed case, a number`} className="h-10 font-mono" />
+                                    {editingUser && <p className="text-[0.5625rem] text-muted-foreground mt-1">To reset a password: turn Account Active off, reset it in Firebase console &gt; Authentication, then turn the account back on.</p>}
                                     {passwordError && <p className="text-[0.5rem] font-black text-red-600 uppercase tracking-tighter mt-1">{passwordError}</p>}
                                 </div>
                             </div>

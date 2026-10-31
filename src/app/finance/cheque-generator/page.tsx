@@ -36,7 +36,7 @@ import { ChequeView } from './_components/cheque-view';
 import { NepalChequeView } from './_components/nepal-cheque-print';
 import { exportChequeVoucherPdf } from '@/lib/cheque-voucher-pdf';
 import { ChequeCalibrationDialog } from './_components/cheque-calibration-dialog';
-import { CHEQUE_LAYOUT_SETTING_KEY, LEGACY_LAYOUT, resolveChequeLayout, type ChequeLayout } from '@/lib/cheque-layout';
+import { CHEQUE_LAYOUT_SETTING_KEY, LEGACY_LAYOUT, layoutNumber, resolveChequeLayout, type ChequeLayout } from '@/lib/cheque-layout';
 import { onSettingUpdate } from '@/services/settings-service';
 import { useBusinessProfile } from '@/hooks/use-business-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -601,14 +601,17 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
       return;
     }
 
+    // Numbers only: these land inside raw HTML/CSS.
+    const w = layoutNumber(nudgedChequeLayout.widthMm, LEGACY_LAYOUT.widthMm);
+    const h = layoutNumber(nudgedChequeLayout.heightMm, LEGACY_LAYOUT.heightMm);
     win.document.write(
       `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Cheque Print</title>` +
         `<style>` +
-        `@page { size: ${nudgedChequeLayout.widthMm}mm ${nudgedChequeLayout.heightMm}mm; margin: 0; }` +
+        `@page { size: ${w}mm ${h}mm; margin: 0; }` +
         `html, body { margin: 0; padding: 0; background: #fff; }` +
         `* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }` +
         `</style></head><body>` +
-        `<div style="width:${nudgedChequeLayout.widthMm}mm;height:${nudgedChequeLayout.heightMm}mm;position:relative;overflow:hidden;">${content}</div>` +
+        `<div style="width:${w}mm;height:${h}mm;position:relative;overflow:hidden;">${content}</div>` +
         `<scr` +
         `ipt>window.addEventListener('load',function(){setTimeout(function(){window.focus();window.print();window.close();},250);});</scr` +
         `ipt>` +

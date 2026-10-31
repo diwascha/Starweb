@@ -11,7 +11,7 @@
 *   **Data Isolation**: If a specific module (e.g., Payroll) is showing signs of corruption, utilize the `Payroll Lock` feature in Settings to prevent further calculation changes.
 
 ### Phase 3: Eradication
-*   **Credential Reset**: Force a password change for the affected account. If the Admin account is compromised, use the `Update Master Access Key` function in Settings.
+*   **Credential Reset**: Reset the affected account's password in the Firebase console (Authentication > Users > Reset password), and keep `Approved` off until it is done. The user dialog in Settings cannot change another user's password. If the Admin account is compromised, use the `Update Master Access Key` function in Settings.
 *   **Fault Isolation**: If the incident was caused by a logic error/vulnerability, the Technical Team should deploy a fix to the specific service module identified in the logs.
 
 ### Phase 4: Recovery

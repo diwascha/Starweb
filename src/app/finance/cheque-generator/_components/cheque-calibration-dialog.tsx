@@ -11,7 +11,7 @@ import { Printer, RotateCcw, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { NepalChequeView } from './nepal-cheque-print';
-import { CHEQUE_FIELD_LABELS, CHEQUE_LAYOUT_PRESETS, CHEQUE_LAYOUT_SETTING_KEY, LEGACY_LAYOUT, type ChequeFieldKey, type ChequeLayout } from '@/lib/cheque-layout';
+import { CHEQUE_FIELD_LABELS, CHEQUE_LAYOUT_PRESETS, CHEQUE_LAYOUT_SETTING_KEY, LEGACY_LAYOUT, layoutNumber, type ChequeFieldKey, type ChequeLayout } from '@/lib/cheque-layout';
 import { setSetting } from '@/services/settings-service';
 
 /**
@@ -60,14 +60,16 @@ export function ChequeCalibrationDialog({
 
         // Same shape as the real cheque print: the leaf's own @page size, no
         // margin, and inline styles only - there is no stylesheet here.
+        const w = layoutNumber(draft.widthMm, LEGACY_LAYOUT.widthMm);
+        const h = layoutNumber(draft.heightMm, LEGACY_LAYOUT.heightMm);
         win.document.write(
             `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Cheque calibration</title>` +
             `<style>` +
-            `@page { size: ${draft.widthMm}mm ${draft.heightMm}mm; margin: 0; }` +
+            `@page { size: ${w}mm ${h}mm; margin: 0; }` +
             `html, body { margin: 0; padding: 0; background: #fff; }` +
             `* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }` +
             `</style></head><body>` +
-            `<div style="width:${draft.widthMm}mm;height:${draft.heightMm}mm;position:relative;overflow:hidden;">${host.innerHTML}</div>` +
+            `<div style="width:${w}mm;height:${h}mm;position:relative;overflow:hidden;">${host.innerHTML}</div>` +
             `<scr` + `ipt>window.addEventListener('load',function(){setTimeout(function(){window.focus();window.print();window.close();},250);});</scr` + `ipt>` +
             `</body></html>`
         );

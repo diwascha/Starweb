@@ -105,20 +105,49 @@ export const CHEQUE_LAYOUT_PRESETS: ChequeLayout[] = [LEGACY_LAYOUT, WIDE_LAYOUT
 
 export const CHEQUE_LAYOUT_SETTING_KEY = 'chequeLayout';
 
+/** A finite number, or `fallback`. Layout values end up inside hand-written
+ *  print HTML/CSS, and the stored setting is writable by any Finance editor
+ *  straight through the SDK, so a string here would be injected as markup. */
+export const layoutNumber = (value: unknown, fallback: number): number => {
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n : fallback;
+};
+
+const resolveField = <T extends ChequeFieldPosition>(base: T, raw: unknown): T => {
+    const out = { ...base } as Record<string, unknown>;
+    if (!raw || typeof raw !== 'object') return out as T;
+    const stored = raw as Record<string, unknown>;
+    for (const key of ['xMm', 'yMm', 'widthMm', 'fontPt', 'boxPitchMm', 'lineHeightMm', 'rotateDeg', 'lengthMm']) {
+        if (stored[key] === undefined) continue;
+        const n = layoutNumber(stored[key], NaN);
+        if (Number.isFinite(n)) out[key] = n;
+    }
+    for (const key of ['bold', 'enabled']) {
+        if (typeof stored[key] === 'boolean') out[key] = stored[key];
+    }
+    if (stored.align === 'left' || stored.align === 'center' || stored.align === 'right') out.align = stored.align;
+    return out as T;
+};
+
 /** Merge a stored layout over a preset, so a partial or older stored layout
- *  still produces a complete one. */
+ *  still produces a complete one. Only known keys of the right type are taken
+ *  from the stored copy. */
 export const resolveChequeLayout = (stored: any): ChequeLayout => {
     const base = CHEQUE_LAYOUT_PRESETS.find(p => p.id === stored?.id) || LEGACY_LAYOUT;
-    if (!stored) return base;
+    if (!stored || typeof stored !== 'object') return base;
     return {
         ...base,
-        ...stored,
+        label: typeof stored.label === 'string' ? stored.label : base.label,
+        widthMm: layoutNumber(stored.widthMm, base.widthMm),
+        heightMm: layoutNumber(stored.heightMm, base.heightMm),
+        offsetXMm: layoutNumber(stored.offsetXMm, base.offsetXMm),
+        offsetYMm: layoutNumber(stored.offsetYMm, base.offsetYMm),
         fields: {
-            date: { ...base.fields.date, ...(stored.fields?.date || {}) },
-            payee: { ...base.fields.payee, ...(stored.fields?.payee || {}) },
-            amountWords: { ...base.fields.amountWords, ...(stored.fields?.amountWords || {}) },
-            amountFigures: { ...base.fields.amountFigures, ...(stored.fields?.amountFigures || {}) },
-            acPayee: { ...base.fields.acPayee, ...(stored.fields?.acPayee || {}) },
+            date: resolveField(base.fields.date, stored.fields?.date),
+            payee: resolveField(base.fields.payee, stored.fields?.payee),
+            amountWords: resolveField(base.fields.amountWords, stored.fields?.amountWords),
+            amountFigures: resolveField(base.fields.amountFigures, stored.fields?.amountFigures),
+            acPayee: resolveField(base.fields.acPayee, stored.fields?.acPayee),
         },
     };
 };

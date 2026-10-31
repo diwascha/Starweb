@@ -17,6 +17,8 @@
  * stylesheets every time, so a print always looks like the screen.
  */
 
+import { escapeHtml } from '@/lib/utils';
+
 export interface PrintOptions {
     /** Window title, which most browsers use as the default filename when
      *  the user prints to PDF. */
@@ -68,7 +70,7 @@ export const printElement = (
     ).map(node => node.outerHTML).join('');
 
     win.document.write(
-        `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>` +
+        `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>` +
         `${styles}<style>${DEFAULT_PAGE_CSS}${extraCss}</style>` +
         `</head><body>${element.outerHTML}</body></html>`
     );
